@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 
 ## Current Position
 
-Phase: 3 of 7 (Criteria Extraction Workflow) -- COMPLETE
-Plan: 2 of 2 in current phase (Phase complete)
+Phase: 4 of 7 (Criteria Review UI)
+Plan: 1 of 2 in current phase
 Status: Active
-Last activity: 2026-02-11 -- Completed 03-02-PLAN.md (LangGraph nodes and extraction pipeline)
+Last activity: 2026-02-11 -- Completed 04-01-PLAN.md (Review API endpoints and hooks)
 
-Progress: [██████░░░░] 50%
+Progress: [███████░░░] 58%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
-- Average duration: 4.2 min
-- Total execution time: 0.42 hours
+- Total plans completed: 7
+- Average duration: 4.0 min
+- Total execution time: 0.47 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Progress: [██████░░░░] 50%
 | 01-infrastructure-data-models | 2 | 7 min | 3.5 min |
 | 02-protocol-upload-storage | 2 | 7 min | 3.5 min |
 | 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
+| 04-hitl-review-ui | 1 | 3 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-01 (3 min), 02-02 (4 min), 03-01 (5 min), 03-02 (9 min)
-- Trend: Slightly increasing (Phase 3 complexity higher)
+- Last 5 plans: 02-02 (4 min), 03-01 (5 min), 03-02 (9 min), 04-01 (3 min)
+- Trend: Phase 4 Plan 1 fast (API/hooks only, no UI)
 
 *Updated after each plan completion*
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - [03-02]: Added langchain-google-vertexai to root pyproject.toml for workspace-wide availability
 - [03-02]: Parse node uses pure Python post-processing (no LLM) for assertion refinement and dedup
 - [03-02]: Conditional error routing after ingest and extract; parse->queue always proceeds
+- [04-01]: Extracted batch status update and action application into helper functions to pass ruff C901 complexity check
+- [04-01]: Used col() wrapper for SQLModel column ordering and IS NOT NULL checks for type safety
+- [04-01]: PDF URL staleTime set to 50 minutes (URL expires in 60) to prevent stale signed URLs
 
 ### Pending Todos
 
@@ -84,5 +88,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 03-02-PLAN.md (Phase 3 complete)
+Stopped at: Completed 04-01-PLAN.md
 Resume file: None
