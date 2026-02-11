@@ -3,9 +3,13 @@ import { useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, useParams } from 'react-router-dom';
 
+import * as Tabs from '@radix-ui/react-tabs';
 import CriterionCard from '../components/CriterionCard';
+import EntityCard from '../components/EntityCard';
 import PdfViewer from '../components/PdfViewer';
 import { Button } from '../components/ui/Button';
+import type { EntityActionRequest, EntityResponse } from '../hooks/useEntities';
+import { useEntityAction, useEntityListByBatch } from '../hooks/useEntities';
 import type { ReviewActionRequest } from '../hooks/useReviews';
 import {
     useAuditLog,
@@ -31,6 +35,7 @@ export default function ReviewPage() {
     const [sortBy, setSortBy] = useState('confidence');
     const [sortOrder, setSortOrder] = useState('asc');
     const [auditOpen, setAuditOpen] = useState(false);
+    const [activeTab, setActiveTab] = useState('criteria');
 
     // Fetch batch criteria
     const {
@@ -49,6 +54,10 @@ export default function ReviewPage() {
     // Review action mutation
     const reviewAction = useReviewAction();
 
+    // Entity data
+    const { data: entities } = useEntityListByBatch(batchId ?? '');
+    const entityAction = useEntityAction();
+
     // Audit log
     const { data: auditData } = useAuditLog(1, 20, 'criteria');
 
@@ -56,9 +65,24 @@ export default function ReviewPage() {
         reviewAction.mutate({ criteriaId: criterionId, ...action });
     }
 
+    function handleEntityAction(entityId: string, action: EntityActionRequest) {
+        entityAction.mutate({ entityId, ...action });
+    }
+
     const reviewedCount = criteria?.filter((c) => c.review_status !== null).length ?? 0;
     const totalCount = criteria?.length ?? 0;
     const progressPercent = totalCount > 0 ? Math.round((reviewedCount / totalCount) * 100) : 0;
+
+    // Group entities by criteria_id
+    const groupedEntities: Record<string, EntityResponse[]> = {};
+    if (entities) {
+        for (const entity of entities) {
+            if (!groupedEntities[entity.criteria_id]) {
+                groupedEntities[entity.criteria_id] = [];
+            }
+            groupedEntities[entity.criteria_id]?.push(entity);
+        }
+    }
 
     if (criteriaLoading) {
         return (
@@ -116,7 +140,7 @@ export default function ReviewPage() {
 
                 <PanelResizeHandle className="w-1 bg-border hover:bg-primary/20 transition-colors" />
 
-                {/* Right panel: Criteria Review */}
+                {/* Right panel: Criteria and Entities Review */}
                 <Panel defaultSize={50} minSize={30}>
                     <div className="h-full overflow-auto">
                         {/* Header */}
@@ -165,107 +189,174 @@ export default function ReviewPage() {
                                     />
                                 </div>
                             </div>
-
-                            {/* Sort controls */}
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-muted-foreground">Sort by:</span>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                                >
-                                    {SORT_OPTIONS.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                            {opt.label}
-                                        </option>
-                                    ))}
-                                </select>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                        setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))
-                                    }
-                                >
-                                    {sortOrder === 'asc' ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                        <ChevronDown className="h-4 w-4" />
-                                    )}
-                                </Button>
-                            </div>
                         </div>
 
-                        {/* Criteria cards */}
-                        <div className="p-4 space-y-4">
-                            {criteria && criteria.length > 0 ? (
-                                criteria.map((criterion) => (
-                                    <CriterionCard
-                                        key={criterion.id}
-                                        criterion={criterion}
-                                        onAction={handleAction}
-                                        isSubmitting={reviewAction.isPending}
-                                    />
-                                ))
-                            ) : (
-                                <div className="text-center py-8">
-                                    <p className="text-muted-foreground">
-                                        No criteria found for this batch
-                                    </p>
-                                </div>
-                            )}
-
-                            {/* Audit trail section */}
-                            <div className="mt-6 border-t pt-4">
-                                <button
-                                    type="button"
-                                    className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-                                    onClick={() => setAuditOpen(!auditOpen)}
-                                >
-                                    {auditOpen ? (
-                                        <ChevronUp className="h-4 w-4" />
-                                    ) : (
-                                        <ChevronDown className="h-4 w-4" />
+                        {/* Tabs for Criteria and Entities */}
+                        <Tabs.Root value={activeTab} onValueChange={setActiveTab}>
+                            <Tabs.List className="flex border-b bg-card px-4">
+                                <Tabs.Trigger
+                                    value="criteria"
+                                    className={cn(
+                                        'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                                        activeTab === 'criteria'
+                                            ? 'border-primary text-foreground'
+                                            : 'border-transparent text-muted-foreground hover:text-foreground'
                                     )}
-                                    Audit Trail
-                                </button>
+                                >
+                                    Criteria
+                                </Tabs.Trigger>
+                                <Tabs.Trigger
+                                    value="entities"
+                                    className={cn(
+                                        'px-4 py-2 text-sm font-medium border-b-2 transition-colors',
+                                        activeTab === 'entities'
+                                            ? 'border-primary text-foreground'
+                                            : 'border-transparent text-muted-foreground hover:text-foreground'
+                                    )}
+                                >
+                                    Entities
+                                </Tabs.Trigger>
+                            </Tabs.List>
 
-                                {auditOpen && auditData && (
-                                    <div className="mt-3 space-y-2">
-                                        {auditData.items.length === 0 ? (
-                                            <p className="text-sm text-muted-foreground">
-                                                No audit entries yet
-                                            </p>
+                            {/* Criteria Tab Content */}
+                            <Tabs.Content value="criteria" className="p-4">
+                                {/* Sort controls */}
+                                <div className="flex items-center gap-2 mb-4">
+                                    <span className="text-sm text-muted-foreground">Sort by:</span>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                                    >
+                                        {SORT_OPTIONS.map((opt) => (
+                                            <option key={opt.value} value={opt.value}>
+                                                {opt.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() =>
+                                            setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))
+                                        }
+                                    >
+                                        {sortOrder === 'asc' ? (
+                                            <ChevronUp className="h-4 w-4" />
                                         ) : (
-                                            auditData.items.map((entry) => (
-                                                <div
-                                                    key={entry.id}
-                                                    className="flex items-start gap-3 rounded-md border bg-muted/30 px-3 py-2 text-xs"
-                                                >
-                                                    <span className="text-muted-foreground whitespace-nowrap">
-                                                        {formatTimestamp(entry.created_at)}
-                                                    </span>
-                                                    <span className="font-medium">
-                                                        {entry.event_type}
-                                                    </span>
-                                                    {entry.actor_id && (
-                                                        <span className="text-muted-foreground">
-                                                            by {entry.actor_id}
-                                                        </span>
-                                                    )}
-                                                    {entry.target_type && entry.target_id && (
-                                                        <span className="text-muted-foreground">
-                                                            on {entry.target_type}:
-                                                            {entry.target_id.slice(0, 8)}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            ))
+                                            <ChevronDown className="h-4 w-4" />
+                                        )}
+                                    </Button>
+                                </div>
+
+                                {/* Criteria cards */}
+                                <div className="space-y-4">
+                                    {criteria && criteria.length > 0 ? (
+                                        criteria.map((criterion) => (
+                                            <CriterionCard
+                                                key={criterion.id}
+                                                criterion={criterion}
+                                                onAction={handleAction}
+                                                isSubmitting={reviewAction.isPending}
+                                            />
+                                        ))
+                                    ) : (
+                                        <div className="text-center py-8">
+                                            <p className="text-muted-foreground">
+                                                No criteria found for this batch
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    {/* Audit trail section */}
+                                    <div className="mt-6 border-t pt-4">
+                                        <button
+                                            type="button"
+                                            className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                                            onClick={() => setAuditOpen(!auditOpen)}
+                                        >
+                                            {auditOpen ? (
+                                                <ChevronUp className="h-4 w-4" />
+                                            ) : (
+                                                <ChevronDown className="h-4 w-4" />
+                                            )}
+                                            Audit Trail
+                                        </button>
+
+                                        {auditOpen && auditData && (
+                                            <div className="mt-3 space-y-2">
+                                                {auditData.items.length === 0 ? (
+                                                    <p className="text-sm text-muted-foreground">
+                                                        No audit entries yet
+                                                    </p>
+                                                ) : (
+                                                    auditData.items.map((entry) => (
+                                                        <div
+                                                            key={entry.id}
+                                                            className="flex items-start gap-3 rounded-md border bg-muted/30 px-3 py-2 text-xs"
+                                                        >
+                                                            <span className="text-muted-foreground whitespace-nowrap">
+                                                                {formatTimestamp(entry.created_at)}
+                                                            </span>
+                                                            <span className="font-medium">
+                                                                {entry.event_type}
+                                                            </span>
+                                                            {entry.actor_id && (
+                                                                <span className="text-muted-foreground">
+                                                                    by {entry.actor_id}
+                                                                </span>
+                                                            )}
+                                                            {entry.target_type &&
+                                                                entry.target_id && (
+                                                                    <span className="text-muted-foreground">
+                                                                        on {entry.target_type}:
+                                                                        {entry.target_id.slice(
+                                                                            0,
+                                                                            8
+                                                                        )}
+                                                                    </span>
+                                                                )}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
                                         )}
                                     </div>
+                                </div>
+                            </Tabs.Content>
+
+                            {/* Entities Tab Content */}
+                            <Tabs.Content value="entities" className="p-4">
+                                {entities && entities.length > 0 ? (
+                                    <div className="space-y-6">
+                                        {Object.entries(groupedEntities).map(
+                                            ([criteriaId, criteriaEntities]) =>
+                                                criteriaEntities ? (
+                                                    <div key={criteriaId} className="space-y-3">
+                                                        <h3 className="text-sm font-medium text-muted-foreground">
+                                                            Criterion: {criteriaId.slice(0, 8)}...
+                                                        </h3>
+                                                        {criteriaEntities.map((entity) => (
+                                                            <EntityCard
+                                                                key={entity.id}
+                                                                entity={entity}
+                                                                onAction={handleEntityAction}
+                                                                isSubmitting={entityAction.isPending}
+                                                            />
+                                                        ))}
+                                                    </div>
+                                                ) : null
+                                        )}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-8">
+                                        <p className="text-muted-foreground">
+                                            No entities found for this batch
+                                        </p>
+                                    </div>
                                 )}
-                            </div>
-                        </div>
+                            </Tabs.Content>
+                        </Tabs.Root>
                     </div>
                 </Panel>
             </PanelGroup>
