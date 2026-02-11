@@ -60,7 +60,7 @@ dev = [
 [tool.uv.workspace]
 members = [
     "services/api-service",
-    "services/agent-a-service",
+    "services/extraction-service",
     "services/agent-b-service",
     "services/umls-mcp-server",
     "libs/data-pipeline",
@@ -123,8 +123,8 @@ ignore_missing_imports = true
 module = [
     "data_pipeline",
     "data_pipeline.load_data",
-    "agent_a_service",
-    "agent_a_service.*",
+    "extraction_service",
+    "extraction_service.*",
     "agent_b_service",
     "agent_b_service.*",
     "umls_mcp_server",
@@ -177,7 +177,7 @@ filterwarnings = [
 ]
 pythonpath = [
     "services/api-service/src",
-    "services/agent-a-service/src",
+    "services/extraction-service/src",
     "services/agent-b-service/src",
     "services/umls-mcp-server/src",
     "libs/data-pipeline/src",
@@ -194,7 +194,7 @@ addopts = "-n auto"
 [tool.coverage.run]
 source = [
     "services/api-service/src",
-    "services/agent-a-service/src",
+    "services/extraction-service/src",
     "services/agent-b-service/src",
     "services/umls-mcp-server/src",
     "libs/data-pipeline/src",

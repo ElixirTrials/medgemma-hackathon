@@ -105,7 +105,7 @@ nav:
 - Onboarding: onboarding.md
 - Components:
   - Overview: components-overview.md
-  - agent-a-service: !include './services/agent-a-service/mkdocs.yml'
+  - extraction-service: !include './services/extraction-service/mkdocs.yml'
   - agent-b-service: !include './services/agent-b-service/mkdocs.yml'
   - api-service: !include './services/api-service/mkdocs.yml'
   - data-pipeline: !include './libs/data-pipeline/mkdocs.yml'
