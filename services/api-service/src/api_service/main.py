@@ -4,6 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Set
 
+from agent_a_service.trigger import handle_protocol_uploaded
 from events_py.outbox import OutboxProcessor
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -33,7 +34,12 @@ async def lifespan(app: FastAPI):
     logger.info("Database initialized successfully")
 
     # Start outbox processor as background task
-    processor = OutboxProcessor(engine=engine, handlers={})
+    processor = OutboxProcessor(
+        engine=engine,
+        handlers={
+            "protocol_uploaded": [handle_protocol_uploaded],
+        },
+    )
     task = asyncio.create_task(processor.start())
     _running_tasks.add(task)
     task.add_done_callback(_running_tasks.discard)
