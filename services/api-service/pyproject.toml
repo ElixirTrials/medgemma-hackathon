@@ -37,6 +37,7 @@ packages = ["src/api_service"]
 lint.select = ["E", "F", "W", "C", "N", "I", "D"]
 lint.ignore = ["E203", "D203", "D213", "D100", "D413", "D104"]
 lint.pydocstyle.convention = "google"
+lint.per-file-ignores = {"tests/**" = ["D102", "D103"]}
 target-version = "py312"
 line-length = 88
 exclude = ["venv", ".venv", "docs"]
