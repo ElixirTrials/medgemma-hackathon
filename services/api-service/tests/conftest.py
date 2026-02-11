@@ -11,7 +11,11 @@ Best Practices:
 - Keep fixtures focused and composable
 """
 
+import os
 from typing import AsyncGenerator, Generator
+
+# Set DATABASE_URL before any app imports (storage.py requires it at import time)
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 import pytest
 from fastapi.testclient import TestClient
