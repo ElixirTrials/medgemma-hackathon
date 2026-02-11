@@ -138,7 +138,9 @@ export default function ProtocolList() {
             {data && data.items.length === 0 && (
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                     <p className="text-lg text-muted-foreground mb-4">
-                        No protocols uploaded yet. Click Upload Protocol to get started.
+                        {statusFilter
+                            ? `No ${statusFilter} protocols found.`
+                            : 'No protocols uploaded yet. Click Upload Protocol to get started.'}
                     </p>
                     <Button onClick={() => setUploadOpen(true)}>Upload Protocol</Button>
                 </div>
