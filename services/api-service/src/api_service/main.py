@@ -16,8 +16,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from api_service.auth import router as auth_router
 from api_service.dependencies import get_current_user, get_db
+from api_service.entities import router as entities_router
 from api_service.protocols import router as protocols_router
 from api_service.reviews import router as reviews_router
+from api_service.search import router as search_router
 from api_service.storage import create_db_and_tables, engine
 
 # Setup basic logging
@@ -87,6 +89,8 @@ app.include_router(auth_router)
 # Mount protected routers (all endpoints require auth)
 app.include_router(protocols_router, dependencies=[Depends(get_current_user)])
 app.include_router(reviews_router, dependencies=[Depends(get_current_user)])
+app.include_router(entities_router, dependencies=[Depends(get_current_user)])
+app.include_router(search_router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health")
