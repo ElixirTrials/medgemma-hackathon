@@ -138,8 +138,8 @@ graph TD
 ### AI Agent Services
 | Component | Purpose | Path |
 | :--- | :--- | :--- |
-| **agent-a-service** | Guest interaction agent using LangGraph flows. | [agent-a-service](services/agent-a-service/) |
-| **agent-b-service** | Guardrail agent to validate outputs and ensure safety. | [agent-b-service](services/agent-b-service/) |
+| **extraction-service** | Criteria extraction from protocol PDFs using Gemini. | [extraction-service](services/extraction-service/) |
+| **grounding-service** | Entity grounding to SNOMED using MedGemma and UMLS MCP. | [grounding-service](services/grounding-service/) |
 
 ### Data & Infrastructure
 | Component | Purpose | Path |
