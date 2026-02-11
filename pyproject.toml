@@ -42,6 +42,9 @@ dependencies = [
     "langchain-google-vertexai>=3.2.1",
     "fastmcp",
     "langchain-mcp-adapters",
+    "authlib>=1.3.0",
+    "PyJWT>=2.8.0",
+    "itsdangerous>=2.1.0",
 ]
 
 [dependency-groups]
@@ -116,6 +119,10 @@ module = [
     "google.cloud.*",
     "jinja2",
     "jinja2.*",
+    "authlib",
+    "authlib.*",
+    "jwt",
+    "jwt.*",
 ]
 ignore_missing_imports = true
 

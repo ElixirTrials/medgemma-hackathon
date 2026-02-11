@@ -123,6 +123,20 @@ class AuditLog(SQLModel, table=True):
     created_at: datetime = Field(sa_column=_ts_col())
 
 
+class User(SQLModel, table=True):
+    """Authenticated user account."""
+
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    email: str = Field(
+        sa_column=Column(String, unique=True, nullable=False, index=True)
+    )
+    name: str | None = Field(default=None)
+    picture_url: str | None = Field(default=None)
+    is_active: bool = Field(default=True)
+    created_at: datetime = Field(sa_column=_ts_col())
+    updated_at: datetime = Field(sa_column=_ts_col_update())
+
+
 class OutboxEvent(SQLModel, table=True):
     """Transactional outbox for event publishing."""
 
