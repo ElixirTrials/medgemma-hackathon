@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 5 - Entity Grounding Workflow
+**Current focus:** Phase 5 complete. Ready for Phase 6.
 
 ## Current Position
 
-Phase: 5 of 7 (Entity Grounding Workflow)
-Plan: 2 of 3 in current phase
-Status: In Progress
-Last activity: 2026-02-11 -- Completed 05-02-PLAN.md (Agent-B foundation: state, schemas, prompts, trigger, UMLS client)
+Phase: 5 of 7 (Entity Grounding Workflow) -- COMPLETE
+Plan: 3 of 3 in current phase (all complete)
+Status: Phase Complete
+Last activity: 2026-02-11 -- Completed 05-03-PLAN.md (Grounding workflow nodes, graph assembly, event handler wiring)
 
-Progress: [██████████████] 83%
+Progress: [███████████████] 86%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
-- Average duration: 4.3 min
-- Total execution time: 0.72 hours
+- Total plans completed: 11
+- Average duration: 4.5 min
+- Total execution time: 0.82 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [██████████████] 83%
 | 02-protocol-upload-storage | 2 | 7 min | 3.5 min |
 | 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
 | 04-hitl-review-ui | 2 | 7 min | 3.5 min |
-| 05-entity-grounding-workflow | 2 | 11 min | 5.5 min |
+| 05-entity-grounding-workflow | 3 | 19 min | 6.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01 (3 min), 04-02 (4 min), 05-01 (5 min), 05-02 (6 min)
-- Trend: Steady pace, agent-b foundation complete
+- Last 5 plans: 04-02 (4 min), 05-01 (5 min), 05-02 (6 min), 05-03 (8 min)
+- Trend: Steady pace, Phase 5 entity grounding complete
 
 *Updated after each plan completion*
 
@@ -81,6 +81,9 @@ Recent decisions affecting current work:
 - [05-02]: UMLS client mock mode returns True/placeholder SNOMED when no API key set for local dev
 - [05-02]: Entity schemas use 2-level nesting max (Batch -> Result -> Entity) matching Phase 3 constraint
 - [05-02]: Preserved placeholder graph topology; real 4-node graph deferred to 05-03
+- [05-03]: MCP grounding with direct UMLS client fallback for resilience when MCP server unavailable
+- [05-03]: Helper function extraction to pass ruff C901 complexity (max 10) in extract_entities and validate_confidence
+- [05-03]: context_window stored as dict wrapper {"text": "..."} to match Entity model JSON column
 
 ### Pending Todos
 
@@ -94,10 +97,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- ~~Phase 5 (Grounding) needs research-phase~~ Research complete. UMLS MCP server built (05-01). Agent-B foundation complete (05-02). Graph nodes and assembly remaining (05-03).
+- ~~Phase 5 (Grounding) needs research-phase~~ Research complete. UMLS MCP server built (05-01). Agent-B foundation complete (05-02). Graph nodes and assembly complete (05-03). Phase 5 fully done.
 
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05-02-PLAN.md (Agent-B foundation)
+Stopped at: Completed 05-03-PLAN.md (Grounding workflow nodes, graph assembly, event handler wiring). Phase 5 complete.
 Resume file: None
