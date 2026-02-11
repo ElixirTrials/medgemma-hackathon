@@ -98,9 +98,7 @@ def create_domain_event(
         Domain event envelope dict.
     """
     eid = event_id or str(uuid4())
-    ikey = idempotency_key or (
-        f"{event_type.value}:{aggregate_id}:{uuid4()}"
-    )
+    ikey = idempotency_key or (f"{event_type.value}:{aggregate_id}:{uuid4()}")
     return {
         "id": eid,
         "event_type": event_type.value,

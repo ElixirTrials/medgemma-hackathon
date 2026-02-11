@@ -23,9 +23,7 @@ from alembic import context
 config = context.config
 
 # Override sqlalchemy.url from environment variable
-database_url = os.getenv(
-    "DATABASE_URL", "sqlite:///./database.db"
-)
+database_url = os.getenv("DATABASE_URL", "sqlite:///./database.db")
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
@@ -69,9 +67,7 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
     """
     connectable = engine_from_config(
-        config.get_section(
-            config.config_ini_section, {}
-        ),
+        config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

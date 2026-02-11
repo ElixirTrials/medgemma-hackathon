@@ -255,9 +255,7 @@ def list_protocols(
     )
 
 
-@router.get(
-    "/{protocol_id}", response_model=ProtocolResponse
-)
+@router.get("/{protocol_id}", response_model=ProtocolResponse)
 def get_protocol(
     protocol_id: str,
     db: Session = Depends(get_db),
