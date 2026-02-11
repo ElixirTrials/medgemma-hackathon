@@ -12,7 +12,7 @@ from extraction_service.schemas.criteria import (
     NumericThreshold,
     TemporalConstraint,
 )
-from agent_b_service.schemas.entities import (
+from grounding_service.schemas.entities import (
     BatchEntityExtractionResult,
     EntityExtractionResult,
     EntityType,
