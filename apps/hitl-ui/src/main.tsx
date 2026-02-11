@@ -22,7 +22,7 @@ if (!rootElement) throw new Error('Root element not found');
 createRoot(rootElement).render(
     <StrictMode>
         <QueryClientProvider client={queryClient}>
-            <BrowserRouter>
+            <BrowserRouter basename="/demo-app">
                 <App />
             </BrowserRouter>
             <ReactQueryDevtools initialIsOpen={false} />
