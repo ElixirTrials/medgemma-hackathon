@@ -5,8 +5,8 @@ Provides utilities for:
 - Generating signed download URLs for reading stored PDFs
 - Setting custom metadata on GCS blobs
 
-Falls back to mock URLs when GCS_BUCKET_NAME is not configured,
-allowing local development without GCS credentials.
+Requires GCS_BUCKET_NAME environment variable and valid GCP credentials.
+Raises ValueError when not configured.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ def get_gcs_client():
         except Exception:
             logger.warning(
                 "Could not initialize GCS client. "
-                "GCS operations will use mock fallback."
+                "GCS operations will fail until GCP credentials are configured."
             )
             _gcs_client = None
     return _gcs_client
@@ -107,26 +107,12 @@ def generate_upload_url(
     """
     blob_path = f"protocols/{uuid4()}/{filename}"
 
-    # Check if GCS is configured
-    bucket_name = os.getenv("GCS_BUCKET_NAME")
-    if not bucket_name:
-        mock_path = f"local://protocols/{uuid4()}/{filename}"
-        logger.warning(
-            "GCS_BUCKET_NAME not set. Returning mock upload URL "
-            "for local development. File: %s",
-            filename,
-        )
-        return ("http://localhost:8000/mock-upload", mock_path)
-
+    bucket_name = get_bucket_name()
     client = get_gcs_client()
     if client is None:
-        mock_path = f"local://protocols/{uuid4()}/{filename}"
-        logger.warning(
-            "GCS client unavailable. Returning mock upload URL "
-            "for local development. File: %s",
-            filename,
+        raise ValueError(
+            "GCS client initialization failed. Check GCP credentials."
         )
-        return ("http://localhost:8000/mock-upload", mock_path)
 
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
@@ -153,17 +139,16 @@ def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
         ValueError: If GCS URI is invalid.
     """
     if gcs_path.startswith("local://"):
-        logger.warning("Skipping metadata set for local path: %s", gcs_path)
-        return
+        raise ValueError(
+            f"Invalid GCS path: {gcs_path}. Mock paths are no longer supported."
+        )
 
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
     client = get_gcs_client()
     if client is None:
-        logger.warning(
-            "GCS client unavailable. Skipping metadata set for: %s",
-            gcs_path,
+        raise ValueError(
+            "GCS client unavailable. Cannot set metadata."
         )
-        return
 
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
@@ -186,20 +171,16 @@ def generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
         ValueError: If GCS URI is invalid.
     """
     if gcs_path.startswith("local://"):
-        logger.warning(
-            "Returning mock download URL for local path: %s",
-            gcs_path,
+        raise ValueError(
+            f"Invalid GCS path: {gcs_path}. Mock paths are no longer supported."
         )
-        return "http://localhost:8000/mock-download"
 
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
     client = get_gcs_client()
     if client is None:
-        logger.warning(
-            "GCS client unavailable. Returning mock download URL for: %s",
-            gcs_path,
+        raise ValueError(
+            "GCS client unavailable. Check GCP credentials."
         )
-        return "http://localhost:8000/mock-download"
 
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
