@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Set
 
 from extraction_service.trigger import handle_protocol_uploaded
-from agent_b_service.trigger import handle_criteria_extracted
+from grounding_service.trigger import handle_criteria_extracted
 from events_py.outbox import OutboxProcessor
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware

@@ -55,7 +55,7 @@ pythonpath = [
     "../inference/src",
     "../../libs/events-py/src",
     "../extraction-service/src",
-    "../agent-b-service/src",
+    "../grounding-service/src",
 ]
 testpaths = ["tests"]
 # Coverage is optional - use `pytest --cov=api_service` to enable
