@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from inference.factory import render_prompts
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
@@ -56,9 +56,11 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
 
         # Handle both Pydantic model and dict responses
         if isinstance(result, dict):
-            result = ExtractionResult(**result)
+            extraction_result = ExtractionResult(**result)
+        else:
+            extraction_result = cast(ExtractionResult, result)
 
-        criteria_dicts = [c.model_dump() for c in result.criteria]
+        criteria_dicts = [c.model_dump() for c in extraction_result.criteria]
 
         logger.info(
             "Extracted %d criteria from protocol %s",
