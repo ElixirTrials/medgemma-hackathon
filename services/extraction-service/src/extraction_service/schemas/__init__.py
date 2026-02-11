@@ -1,6 +1,6 @@
 """Pydantic schemas for Gemini structured output."""
 
-from agent_a_service.schemas.criteria import (
+from extraction_service.schemas.criteria import (
     AssertionStatus,
     ExtractedCriterion,
     ExtractionResult,

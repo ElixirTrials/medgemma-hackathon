@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from agent_a_service.state import ExtractionState
+from extraction_service.state import ExtractionState
 
 logger = logging.getLogger(__name__)
 
