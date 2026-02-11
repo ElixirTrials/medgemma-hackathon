@@ -15,7 +15,7 @@ from typing import Any, Dict, Literal
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from shared.models import AuditLog, Criteria, Entity, Review
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from api_service.dependencies import get_current_user, get_db
 
@@ -82,7 +82,7 @@ def list_entities_for_criteria(
     stmt = (
         select(Entity)
         .where(Entity.criteria_id == criteria_id)
-        .order_by(Entity.span_start.asc())  # type: ignore[attr-defined]
+        .order_by(col(Entity.span_start).asc())
     )
     entities = db.exec(stmt).all()
 
@@ -103,11 +103,11 @@ def list_entities_for_batch(
     # Build query joining Entity and Criteria
     stmt = (
         select(Entity)
-        .join(Criteria, Entity.criteria_id == Criteria.id)
-        .where(Criteria.batch_id == batch_id)
+        .join(Criteria, col(Entity.criteria_id) == col(Criteria.id))
+        .where(col(Criteria.batch_id) == batch_id)
         .order_by(
-            Entity.criteria_id.asc(),  # type: ignore[attr-defined]
-            Entity.span_start.asc(),  # type: ignore[attr-defined]
+            col(Entity.criteria_id).asc(),
+            col(Entity.span_start).asc(),
         )
     )
     entities = db.exec(stmt).all()

@@ -8,6 +8,8 @@ dependencies = [
     "shared",
     "inference",
     "events-py",
+    "extraction-service",
+    "grounding-service",
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
     "sqlalchemy>=2.0.0",
@@ -77,3 +79,5 @@ filterwarnings = [
 shared = { workspace = true }
 inference = { workspace = true }
 events-py = { workspace = true }
+extraction-service = { workspace = true }
+grounding-service = { workspace = true }

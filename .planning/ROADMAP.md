@@ -20,7 +20,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5.1: Error Handling Hardening** - INSERTED: Remove mock fallbacks, fix silent error swallowing, fix mypy errors
 - [x] **Phase 5.2: Test Coverage** - INSERTED: Replace boilerplate tests with real tests across all services
 - [x] **Phase 5.3: Rename Services and Docs to Implementation Names** - INSERTED: Replace template names (agent-a/agent-b) with domain names (extraction-service/grounding-service) and fix all docs
-- [ ] **Phase 6: Entity Approval, Auth & Search** - Complete the loop: entity approval UI, authentication, and search
+- [x] **Phase 6: Entity Approval, Auth & Search** - Complete the loop: entity approval UI, authentication, and search
 - [ ] **Phase 7: Production Hardening** - Reliability: retry logic, error handling, and pipeline success targets
 
 ## Phase Details
@@ -172,12 +172,11 @@ Plans:
   1. Researcher logs in via Google OAuth, receives a JWT, and all API endpoints require valid authentication
   2. Entity list view displays SNOMED badge (code + preferred term) with human-readable labels, and researcher can approve, reject, or modify each entity mapping individually
   3. Full-text search via GET /criteria/search?q= returns relevance-ranked results with filters for protocol, criteria type, and approval status, backed by GIN index on criteria text
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
-- [ ] 06-03: TBD
+- [x] 06-01-PLAN.md -- Backend: Google OAuth + JWT auth, entity approval endpoints, full-text search with GIN index
+- [x] 06-02-PLAN.md -- Frontend: Auth flow + entity approval UI with SNOMED badges + search page with filters
 
 ### Phase 7: Production Hardening
 **Goal**: The end-to-end pipeline achieves target reliability and performance metrics for the 50-protocol pilot
@@ -258,5 +257,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 5.1 -> 5.2 -> 5.3 -> 6
 | 5.1 Error Handling Hardening | 1/1 | Complete | 2026-02-11 |
 | 5.2 Test Coverage | 3/3 | Complete | 2026-02-11 |
 | 5.3 Rename Services and Docs | 3/3 | Complete | 2026-02-11 |
-| 6. Entity Approval, Auth & Search | 0/TBD | Not started | - |
+| 6. Entity Approval, Auth & Search | 2/2 | Complete | 2026-02-11 |
 | 7. Production Hardening | 0/TBD | Not started | - |

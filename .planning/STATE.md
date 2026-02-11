@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 6 - Entity Approval, Auth & Search
+**Current focus:** Phase 7 - Production Hardening
 
 ## Current Position
 
-Phase: 6 of 7+3 (Entity Approval, Auth & Search)
-Plan: 2 of 2
-Status: Phase 6 complete (backend + frontend for auth, entity approval, search)
-Last activity: 2026-02-11 -- Phase 6.2 complete: Frontend UI for auth, entity approval, and search
+Phase: 7 of 7+3 (Production Hardening)
+Plan: 0 of TBD
+Status: Phase 6 complete, Phase 7 not yet planned
+Last activity: 2026-02-11 -- Phase 6 complete, verified, ready for Phase 7
 
-Progress: [█████████████████] 100%
+Progress: [█████████████████░] 97%
 
 ## Performance Metrics
 
@@ -132,5 +132,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Phase 06-02 complete. Frontend UI complete with login page, auth state (JWT in localStorage), entity approval UI (SNOMED badge, UMLS link), and search page with filters. Phase 6 fully complete (backend + frontend).
+Stopped at: Phase 6 complete and verified (7/7 must-haves passed). Ready for Phase 7 (Production Hardening).
 Resume file: None

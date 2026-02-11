@@ -208,6 +208,7 @@ class TestGetUmlsClient:
 class TestAgentBValidateCui:
     """Tests for grounding_service.umls_client.validate_cui()."""
 
+    @pytest.mark.asyncio
     async def test_returns_true_when_cui_exists(self, monkeypatch) -> None:
         monkeypatch.setenv("UMLS_API_KEY", "test-key")
         from grounding_service.umls_client import validate_cui
@@ -223,6 +224,7 @@ class TestAgentBValidateCui:
         assert result is True
         mock_client.close.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_returns_false_when_cui_not_found(self, monkeypatch) -> None:
         monkeypatch.setenv("UMLS_API_KEY", "test-key")
         from grounding_service.umls_client import validate_cui
@@ -238,6 +240,7 @@ class TestAgentBValidateCui:
         assert result is False
         mock_client.close.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_empty_cui_returns_false_without_api_call(self, monkeypatch) -> None:
         monkeypatch.setenv("UMLS_API_KEY", "test-key")
         from grounding_service.umls_client import validate_cui
@@ -245,6 +248,7 @@ class TestAgentBValidateCui:
         result = await validate_cui("")
         assert result is False
 
+    @pytest.mark.asyncio
     async def test_raises_when_api_key_not_set(self, monkeypatch) -> None:
         monkeypatch.delenv("UMLS_API_KEY", raising=False)
         from grounding_service.umls_client import validate_cui
@@ -256,6 +260,7 @@ class TestAgentBValidateCui:
 class TestAgentBGetSnomedCodeForCui:
     """Tests for grounding_service.umls_client.get_snomed_code_for_cui()."""
 
+    @pytest.mark.asyncio
     async def test_returns_snomed_code(self, monkeypatch) -> None:
         monkeypatch.setenv("UMLS_API_KEY", "test-key")
         from grounding_service.umls_client import get_snomed_code_for_cui
@@ -271,6 +276,7 @@ class TestAgentBGetSnomedCodeForCui:
         assert code == "73211009"
         mock_client.close.assert_called_once()
 
+    @pytest.mark.asyncio
     async def test_empty_cui_returns_none(self, monkeypatch) -> None:
         monkeypatch.setenv("UMLS_API_KEY", "test-key")
         from grounding_service.umls_client import get_snomed_code_for_cui
@@ -278,6 +284,7 @@ class TestAgentBGetSnomedCodeForCui:
         result = await get_snomed_code_for_cui("")
         assert result is None
 
+    @pytest.mark.asyncio
     async def test_raises_when_api_key_not_set(self, monkeypatch) -> None:
         monkeypatch.delenv("UMLS_API_KEY", raising=False)
         from grounding_service.umls_client import get_snomed_code_for_cui
