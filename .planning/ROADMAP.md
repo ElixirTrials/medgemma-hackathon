@@ -17,9 +17,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Criteria Extraction Workflow** - Core AI: Gemini-based structured criteria extraction via extraction-service
 - [x] **Phase 4: HITL Review UI** - Human validation: side-by-side PDF viewer with criteria review
 - [x] **Phase 5: Entity Grounding Workflow** - Medical AI: MedGemma entity extraction and UMLS grounding via grounding-service
-- [ ] **Phase 5.1: Error Handling Hardening** - INSERTED: Remove mock fallbacks, fix silent error swallowing, fix mypy errors
+- [x] **Phase 5.1: Error Handling Hardening** - INSERTED: Remove mock fallbacks, fix silent error swallowing, fix mypy errors
 - [x] **Phase 5.2: Test Coverage** - INSERTED: Replace boilerplate tests with real tests across all services
-- [ ] **Phase 5.3: Rename Services and Docs to Implementation Names** - INSERTED: Replace template names (agent-a/agent-b) with domain names (extraction-service/grounding-service) and fix all docs
+- [x] **Phase 5.3: Rename Services and Docs to Implementation Names** - INSERTED: Replace template names (agent-a/agent-b) with domain names (extraction-service/grounding-service) and fix all docs
 - [ ] **Phase 6: Entity Approval, Auth & Search** - Complete the loop: entity approval UI, authentication, and search
 - [ ] **Phase 7: Production Hardening** - Reliability: retry logic, error handling, and pipeline success targets
 
@@ -255,8 +255,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 5.1 -> 5.2 -> 5.3 -> 6
 | 3. Criteria Extraction Workflow | 2/2 | Complete | 2026-02-11 |
 | 4. HITL Review UI | 2/2 | Complete | 2026-02-11 |
 | 5. Entity Grounding Workflow | 3/3 | Complete | 2026-02-11 |
-| 5.1 Error Handling Hardening | 0/1 | Not started | - |
+| 5.1 Error Handling Hardening | 1/1 | Complete | 2026-02-11 |
 | 5.2 Test Coverage | 3/3 | Complete | 2026-02-11 |
-| 5.3 Rename Services and Docs | 0/3 | Not started | - |
+| 5.3 Rename Services and Docs | 3/3 | Complete | 2026-02-11 |
 | 6. Entity Approval, Auth & Search | 0/TBD | Not started | - |
 | 7. Production Hardening | 0/TBD | Not started | - |
