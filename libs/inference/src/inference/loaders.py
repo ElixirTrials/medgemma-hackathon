@@ -26,10 +26,9 @@ def get_llm() -> Any:
 
         return ChatVertexAI(model_name="gemini-1.5-pro", temperature=0)
     except ImportError:
-        logger.warning("langchain-google-vertexai not installed, returning placeholder")
-        # Return a mock or raise error in production
+        logger.warning("langchain-google-vertexai not installed")
         raise ImportError(
-            "Please install langchain-google-vertexai or configure a model."
+            "langchain-google-vertexai is required. Install it to use Vertex AI models."
         )
 
 
