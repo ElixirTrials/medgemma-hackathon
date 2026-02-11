@@ -2,48 +2,50 @@
 
 ```mermaid
 sequenceDiagram
-    participant Guest as Guest/User
-    participant Interface as Communication<br/>Interface
-    participant Backend as Backend<br/>Services
-    participant ConvAgent as Conversation<br/>Agent
-    participant Guard as Guardrail<br/>Agent
-    participant Console as Admin<br/>Console
-    participant Operator as Human<br/>Operator
+    participant Researcher as Clinical<br/>Researcher
+    participant UI as HITL<br/>Review UI
+    participant API as API<br/>Service
+    participant Extract as Extraction<br/>Service
+    participant Ground as Grounding<br/>Service
+    participant DB as PostgreSQL
 
-    Guest->>Interface: Send Message
-    Interface->>Backend: Forward Request
-    Backend->>ConvAgent: Process Message
-    ConvAgent->>ConvAgent: Analyze Context & History
-    ConvAgent->>Guard: Generate Response
-    Guard->>Guard: Validate Content
+    Researcher->>UI: Upload Protocol PDF
+    UI->>API: Create Protocol (GCS Signed URL)
+    API->>DB: Store Protocol Record
+    API->>Extract: ProtocolUploaded Event
 
-    alt Guardrail Approved
-        Guard->>Console: Log Event
-        Guard->>Interface: Send Response
-        Interface->>Guest: Deliver Message
-    else Guardrail Flagged
-        Guard->>Console: Alert: Requires Review
-        Console->>Operator: Show in Dashboard
-        Operator->>Console: Review & Decide
-        alt Operator Approves
-            Console->>Backend: Approve Response
-            Backend->>Interface: Send Response
-            Interface->>Guest: Deliver Message
-        else Operator Takes Over
-            Console->>Backend: Enable Human Mode
-            Operator->>Interface: Direct Message
-            Interface->>Guest: Deliver Message
-        end
+    Extract->>Extract: Parse PDF (pymupdf4llm)
+    Extract->>Extract: Extract Criteria (Gemini)
+    Extract->>API: CriteriaExtracted Event
+    API->>DB: Store CriteriaBatch
+
+    API->>Ground: CriteriaExtracted Event
+    Ground->>Ground: Extract Entities (MedGemma)
+    Ground->>Ground: Ground to UMLS/SNOMED (MCP)
+    Ground->>API: EntitiesGrounded Event
+    API->>DB: Store Grounded Entities
+
+    Researcher->>UI: Open Review Queue
+    UI->>API: Fetch Pending Batches
+    API->>Researcher: Criteria + Entities + PDF
+
+    alt Researcher Approves
+        Researcher->>UI: Approve Criterion
+        UI->>API: POST Review Action
+        API->>DB: Log Audit Event
+    else Researcher Modifies
+        Researcher->>UI: Edit + Approve
+        UI->>API: POST Review Action (with changes)
+        API->>DB: Log Before/After in Audit
     end
 
-    Note over Console: Real-time event stream<br/>updates orchestration panel
+    Note over DB: Full audit trail with<br/>reviewer, timestamp, action
 
     %% Styling
-    style Guest fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style Interface fill:#e1f5ff,stroke:#007acc,stroke-width:2px
-    style Backend fill:#d4f1d4,stroke:#28a745,stroke-width:2px
-    style ConvAgent fill:#d4f1d4,stroke:#28a745,stroke-width:2px
-    style Guard fill:#ffe5cc,stroke:#fd7e14,stroke-width:2px
-    style Console fill:#fff3cd,stroke:#ffc107,stroke-width:2px
-    style Operator fill:#f0f0f0,stroke:#666,stroke-width:2px
+    style Researcher fill:#f9f9f9,stroke:#333,stroke-width:2px
+    style UI fill:#e1f5ff,stroke:#007acc,stroke-width:2px
+    style API fill:#d4f1d4,stroke:#28a745,stroke-width:2px
+    style Extract fill:#ffe5cc,stroke:#fd7e14,stroke-width:2px
+    style Ground fill:#ffe5cc,stroke:#fd7e14,stroke-width:2px
+    style DB fill:#fff3cd,stroke:#ffc107,stroke-width:2px
 ```
