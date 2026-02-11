@@ -3,7 +3,7 @@
 Wraps pymupdf4llm for LLM-optimized PDF conversion and caches
 results keyed by protocol_id to avoid re-parsing immutable documents.
 
-This module is self-contained within agent-a-service and has NO
+This module is self-contained within extraction-service and has NO
 dependency on api-service.
 """
 
