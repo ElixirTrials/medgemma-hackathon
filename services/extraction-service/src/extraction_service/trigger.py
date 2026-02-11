@@ -53,7 +53,7 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
         }
 
         # Lazy import to avoid circular imports at module load time
-        from agent_a_service.graph import get_graph
+        from extraction_service.graph import get_graph
 
         graph = get_graph()
         asyncio.run(graph.ainvoke(initial_state))
