@@ -51,7 +51,9 @@ def parse_pdf_to_markdown(
             logger.info("Cache hit for PDF parsing (key=%s)", cache_key)
             return cached
 
-    logger.info("Parsing PDF to markdown (key=%s, size=%d bytes)", cache_key, len(pdf_bytes))
+    logger.info(
+        "Parsing PDF to markdown (key=%s, size=%d bytes)", cache_key, len(pdf_bytes)
+    )
 
     doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     md_text: str = pymupdf4llm.to_markdown(
@@ -63,7 +65,9 @@ def parse_pdf_to_markdown(
     doc.close()
 
     _cache.set(cache_key, md_text, expire=_CACHE_TTL)
-    logger.info("Cached parsed markdown (key=%s, length=%d chars)", cache_key, len(md_text))
+    logger.info(
+        "Cached parsed markdown (key=%s, length=%d chars)", cache_key, len(md_text)
+    )
 
     return md_text
 
@@ -88,7 +92,7 @@ def fetch_pdf_bytes(file_uri: str) -> bytes:
         ValueError: If URI scheme is not recognized.
     """
     if file_uri.startswith("local://"):
-        blob_path = file_uri[len("local://"):]
+        blob_path = file_uri[len("local://") :]
         upload_dir = os.environ.get("LOCAL_UPLOAD_DIR", "./uploads")
         local_path = Path(upload_dir) / blob_path
         if not local_path.exists():
@@ -105,7 +109,7 @@ def fetch_pdf_bytes(file_uri: str) -> bytes:
         from google.cloud import storage  # type: ignore[attr-defined]
 
         # Parse gs://bucket/blob format
-        path_without_scheme = file_uri[len("gs://"):]
+        path_without_scheme = file_uri[len("gs://") :]
         bucket_name, _, blob_name = path_without_scheme.partition("/")
 
         logger.info(
@@ -119,6 +123,5 @@ def fetch_pdf_bytes(file_uri: str) -> bytes:
         return blob.download_as_bytes()
 
     raise ValueError(
-        f"Unknown file URI scheme: {file_uri}. "
-        f"Expected 'local://' or 'gs://' prefix."
+        f"Unknown file URI scheme: {file_uri}. Expected 'local://' or 'gs://' prefix."
     )

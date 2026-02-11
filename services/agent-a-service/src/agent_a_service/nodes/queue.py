@@ -17,12 +17,13 @@ import logging
 import os
 from typing import Any
 
-from agent_a_service.state import ExtractionState
 from api_service.storage import engine
 from events_py.models import DomainEventKind
 from events_py.outbox import persist_with_outbox
 from shared.models import Criteria, CriteriaBatch, Protocol
 from sqlmodel import Session
+
+from agent_a_service.state import ExtractionState
 
 logger = logging.getLogger(__name__)
 
