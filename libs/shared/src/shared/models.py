@@ -6,8 +6,7 @@ from datetime import datetime
 from typing import Any, Dict
 from uuid import uuid4
 
-from sqlalchemy import Column, DateTime, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, Column, DateTime, String, Text, func
 from sqlmodel import Field, SQLModel
 
 
@@ -42,7 +41,7 @@ class Protocol(SQLModel, table=True):
     page_count: int | None = Field(default=None)
     quality_score: float | None = Field(default=None)
     metadata_: Dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSONB)
+        default_factory=dict, sa_column=Column(JSON)
     )
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
@@ -76,13 +75,13 @@ class Criteria(SQLModel, table=True):
     category: str | None = Field(default=None)
     text: str = Field(sa_column=Column(Text, nullable=False))
     temporal_constraint: Dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     conditions: Dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     numeric_thresholds: Dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     assertion_status: str | None = Field(default=None)
     confidence: float = Field(default=1.0)
@@ -112,7 +111,7 @@ class Entity(SQLModel, table=True):
     grounding_method: str | None = Field(default=None)
     review_status: str | None = Field(default=None)
     context_window: Dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
@@ -129,10 +128,10 @@ class Review(SQLModel, table=True):
     target_id: str = Field(index=True)
     action: str = Field()
     before_value: Dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     after_value: Dict[str, Any] | None = Field(
-        default=None, sa_column=Column(JSONB)
+        default=None, sa_column=Column(JSON)
     )
     comment: str | None = Field(default=None)
     created_at: datetime = Field(sa_column=_ts_col())
@@ -149,7 +148,7 @@ class AuditLog(SQLModel, table=True):
     target_type: str | None = Field(default=None)
     target_id: str | None = Field(default=None)
     details: Dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSONB)
+        default_factory=dict, sa_column=Column(JSON)
     )
     created_at: datetime = Field(sa_column=_ts_col())
 
@@ -164,7 +163,7 @@ class OutboxEvent(SQLModel, table=True):
     aggregate_type: str = Field()
     aggregate_id: str = Field(index=True)
     payload: Dict[str, Any] = Field(
-        default_factory=dict, sa_column=Column(JSONB)
+        default_factory=dict, sa_column=Column(JSON)
     )
     idempotency_key: str = Field(
         sa_column=Column(String, unique=True, nullable=False)
