@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 5 of 7 (Entity Grounding Workflow)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In Progress
-Last activity: 2026-02-11 -- Completed 05-01-PLAN.md (UMLS MCP server)
+Last activity: 2026-02-11 -- Completed 05-02-PLAN.md (Agent-B foundation: state, schemas, prompts, trigger, UMLS client)
 
-Progress: [████████████] 75%
+Progress: [██████████████] 83%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
-- Average duration: 4.0 min
-- Total execution time: 0.62 hours
+- Total plans completed: 10
+- Average duration: 4.3 min
+- Total execution time: 0.72 hours
 
 **By Phase:**
 
@@ -31,11 +31,11 @@ Progress: [████████████] 75%
 | 02-protocol-upload-storage | 2 | 7 min | 3.5 min |
 | 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
 | 04-hitl-review-ui | 2 | 7 min | 3.5 min |
-| 05-entity-grounding-workflow | 1 | 5 min | 5 min |
+| 05-entity-grounding-workflow | 2 | 11 min | 5.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02 (9 min), 04-01 (3 min), 04-02 (4 min), 05-01 (5 min)
-- Trend: Steady pace, grounding workflow started
+- Last 5 plans: 04-01 (3 min), 04-02 (4 min), 05-01 (5 min), 05-02 (6 min)
+- Trend: Steady pace, agent-b foundation complete
 
 *Updated after each plan completion*
 
@@ -77,6 +77,10 @@ Recent decisions affecting current work:
 - [05-01]: Mock client returns canned diabetes results (C0011849, SNOMED 73211009) for dev without UMLS credentials
 - [05-01]: Tools instantiate client per-request via factory (not module-level) so mock/real is env-determined at call time
 - [05-01]: Tiered grounding: exact match (0.95) -> word search (0.75) -> expert review (0.0) with clear method labels
+- [05-02]: Replaced AgentState with GroundingState TypedDict (8 fields) following Phase 3 ExtractionState pattern
+- [05-02]: UMLS client mock mode returns True/placeholder SNOMED when no API key set for local dev
+- [05-02]: Entity schemas use 2-level nesting max (Batch -> Result -> Entity) matching Phase 3 constraint
+- [05-02]: Preserved placeholder graph topology; real 4-node graph deferred to 05-03
 
 ### Pending Todos
 
@@ -90,10 +94,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- ~~Phase 5 (Grounding) needs research-phase~~ Research complete. UMLS MCP server built (05-01). MedGemma/Gemini integration and LangGraph workflow remaining (05-02, 05-03).
+- ~~Phase 5 (Grounding) needs research-phase~~ Research complete. UMLS MCP server built (05-01). Agent-B foundation complete (05-02). Graph nodes and assembly remaining (05-03).
 
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05-01-PLAN.md (UMLS MCP server)
+Stopped at: Completed 05-02-PLAN.md (Agent-B foundation)
 Resume file: None
