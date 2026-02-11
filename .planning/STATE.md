@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 4 - Criteria Review UI
+**Current focus:** Phase 4 - Criteria Review UI (COMPLETE)
 
 ## Current Position
 
-Phase: 4 of 7 (Criteria Review UI)
-Plan: 1 of 2 in current phase
-Status: Active
-Last activity: 2026-02-11 -- Completed 04-01-PLAN.md (Review API endpoints and hooks)
+Phase: 4 of 7 (Criteria Review UI) -- PHASE COMPLETE
+Plan: 2 of 2 in current phase (all plans complete)
+Status: Phase Complete
+Last activity: 2026-02-11 -- Completed 04-02-PLAN.md (Review UI components and screens)
 
-Progress: [███████░░░] 58%
+Progress: [██████████] 67%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
+- Total plans completed: 8
 - Average duration: 4.0 min
-- Total execution time: 0.47 hours
+- Total execution time: 0.53 hours
 
 **By Phase:**
 
@@ -30,11 +30,11 @@ Progress: [███████░░░] 58%
 | 01-infrastructure-data-models | 2 | 7 min | 3.5 min |
 | 02-protocol-upload-storage | 2 | 7 min | 3.5 min |
 | 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
-| 04-hitl-review-ui | 1 | 3 min | 3 min |
+| 04-hitl-review-ui | 2 | 7 min | 3.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 02-02 (4 min), 03-01 (5 min), 03-02 (9 min), 04-01 (3 min)
-- Trend: Phase 4 Plan 1 fast (API/hooks only, no UI)
+- Last 5 plans: 03-01 (5 min), 03-02 (9 min), 04-01 (3 min), 04-02 (4 min)
+- Trend: Phase 4 both plans fast (API + UI in 7 min total)
 
 *Updated after each plan completion*
 
@@ -70,6 +70,9 @@ Recent decisions affecting current work:
 - [04-01]: Extracted batch status update and action application into helper functions to pass ruff C901 complexity check
 - [04-01]: Used col() wrapper for SQLModel column ordering and IS NOT NULL checks for type safety
 - [04-01]: PDF URL staleTime set to 50 minutes (URL expires in 60) to prevent stale signed URLs
+- [04-02]: Used useBatchList with client-side filter for batch info in ReviewPage (no single-batch endpoint needed)
+- [04-02]: Confidence badge thresholds: >=0.85 high (green), >=0.7 medium (yellow), <0.7 low (red)
+- [04-02]: Default sort is confidence ascending (lowest first) to surface items needing most attention
 
 ### Pending Todos
 
@@ -88,5 +91,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 04-01-PLAN.md
+Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
 Resume file: None
