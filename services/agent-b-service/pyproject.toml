@@ -1,12 +1,16 @@
 [project]
 name = "agent-b-service"
 version = "0.1.0"
-description = "Template Agent B Service"
+description = "Entity grounding agent service"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "shared",
     "inference",
+    "events-py",
+    "langchain-google-vertexai>=2.0.0",
+    "jinja2>=3.1.0",
+    "httpx>=0.28.0",
 ]
 
 [build-system]
@@ -34,13 +38,14 @@ exclude = ["venv", ".venv", "docs"]
 strict = true
 exclude = ["venv", ".venv", "docs"]
 plugins = []
-mypy_path = ["../shared/src", "../inference/src"]
+mypy_path = ["../shared/src", "../inference/src", "../../libs/events-py/src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "../shared/src", "../inference/src"]
+pythonpath = ["src", "../shared/src", "../inference/src", "../../libs/events-py/src"]
 testpaths = ["tests"]
 addopts = "--cov=agent_b_service --cov-branch --cov-report=term-missing"
 
 [tool.uv.sources]
 shared = { workspace = true }
 inference = { workspace = true }
+events-py = { workspace = true }
