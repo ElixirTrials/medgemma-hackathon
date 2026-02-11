@@ -1,5 +1,5 @@
 [project]
-name = "agent-b-service"
+name = "grounding-service"
 version = "0.1.0"
 description = "Entity grounding agent service"
 readme = "README.md"
@@ -11,6 +11,7 @@ dependencies = [
     "langchain-google-vertexai>=2.0.0",
     "jinja2>=3.1.0",
     "httpx>=0.28.0",
+    "umls-mcp-server",
 ]
 
 [build-system]
@@ -24,7 +25,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agent_b_service"]
+packages = ["src/grounding_service"]
 
 [tool.ruff]
 lint.select = ["E", "F", "W", "C", "N", "I", "D"]
@@ -33,6 +34,8 @@ lint.pydocstyle.convention = "google"
 target-version = "py312"
 line-length = 88
 exclude = ["venv", ".venv", "docs"]
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["D102", "D103"]
 
 [tool.mypy]
 strict = true
@@ -43,9 +46,10 @@ mypy_path = ["../shared/src", "../inference/src", "../../libs/events-py/src"]
 [tool.pytest.ini_options]
 pythonpath = ["src", "../shared/src", "../inference/src", "../../libs/events-py/src"]
 testpaths = ["tests"]
-addopts = "--cov=agent_b_service --cov-branch --cov-report=term-missing"
+addopts = "--cov=grounding_service --cov-branch --cov-report=term-missing"
 
 [tool.uv.sources]
 shared = { workspace = true }
 inference = { workspace = true }
 events-py = { workspace = true }
+umls-mcp-server = { workspace = true }
