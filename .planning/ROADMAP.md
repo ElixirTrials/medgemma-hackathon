@@ -187,11 +187,13 @@ Plans:
   1. All external API calls (Gemini, Vertex AI, UMLS MCP, GCS) use tenacity retry with exponential backoff (max 3 retries) and circuit breaker for sustained failures, with structured logging for retry events
   2. Pipeline achieves >95% success rate from upload to criteria extraction, with failed extractions surfacing to the user with actionable error messages and dead-letter handling for unrecoverable failures
   3. Average processing time per protocol is <5 minutes end-to-end
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 07-01: TBD
-- [ ] 07-02: TBD
+- [ ] 07-01-PLAN.md -- Protocol status enum, dead-letter handling, retry endpoint
+- [ ] 07-02-PLAN.md -- Retry decorators and circuit breakers on all external services
+- [ ] 07-03-PLAN.md -- MLflow instrumentation: autolog, request middleware, circuit breaker events, HITL tracing
+- [ ] 07-04-PLAN.md -- Frontend error surfacing with failure badges, error reasons, and retry button
 
 ## Requirement Coverage
 
