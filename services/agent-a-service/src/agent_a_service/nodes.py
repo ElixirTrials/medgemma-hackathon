@@ -1,55 +1,43 @@
-"""Node functions for the guest interaction agent."""
+"""Placeholder node functions for the criteria extraction agent.
+
+These will be replaced by proper node implementations in
+services/agent-a-service/src/agent_a_service/nodes/ package
+during Plan 03-02.
+"""
 
 import logging
-from typing import Any, Dict
+from typing import Any
 
-from .state import AgentState
+from .state import ExtractionState
 
 logger = logging.getLogger(__name__)
 
 
-async def extraction_node(state: AgentState) -> Dict[str, Any]:
-    """Extract relevant information from the input context.
+async def extraction_node(state: ExtractionState) -> dict[str, Any]:
+    """Placeholder extraction node.
 
-    This is a placeholder node that should be customized for your use case.
-
-    Args:
-        state: Current agent state containing messages and context.
-
-    Returns:
-        State updates with extracted data.
-    """
-    logger.info("Running extraction node")
-    context = state.get("context", {})
-
-    # Placeholder extraction logic
-    # In a real implementation, this would call the inference component
-    extracted = {
-        "processed": True,
-        "input_keys": list(context.keys()),
-    }
-
-    return {"extracted_data": extracted}
-
-
-async def validation_node(state: AgentState) -> Dict[str, Any]:
-    """Validate extracted data before proceeding.
+    Will be replaced by ingest + extract nodes in Plan 03-02.
 
     Args:
-        state: Current agent state.
+        state: Current extraction state.
 
     Returns:
-        State updates after validation.
+        Empty state updates.
     """
-    logger.info("Running validation node")
-    extracted = state.get("extracted_data", {})
+    logger.info("Running placeholder extraction node")
+    return {}
 
-    # Placeholder validation logic
-    is_valid = extracted.get("processed", False)
 
-    return {
-        "extracted_data": {
-            **extracted,
-            "validated": is_valid,
-        }
-    }
+async def validation_node(state: ExtractionState) -> dict[str, Any]:
+    """Placeholder validation node.
+
+    Will be replaced by parse + queue nodes in Plan 03-02.
+
+    Args:
+        state: Current extraction state.
+
+    Returns:
+        Empty state updates.
+    """
+    logger.info("Running placeholder validation node")
+    return {}

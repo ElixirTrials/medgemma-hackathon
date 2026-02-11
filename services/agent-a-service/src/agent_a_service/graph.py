@@ -1,11 +1,18 @@
-"""LangGraph workflow definition for the guest interaction agent."""
+"""LangGraph workflow definition for the criteria extraction agent.
+
+Defines the StateGraph for the extraction workflow:
+START -> extract -> validate -> END
+
+This will be expanded to the full 4-node graph
+(ingest -> extract -> parse -> queue) in Plan 03-02.
+"""
 
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
 from .nodes import extraction_node, validation_node
-from .state import AgentState
+from .state import ExtractionState
 
 
 def create_graph() -> Any:
@@ -17,7 +24,7 @@ def create_graph() -> Any:
     Returns:
         Compiled StateGraph ready for execution.
     """
-    workflow = StateGraph(AgentState)
+    workflow = StateGraph(ExtractionState)
 
     # Add nodes
     workflow.add_node("extract", extraction_node)

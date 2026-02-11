@@ -37,6 +37,7 @@ dependencies = [
     "sentence-transformers>=5.2.2",
     "python-multipart>=0.0.21",
     "alembic>=1.13.0",
+    "pymupdf4llm>=0.2.9",
 ]
 
 [dependency-groups]
@@ -100,6 +101,16 @@ ignore_missing_imports = true
 module = [
     "fitz",
     "fitz.*",
+    "pymupdf",
+    "pymupdf.*",
+    "pymupdf4llm",
+    "pymupdf4llm.*",
+    "diskcache",
+    "diskcache.*",
+    "google.cloud",
+    "google.cloud.*",
+    "jinja2",
+    "jinja2.*",
 ]
 ignore_missing_imports = true
 
