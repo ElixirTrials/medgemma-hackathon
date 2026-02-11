@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 6 of 7+3 (Entity Approval, Auth & Search)
-Plan: 1 of TBD
-Status: Phase 6.1 complete (auth, entity approval, search)
-Last activity: 2026-02-11 -- Phase 6.1 complete: Google OAuth, entity approval, full-text search
+Plan: 2 of 2
+Status: Phase 6 complete (backend + frontend for auth, entity approval, search)
+Last activity: 2026-02-11 -- Phase 6.2 complete: Frontend UI for auth, entity approval, and search
 
-Progress: [█████████████████] 97%
+Progress: [█████████████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 19
+- Total plans completed: 20
 - Average duration: 7.9 min
-- Total execution time: 2.5 hours
+- Total execution time: 2.6 hours
 
 **By Phase:**
 
@@ -35,11 +35,11 @@ Progress: [█████████████████] 97%
 | 05.1-error-handling-hardening | 1 | 16 min | 16 min |
 | 05.2-test-coverage | 3 | 74 min | 24.7 min |
 | 05.3-rename-services-and-docs | 3 | 17 min | 5.7 min |
-| 06-entity-approval-auth-search | 1 | 9 min | 9 min |
+| 06-entity-approval-auth-search | 2 | 16 min | 8 min |
 
 **Recent Trend:**
-- Last 5 plans: 05.3-01 (6 min), 05.3-02 (7 min), 05.3-03 (4 min), 06-01 (9 min)
-- Trend: Phase 6.1 complete - auth, entity approval, search backend implemented
+- Last 5 plans: 05.3-02 (7 min), 05.3-03 (4 min), 06-01 (9 min), 06-02 (7 min)
+- Trend: Phase 6 complete - backend + frontend for auth, entity approval, search
 
 *Updated after each plan completion*
 
@@ -108,6 +108,12 @@ Recent decisions affecting current work:
 - [06-01]: test_client fixture overrides get_current_user so existing tests pass without modification
 - [06-01]: PostgreSQL full-text search with GIN index, LIKE fallback for SQLite dev
 - [06-01]: Entity approval follows criteria review pattern (Review + AuditLog records)
+- [06-02]: Zustand store with localStorage for auth state persistence across page refreshes
+- [06-02]: Keep fetchApi duplicated in each hook file (matching existing pattern in useReviews/useProtocols)
+- [06-02]: Use Radix Tabs for criteria/entities toggle in ReviewPage (already in dependencies)
+- [06-02]: Debounce search input with 300ms delay to avoid excessive API calls
+- [06-02]: SNOMED badge with blue medical theme, UMLS CUI as clickable link to external browser
+- [06-02]: Show grounding confidence with same 3-tier badge as criteria confidence
 
 ### Pending Todos
 
@@ -126,5 +132,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Phase 06-01 complete. Backend API complete with Google OAuth, JWT auth, entity approval (list/approve/reject/modify), and full-text search over criteria. All existing tests pass with auth override.
+Stopped at: Phase 06-02 complete. Frontend UI complete with login page, auth state (JWT in localStorage), entity approval UI (SNOMED badge, UMLS link), and search page with filters. Phase 6 fully complete (backend + frontend).
 Resume file: None
