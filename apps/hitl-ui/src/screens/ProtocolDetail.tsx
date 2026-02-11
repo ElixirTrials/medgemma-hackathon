@@ -186,7 +186,11 @@ export default function ProtocolDetail() {
                     </InfoItem>
 
                     <InfoItem label="Encoding Type">
-                        <span className="capitalize">{encodingType ?? 'Not available'}</span>
+                        {encodingType ? (
+                            <span className="capitalize">{encodingType}</span>
+                        ) : (
+                            'Not available'
+                        )}
                     </InfoItem>
 
                     <InfoItem label="Text Extractability">

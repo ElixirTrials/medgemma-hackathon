@@ -97,10 +97,18 @@ export function useUploadProtocol() {
                 throw new Error(`Upload failed: ${putResp.status} ${putResp.statusText}`);
             }
 
-            // Step 3: Confirm upload (no base64 for now -- server-side GCS fetch later)
+            // Step 3: Read file as base64 for quality scoring, then confirm
+            const arrayBuffer = await file.arrayBuffer();
+            const bytes = new Uint8Array(arrayBuffer);
+            let binary = '';
+            for (let i = 0; i < bytes.length; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            const pdfBase64 = btoa(binary);
+
             await fetchApi(`/protocols/${uploadResp.protocol_id}/confirm-upload`, {
                 method: 'POST',
-                body: JSON.stringify({}),
+                body: JSON.stringify({ pdf_bytes_base64: pdfBase64 }),
             });
 
             return uploadResp;
