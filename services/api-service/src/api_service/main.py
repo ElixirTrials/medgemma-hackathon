@@ -12,8 +12,10 @@ from fastapi.responses import JSONResponse
 from grounding_service.trigger import handle_criteria_extracted
 from sqlalchemy import text
 from sqlmodel import Session
+from starlette.middleware.sessions import SessionMiddleware
 
-from api_service.dependencies import get_db
+from api_service.auth import router as auth_router
+from api_service.dependencies import get_current_user, get_db
 from api_service.protocols import router as protocols_router
 from api_service.reviews import router as reviews_router
 from api_service.storage import create_db_and_tables, engine
@@ -61,6 +63,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+# Add SessionMiddleware for OAuth state (must be before CORS)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv("SESSION_SECRET", "dev-session-secret"),
+)
+
 # Configure CORS
 # In production, restrict origins to specific domains
 cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
@@ -73,9 +81,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount routers
-app.include_router(protocols_router)
-app.include_router(reviews_router)
+# Mount auth router (public endpoints - no auth required)
+app.include_router(auth_router)
+
+# Mount protected routers (all endpoints require auth)
+app.include_router(protocols_router, dependencies=[Depends(get_current_user)])
+app.include_router(reviews_router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health")
