@@ -102,9 +102,7 @@ def compute_quality_score(pdf_bytes: bytes) -> QualityResult:
     # - 20% weight on page count (more pages = more content, capped at 100)
     # - 10% weight on encoding type bonus
     encoding_bonus = (
-        1.0
-        if encoding_type == "text"
-        else 0.5 if encoding_type == "mixed" else 0.0
+        1.0 if encoding_type == "text" else 0.5 if encoding_type == "mixed" else 0.0
     )
     overall_score = (
         0.7 * text_extractability

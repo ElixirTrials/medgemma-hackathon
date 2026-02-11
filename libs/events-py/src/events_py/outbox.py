@@ -50,9 +50,7 @@ class OutboxProcessor:
             batch_size: Max events per poll cycle.
         """
         self.engine = engine
-        self.handlers: dict[str, list[Callable[..., Any]]] = (
-            handlers or {}
-        )
+        self.handlers: dict[str, list[Callable[..., Any]]] = handlers or {}
         self.poll_interval = poll_interval
         self.batch_size = batch_size
         self._shutdown_event = asyncio.Event()
@@ -76,16 +74,12 @@ class OutboxProcessor:
             # for concurrent processor safety
             db_url = str(self.engine.url)
             if "postgresql" in db_url:
-                statement = statement.with_for_update(
-                    skip_locked=True
-                )
+                statement = statement.with_for_update(skip_locked=True)
 
             events = session.exec(statement).all()
 
             for event in events:
-                event_handlers = self.handlers.get(
-                    event.event_type, []
-                )
+                event_handlers = self.handlers.get(event.event_type, [])
 
                 if not event_handlers:
                     logger.debug(
@@ -112,8 +106,7 @@ class OutboxProcessor:
                     event.retry_count += 1
                     session.add(event)
                     logger.exception(
-                        "Failed to process event %s (type=%s, "
-                        "retry_count=%d)",
+                        "Failed to process event %s (type=%s, retry_count=%d)",
                         event.id,
                         event.event_type,
                         event.retry_count,
@@ -126,8 +119,7 @@ class OutboxProcessor:
     async def start(self) -> None:
         """Run the polling loop until stop() is called."""
         logger.info(
-            "Outbox processor started (interval=%.1fs, "
-            "batch_size=%d)",
+            "Outbox processor started (interval=%.1fs, batch_size=%d)",
             self.poll_interval,
             self.batch_size,
         )
@@ -137,13 +129,9 @@ class OutboxProcessor:
                     None, self.poll_and_process
                 )
                 if count > 0:
-                    logger.info(
-                        "Processed %d outbox events", count
-                    )
+                    logger.info("Processed %d outbox events", count)
             except Exception:
-                logger.exception(
-                    "Error in outbox processor poll cycle"
-                )
+                logger.exception("Error in outbox processor poll cycle")
             try:
                 await asyncio.wait_for(
                     self._shutdown_event.wait(),
@@ -184,9 +172,7 @@ def persist_with_outbox(
     Returns:
         The created OutboxEvent (uncommitted).
     """
-    ikey = idempotency_key or (
-        f"{event_type.value}:{aggregate_id}:{uuid4()}"
-    )
+    ikey = idempotency_key or (f"{event_type.value}:{aggregate_id}:{uuid4()}")
 
     outbox_event = OutboxEvent(
         event_type=event_type.value,

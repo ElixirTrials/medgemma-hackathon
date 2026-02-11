@@ -75,15 +75,12 @@ def _parse_gcs_uri(gcs_path: str) -> tuple[str, str]:
         ValueError: If the URI format is invalid.
     """
     if not gcs_path.startswith("gs://"):
-        raise ValueError(
-            f"Invalid GCS URI: {gcs_path}. Must start with gs://"
-        )
+        raise ValueError(f"Invalid GCS URI: {gcs_path}. Must start with gs://")
     path = gcs_path[5:]  # Remove "gs://"
     parts = path.split("/", 1)
     if len(parts) < 2 or not parts[1]:
         raise ValueError(
-            f"Invalid GCS URI: {gcs_path}. "
-            "Must be gs://bucket/path/to/blob"
+            f"Invalid GCS URI: {gcs_path}. Must be gs://bucket/path/to/blob"
         )
     return parts[0], parts[1]
 
@@ -145,9 +142,7 @@ def generate_upload_url(
     return (signed_url, gcs_path)
 
 
-def set_blob_metadata(
-    gcs_path: str, metadata: dict[str, str]
-) -> None:
+def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
     """Set custom metadata on a GCS blob.
 
     Args:
@@ -158,9 +153,7 @@ def set_blob_metadata(
         ValueError: If GCS URI is invalid.
     """
     if gcs_path.startswith("local://"):
-        logger.warning(
-            "Skipping metadata set for local path: %s", gcs_path
-        )
+        logger.warning("Skipping metadata set for local path: %s", gcs_path)
         return
 
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
@@ -179,9 +172,7 @@ def set_blob_metadata(
     logger.info("Set metadata on %s: %s", gcs_path, metadata)
 
 
-def generate_download_url(
-    gcs_path: str, expiration_minutes: int = 60
-) -> str:
+def generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
     """Generate a signed URL for downloading a file from GCS.
 
     Args:
@@ -205,8 +196,7 @@ def generate_download_url(
     client = get_gcs_client()
     if client is None:
         logger.warning(
-            "GCS client unavailable. "
-            "Returning mock download URL for: %s",
+            "GCS client unavailable. Returning mock download URL for: %s",
             gcs_path,
         )
         return "http://localhost:8000/mock-download"

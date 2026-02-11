@@ -45,12 +45,8 @@ async def lifespan(app: FastAPI):
 
     # Wait for background tasks to complete
     if _running_tasks:
-        logger.info(
-            f"Waiting for {len(_running_tasks)} tasks to complete..."
-        )
-        await asyncio.gather(
-            *_running_tasks, return_exceptions=True
-        )
+        logger.info(f"Waiting for {len(_running_tasks)} tasks to complete...")
+        await asyncio.gather(*_running_tasks, return_exceptions=True)
     logger.info("Shutdown complete")
 
 
@@ -58,9 +54,7 @@ app = FastAPI(lifespan=lifespan)
 
 # Configure CORS
 # In production, restrict origins to specific domains
-cors_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000"
-).split(",")
+cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 
 app.add_middleware(
     CORSMiddleware,
