@@ -55,7 +55,7 @@ def handle_criteria_extracted(payload: dict[str, Any]) -> None:
         }
 
         # Lazy import to avoid circular imports at module load time
-        from agent_b_service.graph import get_graph
+        from grounding_service.graph import get_graph
 
         graph = get_graph()
         asyncio.run(graph.ainvoke(initial_state))

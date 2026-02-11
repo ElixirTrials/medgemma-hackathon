@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from agent_b_service.state import GroundingState
+from grounding_service.state import GroundingState
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +67,8 @@ async def _ground_via_mcp(
                         **entity,
                         "umls_cui": result.get("cui"),
                         "preferred_term": result.get("name"),
-                        "grounding_confidence": result.get(
-                            "confidence", 0.0
-                        ),
-                        "grounding_method": result.get(
-                            "method", "expert_review"
-                        ),
+                        "grounding_confidence": result.get("confidence", 0.0),
+                        "grounding_method": result.get("method", "expert_review"),
                     }
                 else:
                     grounded_entity = {
@@ -85,8 +81,7 @@ async def _ground_via_mcp(
                 grounded.append(grounded_entity)
             except Exception:
                 logger.warning(
-                    "MCP grounding failed for entity '%s', "
-                    "flagging for expert review",
+                    "MCP grounding failed for entity '%s', flagging for expert review",
                     entity["text"],
                 )
                 grounded.append(

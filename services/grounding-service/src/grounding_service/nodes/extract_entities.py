@@ -19,11 +19,11 @@ from typing import Any, cast
 from inference.factory import render_prompts
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
 
-from agent_b_service.schemas.entities import (
+from grounding_service.schemas.entities import (
     BatchEntityExtractionResult,
     ExtractedEntity,
 )
-from agent_b_service.state import GroundingState
+from grounding_service.state import GroundingState
 
 logger = logging.getLogger(__name__)
 
@@ -71,9 +71,7 @@ def _get_model_name() -> str:
     return "gemini-2.5-flash"
 
 
-def _validate_span(
-    entity: ExtractedEntity, criterion_text: str
-) -> tuple[int, int]:
+def _validate_span(entity: ExtractedEntity, criterion_text: str) -> tuple[int, int]:
     """Validate and correct entity span positions against source text.
 
     Args:
@@ -132,9 +130,7 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
         criteria_texts = _load_criteria_texts(state["criteria_ids"])
 
         if not criteria_texts:
-            logger.warning(
-                "No criteria found for batch %s", state.get("batch_id")
-            )
+            logger.warning("No criteria found for batch %s", state.get("batch_id"))
             return {"criteria_texts": [], "raw_entities": []}
 
         # Render prompts
@@ -148,9 +144,7 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
         # Create LLM with structured output
         model_name = _get_model_name()
         llm = ChatVertexAI(model_name=model_name, temperature=0)
-        structured_llm = llm.with_structured_output(
-            BatchEntityExtractionResult
-        )
+        structured_llm = llm.with_structured_output(BatchEntityExtractionResult)
 
         result = await structured_llm.ainvoke(
             [("system", system_prompt), ("user", user_prompt)]
@@ -167,9 +161,7 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
         criteria_text_map = {ct["id"]: ct["text"] for ct in criteria_texts}
 
         for per_criterion in extraction_result.results:
-            criterion_text = criteria_text_map.get(
-                per_criterion.criterion_id, ""
-            )
+            criterion_text = criteria_text_map.get(per_criterion.criterion_id, "")
             for entity in per_criterion.entities:
                 start, end = _validate_span(entity, criterion_text)
                 raw_entities.append(

@@ -14,8 +14,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from agent_b_service.state import GroundingState
-from agent_b_service.umls_client import validate_cui
+from grounding_service.state import GroundingState
+from grounding_service.umls_client import validate_cui
 
 logger = logging.getLogger(__name__)
 
@@ -38,8 +38,7 @@ async def _validate_cui_codes(
         is_valid = await validate_cui(cui)
         if not is_valid:
             logger.warning(
-                "CUI %s failed validation, downgrading "
-                "entity '%s' to expert_review",
+                "CUI %s failed validation, downgrading entity '%s' to expert_review",
                 cui,
                 entity.get("text"),
             )
@@ -60,11 +59,7 @@ def _create_entity_record(ge: dict[str, Any]) -> Any:
     """
     from shared.models import Entity
 
-    review_status = (
-        "pending"
-        if ge.get("grounding_method") == "expert_review"
-        else None
-    )
+    review_status = "pending" if ge.get("grounding_method") == "expert_review" else None
 
     # Map context_window: store as dict if string
     context_window = ge.get("context_window")
@@ -160,8 +155,7 @@ async def validate_confidence_node(
             session.commit()
 
         logger.info(
-            "Validated and persisted %d entities (%d for expert review) "
-            "for batch %s",
+            "Validated and persisted %d entities (%d for expert review) for batch %s",
             len(entity_ids),
             expert_review_count,
             state.get("batch_id"),
