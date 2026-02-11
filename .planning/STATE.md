@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 5 complete. Ready for Phase 6.
+**Current focus:** Phase 5.1 - Error Handling Hardening (gap closure)
 
 ## Current Position
 
-Phase: 5 of 7 (Entity Grounding Workflow) -- COMPLETE
-Plan: 3 of 3 in current phase (all complete)
-Status: Phase Complete
-Last activity: 2026-02-11 -- Completed 05-03-PLAN.md (Grounding workflow nodes, graph assembly, event handler wiring)
+Phase: 5.1 of 7+2 (Error Handling Hardening)
+Plan: 1 of 1 in current phase
+Status: Phase 5.1 complete
+Last activity: 2026-02-11 -- Completed 05.1-01 error handling hardening
 
-Progress: [███████████████] 86%
+Progress: [████████████████] 90%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
-- Average duration: 4.5 min
-- Total execution time: 0.82 hours
+- Total plans completed: 12
+- Average duration: 5.4 min
+- Total execution time: 1.09 hours
 
 **By Phase:**
 
@@ -32,10 +32,11 @@ Progress: [███████████████] 86%
 | 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
 | 04-hitl-review-ui | 2 | 7 min | 3.5 min |
 | 05-entity-grounding-workflow | 3 | 19 min | 6.3 min |
+| 05.1-error-handling-hardening | 1 | 16 min | 16 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-02 (4 min), 05-01 (5 min), 05-02 (6 min), 05-03 (8 min)
-- Trend: Steady pace, Phase 5 entity grounding complete
+- Last 5 plans: 05-01 (5 min), 05-02 (6 min), 05-03 (8 min), 05.1-01 (16 min)
+- Trend: Gap closure plan took longer due to cross-service refactoring
 
 *Updated after each plan completion*
 
@@ -84,6 +85,9 @@ Recent decisions affecting current work:
 - [05-03]: MCP grounding with direct UMLS client fallback for resilience when MCP server unavailable
 - [05-03]: Helper function extraction to pass ruff C901 complexity (max 10) in extract_entities and validate_confidence
 - [05-03]: context_window stored as dict wrapper {"text": "..."} to match Entity model JSON column
+- [05.1-01]: Kept local:// path rejection as ValueError in gcs.py (explicit error vs silent ignore)
+- [05.1-01]: Used type: ignore for MultiServerMCPClient async context manager due to library typing limitation
+- [05.1-01]: queue.py error return already present -- verified rather than modified
 
 ### Pending Todos
 
@@ -102,5 +106,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05-03-PLAN.md (Grounding workflow nodes, graph assembly, event handler wiring). Phase 5 complete.
+Stopped at: Completed 05.1-01-PLAN.md (error handling hardening). Phase 5.1 complete.
 Resume file: None
