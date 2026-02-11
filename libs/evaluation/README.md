@@ -11,5 +11,5 @@ This component runs offline evaluation benchmarks against your agents.
 
 ## Running Evaluation
 ```bash
-uv run python src/evaluation/run_benchmark.py --agent agent-a
+uv run python src/evaluation/run_benchmark.py --agent extraction-service
 ```
