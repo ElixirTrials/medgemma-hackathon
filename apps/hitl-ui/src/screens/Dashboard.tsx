@@ -1,3 +1,4 @@
+import { Search as SearchIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
@@ -74,6 +75,17 @@ export default function Dashboard() {
                         className="w-full"
                     >
                         View Protocols
+                    </Button>
+                </DashboardCard>
+
+                <DashboardCard title="Search" description="Search across all criteria">
+                    <Button
+                        onClick={() => navigate('/search')}
+                        variant="outline"
+                        className="w-full"
+                    >
+                        <SearchIcon className="h-4 w-4 mr-2" />
+                        Search Criteria
                     </Button>
                 </DashboardCard>
 

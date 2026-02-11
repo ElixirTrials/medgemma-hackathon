@@ -10,6 +10,7 @@ import ProtocolDetail from './screens/ProtocolDetail';
 import ProtocolList from './screens/ProtocolList';
 import ReviewPage from './screens/ReviewPage';
 import ReviewQueue from './screens/ReviewQueue';
+import SearchPage from './screens/SearchPage';
 
 function App() {
     const { isAuthenticated, user, logout } = useAuth();
@@ -47,6 +48,7 @@ function App() {
                 <Route path="/reviews" element={<ReviewQueue />} />
                 <Route path="/reviews/:batchId" element={<ReviewPage />} />
                 <Route path="/entities/:batchId" element={<EntityList />} />
+                <Route path="/search" element={<SearchPage />} />
             </Routes>
         </div>
     );
