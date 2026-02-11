@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 6 of 7+3 (Entity Approval, Auth & Search)
-Plan: 0 of TBD
-Status: Phase 5.3 complete, Phase 6 not yet planned
-Last activity: 2026-02-11 -- Phase 5.3 complete, diagram gap fixed
+Plan: 1 of TBD
+Status: Phase 6.1 complete (auth, entity approval, search)
+Last activity: 2026-02-11 -- Phase 6.1 complete: Google OAuth, entity approval, full-text search
 
-Progress: [█████████████████] 96%
+Progress: [█████████████████] 97%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 19
 - Average duration: 7.9 min
-- Total execution time: 2.4 hours
+- Total execution time: 2.5 hours
 
 **By Phase:**
 
@@ -35,10 +35,11 @@ Progress: [█████████████████] 96%
 | 05.1-error-handling-hardening | 1 | 16 min | 16 min |
 | 05.2-test-coverage | 3 | 74 min | 24.7 min |
 | 05.3-rename-services-and-docs | 3 | 17 min | 5.7 min |
+| 06-entity-approval-auth-search | 1 | 9 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 05.2-03 (~20 min), 05.3-01 (6 min), 05.3-02 (7 min), 05.3-03 (4 min)
-- Trend: Phase 5.3 complete - all services renamed and documentation updated
+- Last 5 plans: 05.3-01 (6 min), 05.3-02 (7 min), 05.3-03 (4 min), 06-01 (9 min)
+- Trend: Phase 6.1 complete - auth, entity approval, search backend implemented
 
 *Updated after each plan completion*
 
@@ -101,6 +102,12 @@ Recent decisions affecting current work:
 - [05.3-03]: Updated only forward-looking references in planning docs (preserved historical decision records)
 - [05.3-03]: Replaced template diagrams in PROJECT_OVERVIEW.md with system-specific architecture (extraction/grounding pipeline)
 - [05.3-03]: Fixed Dockerfiles missed in 05.3-01 and 05.3-02 as deviation (blocking issue for future builds)
+- [06-01]: Router-level auth dependencies protect all endpoints in protocols/reviews/entities/search routers
+- [06-01]: Public endpoints: /health, /ready, /, /auth/login, /auth/callback (no auth required)
+- [06-01]: FastAPI Header(...) dependency for JWT extraction (422 if missing, 401 if invalid)
+- [06-01]: test_client fixture overrides get_current_user so existing tests pass without modification
+- [06-01]: PostgreSQL full-text search with GIN index, LIKE fallback for SQLite dev
+- [06-01]: Entity approval follows criteria review pattern (Review + AuditLog records)
 
 ### Pending Todos
 
@@ -119,5 +126,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Phase 05.3 complete. All services renamed to extraction/grounding and documentation updated. Ready for Phase 6 (Entity Approval, Auth & Search).
+Stopped at: Phase 06-01 complete. Backend API complete with Google OAuth, JWT auth, entity approval (list/approve/reject/modify), and full-text search over criteria. All existing tests pass with auth override.
 Resume file: None
