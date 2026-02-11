@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 5.2 - Test Coverage (gap closure)
+**Current focus:** Phase 6 - Entity Approval, Auth & Search
 
 ## Current Position
 
-Phase: 5.2 of 7+2 (Test Coverage)
-Plan: 1 of 2 in current phase
-Status: Plan 05.2-01 complete
-Last activity: 2026-02-11 -- Completed 05.2-01 unit test coverage
+Phase: 05.3 of 7+2 (Rename Services and Docs)
+Plan: 1 of 3
+Status: In progress
+Last activity: 2026-02-11 -- Completed 05.3-01 agent-a-service rename to extraction-service
 
-Progress: [████████████████] 92%
+Progress: [█████████████████] 95%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 7.2 min
-- Total execution time: 1.57 hours
+- Total plans completed: 16
+- Average duration: 8.1 min
+- Total execution time: 2.0 hours
 
 **By Phase:**
 
@@ -33,11 +33,12 @@ Progress: [████████████████] 92%
 | 04-hitl-review-ui | 2 | 7 min | 3.5 min |
 | 05-entity-grounding-workflow | 3 | 19 min | 6.3 min |
 | 05.1-error-handling-hardening | 1 | 16 min | 16 min |
-| 05.2-test-coverage | 1 | 29 min | 29 min |
+| 05.2-test-coverage | 3 | 74 min | 24.7 min |
+| 05.3-rename-services-and-docs | 1 | 6 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (6 min), 05-03 (8 min), 05.1-01 (16 min), 05.2-01 (29 min)
-- Trend: Test coverage plan took longer due to 5 test files spanning 6 source modules
+- Last 5 plans: 05.2-01 (29 min), 05.2-02 (~25 min), 05.2-03 (~20 min), 05.3-01 (6 min)
+- Trend: Phase 5.3 started - systematic rename of services to match implementation
 
 *Updated after each plan completion*
 
@@ -93,6 +94,8 @@ Recent decisions affecting current work:
 - [05.2-01]: Used raw PDF bytes for empty PDF test (PyMuPDF cannot save 0-page documents)
 - [05.2-01]: UMLS tests use AsyncMock + patch.object(httpx, 'AsyncClient') pattern for httpx mocking
 - [05.2-01]: Outbox processor publishes events even with empty handler list (verified actual behavior)
+- [05.3-01]: Used git mv to preserve history during service directory rename (agent-a -> extraction)
+- [05.3-01]: Renamed Docker service from agent-a to extraction for alignment with implementation name
 
 ### Pending Todos
 
@@ -111,5 +114,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05.2-01-PLAN.md (unit test coverage). Plan 2 remaining in phase 5.2.
+Stopped at: Phase 05.3 Plan 01 complete (agent-a-service renamed to extraction-service). Next: 05.3-02 (rename agent-b-service).
 Resume file: None
