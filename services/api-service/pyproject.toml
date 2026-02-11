@@ -7,6 +7,7 @@ requires-python = ">=3.12"
 dependencies = [
     "shared",
     "inference",
+    "events-py",
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
     "sqlalchemy>=2.0.0",
@@ -42,10 +43,10 @@ exclude = ["venv", ".venv", "docs"]
 strict = true
 exclude = ["venv", ".venv", "docs"]
 plugins = []
-mypy_path = ["../shared/src", "../inference/src"]
+mypy_path = ["../shared/src", "../inference/src", "../../libs/events-py/src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "../shared/src", "../inference/src"]
+pythonpath = ["src", "../shared/src", "../inference/src", "../../libs/events-py/src"]
 testpaths = ["tests"]
 # Coverage is optional - use `pytest --cov=api_service` to enable
 addopts = "-n auto"
@@ -62,3 +63,4 @@ filterwarnings = [
 [tool.uv.sources]
 shared = { workspace = true }
 inference = { workspace = true }
+events-py = { workspace = true }

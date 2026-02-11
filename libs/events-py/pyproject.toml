@@ -4,7 +4,10 @@ version = "0.1.0"
 description = "Event types and helpers for Python services (e.g. Pub/Sub)"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "shared",
+    "sqlmodel>=0.0.16",
+]
 
 [build-system]
 requires = ["hatchling"]
@@ -32,7 +35,11 @@ exclude = ["venv", ".venv", "docs"]
 [tool.mypy]
 strict = true
 exclude = ["venv", ".venv", "docs"]
+mypy_path = ["../shared/src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "../shared/src"]
 testpaths = ["tests"]
+
+[tool.uv.sources]
+shared = { workspace = true }
