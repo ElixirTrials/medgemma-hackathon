@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Set
 
 from agent_a_service.trigger import handle_protocol_uploaded
+from agent_b_service.trigger import handle_criteria_extracted
 from events_py.outbox import OutboxProcessor
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +40,7 @@ async def lifespan(app: FastAPI):
         engine=engine,
         handlers={
             "protocol_uploaded": [handle_protocol_uploaded],
+            "criteria_extracted": [handle_criteria_extracted],
         },
     )
     task = asyncio.create_task(processor.start())

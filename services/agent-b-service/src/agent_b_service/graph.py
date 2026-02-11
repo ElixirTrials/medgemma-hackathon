@@ -1,11 +1,12 @@
 """LangGraph workflow definition for the entity grounding agent.
 
 Defines a 4-node StateGraph for the grounding workflow:
-START -> extract_entities -> ground_to_umls -> map_to_snomed -> validate_confidence -> END
+START -> extract_entities -> ground_to_umls ->
+         map_to_snomed -> validate_confidence -> END
 
-Each node has conditional error routing: if extract_entities or ground_to_umls
-sets state["error"], the graph routes directly to END, skipping downstream nodes.
-map_to_snomed -> validate_confidence is unconditional (same as parse -> queue in agent-a).
+Conditional error routing after extract_entities and ground_to_umls:
+if state["error"] is set, routes directly to END.
+map_to_snomed -> validate_confidence is unconditional.
 """
 
 from typing import Any
