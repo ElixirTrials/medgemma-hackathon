@@ -14,9 +14,12 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Infrastructure & Data Models** - Foundation: database schemas, event system, and local dev environment
 - [x] **Phase 2: Protocol Upload & Storage** - User entry point: PDF upload to GCS with quality detection
-- [x] **Phase 3: Criteria Extraction Workflow** - Core AI: Gemini-based structured criteria extraction via agent-a
+- [x] **Phase 3: Criteria Extraction Workflow** - Core AI: Gemini-based structured criteria extraction via extraction-service
 - [x] **Phase 4: HITL Review UI** - Human validation: side-by-side PDF viewer with criteria review
-- [ ] **Phase 5: Entity Grounding Workflow** - Medical AI: MedGemma entity extraction and UMLS grounding via agent-b
+- [x] **Phase 5: Entity Grounding Workflow** - Medical AI: MedGemma entity extraction and UMLS grounding via grounding-service
+- [ ] **Phase 5.1: Error Handling Hardening** - INSERTED: Remove mock fallbacks, fix silent error swallowing, fix mypy errors
+- [x] **Phase 5.2: Test Coverage** - INSERTED: Replace boilerplate tests with real tests across all services
+- [ ] **Phase 5.3: Rename Services and Docs to Implementation Names** - INSERTED: Replace template names (agent-a/agent-b) with domain names (extraction-service/grounding-service) and fix all docs
 - [ ] **Phase 6: Entity Approval, Auth & Search** - Complete the loop: entity approval UI, authentication, and search
 - [ ] **Phase 7: Production Hardening** - Reliability: retry logic, error handling, and pipeline success targets
 
@@ -55,15 +58,15 @@ Plans:
 - [ ] 02-02-PLAN.md -- Frontend UI: Upload dialog, paginated protocol list with status badges, detail view with quality scores
 
 ### Phase 3: Criteria Extraction Workflow
-**Goal**: Uploaded protocols are automatically processed by agent-a to extract structured inclusion/exclusion criteria with temporal constraints, assertion status, and confidence scores
+**Goal**: Uploaded protocols are automatically processed by extraction-service to extract structured inclusion/exclusion criteria with temporal constraints, assertion status, and confidence scores
 **Depends on**: Phase 2
 **Requirements**: REQ-03.1, REQ-03.2, REQ-03.3, REQ-03.4
 **Research flags**: NEEDS RESEARCH-PHASE. Complex integration of LangExtract, Gemini structured output, and temporal/conditional criteria extraction. Research needed on: LangExtract source grounding API patterns, Gemini structured output schema design for nested medical criteria, temporal constraint extraction strategies, assertion detection integration.
 **Success Criteria** (what must be TRUE):
-  1. When a protocol is uploaded, agent-a automatically extracts criteria and creates a CriteriaBatch with status=pending_review within 5 minutes
+  1. When a protocol is uploaded, extraction-service automatically extracts criteria and creates a CriteriaBatch with status=pending_review within 5 minutes
   2. Each extracted criterion has structured fields: text, type (inclusion/exclusion), category, temporal_constraint, conditions, numeric_thresholds, assertion status (PRESENT/ABSENT/HYPOTHETICAL/HISTORICAL/CONDITIONAL), and confidence score (0.0-1.0)
   3. PDF parsing via pymupdf4llm preserves tables and multi-column layouts, with parsed content cached to avoid re-parsing
-  4. CriteriaExtracted event is published via outbox pattern and agent-b can subscribe to it
+  4. CriteriaExtracted event is published via outbox pattern and grounding-service can subscribe to it
 **Plans**: 2 plans
 
 Plans:
@@ -87,12 +90,12 @@ Plans:
 - [x] 04-02-PLAN.md -- Review UI: split-screen PDF viewer + criteria cards with confidence badges, review queue, route wiring
 
 ### Phase 5: Entity Grounding Workflow
-**Goal**: Extracted criteria are automatically processed by agent-b to identify medical entities via MedGemma and ground them to UMLS/SNOMED concepts via the MCP server, with tiered fallback for coverage gaps
+**Goal**: Extracted criteria are automatically processed by grounding-service to identify medical entities via MedGemma and ground them to UMLS/SNOMED concepts via the MCP server, with tiered fallback for coverage gaps
 **Depends on**: Phase 3 (needs CriteriaBatch data and CriteriaExtracted events)
 **Requirements**: REQ-05.1, REQ-05.2, REQ-05.3
 **Research flags**: NEEDS RESEARCH-PHASE. Complex medical AI integration. Research needed on: UMLS MCP server deployment architecture, MedGemma deployment on Vertex AI (GPU config, batch optimization), MedCAT model selection for UMLS 2024AA, tiered grounding strategy implementation.
 **Success Criteria** (what must be TRUE):
-  1. agent-b automatically processes criteria when CriteriaExtracted event fires, extracting medical entities (Condition, Medication, Procedure, Lab_Value, Demographic, Biomarker) with span positions and context windows
+  1. grounding-service automatically processes criteria when CriteriaExtracted event fires, extracting medical entities (Condition, Medication, Procedure, Lab_Value, Demographic, Biomarker) with span positions and context windows
   2. Every extracted entity is grounded to UMLS CUI and SNOMED-CT code via the MCP server, with every generated code validated against the UMLS API before database storage
   3. Tiered grounding strategy works: exact match first, then semantic similarity, then routed to expert review queue -- failed grounding stores free-text plus nearest neighbor without blocking the pipeline
   4. EntitiesGrounded event is published on completion, and each grounding has a confidence score (0.0-1.0)
@@ -102,6 +105,63 @@ Plans:
 - [ ] 05-01-PLAN.md -- UMLS MCP server with FastMCP: concept_search, concept_linking, semantic_type_prediction tools + UMLS REST API client with mock fallback
 - [ ] 05-02-PLAN.md -- Agent-b foundation: GroundingState TypedDict, Pydantic entity schemas, Jinja2 extraction prompts, CriteriaExtracted trigger handler, UMLS validation client
 - [ ] 05-03-PLAN.md -- Grounding graph nodes and integration: 4 LangGraph nodes (extract_entities/ground_to_umls/map_to_snomed/validate_confidence), graph assembly, outbox handler registration
+
+### Phase 5.1: Error Handling Hardening
+**Goal**: All services fail loudly when dependencies are missing — no mock fallbacks, no silent error swallowing, no graceful degradation that hides real failures
+**Depends on**: Phase 5 (gap closure for Phases 1-5)
+**Requirements**: Gap closure — cross-cutting quality
+**Research flags**: Standard patterns. Skip research-phase.
+**INSERTED**: Closes gaps identified by error handling audit after Phase 5 completion
+**Success Criteria** (what must be TRUE):
+  1. GCS operations raise ValueError when GCS_BUCKET_NAME is not set instead of returning localhost mock URLs, and the /mock-upload endpoint is removed
+  2. DATABASE_URL raises ValueError when not set instead of defaulting to SQLite
+  3. UMLS API client methods (search, get_concept, get_snomed_code) propagate exceptions instead of returning empty values — callers can distinguish API failure from empty results
+  4. ground_to_umls uses only the MCP server path — no silent fallback to direct client
+  5. All 3 mypy errors in ground_to_umls.py are fixed and `uv run mypy .` passes clean
+  6. `uv run ruff check .` passes clean
+**Plans**: 1 plan
+
+Plans:
+- [ ] 05.1-01-PLAN.md -- Remove GCS mock fallback, fix UMLS error swallowing, remove MCP fallback, fix mypy errors
+
+### Phase 5.2: Test Coverage
+**Goal**: Every service and library has real functional tests — boilerplate/example tests removed, critical business logic covered
+**Depends on**: Phase 5.1 (error handling fixed first, then test the correct behavior)
+**Requirements**: Gap closure — cross-cutting quality
+**Research flags**: Standard patterns. Skip research-phase.
+**INSERTED**: Closes test coverage gaps identified by audit — 2 real tests vs 86 boilerplate
+**Success Criteria** (what must be TRUE):
+  1. All 86 boilerplate/example tests removed (test_example_unit.py, test_example_integration.py, test_example_mocking.py) and replaced with real tests
+  2. api-service has integration tests for all 9 production endpoints (4 protocol + 5 review) using TestClient
+  3. Unit tests exist for: Pydantic schemas (criteria + entity), quality scoring algorithm, shared SQLModel models, UMLS clients, outbox processor
+  4. Agent graph tests with mocked LLMs verify: extraction-service extraction graph compiles and routes, grounding-service grounding graph compiles and routes
+  5. `uv run pytest` passes with zero skipped tests (all stale skips removed or fixed)
+  6. All tests test REAL project code, not dummy functions
+  7. UMLS client rewritten with production patterns: exception hierarchy, disk caching, retry, SnomedCandidate dataclass
+**Plans**: 3 plans
+
+Plans:
+- [x] 05.2-01-PLAN.md -- Remove boilerplate tests, add unit tests for schemas, models, quality scoring, UMLS clients, outbox processor
+- [x] 05.2-02-PLAN.md -- Rewrite UMLS client with production patterns: exception hierarchy, disk caching, retry, SnomedCandidate dataclass
+- [x] 05.2-03-PLAN.md -- Add API integration tests for protocol + review endpoints, agent graph compilation tests
+
+### Phase 5.3: Rename Services and Docs to Implementation Names
+**Goal**: All services, libs, and apps use implementation-domain names and descriptions; no template placeholders (e.g. "agent-a", "agent-b", "guest interaction", "guardrailing") in code, config, or docs.
+**Depends on**: Phase 5.2
+**Requirements**: Gap closure — naming and documentation consistency (per architecture review Option A and user audit)
+**Research flags**: Standard refactor. Skip research-phase.
+**INSERTED**: Closes gap: "services kept template names instead of being properly named"
+**Success Criteria** (what must be TRUE):
+  1. Directory `services/agent-a-service` renamed to `services/extraction-service`; Python package `agent_a_service` renamed to `extraction_service`; all imports and references updated (api-service, pyproject, docker-compose, CI, mkdocs, READMEs).
+  2. Directory `services/agent-b-service` renamed to `services/grounding-service`; Python package `agent_b_service` renamed to `grounding_service`; all imports and references updated.
+  3. Docs (components-overview.md, PROJECT_OVERVIEW.md, onboarding.md, testing-guide.md, copilot-instructions.md, ROADMAP.md, per-service READMEs) use "extraction-service" / "grounding-service" and correct descriptions (criteria extraction, UMLS grounding) — no "agent-a", "agent-b", "guest interaction", or "guardrailing".
+  4. `uv run pytest` and CI pass after renames; no broken imports or paths.
+**Plans**: 3 plans
+
+Plans:
+- [ ] 05.3-01-PLAN.md -- Rename agent-a-service to extraction-service (dir, package, all refs)
+- [ ] 05.3-02-PLAN.md -- Rename agent-b-service to grounding-service (dir, package, all refs)
+- [ ] 05.3-03-PLAN.md -- Update all documentation and config to implementation names and descriptions
 
 ### Phase 6: Entity Approval, Auth & Search
 **Goal**: Clinical researchers can authenticate, validate grounded entities with SNOMED codes, and search across criteria -- completing the full end-to-end HITL workflow
@@ -186,7 +246,7 @@ Phase 4 (HITL Review)    Phase 5 (Grounding)*
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 5.1 -> 5.2 -> 5.3 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -195,5 +255,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 3. Criteria Extraction Workflow | 2/2 | Complete | 2026-02-11 |
 | 4. HITL Review UI | 2/2 | Complete | 2026-02-11 |
 | 5. Entity Grounding Workflow | 3/3 | Complete | 2026-02-11 |
+| 5.1 Error Handling Hardening | 0/1 | Not started | - |
+| 5.2 Test Coverage | 3/3 | Complete | 2026-02-11 |
+| 5.3 Rename Services and Docs | 0/3 | Not started | - |
 | 6. Entity Approval, Auth & Search | 0/TBD | Not started | - |
 | 7. Production Hardening | 0/TBD | Not started | - |
