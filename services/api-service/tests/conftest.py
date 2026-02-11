@@ -14,21 +14,26 @@ import pytest
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 from sqlalchemy import create_engine
-from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
+from sqlmodel import Session
 
 
 @pytest.fixture(scope="function")
 def db_engine():
     """Create an in-memory SQLite database engine for testing.
 
-    Each test gets a fresh database.
+    Each test gets a fresh database. Tables are created from SQLModel metadata.
     """
     engine = create_engine(
         "sqlite:///:memory:",
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # Register and create all shared tables (Protocol, Criteria, etc.)
+    import shared.models  # noqa: F401
+    from sqlmodel import SQLModel
+
+    SQLModel.metadata.create_all(engine)
 
     try:
         yield engine
@@ -42,14 +47,11 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 
     Automatically rolls back changes after each test.
     """
-    session_local = sessionmaker(autocommit=False, autoflush=False, bind=db_engine)
-    session = session_local()
-
-    try:
-        yield session
-    finally:
-        session.rollback()
-        session.close()
+    with Session(db_engine) as session:
+        try:
+            yield session
+        finally:
+            session.rollback()
 
 
 @pytest.fixture(scope="function")

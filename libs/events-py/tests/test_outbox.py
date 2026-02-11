@@ -85,9 +85,7 @@ class TestOutboxProcessorInit:
 class TestPollAndProcess:
     """Tests for OutboxProcessor.poll_and_process()."""
 
-    def test_processes_pending_event(
-        self, outbox_engine, outbox_session
-    ) -> None:
+    def test_processes_pending_event(self, outbox_engine, outbox_session) -> None:
         event = _create_pending_event(outbox_session)
         handler = MagicMock()
 
@@ -150,9 +148,7 @@ class TestPollAndProcess:
         self, outbox_engine, outbox_session
     ) -> None:
         event = _create_pending_event(outbox_session)
-        failing_handler = MagicMock(
-            side_effect=RuntimeError("handler error")
-        )
+        failing_handler = MagicMock(side_effect=RuntimeError("handler error"))
 
         processor = OutboxProcessor(
             engine=outbox_engine,
@@ -167,9 +163,7 @@ class TestPollAndProcess:
         assert refreshed.status == "failed"
         assert refreshed.retry_count == 1
 
-    def test_sqlite_fallback_no_for_update(
-        self, outbox_engine, outbox_session
-    ) -> None:
+    def test_sqlite_fallback_no_for_update(self, outbox_engine, outbox_session) -> None:
         """SQLite does not support FOR UPDATE SKIP LOCKED.
 
         The processor should use the fallback path without error.
@@ -220,9 +214,7 @@ class TestPersistWithOutbox:
     def test_generates_idempotency_key_when_not_provided(
         self, outbox_engine, outbox_session
     ) -> None:
-        protocol = Protocol(
-            title="Test", file_uri="gs://b/f.pdf"
-        )
+        protocol = Protocol(title="Test", file_uri="gs://b/f.pdf")
         event = persist_with_outbox(
             session=outbox_session,
             entity=protocol,
@@ -231,16 +223,10 @@ class TestPersistWithOutbox:
             aggregate_id=protocol.id,
             payload={},
         )
-        assert event.idempotency_key.startswith(
-            "protocol_uploaded:"
-        )
+        assert event.idempotency_key.startswith("protocol_uploaded:")
 
-    def test_uses_provided_idempotency_key(
-        self, outbox_engine, outbox_session
-    ) -> None:
-        protocol = Protocol(
-            title="Test", file_uri="gs://b/f.pdf"
-        )
+    def test_uses_provided_idempotency_key(self, outbox_engine, outbox_session) -> None:
+        protocol = Protocol(title="Test", file_uri="gs://b/f.pdf")
         event = persist_with_outbox(
             session=outbox_session,
             entity=protocol,

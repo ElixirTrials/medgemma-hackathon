@@ -4,12 +4,12 @@ import os
 from contextlib import asynccontextmanager
 from typing import Set
 
-from extraction_service.trigger import handle_protocol_uploaded
-from grounding_service.trigger import handle_criteria_extracted
 from events_py.outbox import OutboxProcessor
+from extraction_service.trigger import handle_protocol_uploaded
 from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from grounding_service.trigger import handle_criteria_extracted
 from sqlalchemy import text
 from sqlmodel import Session
 

@@ -46,20 +46,17 @@ class ExtractedEntity(BaseModel):
     )
     span_start: int = Field(
         description=(
-            "Character offset where the entity starts "
-            "in the criterion text (0-based)"
+            "Character offset where the entity starts in the criterion text (0-based)"
         ),
     )
     span_end: int = Field(
         description=(
-            "Character offset where the entity ends "
-            "in the criterion text (exclusive)"
+            "Character offset where the entity ends in the criterion text (exclusive)"
         ),
     )
     context_window: str = Field(
         description=(
-            "Surrounding text (up to 20 characters before and after) "
-            "for disambiguation"
+            "Surrounding text (up to 20 characters before and after) for disambiguation"
         ),
     )
 
