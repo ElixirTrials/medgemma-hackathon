@@ -44,34 +44,30 @@ class UMLSClient:
         Returns:
             List of matching concepts with cui, name, and source.
         """
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(
-                    f"{UMLS_BASE_URL}/search/current",
-                    params={
-                        "string": term,
-                        "apiKey": self.api_key,
-                        "sabs": sabs,
-                        "searchType": search_type,
-                        "returnIdType": "concept",
-                        "pageSize": max_results,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                results = data.get("result", {}).get("results", [])
-                return [
-                    {
-                        "cui": r["ui"],
-                        "name": r["name"],
-                        "source": r.get("rootSource", ""),
-                    }
-                    for r in results
-                    if r.get("ui") != "NONE"
-                ]
-        except Exception:
-            logger.exception("UMLS search failed for term '%s'", term)
-            return []
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                f"{UMLS_BASE_URL}/search/current",
+                params={
+                    "string": term,
+                    "apiKey": self.api_key,
+                    "sabs": sabs,
+                    "searchType": search_type,
+                    "returnIdType": "concept",
+                    "pageSize": max_results,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            results = data.get("result", {}).get("results", [])
+            return [
+                {
+                    "cui": r["ui"],
+                    "name": r["name"],
+                    "source": r.get("rootSource", ""),
+                }
+                for r in results
+                if r.get("ui") != "NONE"
+            ]
 
     async def get_concept(self, cui: str) -> dict | None:
         """Validate that a CUI exists in UMLS and return its details.
@@ -82,23 +78,19 @@ class UMLSClient:
         Returns:
             Concept dict with cui and name, or None if not found.
         """
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(
-                    f"{UMLS_BASE_URL}/content/current/CUI/{cui}",
-                    params={"apiKey": self.api_key},
-                )
-                if resp.status_code != 200:
-                    return None
-                data = resp.json()
-                result = data.get("result", {})
-                return {
-                    "cui": result.get("ui", cui),
-                    "name": result.get("name", ""),
-                }
-        except Exception:
-            logger.exception("UMLS get_concept failed for CUI '%s'", cui)
-            return None
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                f"{UMLS_BASE_URL}/content/current/CUI/{cui}",
+                params={"apiKey": self.api_key},
+            )
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            result = data.get("result", {})
+            return {
+                "cui": result.get("ui", cui),
+                "name": result.get("name", ""),
+            }
 
     async def get_snomed_code(self, cui: str) -> str | None:
         """Get the SNOMED-CT code for a given CUI.
@@ -109,26 +101,22 @@ class UMLSClient:
         Returns:
             SNOMED-CT code string, or None if no mapping found.
         """
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                resp = await client.get(
-                    f"{UMLS_BASE_URL}/search/current",
-                    params={
-                        "string": cui,
-                        "apiKey": self.api_key,
-                        "sabs": "SNOMEDCT_US",
-                        "returnIdType": "code",
-                        "pageSize": 1,
-                    },
-                )
-                resp.raise_for_status()
-                data = resp.json()
-                results = data.get("result", {}).get("results", [])
-                if results and results[0].get("ui") != "NONE":
-                    return str(results[0]["ui"])
-                return None
-        except Exception:
-            logger.exception("SNOMED lookup failed for CUI '%s'", cui)
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.get(
+                f"{UMLS_BASE_URL}/search/current",
+                params={
+                    "string": cui,
+                    "apiKey": self.api_key,
+                    "sabs": "SNOMEDCT_US",
+                    "returnIdType": "code",
+                    "pageSize": 1,
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            results = data.get("result", {}).get("results", [])
+            if results and results[0].get("ui") != "NONE":
+                return str(results[0]["ui"])
             return None
 
 

@@ -50,16 +50,12 @@ async def validate_cui(cui: str) -> bool:
 
     api_key = _get_api_key()
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(
-                f"{UMLS_BASE_URL}/content/current/CUI/{cui}",
-                params={"apiKey": api_key},
-            )
-            return resp.status_code == 200
-    except Exception:
-        logger.warning("UMLS CUI validation failed for %s", cui)
-        return False
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(
+            f"{UMLS_BASE_URL}/content/current/CUI/{cui}",
+            params={"apiKey": api_key},
+        )
+        return resp.status_code == 200
 
 
 async def get_snomed_code_for_cui(cui: str) -> str | None:
@@ -82,24 +78,20 @@ async def get_snomed_code_for_cui(cui: str) -> str | None:
 
     api_key = _get_api_key()
 
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(
-                f"{UMLS_BASE_URL}/search/current",
-                params={
-                    "string": cui,
-                    "apiKey": api_key,
-                    "sabs": "SNOMEDCT_US",
-                    "returnIdType": "code",
-                    "pageSize": 1,
-                },
-            )
-            resp.raise_for_status()
-            data = resp.json()
-            results = data.get("result", {}).get("results", [])
-            if results and results[0].get("ui") != "NONE":
-                return results[0]["ui"]
-            return None
-    except Exception:
-        logger.warning("SNOMED lookup failed for CUI %s", cui)
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.get(
+            f"{UMLS_BASE_URL}/search/current",
+            params={
+                "string": cui,
+                "apiKey": api_key,
+                "sabs": "SNOMEDCT_US",
+                "returnIdType": "code",
+                "pageSize": 1,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        results = data.get("result", {}).get("results", [])
+        if results and results[0].get("ui") != "NONE":
+            return results[0]["ui"]
         return None
