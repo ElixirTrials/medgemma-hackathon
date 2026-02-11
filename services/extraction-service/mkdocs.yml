@@ -1,5 +1,5 @@
 docs_dir: docs
-site_name: agent-a-service
+site_name: extraction-service
 nav:
   - API Reference: api/index.md
 
