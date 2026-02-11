@@ -12,11 +12,11 @@ COPY pyproject.toml uv.lock ./
 COPY libs/ libs/
 
 # Copy this service
-COPY services/agent-a-service/ services/agent-a-service/
+COPY services/extraction-service/ services/extraction-service/
 
 # Install dependencies using uv
-RUN uv sync --frozen --no-dev --package agent-a-service
+RUN uv sync --frozen --no-dev --package extraction-service
 
 # Runtime
 EXPOSE 8001
-CMD ["uv", "run", "--no-sync", "python", "-m", "agent_a_service"]
+CMD ["uv", "run", "--no-sync", "python", "-m", "extraction_service"]

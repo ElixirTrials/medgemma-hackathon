@@ -39,53 +39,42 @@ The system follows a layered architecture:
 ```mermaid
 graph TB
     subgraph Presentation["🎨 Presentation Layer"]
-        AdminUI[Admin Console UI]
-        HostDash[Host Dashboard]
-        GuestPanel[Guest Conversation Panel]
-        OrchPanel[System Orchestration Panel]
+        HITLUI[HITL UI - Review Dashboard]
     end
 
     subgraph Application["⚙️ Application Layer"]
-        API[API Service]
-        ConvAgent[Conversation Agent]
-        GuardAgent[Guardrail Agent]
-        EventStream[Event Stream Service]
+        API[API Service - Orchestrator]
+        ExtractionService[Extraction Service - Gemini]
+        GroundingService[Grounding Service - MedGemma + UMLS]
+        EventStream[Event Outbox Processor]
     end
 
     subgraph Data["💾 Data Layer"]
-        Context[(Context Store)]
-        History[(Message History)]
-        Signals[(Priority Signals)]
+        DB[(PostgreSQL - Protocols, Criteria, Entities)]
+        GCS[(GCS - Protocol PDFs)]
     end
 
     subgraph Shared["📦 Shared Components"]
-        Inference[Inference Service]
-        Models[Model Registry]
-        Tools[Tool Registry]
+        Models[SQLModel Schemas]
+        Events[Event Types]
+        UMLSClient[UMLS MCP Server]
     end
 
-    AdminUI --> HostDash
-    AdminUI --> GuestPanel
-    AdminUI --> OrchPanel
+    HITLUI --> API
+    API --> DB
+    API --> GCS
+    API --> EventStream
 
-    HostDash --> API
-    GuestPanel --> API
-    OrchPanel --> EventStream
+    EventStream --> ExtractionService
+    EventStream --> GroundingService
 
-    API --> ConvAgent
-    API --> GuardAgent
-    ConvAgent --> Inference
-    GuardAgent --> Inference
-    ConvAgent --> Tools
+    ExtractionService --> DB
+    ExtractionService --> GCS
+    ExtractionService --> Models
 
-    EventStream --> ConvAgent
-    EventStream --> GuardAgent
-
-    ConvAgent --> Context
-    ConvAgent --> History
-    GuardAgent --> Signals
-
-    Inference --> Models
+    GroundingService --> DB
+    GroundingService --> UMLSClient
+    GroundingService --> Models
 
     classDef presentation fill:#e1f5ff,stroke:#007acc,color:#000,stroke-width:2px;
     classDef application fill:#d4f1d4,stroke:#28a745,color:#000,stroke-width:2px;
@@ -99,30 +88,28 @@ graph TB
 ```
 
 ### Agent Workflows
-The core logic resides in specialized LangGraph agents. Below is the typical flow for an agent interaction:
+The core logic resides in specialized LangGraph agents. Below is the end-to-end extraction and grounding pipeline:
 
 ```mermaid
 graph TD
-    User[User Input] -->|Request Data| ConvAgent[Conversation Agent]
-    ConvAgent -->|Generate Response| Guard[Guardrail Agent]
-    Guard -->|Validate Content| Decision{Passes<br/>Guardrails?}
-    Decision -->|Yes| Tools[Execute Tools/Actions]
-    Decision -->|No| Reject[Reject & Request Revision]
-    Reject --> ConvAgent
-    Tools -->|Tool Results| ConvAgent
-    ConvAgent -->|Context Update| Context[(Context Store)]
-    Context -->|Enriched Data| ConvAgent
-    Guard -->|Approved Response| Output[Deliver to User]
+    Upload[PDF Upload] -->|Store in GCS| API[API Service]
+    API -->|Publish Event| Extraction[Extraction Service]
+    Extraction -->|Parse PDF| Extract[Extract Criteria - Gemini]
+    Extract -->|Store Batch| DB[(Database)]
+    DB -->|Publish Event| Grounding[Grounding Service]
+    Grounding -->|Extract Entities| MedGemma[MedGemma Entity Detection]
+    MedGemma -->|Ground to UMLS| UMLS[UMLS MCP Server]
+    UMLS -->|Map to SNOMED| DB
+    DB -->|Display for Review| HITL[HITL UI]
+    HITL -->|Approve/Reject| API
 
     classDef agent fill:#d4f1d4,stroke:#28a745,color:#000,stroke-width:2px;
-    classDef guard fill:#ffe5cc,stroke:#fd7e14,color:#000,stroke-width:2px;
-    classDef decision fill:#e1f5ff,stroke:#007acc,color:#000;
+    classDef service fill:#ffe5cc,stroke:#fd7e14,color:#000,stroke-width:2px;
     classDef data fill:#f0f0f0,stroke:#666,color:#000;
 
-    class ConvAgent agent;
-    class Guard guard;
-    class Decision decision;
-    class Context data;
+    class Extraction,Grounding agent;
+    class API,UMLS service;
+    class DB,HITL data;
 ```
 
 ---
