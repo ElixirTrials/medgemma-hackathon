@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from typing import Set
 
 from events_py.outbox import OutboxProcessor
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
@@ -96,6 +96,13 @@ async def readiness_check(db: Session = Depends(get_db)):
                 "error": "Database unavailable",
             },
         )
+
+
+@app.put("/mock-upload")
+async def mock_upload(request: Request):
+    """Local dev: accept PUT uploads when GCS is not configured."""
+    await request.body()  # consume the body
+    return JSONResponse(status_code=200, content={"status": "mock_uploaded"})
 
 
 @app.get("/")
