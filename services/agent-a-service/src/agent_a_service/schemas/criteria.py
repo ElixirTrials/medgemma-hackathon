@@ -41,9 +41,7 @@ class TemporalConstraint(BaseModel):
     )
     relation: str | None = Field(
         default=None,
-        description=(
-            "Temporal relation: 'within', 'before', 'after', or 'at_least'"
-        ),
+        description=("Temporal relation: 'within', 'before', 'after', or 'at_least'"),
     )
     reference_point: str | None = Field(
         default=None,
@@ -68,9 +66,7 @@ class NumericThreshold(BaseModel):
         description="Unit of measurement, e.g., 'years', 'mg/dL', '%', 'kg/m2'",
     )
     comparator: str = Field(
-        description=(
-            "Comparison operator: '>=', '<=', '>', '<', '==', or 'range'"
-        ),
+        description=("Comparison operator: '>=', '<=', '>', '<', '==', or 'range'"),
     )
     upper_value: float | None = Field(
         default=None,
@@ -106,8 +102,7 @@ class ExtractedCriterion(BaseModel):
     conditions: list[str] = Field(
         default_factory=list,
         description=(
-            "Conditional dependencies, e.g., "
-            "'if female of childbearing potential'"
+            "Conditional dependencies, e.g., 'if female of childbearing potential'"
         ),
     )
     numeric_thresholds: list[NumericThreshold] = Field(

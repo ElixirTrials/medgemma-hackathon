@@ -12,10 +12,11 @@ import os
 from pathlib import Path
 from typing import Any
 
-from agent_a_service.schemas.criteria import ExtractionResult
-from agent_a_service.state import ExtractionState
 from inference.factory import render_prompts
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
+
+from agent_a_service.schemas.criteria import ExtractionResult
+from agent_a_service.state import ExtractionState
 
 logger = logging.getLogger(__name__)
 

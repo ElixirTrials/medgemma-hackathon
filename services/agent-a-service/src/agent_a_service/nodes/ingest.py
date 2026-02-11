@@ -15,11 +15,12 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from agent_a_service.pdf_parser import fetch_pdf_bytes, parse_pdf_to_markdown
-from agent_a_service.state import ExtractionState
 from api_service.storage import engine
 from shared.models import Protocol
 from sqlmodel import Session
+
+from agent_a_service.pdf_parser import fetch_pdf_bytes, parse_pdf_to_markdown
+from agent_a_service.state import ExtractionState
 
 logger = logging.getLogger(__name__)
 
