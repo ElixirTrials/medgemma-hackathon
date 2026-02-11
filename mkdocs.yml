@@ -106,7 +106,7 @@ nav:
 - Components:
   - Overview: components-overview.md
   - extraction-service: !include './services/extraction-service/mkdocs.yml'
-  - agent-b-service: !include './services/agent-b-service/mkdocs.yml'
+  - grounding-service: !include './services/grounding-service/mkdocs.yml'
   - api-service: !include './services/api-service/mkdocs.yml'
   - data-pipeline: !include './libs/data-pipeline/mkdocs.yml'
   - evaluation: !include './libs/evaluation/mkdocs.yml'
