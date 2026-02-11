@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 4 - Criteria Review UI (COMPLETE)
+**Current focus:** Phase 5 - Entity Grounding Workflow
 
 ## Current Position
 
-Phase: 4 of 7 (Criteria Review UI) -- PHASE COMPLETE
-Plan: 2 of 2 in current phase (all plans complete)
-Status: Phase Complete
-Last activity: 2026-02-11 -- Completed 04-02-PLAN.md (Review UI components and screens)
+Phase: 5 of 7 (Entity Grounding Workflow)
+Plan: 1 of 3 in current phase
+Status: In Progress
+Last activity: 2026-02-11 -- Completed 05-01-PLAN.md (UMLS MCP server)
 
-Progress: [██████████] 67%
+Progress: [████████████] 75%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Average duration: 4.0 min
-- Total execution time: 0.53 hours
+- Total execution time: 0.62 hours
 
 **By Phase:**
 
@@ -31,10 +31,11 @@ Progress: [██████████] 67%
 | 02-protocol-upload-storage | 2 | 7 min | 3.5 min |
 | 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
 | 04-hitl-review-ui | 2 | 7 min | 3.5 min |
+| 05-entity-grounding-workflow | 1 | 5 min | 5 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-01 (5 min), 03-02 (9 min), 04-01 (3 min), 04-02 (4 min)
-- Trend: Phase 4 both plans fast (API + UI in 7 min total)
+- Last 5 plans: 03-02 (9 min), 04-01 (3 min), 04-02 (4 min), 05-01 (5 min)
+- Trend: Steady pace, grounding workflow started
 
 *Updated after each plan completion*
 
@@ -73,6 +74,9 @@ Recent decisions affecting current work:
 - [04-02]: Used useBatchList with client-side filter for batch info in ReviewPage (no single-batch endpoint needed)
 - [04-02]: Confidence badge thresholds: >=0.85 high (green), >=0.7 medium (yellow), <0.7 low (red)
 - [04-02]: Default sort is confidence ascending (lowest first) to surface items needing most attention
+- [05-01]: Mock client returns canned diabetes results (C0011849, SNOMED 73211009) for dev without UMLS credentials
+- [05-01]: Tools instantiate client per-request via factory (not module-level) so mock/real is env-determined at call time
+- [05-01]: Tiered grounding: exact match (0.95) -> word search (0.75) -> expert review (0.0) with clear method labels
 
 ### Pending Todos
 
@@ -86,10 +90,10 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 5 (Grounding) needs research-phase: UMLS MCP server deployment, MedGemma on Vertex AI, MedCAT model selection
+- ~~Phase 5 (Grounding) needs research-phase~~ Research complete. UMLS MCP server built (05-01). MedGemma/Gemini integration and LangGraph workflow remaining (05-02, 05-03).
 
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 04-02-PLAN.md (Phase 4 complete)
+Stopped at: Completed 05-01-PLAN.md (UMLS MCP server)
 Resume file: None
