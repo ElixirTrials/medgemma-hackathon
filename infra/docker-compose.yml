@@ -89,10 +89,10 @@ services:
     profiles:
       - agents
 
-  agent-b:
+  grounding:
     build:
       context: ..
-      dockerfile: services/agent-b-service/Dockerfile
+      dockerfile: services/grounding-service/Dockerfile
     ports:
       - "8002:8002"
     environment:
