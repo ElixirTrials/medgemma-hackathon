@@ -5,7 +5,7 @@ ChatVertexAI.with_structured_output() in the extraction pipeline.
 """
 
 import pytest
-from agent_a_service.schemas.criteria import (
+from extraction_service.schemas.criteria import (
     AssertionStatus,
     ExtractedCriterion,
     ExtractionResult,
@@ -109,9 +109,7 @@ class TestExtractedCriterion:
                 reference_point="screening",
             ),
             conditions=["if diabetic"],
-            numeric_thresholds=[
-                NumericThreshold(value=8.0, unit="%", comparator="<")
-            ],
+            numeric_thresholds=[NumericThreshold(value=8.0, unit="%", comparator="<")],
             assertion_status=AssertionStatus.ABSENT,
             confidence=0.88,
             source_section="Exclusion Criteria",

@@ -49,7 +49,14 @@ plugins = []
 mypy_path = ["../shared/src", "../inference/src", "../../libs/events-py/src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "../shared/src", "../inference/src", "../../libs/events-py/src"]
+pythonpath = [
+    "src",
+    "../shared/src",
+    "../inference/src",
+    "../../libs/events-py/src",
+    "../extraction-service/src",
+    "../agent-b-service/src",
+]
 testpaths = ["tests"]
 # Coverage is optional - use `pytest --cov=api_service` to enable
 addopts = "-n auto"
