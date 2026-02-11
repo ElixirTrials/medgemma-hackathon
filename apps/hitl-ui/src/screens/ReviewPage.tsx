@@ -341,7 +341,9 @@ export default function ReviewPage() {
                                                                 key={entity.id}
                                                                 entity={entity}
                                                                 onAction={handleEntityAction}
-                                                                isSubmitting={entityAction.isPending}
+                                                                isSubmitting={
+                                                                    entityAction.isPending
+                                                                }
                                                             />
                                                         ))}
                                                     </div>
