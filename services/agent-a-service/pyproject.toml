@@ -1,12 +1,18 @@
 [project]
 name = "agent-a-service"
 version = "0.1.0"
-description = "Template Agent A Service"
+description = "Criteria extraction agent service"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "shared",
     "inference",
+    "events-py",
+    "pymupdf>=1.24.0",
+    "pymupdf4llm>=0.2.9",
+    "diskcache>=5.6.3",
+    "jinja2>=3.1.0",
+    "langchain-google-vertexai>=2.0.0",
 ]
 
 [build-system]
@@ -34,13 +40,14 @@ exclude = ["venv", ".venv", "docs"]
 strict = true
 exclude = ["venv", ".venv", "docs"]
 plugins = []
-mypy_path = ["../shared/src", "../inference/src"]
+mypy_path = ["../shared/src", "../inference/src", "../../libs/events-py/src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src", "../shared/src", "../inference/src"]
+pythonpath = ["src", "../shared/src", "../inference/src", "../../libs/events-py/src"]
 testpaths = ["tests"]
 addopts = "--cov=agent_a_service --cov-branch --cov-report=term-missing"
 
 [tool.uv.sources]
 shared = { workspace = true }
 inference = { workspace = true }
+events-py = { workspace = true }
