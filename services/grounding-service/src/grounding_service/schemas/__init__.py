@@ -1,6 +1,6 @@
 """Pydantic schemas for entity extraction structured output."""
 
-from agent_b_service.schemas.entities import (
+from grounding_service.schemas.entities import (
     BatchEntityExtractionResult,
     EntityExtractionResult,
     EntityType,

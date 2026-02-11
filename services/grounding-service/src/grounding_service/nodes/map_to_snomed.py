@@ -13,8 +13,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from agent_b_service.state import GroundingState
-from agent_b_service.umls_client import get_snomed_code_for_cui
+from grounding_service.state import GroundingState
+from grounding_service.umls_client import get_snomed_code_for_cui
 
 logger = logging.getLogger(__name__)
 
