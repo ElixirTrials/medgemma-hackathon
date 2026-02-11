@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 5.1 - Error Handling Hardening (gap closure)
+**Current focus:** Phase 5.2 - Test Coverage (gap closure)
 
 ## Current Position
 
-Phase: 5.1 of 7+2 (Error Handling Hardening)
-Plan: 1 of 1 in current phase
-Status: Phase 5.1 complete
-Last activity: 2026-02-11 -- Completed 05.1-01 error handling hardening
+Phase: 5.2 of 7+2 (Test Coverage)
+Plan: 1 of 2 in current phase
+Status: Plan 05.2-01 complete
+Last activity: 2026-02-11 -- Completed 05.2-01 unit test coverage
 
-Progress: [████████████████] 90%
+Progress: [████████████████] 92%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 5.4 min
-- Total execution time: 1.09 hours
+- Total plans completed: 13
+- Average duration: 7.2 min
+- Total execution time: 1.57 hours
 
 **By Phase:**
 
@@ -33,10 +33,11 @@ Progress: [████████████████] 90%
 | 04-hitl-review-ui | 2 | 7 min | 3.5 min |
 | 05-entity-grounding-workflow | 3 | 19 min | 6.3 min |
 | 05.1-error-handling-hardening | 1 | 16 min | 16 min |
+| 05.2-test-coverage | 1 | 29 min | 29 min |
 
 **Recent Trend:**
-- Last 5 plans: 05-01 (5 min), 05-02 (6 min), 05-03 (8 min), 05.1-01 (16 min)
-- Trend: Gap closure plan took longer due to cross-service refactoring
+- Last 5 plans: 05-02 (6 min), 05-03 (8 min), 05.1-01 (16 min), 05.2-01 (29 min)
+- Trend: Test coverage plan took longer due to 5 test files spanning 6 source modules
 
 *Updated after each plan completion*
 
@@ -88,6 +89,10 @@ Recent decisions affecting current work:
 - [05.1-01]: Kept local:// path rejection as ValueError in gcs.py (explicit error vs silent ignore)
 - [05.1-01]: Used type: ignore for MultiServerMCPClient async context manager due to library typing limitation
 - [05.1-01]: queue.py error return already present -- verified rather than modified
+- [05.2-01]: Added per-file-ignores for D102/D103 in test files (standard ruff practice)
+- [05.2-01]: Used raw PDF bytes for empty PDF test (PyMuPDF cannot save 0-page documents)
+- [05.2-01]: UMLS tests use AsyncMock + patch.object(httpx, 'AsyncClient') pattern for httpx mocking
+- [05.2-01]: Outbox processor publishes events even with empty handler list (verified actual behavior)
 
 ### Pending Todos
 
@@ -106,5 +111,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 05.1-01-PLAN.md (error handling hardening). Phase 5.1 complete.
+Stopped at: Completed 05.2-01-PLAN.md (unit test coverage). Plan 2 remaining in phase 5.2.
 Resume file: None
