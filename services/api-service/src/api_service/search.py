@@ -78,9 +78,7 @@ def _build_search_query(
 
     # Apply text search filter
     if use_postgres_fts:
-        tsvector = sa_func.to_tsvector(
-            sa_text("'english'"), col(Criteria.text)
-        )
+        tsvector = sa_func.to_tsvector(sa_text("'english'"), col(Criteria.text))
         tsquery = sa_func.plainto_tsquery(sa_text("'english'"), q)
         stmt = stmt.where(tsvector.op("@@")(tsquery))
     else:
@@ -88,17 +86,11 @@ def _build_search_query(
 
     # Apply optional filters
     if protocol_id:
-        stmt = stmt.where(
-            col(CriteriaBatch.protocol_id) == protocol_id
-        )
+        stmt = stmt.where(col(CriteriaBatch.protocol_id) == protocol_id)
     if criteria_type:
-        stmt = stmt.where(
-            col(Criteria.criteria_type) == criteria_type
-        )
+        stmt = stmt.where(col(Criteria.criteria_type) == criteria_type)
     if review_status:
-        stmt = stmt.where(
-            col(Criteria.review_status) == review_status
-        )
+        stmt = stmt.where(col(Criteria.review_status) == review_status)
 
     return stmt
 
@@ -123,25 +115,19 @@ def search_criteria(
     use_postgres_fts = database_url.startswith("postgresql")
 
     if not use_postgres_fts:
-        logger.warning(
-            "Full-text search requires PostgreSQL; using LIKE fallback"
-        )
+        logger.warning("Full-text search requires PostgreSQL; using LIKE fallback")
 
     stmt = _build_search_query(
         q, use_postgres_fts, protocol_id, criteria_type, review_status
     )
 
     # Count total results
-    count_stmt = select(sa_func.count()).select_from(
-        stmt.subquery()
-    )
+    count_stmt = select(sa_func.count()).select_from(stmt.subquery())
     total = db.exec(count_stmt).one()
 
     # Apply ordering
     if use_postgres_fts:
-        tsvector = sa_func.to_tsvector(
-            sa_text("'english'"), col(Criteria.text)
-        )
+        tsvector = sa_func.to_tsvector(sa_text("'english'"), col(Criteria.text))
         tsquery = sa_func.plainto_tsquery(sa_text("'english'"), q)
         rank = sa_func.ts_rank(tsvector, tsquery)
         stmt = stmt.order_by(rank.desc())
