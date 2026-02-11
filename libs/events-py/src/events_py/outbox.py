@@ -66,7 +66,7 @@ class OutboxProcessor:
             statement = (
                 select(OutboxEvent)
                 .where(OutboxEvent.status == "pending")
-                .order_by(OutboxEvent.created_at.asc())  # type: ignore[union-attr]
+                .order_by(OutboxEvent.created_at.asc())  # type: ignore[attr-defined]
                 .limit(self.batch_size)
             )
 

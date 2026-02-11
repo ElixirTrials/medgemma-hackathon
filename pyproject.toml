@@ -66,7 +66,7 @@ members = [
 ]
 
 [tool.mypy]
-exclude = "^(site|services/.*/tests|libs/.*/tests|instructions|notebooks)/"
+exclude = "^(site|services/.*/tests|libs/.*/tests|instructions|notebooks|.*/alembic/versions)/"
 
 [[tool.mypy.overrides]]
 module = "fastapi"
