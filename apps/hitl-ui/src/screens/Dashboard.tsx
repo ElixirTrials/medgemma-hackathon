@@ -52,10 +52,7 @@ export default function Dashboard() {
                     <p className="text-sm text-muted-foreground">No pending items</p>
                 </DashboardCard>
 
-                <DashboardCard
-                    title="Protocols"
-                    description="Manage clinical trial protocols"
-                >
+                <DashboardCard title="Protocols" description="Manage clinical trial protocols">
                     <Button
                         onClick={() => navigate('/protocols')}
                         variant="outline"
