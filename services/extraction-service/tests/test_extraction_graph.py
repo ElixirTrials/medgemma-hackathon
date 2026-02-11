@@ -1,4 +1,4 @@
-"""Graph compilation tests for agent-a extraction workflow."""
+"""Graph compilation tests for extraction-service extraction workflow."""
 
 import os
 

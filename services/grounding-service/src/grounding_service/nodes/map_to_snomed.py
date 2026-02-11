@@ -5,7 +5,7 @@ for the corresponding SNOMED-CT code. Missing SNOMED mappings are not
 errors -- entities proceed with snomed_code=None.
 
 This node does NOT use conditional error routing -- it always proceeds
-to validate_confidence (same pattern as parse -> queue in agent-a).
+to validate_confidence (same pattern as parse -> queue in extraction-service).
 """
 
 from __future__ import annotations

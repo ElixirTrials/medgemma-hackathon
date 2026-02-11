@@ -12,11 +12,11 @@ COPY pyproject.toml uv.lock ./
 COPY libs/ libs/
 
 # Copy this service
-COPY services/agent-b-service/ services/agent-b-service/
+COPY services/grounding-service/ services/grounding-service/
 
 # Install dependencies using uv
-RUN uv sync --frozen --no-dev --package agent-b-service
+RUN uv sync --frozen --no-dev --package grounding-service
 
 # Runtime
 EXPOSE 8002
-CMD ["uv", "run", "--no-sync", "python", "-m", "agent_b_service"]
+CMD ["uv", "run", "--no-sync", "python", "-m", "grounding_service"]

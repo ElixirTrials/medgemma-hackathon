@@ -21,7 +21,7 @@ from grounding_service.schemas.entities import (
 from pydantic import ValidationError
 
 # ---------------------------------------------------------------------------
-# Criteria schema tests (agent-a)
+# Criteria schema tests (extraction-service)
 # ---------------------------------------------------------------------------
 
 
@@ -157,7 +157,7 @@ class TestExtractionResult:
 
 
 # ---------------------------------------------------------------------------
-# Entity schema tests (agent-b)
+# Entity schema tests (grounding-service)
 # ---------------------------------------------------------------------------
 
 
