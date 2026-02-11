@@ -1,10 +1,27 @@
 """FastMCP server exposing UMLS concept search, linking, and semantic type tools."""
 
+import re
+
+from dotenv import load_dotenv
 from fastmcp import FastMCP
 
-from umls_mcp_server.umls_api import get_umls_client
+from umls_mcp_server.umls_api import SnomedCandidate, get_umls_client
+
+# Load .env from current working directory (e.g. repo root) so UMLS_API_KEY is set.
+load_dotenv()
 
 mcp = FastMCP("UMLS Grounding Server")
+
+
+def _candidate_to_dict(c: SnomedCandidate) -> dict:
+    """SnomedCandidate -> dict with snomed_code, display, cui, ontology, confidence."""
+    return {
+        "snomed_code": c.code,
+        "display": c.display,
+        "cui": c.cui,
+        "ontology": c.ontology,
+        "confidence": c.confidence,
+    }
 
 
 @mcp.tool()
@@ -23,10 +40,9 @@ async def concept_search(
     Returns:
         List of matching concepts with CUI, name, and source info.
     """
-    client = get_umls_client()
-    return await client.search(
-        term, sabs=sabs, search_type="exact", max_results=max_results
-    )
+    with get_umls_client() as client:
+        candidates = client.search_snomed(term, limit=max_results)
+    return [_candidate_to_dict(c) for c in candidates]
 
 
 @mcp.tool()
@@ -50,27 +66,18 @@ async def concept_linking(
     Returns:
         Best matching concept with CUI, name, confidence, and method.
     """
-    client = get_umls_client()
-
-    # Tier 1: Exact match
-    exact_results = await client.search(
-        term, sabs=sabs, search_type="exact", max_results=1
-    )
-    if exact_results:
-        return {**exact_results[0], "confidence": 0.95, "method": "exact_match"}
-
-    # Tier 2: Semantic similarity (words search)
-    word_results = await client.search(
-        term, sabs=sabs, search_type="words", max_results=5
-    )
-    if word_results:
+    with get_umls_client() as client:
+        candidates = client.search_snomed(term, limit=5)
+    if candidates:
+        first = candidates[0]
+        is_exact = bool(re.fullmatch(r"\d+", term.strip()))
         return {
-            **word_results[0],
-            "confidence": 0.75,
-            "method": "semantic_similarity",
+            "cui": first.cui,
+            "name": first.display,
+            "source": first.ontology,
+            "confidence": 0.95 if is_exact else 0.75,
+            "method": "exact_match" if is_exact else "semantic_similarity",
         }
-
-    # Tier 3: No match -- flag for expert review
     return {
         "cui": None,
         "name": None,

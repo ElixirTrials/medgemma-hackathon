@@ -110,9 +110,7 @@ def generate_upload_url(
     bucket_name = get_bucket_name()
     client = get_gcs_client()
     if client is None:
-        raise ValueError(
-            "GCS client initialization failed. Check GCP credentials."
-        )
+        raise ValueError("GCS client initialization failed. Check GCP credentials.")
 
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
@@ -146,9 +144,7 @@ def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
     client = get_gcs_client()
     if client is None:
-        raise ValueError(
-            "GCS client unavailable. Cannot set metadata."
-        )
+        raise ValueError("GCS client unavailable. Cannot set metadata.")
 
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
@@ -178,9 +174,7 @@ def generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
     client = get_gcs_client()
     if client is None:
-        raise ValueError(
-            "GCS client unavailable. Check GCP credentials."
-        )
+        raise ValueError("GCS client unavailable. Check GCP credentials.")
 
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)

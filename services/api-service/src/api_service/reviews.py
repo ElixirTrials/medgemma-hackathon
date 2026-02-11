@@ -427,9 +427,7 @@ def _update_batch_status(db: Session, batch_id: str) -> None:
         return
 
     total_count = db.exec(
-        select(func.count())
-        .select_from(Criteria)
-        .where(Criteria.batch_id == batch.id)
+        select(func.count()).select_from(Criteria).where(Criteria.batch_id == batch.id)
     ).one()
 
     reviewed_count = db.exec(
