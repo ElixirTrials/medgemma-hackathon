@@ -1,25 +1,41 @@
 """LangGraph workflow definition for the criteria extraction agent.
 
-Defines the StateGraph for the extraction workflow:
-START -> extract -> validate -> END
+Defines a 4-node StateGraph for the extraction workflow:
+START -> ingest -> extract -> parse -> queue -> END
 
-This will be expanded to the full 4-node graph
-(ingest -> extract -> parse -> queue) in Plan 03-02.
+Each node has conditional error routing: if any node sets state["error"],
+the graph routes directly to END, skipping downstream nodes.
 """
 
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from .nodes import extraction_node, validation_node
+from .nodes import extract_node, ingest_node, parse_node, queue_node
 from .state import ExtractionState
 
 
+def should_continue(state: ExtractionState) -> str:
+    """Route to error END or continue to next node.
+
+    Args:
+        state: Current extraction state.
+
+    Returns:
+        'error' if state has an error, 'continue' otherwise.
+    """
+    return "error" if state.get("error") else "continue"
+
+
 def create_graph() -> Any:
-    """Create and compile the agent workflow graph.
+    """Create and compile the 4-node extraction workflow graph.
 
     The graph follows this flow:
-    START -> extract -> validate -> END
+    START -> ingest -> extract -> parse -> queue -> END
+
+    After ingest and extract, conditional edges check for errors
+    and route to END if any are found. Parse and queue always
+    proceed to the next step (they handle errors internally).
 
     Returns:
         Compiled StateGraph ready for execution.
@@ -27,13 +43,31 @@ def create_graph() -> Any:
     workflow = StateGraph(ExtractionState)
 
     # Add nodes
-    workflow.add_node("extract", extraction_node)
-    workflow.add_node("validate", validation_node)
+    workflow.add_node("ingest", ingest_node)
+    workflow.add_node("extract", extract_node)
+    workflow.add_node("parse", parse_node)
+    workflow.add_node("queue", queue_node)
 
-    # Define edges
-    workflow.add_edge(START, "extract")
-    workflow.add_edge("extract", "validate")
-    workflow.add_edge("validate", END)
+    # Define edges with conditional error routing
+    workflow.add_edge(START, "ingest")
+    workflow.add_conditional_edges(
+        "ingest",
+        should_continue,
+        {
+            "continue": "extract",
+            "error": END,
+        },
+    )
+    workflow.add_conditional_edges(
+        "extract",
+        should_continue,
+        {
+            "continue": "parse",
+            "error": END,
+        },
+    )
+    workflow.add_edge("parse", "queue")
+    workflow.add_edge("queue", END)
 
     return workflow.compile()
 

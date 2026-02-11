@@ -38,6 +38,7 @@ dependencies = [
     "python-multipart>=0.0.21",
     "alembic>=1.13.0",
     "pymupdf4llm>=0.2.9",
+    "langchain-google-vertexai>=3.2.1",
 ]
 
 [dependency-groups]
