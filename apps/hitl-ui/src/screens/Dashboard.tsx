@@ -1,3 +1,5 @@
+import { useNavigate } from 'react-router-dom';
+
 import { Button } from '../components/ui/Button';
 import { DashboardCard } from '../features/dashboard/DashboardCard';
 import { useHealthCheck } from '../hooks/useApi';
@@ -6,6 +8,7 @@ import { useAppStore } from '../stores/useAppStore';
 export default function Dashboard() {
     const { data: health, isLoading, error } = useHealthCheck();
     const { sidebarOpen, toggleSidebar } = useAppStore();
+    const navigate = useNavigate();
 
     return (
         <div className="container mx-auto p-6">
@@ -47,6 +50,19 @@ export default function Dashboard() {
                 <DashboardCard title="Pending Reviews" description="Items awaiting human approval">
                     <p className="text-2xl font-bold">0</p>
                     <p className="text-sm text-muted-foreground">No pending items</p>
+                </DashboardCard>
+
+                <DashboardCard
+                    title="Protocols"
+                    description="Manage clinical trial protocols"
+                >
+                    <Button
+                        onClick={() => navigate('/protocols')}
+                        variant="outline"
+                        className="w-full"
+                    >
+                        View Protocols
+                    </Button>
                 </DashboardCard>
 
                 <DashboardCard
