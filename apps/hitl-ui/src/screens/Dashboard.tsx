@@ -3,12 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { DashboardCard } from '../features/dashboard/DashboardCard';
 import { useHealthCheck } from '../hooks/useApi';
+import { useBatchList } from '../hooks/useReviews';
 import { useAppStore } from '../stores/useAppStore';
 
 export default function Dashboard() {
     const { data: health, isLoading, error } = useHealthCheck();
+    const { data: pendingBatches } = useBatchList(1, 1, 'pending_review');
     const { sidebarOpen, toggleSidebar } = useAppStore();
     const navigate = useNavigate();
+
+    const pendingCount = pendingBatches?.total ?? 0;
 
     return (
         <div className="container mx-auto p-6">
@@ -48,8 +52,19 @@ export default function Dashboard() {
                 </DashboardCard>
 
                 <DashboardCard title="Pending Reviews" description="Items awaiting human approval">
-                    <p className="text-2xl font-bold">0</p>
-                    <p className="text-sm text-muted-foreground">No pending items</p>
+                    <p className="text-2xl font-bold">{pendingCount}</p>
+                    <p className="text-sm text-muted-foreground mb-3">
+                        {pendingCount === 0
+                            ? 'No pending items'
+                            : `${pendingCount} batch${pendingCount === 1 ? '' : 'es'} awaiting review`}
+                    </p>
+                    <Button
+                        onClick={() => navigate('/reviews')}
+                        variant="outline"
+                        className="w-full"
+                    >
+                        Review Criteria
+                    </Button>
                 </DashboardCard>
 
                 <DashboardCard title="Protocols" description="Manage clinical trial protocols">
