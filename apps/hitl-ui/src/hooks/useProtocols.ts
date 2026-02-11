@@ -1,14 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useAuthStore } from '../stores/authStore';
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    // Get auth token from store
+    const token = useAuthStore.getState().token;
+    const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options?.headers || {}),
+    };
+
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
+        headers,
     });
 
     if (!response.ok) {
