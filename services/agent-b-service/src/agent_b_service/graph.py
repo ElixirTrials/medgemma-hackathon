@@ -1,11 +1,16 @@
-"""LangGraph workflow definition for the secondary agent."""
+"""LangGraph workflow definition for the entity grounding agent.
+
+Placeholder graph (process -> finalize) will be replaced with the
+4-node grounding workflow in Plan 05-03:
+extract_entities -> ground_to_umls -> map_to_snomed -> validate_confidence
+"""
 
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
 from .nodes import finalize_node, process_node
-from .state import AgentState
+from .state import GroundingState
 
 
 def create_graph() -> Any:
@@ -17,7 +22,7 @@ def create_graph() -> Any:
     Returns:
         Compiled StateGraph ready for execution.
     """
-    workflow = StateGraph(AgentState)
+    workflow = StateGraph(GroundingState)
 
     # Add nodes
     workflow.add_node("process", process_node)

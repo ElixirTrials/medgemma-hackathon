@@ -1,9 +1,10 @@
-"""Secondary Agent Service.
+"""Entity Grounding Agent Service.
 
-This agent handles secondary workflows using LangGraph.
+This agent handles entity extraction and UMLS/SNOMED grounding
+using a LangGraph workflow triggered by CriteriaExtracted events.
 """
 
 from .graph import create_graph, get_graph
-from .state import AgentState
+from .state import GroundingState
 
-__all__ = ["AgentState", "create_graph", "get_graph"]
+__all__ = ["GroundingState", "create_graph", "get_graph"]
