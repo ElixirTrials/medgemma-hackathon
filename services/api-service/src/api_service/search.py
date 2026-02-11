@@ -9,13 +9,14 @@ from __future__ import annotations
 import logging
 import os
 from math import ceil
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from shared.models import Criteria, CriteriaBatch, Protocol
-from sqlalchemy import String, cast
 from sqlalchemy import func as sa_func
-from sqlmodel import Session, select
+from sqlalchemy import text as sa_text
+from sqlmodel import Session, col, select
 
 from api_service.dependencies import get_current_user, get_db
 
@@ -55,6 +56,53 @@ class SearchResponse(BaseModel):
 # --- Endpoints ---
 
 
+def _build_search_query(
+    q: str,
+    use_postgres_fts: bool,
+    protocol_id: str | None,
+    criteria_type: str | None,
+    review_status: str | None,
+) -> Any:
+    """Build the search query with filters."""
+    stmt = (
+        select(Criteria, CriteriaBatch, Protocol)
+        .join(
+            CriteriaBatch,
+            col(Criteria.batch_id) == col(CriteriaBatch.id),
+        )
+        .join(
+            Protocol,
+            col(CriteriaBatch.protocol_id) == col(Protocol.id),
+        )
+    )
+
+    # Apply text search filter
+    if use_postgres_fts:
+        tsvector = sa_func.to_tsvector(
+            sa_text("'english'"), col(Criteria.text)
+        )
+        tsquery = sa_func.plainto_tsquery(sa_text("'english'"), q)
+        stmt = stmt.where(tsvector.op("@@")(tsquery))
+    else:
+        stmt = stmt.where(col(Criteria.text).contains(q))
+
+    # Apply optional filters
+    if protocol_id:
+        stmt = stmt.where(
+            col(CriteriaBatch.protocol_id) == protocol_id
+        )
+    if criteria_type:
+        stmt = stmt.where(
+            col(Criteria.criteria_type) == criteria_type
+        )
+    if review_status:
+        stmt = stmt.where(
+            col(Criteria.review_status) == review_status
+        )
+
+    return stmt
+
+
 @router.get("/search", response_model=SearchResponse)
 def search_criteria(
     q: str = Query(..., min_length=1),
@@ -64,7 +112,7 @@ def search_criteria(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     db: Session = Depends(get_db),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(get_current_user),  # noqa: ARG001
 ) -> SearchResponse:
     """Full-text search over criteria with optional filters.
 
@@ -75,109 +123,55 @@ def search_criteria(
     use_postgres_fts = database_url.startswith("postgresql")
 
     if not use_postgres_fts:
-        logger.warning("Full-text search requires PostgreSQL; using LIKE fallback")
-
-    # Build base query joining Criteria -> CriteriaBatch -> Protocol
-    base_stmt = (
-        select(
-            Criteria.id,
-            Criteria.batch_id,
-            Criteria.criteria_type,
-            Criteria.text,
-            Criteria.confidence,
-            Criteria.review_status,
-            CriteriaBatch.protocol_id,
-            Protocol.title.label("protocol_title"),  # type: ignore[attr-defined]
+        logger.warning(
+            "Full-text search requires PostgreSQL; using LIKE fallback"
         )
-        .join(CriteriaBatch, Criteria.batch_id == CriteriaBatch.id)
-        .join(Protocol, CriteriaBatch.protocol_id == Protocol.id)
+
+    stmt = _build_search_query(
+        q, use_postgres_fts, protocol_id, criteria_type, review_status
     )
 
-    # Apply text search
-    if use_postgres_fts:
-        # PostgreSQL full-text search
-        tsvector = sa_func.to_tsvector("english", Criteria.text)
-        tsquery = sa_func.plainto_tsquery("english", q)
-        rank = sa_func.ts_rank(tsvector, tsquery)
-
-        # Add search condition
-        base_stmt = base_stmt.where(tsvector.op("@@")(tsquery))
-
-        # Add rank column for ordering
-        stmt_with_rank = select(
-            Criteria.id,
-            Criteria.batch_id,
-            Criteria.criteria_type,
-            Criteria.text,
-            Criteria.confidence,
-            Criteria.review_status,
-            CriteriaBatch.protocol_id,
-            Protocol.title.label("protocol_title"),  # type: ignore[attr-defined]
-            rank.label("rank"),
-        ).select_from(base_stmt.subquery())
-
-    else:
-        # SQLite LIKE fallback
-        base_stmt = base_stmt.where(Criteria.text.contains(q))
-        # Add constant rank for SQLite
-        stmt_with_rank = select(
-            Criteria.id,
-            Criteria.batch_id,
-            Criteria.criteria_type,
-            Criteria.text,
-            Criteria.confidence,
-            Criteria.review_status,
-            CriteriaBatch.protocol_id,
-            Protocol.title.label("protocol_title"),  # type: ignore[attr-defined]
-            cast(1.0, String).label("rank"),
-        ).select_from(base_stmt.subquery())
-
-    # Apply optional filters
-    if protocol_id:
-        stmt_with_rank = stmt_with_rank.where(
-            CriteriaBatch.protocol_id == protocol_id
-        )
-    if criteria_type:
-        stmt_with_rank = stmt_with_rank.where(
-            Criteria.criteria_type == criteria_type
-        )
-    if review_status:
-        stmt_with_rank = stmt_with_rank.where(
-            Criteria.review_status == review_status
-        )
-
     # Count total results
-    count_stmt = select(sa_func.count()).select_from(stmt_with_rank.subquery())
+    count_stmt = select(sa_func.count()).select_from(
+        stmt.subquery()
+    )
     total = db.exec(count_stmt).one()
 
-    # Apply ordering and pagination
+    # Apply ordering
     if use_postgres_fts:
-        stmt_with_rank = stmt_with_rank.order_by(
-            cast(stmt_with_rank.selected_columns.rank, String).desc()
+        tsvector = sa_func.to_tsvector(
+            sa_text("'english'"), col(Criteria.text)
         )
+        tsquery = sa_func.plainto_tsquery(sa_text("'english'"), q)
+        rank = sa_func.ts_rank(tsvector, tsquery)
+        stmt = stmt.order_by(rank.desc())
     else:
-        # SQLite fallback - no meaningful rank ordering
-        stmt_with_rank = stmt_with_rank.order_by(Criteria.confidence.desc())
+        stmt = stmt.order_by(col(Criteria.confidence).desc())
 
-    stmt_with_rank = stmt_with_rank.offset((page - 1) * page_size).limit(page_size)
+    # Paginate
+    stmt = stmt.offset((page - 1) * page_size).limit(page_size)
 
-    results = db.exec(stmt_with_rank).all()
+    results = db.exec(stmt).all()
     pages = ceil(total / page_size) if total > 0 else 1
 
-    items = [
-        SearchResult(
-            id=row.id,
-            batch_id=row.batch_id,
-            protocol_id=row.protocol_id,
-            protocol_title=row.protocol_title,
-            criteria_type=row.criteria_type,
-            text=row.text,
-            confidence=row.confidence,
-            review_status=row.review_status,
-            rank=float(row.rank) if use_postgres_fts else 1.0,
+    items = []
+    for row in results:
+        criteria_obj: Criteria = row[0]  # type: ignore[index]
+        batch_obj: CriteriaBatch = row[1]  # type: ignore[index]
+        protocol_obj: Protocol = row[2]  # type: ignore[index]
+        items.append(
+            SearchResult(
+                id=criteria_obj.id,
+                batch_id=criteria_obj.batch_id,
+                protocol_id=batch_obj.protocol_id,
+                protocol_title=protocol_obj.title or "",
+                criteria_type=criteria_obj.criteria_type,
+                text=criteria_obj.text,
+                confidence=criteria_obj.confidence,
+                review_status=criteria_obj.review_status,
+                rank=1.0,
+            )
         )
-        for row in results
-    ]
 
     return SearchResponse(
         items=items,
