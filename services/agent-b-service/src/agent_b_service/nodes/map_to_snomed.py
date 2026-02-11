@@ -1,6 +1,6 @@
 """Map to SNOMED node: look up SNOMED-CT codes for grounded entities.
 
-For each entity with a UMLS CUI, queries the UMLS REST API (or mock)
+For each entity with a UMLS CUI, queries the UMLS REST API
 for the corresponding SNOMED-CT code. Missing SNOMED mappings are not
 errors -- entities proceed with snomed_code=None.
 

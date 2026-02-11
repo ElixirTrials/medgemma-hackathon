@@ -1,4 +1,4 @@
-"""UMLS REST API client with mock fallback for development."""
+"""UMLS REST API client for the UMLS MCP server."""
 
 import logging
 import os
@@ -132,74 +132,19 @@ class UMLSClient:
             return None
 
 
-class MockUMLSClient:
-    """Mock UMLS client returning canned responses for development.
+def get_umls_client() -> UMLSClient:
+    """Factory function to get the UMLS client.
 
-    Used when UMLS_API_KEY is not set, enabling local development
-    and testing without UMLS credentials.
-    """
-
-    async def search(
-        self,
-        term: str,
-        sabs: str = "SNOMEDCT_US",
-        search_type: str = "exact",
-        max_results: int = 5,
-    ) -> list[dict]:
-        """Return a canned search result.
-
-        Args:
-            term: Medical term (ignored in mock).
-            sabs: Source vocabulary (ignored in mock).
-            search_type: Search type (ignored in mock).
-            max_results: Max results (ignored in mock).
-
-        Returns:
-            Single mock result for Diabetes Mellitus.
-        """
-        return [
-            {
-                "cui": "C0011849",
-                "name": "Diabetes Mellitus",
-                "source": "SNOMEDCT_US",
-            }
-        ]
-
-    async def get_concept(self, cui: str) -> dict | None:
-        """Return a mock concept.
-
-        Args:
-            cui: CUI string (used in response).
-
-        Returns:
-            Mock concept dict.
-        """
-        return {"cui": cui, "name": "Mock Concept"}
-
-    async def get_snomed_code(self, cui: str) -> str | None:
-        """Return a mock SNOMED code.
-
-        Args:
-            cui: CUI string (ignored in mock).
-
-        Returns:
-            Mock SNOMED code for diabetes (73211009).
-        """
-        return "73211009"
-
-
-def get_umls_client() -> UMLSClient | MockUMLSClient:
-    """Factory function to get the appropriate UMLS client.
-
-    Returns UMLSClient when UMLS_API_KEY is set, otherwise
-    returns MockUMLSClient for development without credentials.
+    Requires UMLS_API_KEY environment variable to be set.
+    Raises ValueError if the key is missing.
 
     Returns:
-        UMLSClient or MockUMLSClient instance.
+        UMLSClient instance.
     """
     api_key = os.getenv("UMLS_API_KEY", "")
-    if api_key:
-        logger.info("Using live UMLS API client")
-        return UMLSClient(api_key=api_key)
-    logger.info("UMLS_API_KEY not set -- using mock UMLS client")
-    return MockUMLSClient()
+    if not api_key:
+        raise ValueError(
+            "UMLS_API_KEY environment variable is required but not set. "
+            "Get a key at https://uts.nlm.nih.gov/uts/signup-login"
+        )
+    return UMLSClient(api_key=api_key)
