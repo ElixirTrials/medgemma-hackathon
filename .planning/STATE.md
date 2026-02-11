@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow
-**Current focus:** Phase 3 - Criteria Extraction Workflow
+**Current focus:** Phase 4 - Criteria Review UI
 
 ## Current Position
 
-Phase: 3 of 7 (Criteria Extraction Workflow) -- IN PROGRESS
-Plan: 1 of 2 in current phase (Plan 1 complete)
+Phase: 3 of 7 (Criteria Extraction Workflow) -- COMPLETE
+Plan: 2 of 2 in current phase (Phase complete)
 Status: Active
-Last activity: 2026-02-11 -- Completed 03-01-PLAN.md (extraction workflow foundation)
+Last activity: 2026-02-11 -- Completed 03-02-PLAN.md (LangGraph nodes and extraction pipeline)
 
-Progress: [█████░░░░░] 42%
+Progress: [██████░░░░] 50%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 5
-- Average duration: 3.6 min
-- Total execution time: 0.30 hours
+- Total plans completed: 6
+- Average duration: 4.2 min
+- Total execution time: 0.42 hours
 
 **By Phase:**
 
@@ -29,11 +29,11 @@ Progress: [█████░░░░░] 42%
 |-------|-------|-------|----------|
 | 01-infrastructure-data-models | 2 | 7 min | 3.5 min |
 | 02-protocol-upload-storage | 2 | 7 min | 3.5 min |
-| 03-criteria-extraction-workflow | 1 | 5 min | 5 min |
+| 03-criteria-extraction-workflow | 2 | 14 min | 7 min |
 
 **Recent Trend:**
-- Last 5 plans: 01-02 (4 min), 02-01 (3 min), 02-02 (4 min), 03-01 (5 min)
-- Trend: Steady
+- Last 5 plans: 02-01 (3 min), 02-02 (4 min), 03-01 (5 min), 03-02 (9 min)
+- Trend: Slightly increasing (Phase 3 complexity higher)
 
 *Updated after each plan completion*
 
@@ -62,6 +62,10 @@ Recent decisions affecting current work:
 - [03-01]: Kept Pydantic nesting to max 2 levels to avoid ChatVertexAI serialization issues
 - [03-01]: Used asyncio.run() in trigger handler to bridge sync outbox to async graph
 - [03-01]: PDF parser self-contained in agent-a-service with no dependency on api-service
+- [03-02]: Graph nodes import from api-service for DB access -- intentional cross-service integration glue
+- [03-02]: Added langchain-google-vertexai to root pyproject.toml for workspace-wide availability
+- [03-02]: Parse node uses pure Python post-processing (no LLM) for assertion refinement and dedup
+- [03-02]: Conditional error routing after ingest and extract; parse->queue always proceeds
 
 ### Pending Todos
 
@@ -80,5 +84,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-11
-Stopped at: Completed 03-01-PLAN.md
+Stopped at: Completed 03-02-PLAN.md (Phase 3 complete)
 Resume file: None
