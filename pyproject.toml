@@ -40,6 +40,8 @@ dependencies = [
     "pymupdf>=1.24.0",
     "pymupdf4llm>=0.2.9",
     "langchain-google-vertexai>=3.2.1",
+    "fastmcp",
+    "langchain-mcp-adapters",
 ]
 
 [dependency-groups]
@@ -60,6 +62,7 @@ members = [
     "services/api-service",
     "services/agent-a-service",
     "services/agent-b-service",
+    "services/umls-mcp-server",
     "libs/data-pipeline",
     "libs/evaluation",
     "libs/events-py",
@@ -124,6 +127,8 @@ module = [
     "agent_a_service.*",
     "agent_b_service",
     "agent_b_service.*",
+    "umls_mcp_server",
+    "umls_mcp_server.*",
     "shared",
     "shared.models",
 ]
@@ -134,6 +139,9 @@ module = [
     "datasets",
     "datasets.*",
     "fastmcp",
+    "fastmcp.*",
+    "langchain_mcp_adapters",
+    "langchain_mcp_adapters.*",
     "langchain_core",
     "langchain_core.*",
     "langchain_google_vertexai",
@@ -171,6 +179,7 @@ pythonpath = [
     "services/api-service/src",
     "services/agent-a-service/src",
     "services/agent-b-service/src",
+    "services/umls-mcp-server/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
     "libs/events-py/src",
@@ -187,6 +196,7 @@ source = [
     "services/api-service/src",
     "services/agent-a-service/src",
     "services/agent-b-service/src",
+    "services/umls-mcp-server/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
     "libs/events-py/src",
