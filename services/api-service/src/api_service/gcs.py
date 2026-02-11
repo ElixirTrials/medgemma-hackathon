@@ -31,7 +31,7 @@ def get_gcs_client():
     global _gcs_client  # noqa: PLW0603
     if _gcs_client is None:
         try:
-            from google.cloud import storage
+            from google.cloud import storage  # type: ignore[import-untyped]
 
             _gcs_client = storage.Client()
             logger.info("GCS client initialized successfully")

@@ -240,7 +240,7 @@ def list_protocols(
     data_stmt = (
         data_stmt.offset((page - 1) * page_size)
         .limit(page_size)
-        .order_by(Protocol.created_at.desc())  # type: ignore[union-attr]
+        .order_by(Protocol.created_at.desc())  # type: ignore[attr-defined]
     )
 
     protocols = db.exec(data_stmt).all()
