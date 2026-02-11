@@ -75,10 +75,10 @@ services:
       timeout: 5s
       retries: 5
 
-  agent-a:
+  extraction:
     build:
       context: ..
-      dockerfile: services/agent-a-service/Dockerfile
+      dockerfile: services/extraction-service/Dockerfile
     ports:
       - "8001:8001"
     environment:
