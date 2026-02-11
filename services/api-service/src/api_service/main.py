@@ -4,7 +4,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Set
 
-from agent_a_service.trigger import handle_protocol_uploaded
+from extraction_service.trigger import handle_protocol_uploaded
 from agent_b_service.trigger import handle_criteria_extracted
 from events_py.outbox import OutboxProcessor
 from fastapi import Depends, FastAPI
