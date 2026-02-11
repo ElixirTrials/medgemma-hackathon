@@ -4,7 +4,15 @@ import os
 from logging.config import fileConfig
 
 # Import models to register them with SQLModel.metadata
-from shared.models import Entity, Task  # noqa: F401
+from shared.models import (  # noqa: F401
+    AuditLog,
+    Criteria,
+    CriteriaBatch,
+    Entity,
+    OutboxEvent,
+    Protocol,
+    Review,
+)
 from sqlalchemy import engine_from_config, pool
 from sqlmodel import SQLModel
 
@@ -15,7 +23,9 @@ from alembic import context
 config = context.config
 
 # Override sqlalchemy.url from environment variable
-database_url = os.getenv("DATABASE_URL", "sqlite:///./database.db")
+database_url = os.getenv(
+    "DATABASE_URL", "sqlite:///./database.db"
+)
 config.set_main_option("sqlalchemy.url", database_url)
 
 # Interpret the config file for Python logging.
@@ -44,6 +54,8 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        compare_type=True,
+        render_as_batch=True,
     )
 
     with context.begin_transaction():
@@ -57,13 +69,20 @@ def run_migrations_online() -> None:
     and associate a connection with the context.
     """
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        config.get_section(
+            config.config_ini_section, {}
+        ),
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            render_as_batch=True,
+        )
 
         with context.begin_transaction():
             context.run_migrations()
