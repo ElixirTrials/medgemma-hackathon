@@ -75,6 +75,34 @@ services:
       timeout: 5s
       retries: 5
 
+  agent-a:
+    build:
+      context: ..
+      dockerfile: services/agent-a-service/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - agents
+
+  agent-b:
+    build:
+      context: ..
+      dockerfile: services/agent-b-service/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles:
+      - agents
+
 volumes:
   postgres_data:
   mlflow_data:
