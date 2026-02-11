@@ -1,5 +1,5 @@
 docs_dir: docs
-site_name: agent-b-service
+site_name: grounding-service
 nav:
   - API Reference: api/index.md
 

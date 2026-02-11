@@ -1,1 +1,1 @@
-# API Reference for agent-b-service
+# API Reference for grounding-service
