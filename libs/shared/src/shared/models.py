@@ -34,6 +34,7 @@ class ProtocolStatus(str, Enum):
     """Protocol processing status enum."""
 
     UPLOADED = "uploaded"
+    PENDING = "pending"
     EXTRACTING = "extracting"
     EXTRACTION_FAILED = "extraction_failed"
     GROUNDING = "grounding"
