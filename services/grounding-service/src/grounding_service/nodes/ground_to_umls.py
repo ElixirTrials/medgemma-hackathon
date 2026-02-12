@@ -7,6 +7,7 @@ but MCP server connection failures propagate as errors.
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -22,6 +23,50 @@ from tenacity import (
 from grounding_service.state import GroundingState
 
 logger = logging.getLogger(__name__)
+
+# Fields expected in a concept_linking tool result
+_REQUIRED_RESULT_FIELDS = ("cui", "name", "method", "confidence")
+
+
+def _normalize_tool_result(raw_result: object) -> dict[str, Any]:
+    """Normalize MCP tool result to a dict regardless of wrapper type.
+
+    langchain-mcp-adapters 0.2.x may return:
+    - A JSON string (most common)
+    - A ToolMessage with a .content attribute containing a JSON string
+    - A dict (direct passthrough in some adapter versions)
+
+    Args:
+        raw_result: The raw return value from concept_linking_tool.ainvoke().
+
+    Returns:
+        Parsed dict with concept_linking result fields.
+    """
+    if isinstance(raw_result, dict):
+        return raw_result
+
+    if isinstance(raw_result, str):
+        return json.loads(raw_result)  # type: ignore[no-any-return]
+
+    # ToolMessage wrapper from langchain-mcp-adapters
+    if hasattr(raw_result, "content"):
+        content = raw_result.content  # type: ignore[union-attr]
+        if isinstance(content, str):
+            return json.loads(content)  # type: ignore[no-any-return]
+        if isinstance(content, dict):
+            return content
+        # content may be a list of content blocks
+        if isinstance(content, list):
+            for block in content:
+                if isinstance(block, dict) and block.get("type") == "text":
+                    return json.loads(block["text"])  # type: ignore[no-any-return]
+
+    logger.warning(
+        "Unexpected tool result type: %s (value: %r)",
+        type(raw_result).__name__,
+        raw_result,
+    )
+    return {}
 
 
 @umls_breaker
@@ -44,7 +89,9 @@ async def _ground_via_mcp(
         List of grounded entity dicts with UMLS fields added.
 
     Raises:
-        Exception: If MCP server connection or tool invocation fails.
+        RuntimeError: If MCP server connection or tool discovery fails.
+        ConnectionError: If MCP server subprocess fails to start.
+        OSError: If subprocess I/O fails.
     """
     from langchain_mcp_adapters.client import MultiServerMCPClient
     from langchain_mcp_adapters.sessions import StdioConnection
@@ -59,6 +106,7 @@ async def _ground_via_mcp(
 
     grounded: list[dict[str, Any]] = []
 
+    # MCP client setup — errors here propagate (not per-entity)
     mcp_client = MultiServerMCPClient(mcp_config)  # type: ignore[arg-type]
     tools = await mcp_client.get_tools()
     concept_linking_tool = None
@@ -72,34 +120,60 @@ async def _ground_via_mcp(
 
     for entity in entities:
         try:
-            result = await concept_linking_tool.ainvoke(
+            raw_result = await concept_linking_tool.ainvoke(
                 {
                     "term": entity["text"],
                     "context": entity.get("context_window", ""),
                 }
             )
-            # Parse MCP tool result
-            if isinstance(result, dict):
-                grounded_entity = {
-                    **entity,
-                    "umls_cui": result.get("cui"),
-                    "preferred_term": result.get("name"),
-                    "grounding_confidence": result.get("confidence", 0.0),
-                    "grounding_method": result.get("method", "expert_review"),
-                }
-            else:
-                grounded_entity = {
+
+            # Normalize tool result to dict (handles str, ToolMessage, dict)
+            parsed = _normalize_tool_result(raw_result)
+
+            # Validate expected fields are present
+            missing = [f for f in _REQUIRED_RESULT_FIELDS if f not in parsed]
+            if missing:
+                logger.warning(
+                    "Tool result missing fields %s for entity '%s': %r",
+                    missing,
+                    entity["text"],
+                    parsed,
+                )
+
+            grounded_entity = {
+                **entity,
+                "umls_cui": parsed.get("cui"),
+                "preferred_term": parsed.get("name"),
+                "grounding_confidence": parsed.get("confidence", 0.0),
+                "grounding_method": parsed.get("method", "expert_review"),
+            }
+            grounded.append(grounded_entity)
+
+        except json.JSONDecodeError as e:
+            # JSON parse failure is a data issue — log and continue
+            logger.warning(
+                "JSON parse error for entity '%s': %s: %s",
+                entity["text"],
+                type(e).__name__,
+                str(e),
+                exc_info=True,
+            )
+            grounded.append(
+                {
                     **entity,
                     "umls_cui": None,
                     "preferred_term": None,
                     "grounding_confidence": 0.0,
                     "grounding_method": "expert_review",
                 }
-            grounded.append(grounded_entity)
-        except Exception:
+            )
+        except Exception as e:
             logger.warning(
-                "MCP grounding failed for entity '%s', flagging for expert review",
+                "MCP grounding failed for entity '%s': %s: %s",
                 entity["text"],
+                type(e).__name__,
+                str(e),
+                exc_info=True,
             )
             grounded.append(
                 {
