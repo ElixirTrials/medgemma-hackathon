@@ -18,7 +18,32 @@ import asyncio
 import logging
 from typing import Any
 
+from api_service.storage import engine
+from shared.models import Protocol
+from sqlmodel import Session
+
 logger = logging.getLogger(__name__)
+
+
+def _categorize_grounding_error(e: Exception) -> str:
+    """Convert exception to human-readable error reason.
+
+    Args:
+        e: The exception that occurred during grounding.
+
+    Returns:
+        Human-readable error message for the user.
+    """
+    error_str = str(e).lower()
+    if "mcp" in error_str or "subprocess" in error_str:
+        return "UMLS grounding service unavailable"
+    if "circuit" in error_str:
+        return "UMLS service temporarily unavailable"
+    if "timeout" in error_str:
+        return "Grounding timed out"
+    if "concept_linking" in error_str:
+        return "UMLS concept linking tool unavailable"
+    return f"Grounding failed: {type(e).__name__}"
 
 
 def handle_criteria_extracted(payload: dict[str, Any]) -> None:
@@ -65,9 +90,30 @@ def handle_criteria_extracted(payload: dict[str, Any]) -> None:
             batch_id,
         )
 
-    except Exception:
+    except Exception as e:
         logger.exception(
             "Grounding workflow failed for batch %s",
             batch_id,
         )
+        # Update protocol status with failure category
+        protocol_id = payload.get("protocol_id")
+        if protocol_id:
+            try:
+                with Session(engine) as session:
+                    protocol = session.get(Protocol, protocol_id)
+                    if protocol:
+                        protocol.status = "grounding_failed"
+                        protocol.error_reason = _categorize_grounding_error(e)
+                        protocol.metadata_ = {
+                            **protocol.metadata_,
+                            "error": {
+                                "category": "grounding_failed",
+                                "reason": protocol.error_reason,
+                                "exception_type": type(e).__name__,
+                            },
+                        }
+                        session.add(protocol)
+                        session.commit()
+            except Exception:
+                logger.exception("Failed to update protocol status for %s", protocol_id)
         raise

@@ -19,6 +19,7 @@ from events_py.outbox import persist_with_outbox
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from shared.models import Protocol
+from shared.resilience import gemini_breaker
 from sqlmodel import Session, func, select
 
 from api_service.dependencies import get_db
@@ -53,6 +54,7 @@ class UploadResponse(BaseModel):
     protocol_id: str
     upload_url: str
     gcs_path: str
+    warning: str | None = None
 
 
 class ConfirmUploadRequest(BaseModel):
@@ -158,10 +160,24 @@ def upload_protocol(
     )
     db.commit()
 
+    # Check circuit breaker states — if critical services are down,
+    # mark protocol as pending with warning (per locked decision)
+    processing_warning: str | None = None
+    if gemini_breaker.current_state != "closed":
+        protocol.status = "pending"
+        processing_warning = "Processing delayed — AI service temporarily unavailable"
+        protocol.metadata_ = {
+            **protocol.metadata_,
+            "processing_warning": processing_warning,
+        }
+        db.add(protocol)
+        db.commit()
+
     return UploadResponse(
         protocol_id=protocol.id,
         upload_url=signed_url,
         gcs_path=gcs_path,
+        warning=processing_warning,
     )
 
 

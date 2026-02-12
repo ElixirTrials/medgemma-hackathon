@@ -14,7 +14,34 @@ import asyncio
 import logging
 from typing import Any
 
+from api_service.storage import engine
+from shared.models import Protocol
+from sqlmodel import Session
+
 logger = logging.getLogger(__name__)
+
+
+def _categorize_extraction_error(e: Exception) -> str:
+    """Convert exception to human-readable error reason.
+
+    Args:
+        e: The exception that occurred during extraction.
+
+    Returns:
+        Human-readable error message for the user.
+    """
+    error_str = str(e).lower()
+    if "pdf" in error_str or "parse" in error_str or "pymupdf" in error_str:
+        return "PDF text quality too low or file corrupted"
+    if "circuit" in error_str:
+        return "AI service temporarily unavailable"
+    if "timeout" in error_str or "timed out" in error_str:
+        return "Processing timed out"
+    if "credential" in error_str or "auth" in error_str:
+        return "Service authentication failed"
+    if "gcs" in error_str or "storage" in error_str or "bucket" in error_str:
+        return "File storage service unavailable"
+    return f"Extraction failed: {type(e).__name__}"
 
 
 def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
@@ -63,9 +90,28 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
             protocol_id,
         )
 
-    except Exception:
+    except Exception as e:
         logger.exception(
             "Extraction workflow failed for protocol %s",
             protocol_id,
         )
+        # Update protocol status with failure category
+        try:
+            with Session(engine) as session:
+                protocol = session.get(Protocol, protocol_id)
+                if protocol:
+                    protocol.status = "extraction_failed"
+                    protocol.error_reason = _categorize_extraction_error(e)
+                    protocol.metadata_ = {
+                        **protocol.metadata_,
+                        "error": {
+                            "category": "extraction_failed",
+                            "reason": protocol.error_reason,
+                            "exception_type": type(e).__name__,
+                        },
+                    }
+                    session.add(protocol)
+                    session.commit()
+        except Exception:
+            logger.exception("Failed to update protocol status for %s", protocol_id)
         raise
