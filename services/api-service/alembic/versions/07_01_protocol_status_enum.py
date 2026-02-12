@@ -1,14 +1,14 @@
-"""add error_reason to protocol
+"""Add error_reason to protocol.
 
 Revision ID: 07_01_protocol_status_enum
-Revises: 6bba3f92fdc1
+Revises: 47530bf7f47c
 Create Date: 2026-02-12 07:16:00.000000
-
 """
 
 from typing import Sequence, Union
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
