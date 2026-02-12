@@ -20,9 +20,11 @@ from typing import Any, cast
 from inference.factory import render_prompts
 
 warnings.filterwarnings("ignore", message=".*ChatVertexAI.*deprecated.*")
-from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
-from shared.resilience import vertex_ai_breaker
-from tenacity import (
+from langchain_google_vertexai import (  # noqa: E402
+    ChatVertexAI,  # type: ignore[import-untyped]
+)
+from shared.resilience import vertex_ai_breaker  # noqa: E402
+from tenacity import (  # noqa: E402
     before_sleep_log,
     retry,
     retry_if_exception_type,
@@ -30,11 +32,11 @@ from tenacity import (
     wait_random_exponential,
 )
 
-from grounding_service.schemas.entities import (
+from grounding_service.schemas.entities import (  # noqa: E402
     BatchEntityExtractionResult,
     ExtractedEntity,
 )
-from grounding_service.state import GroundingState
+from grounding_service.state import GroundingState  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
