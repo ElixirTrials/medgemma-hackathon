@@ -35,6 +35,8 @@ services:
 
   db:
     image: postgres:16-alpine
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
@@ -50,7 +52,7 @@ services:
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.16.2
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5001}:5000"
     command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri /mlflow
     volumes:
       - mlflow_data:/mlflow

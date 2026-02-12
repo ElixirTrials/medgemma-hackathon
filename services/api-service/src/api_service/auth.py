@@ -155,3 +155,42 @@ def get_me(current_user: dict = Depends(get_current_user)) -> UserInfo:
         email=current_user["email"],
         name=current_user.get("name"),
     )
+
+
+@router.post("/dev-login", response_model=TokenResponse)
+def dev_login(db: Session = Depends(get_db)) -> TokenResponse:
+    """Issue a JWT for local development without Google OAuth.
+
+    Only available when ALLOW_DEV_LOGIN=1 is set in the environment.
+    Creates or reuses a dev user and returns a 24-hour token.
+    """
+    if not os.getenv("ALLOW_DEV_LOGIN"):
+        raise HTTPException(status_code=404, detail="Not found")
+
+    email = "dev@localhost"
+    name = "Dev Researcher"
+
+    stmt = select(User).where(User.email == email)
+    existing_user = db.exec(stmt).first()
+
+    if existing_user:
+        user = existing_user
+    else:
+        user = User(email=email, name=name)
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+
+    payload = {
+        "sub": user.id,
+        "email": user.email,
+        "name": user.name,
+        "exp": datetime.utcnow() + timedelta(hours=24),
+    }
+    access_token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+    return TokenResponse(
+        access_token=access_token,
+        token_type="bearer",
+        user=UserInfo(id=user.id, email=user.email, name=user.name),
+    )

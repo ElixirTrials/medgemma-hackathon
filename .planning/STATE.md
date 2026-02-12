@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** Phase 10 - User Journey Narratives (v1.1 Documentation Site milestone)
+**Current focus:** Milestone v1.2 — GCP Cloud Run Deployment
 
 ## Current Position
 
-Phase: 10 of 12 (User Journey Narratives)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-12 — Phase 10 Plan 02 complete (Grounding & HITL Review journey)
+Phase: Phase 13 (Terraform Foundation)
+Plan: Not started
+Status: Ready for planning
+Last activity: 2026-02-12 — v1.2 roadmap created
 
-Progress: [████████████████████░░░░] 81% (30/37 total plans estimated)
+Progress: ████████████████░░░░ 80% (Phases 1-12 complete, 13-15 pending)
 
 ## Performance Metrics
 
@@ -54,31 +54,54 @@ Progress: [████████████████████░░░
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- v1.0: MLflow observability integration with circuit breaker event logging
 - v1.0: Google OAuth for authentication (fits GCP ecosystem)
-- v1.0: UMLS MCP server adapted from gemma-hackathon (proven implementation)
-- v1.1 (08-01): Use pymdownx.superfences custom fence instead of mermaid2 plugin for native Mermaid.js rendering
-- v1.1 (08-01): Enforce strict mode via CLI flag instead of mkdocs.yml config to allow local authoring flexibility
-- v1.1 (08-02): Use placeholder-first approach for documentation sections (establish navigation hierarchy now, add content in later phases)
-- v1.1 (08-02): Add CI docs validation job to catch broken documentation before merge
-- v1.1 (09-01): Stop at C4 Container level (avoid maintenance burden of Component/Code diagrams)
-- v1.1 (09-01): Create placeholder for data-models.md to satisfy strict mode while Plan 02 adds content
-- [Phase 10-01]: Remove placeholder links to non-existent component docs, use plain text references to Phase 11 instead, to satisfy strict mode validation
-- [Phase 10-02]: Show grounding loop with 2 MCP tool calls (concept_search + get_snomed_code) to illustrate pattern without overwhelming detail
-- [Phase 10-02]: Document tiered grounding strategy (exact/word/fuzzy/no match with confidence scores) to explain AI decision-making
+- v1.0: Docker Compose infrastructure with PostgreSQL, MLflow, PubSub emulator
+- v1.2: Terraform for GCP Cloud Run deployment (new milestone, starting Phase 13)
+- v1.2: 3-phase roadmap (vs 7 suggested by research) — lean pilot approach prioritizing simplicity
+
+### Phase 13-15 Roadmap Structure
+
+**Phase 13: Terraform Foundation**
+- GCS backend + Terraform init
+- GCP API enablement (Cloud Run, Cloud SQL, Secret Manager, VPC Access, Artifact Registry)
+- Artifact Registry repository
+- 4 IAM service accounts with predefined roles
+- Requirements: TF-01, TF-02, SEC-02, REG-01
+
+**Phase 14: Cloud SQL, Networking & Container Registry**
+- Cloud SQL PostgreSQL 16 (private IP only)
+- VPC Serverless Connector (10.8.0.0/28)
+- Secret Manager with IAM bindings
+- Build script + image digests
+- Requirements: DB-01, DB-02, SEC-01, REG-02
+
+**Phase 15: Cloud Run Deployment & Documentation**
+- Reusable cloud-run-service Terraform module
+- Deploy 4 services with health checks + autoscaling limits
+- .env.example, terraform.tfvars.example, README
+- Requirements: TF-03, CR-01, CR-02, CR-03, CFG-01, CFG-02, CFG-03
+
+**Coverage:** 15/15 v1.2 requirements mapped across 3 phases
 
 ### Pending Todos
 
-None yet.
+- Phase 13 planning: Terraform backend setup, API enablement patterns, service account role assignments
+- Phase 14 planning: Cloud SQL private IP configuration, VPC connector setup, digest-based image references
+- Phase 15 planning: Cloud Run module parameterization, connection pool sizing (max_instances calculation)
 
 ### Blockers/Concerns
 
-**v1.1 Documentation Milestone:**
-- Code tour implementation approach needs validation (no dedicated MkDocs plugin exists, will use Material built-in features)
-- ~~Mermaid C4 diagram layout quality unknown until Phase 9 prototyping~~ RESOLVED: C4 Container diagram renders acceptably with 10 containers (09-01)
+None yet. Research completed with HIGH confidence on all infrastructure patterns.
+
+**Key research insights for planning:**
+- VPC connector region mismatch prevention (use Terraform locals for region)
+- Secret Manager IAM propagation delay (explicit depends_on + consider time_sleep)
+- Connection pool exhaustion prevention (pool_size=2, max_instances=10 per service for 100 DB connections)
+- Image digest vs tag (capture SHA256 from CI, pass to Terraform)
 
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 10-02-PLAN.md (Grounding & HITL Review journey) - Phase 10 complete
-Resume file: .planning/phases/10-user-journey-narratives/10-02-SUMMARY.md
+Stopped at: v1.2 roadmap created, ready for Phase 13 planning
+Resume file: .planning/ROADMAP.md
+Next action: `/gsd:plan-phase 13`

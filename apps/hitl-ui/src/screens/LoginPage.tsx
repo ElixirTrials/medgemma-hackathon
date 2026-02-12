@@ -1,18 +1,39 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../hooks/useAuth';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export default function LoginPage() {
-    const { isAuthenticated, login } = useAuth();
+    const { isAuthenticated, login, setAuth } = useAuth();
     const navigate = useNavigate();
+    const [devLoading, setDevLoading] = useState(false);
+    const [devError, setDevError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isAuthenticated) {
             navigate('/');
         }
     }, [isAuthenticated, navigate]);
+
+    const handleDevLogin = async () => {
+        setDevLoading(true);
+        setDevError(null);
+        try {
+            const res = await fetch(`${API_BASE_URL}/auth/dev-login`, { method: 'POST' });
+            if (!res.ok) {
+                throw new Error(res.status === 404 ? 'Dev login not enabled on server' : `Error ${res.status}`);
+            }
+            const data = await res.json();
+            setAuth(data.access_token, data.user);
+        } catch (e) {
+            setDevError(e instanceof Error ? e.message : 'Dev login failed');
+        } finally {
+            setDevLoading(false);
+        }
+    };
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-background">
@@ -61,7 +82,22 @@ export default function LoginPage() {
                         Sign in with Google
                     </Button>
 
-                    <div className="pt-6 border-t text-center">
+                    <div className="pt-4 border-t space-y-3">
+                        <Button
+                            onClick={handleDevLogin}
+                            variant="outline"
+                            className="w-full"
+                            size="lg"
+                            disabled={devLoading}
+                        >
+                            {devLoading ? 'Signing in...' : 'Dev Login (local only)'}
+                        </Button>
+                        {devError && (
+                            <p className="text-sm text-red-500 text-center">{devError}</p>
+                        )}
+                    </div>
+
+                    <div className="pt-2 text-center">
                         <p className="text-xs text-muted-foreground">
                             By signing in, you agree to review and approve AI-generated content
                             according to the project guidelines.
