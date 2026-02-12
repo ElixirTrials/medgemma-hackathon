@@ -9,19 +9,19 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 20-medgemma-agentic-grounding (IN PROGRESS)
-Plan: 1 of 2 in Phase 20
-Status: Plan 01 complete — ModelGardenChatModel + AgentConfig ported to libs/inference
-Last activity: 2026-02-12 — Completed 20-01: port ModelGardenChatModel and AgentConfig
+Phase: 20-medgemma-agentic-grounding (COMPLETE)
+Plan: 2 of 2 in Phase 20
+Status: Phase 20 complete — MedGemma agentic grounding node created, graph rewired to 2 nodes
+Last activity: 2026-02-12 — Completed 20-02: agentic grounding node + graph rewire
 
-Progress: █████████████████░░░ 65% (v1.4: 3/5 phases complete, Phase 20 plan 1/2 done)
+Progress: ██████████████████░░ 80% (v1.4: 4/5 phases complete)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 35
+- Total plans completed: 36
 - Average duration: 7.5 min
-- Total execution time: 4.6 hours
+- Total execution time: 4.7 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -29,6 +29,7 @@ Progress: █████████████████░░░ 65% (v1.4
 | 18 | 01 | 10min | 3 | 6 |
 | 19 | 01 | 4min | 2 | 2 |
 | 20 | 01 | 3min | 2 | 5 |
+| 20 | 02 | 8min | 2 | 9 |
 
 ## Accumulated Context
 
@@ -53,6 +54,9 @@ Progress: █████████████████░░░ 65% (v1.4
 - v1.4: concept_search returns both CUI and SNOMED — map_to_snomed direct API call becomes redundant
 - v1.4: Criteria extraction upgraded to gemini-3-flash-preview
 - v1.4: ModelGardenChatModel as top-level class in libs/inference (not nested in factory function) for clean imports
+- v1.4: criterion_id field on ExtractedEntityAction for entity-to-criteria mapping in agentic loop
+- v1.4: Grounding graph simplified from 4 nodes to 2 (medgemma_ground -> validate_confidence)
+- v1.4: Old grounding node files preserved for reference/rollback (removed from exports only)
 
 ### Investigation Results (v1.4)
 
@@ -75,6 +79,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 20-01-PLAN.md (ModelGardenChatModel + AgentConfig ported to libs/inference)
-Resume file: .planning/phases/20-medgemma-agentic-grounding/20-01-SUMMARY.md
-Next action: Execute 20-02-PLAN.md (MedGemma agentic grounding node in grounding-service)
+Stopped at: Completed 20-02-PLAN.md (MedGemma agentic grounding node + graph rewire)
+Resume file: .planning/phases/20-medgemma-agentic-grounding/20-02-SUMMARY.md
+Next action: Proceed to Phase 21 (next phase in v1.4 milestone)
