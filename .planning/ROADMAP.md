@@ -6,6 +6,7 @@
 - 🚧 **v1.1 Documentation Site** - Phases 8-12 (paused after Phase 10)
 - 🚧 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (paused)
 - ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
+- 🚀 **v1.4 Structured Entity Display & Grounding Fixes** - Phases 17-19
 
 ## Phases
 
@@ -252,7 +253,55 @@ Plans:
 
 </details>
 
-## 🚀 v1.2 GCP Cloud Run Deployment (Current)
+## 🚀 v1.4 Structured Entity Display & Grounding Fixes (Current)
+
+**Milestone Goal:** Fix the broken UMLS/SNOMED grounding pipeline, make the extraction LLM populate numeric thresholds, and display all structured data (temporal constraints, thresholds, SNOMED/UMLS mappings) in the HITL UI.
+
+**Investigation (2026-02-12):** Ran 3 protocols (103 criteria, 266 entities). Found: grounding 100% failed (all entities have null CUI/SNOMED), numeric_thresholds never populated (0/103), temporal_constraints exist but not displayed (47/103 have data).
+
+### Phase 17: Frontend Structured Data Display
+**Goal**: Display temporal constraints, numeric thresholds, and SNOMED/UMLS data that already exists (or will exist after backend fixes) in the HITL review UI
+**Depends on**: Nothing (frontend-only, can display what data exists)
+**Requirements**: FE-01, FE-02, FE-03
+**Success Criteria** (what must be TRUE):
+  1. CriterionCard shows temporal_constraint when present, rendered as human-readable text (e.g., "Within 6 months of screening")
+  2. CriterionCard shows numeric_thresholds when present, rendered as badges (e.g., ">=18 years", "<1.5 WOMAC")
+  3. EntityCard shows SNOMED badge and UMLS CUI link when data is populated (existing code in EntityCard.tsx verified working)
+**Plans**: 1 plan
+
+Plans:
+- [ ] 17-01-PLAN.md — Temporal constraint display, numeric threshold badges, EntityCard SNOMED/UMLS verification
+
+### Phase 18: Grounding Pipeline Debug & Fix
+**Goal**: Diagnose and fix the UMLS/SNOMED grounding pipeline so entities get real CUI and SNOMED codes instead of 100% expert_review fallback
+**Depends on**: Nothing (backend-only, independent of Phase 17)
+**Requirements**: GRD-01, GRD-02, GRD-03, GRD-04
+**Success Criteria** (what must be TRUE):
+  1. Root cause of MCP concept_linking failure identified and fixed (UMLS API key, MCP server startup, tool return format, or other)
+  2. Common medical terms like "acetaminophen", "osteoarthritis", "Heparin" successfully resolve to UMLS CUI
+  3. Entities with UMLS CUI get SNOMED-CT codes via map_to_snomed
+  4. Re-running grounding on existing protocols yields >50% entities with non-null CUI/SNOMED
+**Plans**: TBD
+
+Plans:
+- [ ] 18-01: TBD
+
+### Phase 19: Extraction Structured Output Improvement
+**Goal**: Make Gemini populate numeric_thresholds and conditions fields for criteria that contain numeric values or conditional dependencies
+**Depends on**: Nothing (independent improvement)
+**Requirements**: EXT-01, EXT-02, EXT-03
+**Success Criteria** (what must be TRUE):
+  1. Extraction system prompt includes few-shot examples for numeric_thresholds (age ranges, lab values, dosage limits)
+  2. Extraction system prompt includes few-shot examples for conditions (conditional dependencies)
+  3. Re-extracting criteria for existing protocols produces numeric_thresholds for criteria containing numeric values (e.g., age ranges, lab value cutoffs)
+**Plans**: TBD
+
+Plans:
+- [ ] 19-01: TBD
+
+---
+
+## 🚧 v1.2 GCP Cloud Run Deployment (Paused)
 
 **Milestone Goal:** Deploy the entire application to Google Cloud Run using Terraform, with all configuration consumed from .env file and documented .env.example for operators. This is a lean 50-protocol pilot deployment — prioritize simplicity over enterprise patterns.
 
@@ -399,6 +448,23 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 **Coverage: 6/6 v1.3 requirements shipped. No orphans.**
 
+### v1.4 Requirements (10 total - all mapped)
+
+| Requirement | Phase | Description |
+|-------------|-------|-------------|
+| FE-01 | Phase 17 | CriterionCard displays temporal_constraint |
+| FE-02 | Phase 17 | CriterionCard displays numeric_thresholds |
+| FE-03 | Phase 17 | EntityCard SNOMED/UMLS display verified |
+| GRD-01 | Phase 18 | Diagnose MCP concept_linking failure |
+| GRD-02 | Phase 18 | Fix ground_to_umls for common terms |
+| GRD-03 | Phase 18 | Fix map_to_snomed for entities with CUI |
+| GRD-04 | Phase 18 | >50% entities grounded after fix |
+| EXT-01 | Phase 19 | Few-shot examples for numeric_thresholds |
+| EXT-02 | Phase 19 | Populated numeric_thresholds on re-extraction |
+| EXT-03 | Phase 19 | Few-shot examples for conditions |
+
+**Coverage: 10/10 v1.4 requirements mapped. No orphans.**
+
 ## Dependency Graph
 
 ### v1.0 (Shipped)
@@ -431,7 +497,15 @@ Phase 11 (Component Deep Dives) [PAUSED]
 Phase 12 (Implementation Status & Code Tour) [PAUSED]
 ```
 
-### v1.2 (GCP Cloud Run Deployment - Current)
+### v1.4 (Structured Entity Display & Grounding Fixes - Current)
+```
+Phase 17 (Frontend Structured Data Display)
+Phase 18 (Grounding Pipeline Debug & Fix)
+Phase 19 (Extraction Structured Output Improvement)
+```
+(All 3 phases are independent and can be parallelized)
+
+### v1.2 (GCP Cloud Run Deployment - Paused)
 ```
 Phase 13 (Terraform Foundation)
     |
@@ -447,6 +521,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 - v1.1: 8 → 9 → 10 → [11-12 paused]
 - v1.2: 13 → 14 → 15
 - v1.3: 16
+- v1.4: 17 + 18 + 19 (parallel)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -469,3 +544,6 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 14. Cloud SQL, Networking & Registry | v1.2 | 0/TBD | Not started | - |
 | 15. Cloud Run Deployment & Docs | v1.2 | 0/TBD | Not started | - |
 | 16. Multimodal PDF Extraction | v1.3 | 1/1 | Complete | 2026-02-12 |
+| 17. Frontend Structured Data Display | v1.4 | 0/1 | Planned | - |
+| 18. Grounding Pipeline Debug & Fix | v1.4 | 0/TBD | Not started | - |
+| 19. Extraction Structured Output | v1.4 | 0/TBD | Not started | - |

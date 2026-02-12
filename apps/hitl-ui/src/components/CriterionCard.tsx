@@ -1,4 +1,4 @@
-import { CheckCircle, Loader2, Pencil, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, Hash, Loader2, Pencil, XCircle } from 'lucide-react';
 import { useState } from 'react';
 
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
@@ -77,6 +77,65 @@ function CriteriaTypeBadge({ type }: { type: string }) {
             {type}
         </span>
     );
+}
+
+function formatTemporalConstraint(tc: Record<string, unknown>): string {
+    const duration = 'duration' in tc ? (tc.duration as string) : null;
+    const relation = 'relation' in tc ? (tc.relation as string) : null;
+    const referencePoint = 'reference_point' in tc ? (tc.reference_point as string) : null;
+
+    if (!duration) return '';
+
+    const relationMap: Record<string, string> = {
+        within: 'Within',
+        before: 'Before',
+        after: 'After',
+        at_least: 'At least',
+    };
+
+    const relationText = relation ? (relationMap[relation] || relation) : '';
+    const parts = [relationText, duration];
+    if (referencePoint) parts.push('of', referencePoint);
+
+    return parts.filter(Boolean).join(' ');
+}
+
+function formatNumericThreshold(threshold: Record<string, unknown>): string {
+    const value = 'value' in threshold ? threshold.value : null;
+    const unit = 'unit' in threshold ? (threshold.unit as string) : '';
+    const comparator = 'comparator' in threshold ? (threshold.comparator as string) : '';
+    const upperValue = 'upper_value' in threshold ? threshold.upper_value : null;
+
+    if (value === null) return '';
+
+    if (comparator === 'range' && upperValue !== null) {
+        return `${value}-${upperValue} ${unit}`.trim();
+    }
+
+    return `${comparator}${value} ${unit}`.trim();
+}
+
+function extractThresholdsList(
+    nt: Record<string, unknown> | null
+): Array<Record<string, unknown>> {
+    if (!nt) return [];
+
+    // Shape 1: {"thresholds": [...]} wrapper object
+    if ('thresholds' in nt && Array.isArray(nt.thresholds)) {
+        return nt.thresholds as Array<Record<string, unknown>>;
+    }
+
+    // Shape 2: raw array stored directly
+    if (Array.isArray(nt)) {
+        return nt as Array<Record<string, unknown>>;
+    }
+
+    // Shape 3: single threshold object without wrapper
+    if ('value' in nt && 'comparator' in nt) {
+        return [nt];
+    }
+
+    return [];
 }
 
 export default function CriterionCard({ criterion, onAction, isSubmitting }: CriterionCardProps) {
@@ -217,6 +276,34 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
                     <span className="inline-flex items-center rounded-full bg-purple-100 px-2.5 py-0.5 text-xs font-medium text-purple-800">
                         {criterion.assertion_status}
                     </span>
+                </div>
+            )}
+
+            {/* Temporal constraint */}
+            {criterion.temporal_constraint && formatTemporalConstraint(criterion.temporal_constraint) && (
+                <div className="mb-3 flex items-center gap-1.5">
+                    <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                    <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                        {formatTemporalConstraint(criterion.temporal_constraint)}
+                    </span>
+                </div>
+            )}
+
+            {/* Numeric thresholds */}
+            {extractThresholdsList(criterion.numeric_thresholds).length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-1.5">
+                    <Hash className="h-3.5 w-3.5 text-teal-600" />
+                    {extractThresholdsList(criterion.numeric_thresholds).map((threshold, idx) => {
+                        const text = formatNumericThreshold(threshold);
+                        return text ? (
+                            <span
+                                key={idx}
+                                className="inline-flex items-center rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-800"
+                            >
+                                {text}
+                            </span>
+                        ) : null;
+                    })}
                 </div>
             )}
 
