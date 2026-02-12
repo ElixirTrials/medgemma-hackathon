@@ -1,7 +1,7 @@
 """Extract entities node: call Gemini/MedGemma for structured entity extraction.
 
 This node loads criteria from the database, renders Jinja2 prompts, and
-invokes ChatVertexAI.with_structured_output(BatchEntityExtractionResult) to
+invokes ChatGoogleGenerativeAI.with_structured_output(BatchEntityExtractionResult) to
 extract medical entities with span positions. Includes post-extraction span
 validation to correct any LLM misalignments.
 
@@ -13,18 +13,13 @@ from __future__ import annotations
 
 import logging
 import os
-import warnings
 from pathlib import Path
 from typing import Any, cast
 
 from inference.factory import render_prompts
-
-warnings.filterwarnings("ignore", message=".*ChatVertexAI.*deprecated.*")
-from langchain_google_vertexai import (  # noqa: E402
-    ChatVertexAI,  # type: ignore[import-untyped]
-)
-from shared.resilience import vertex_ai_breaker  # noqa: E402
-from tenacity import (  # noqa: E402
+from langchain_google_genai import ChatGoogleGenerativeAI
+from shared.resilience import vertex_ai_breaker
+from tenacity import (
     before_sleep_log,
     retry,
     retry_if_exception_type,
@@ -32,11 +27,11 @@ from tenacity import (  # noqa: E402
     wait_random_exponential,
 )
 
-from grounding_service.schemas.entities import (  # noqa: E402
+from grounding_service.schemas.entities import (
     BatchEntityExtractionResult,
     ExtractedEntity,
 )
-from grounding_service.state import GroundingState  # noqa: E402
+from grounding_service.state import GroundingState
 
 logger = logging.getLogger(__name__)
 
@@ -76,12 +71,12 @@ def _get_model_name() -> str:
     """Determine the LLM model name from environment variables.
 
     Returns:
-        Model name string for ChatVertexAI.
+        Model name string for ChatGoogleGenerativeAI.
     """
     model_choice = os.getenv("ENTITY_EXTRACTION_MODEL", "gemini")
     if model_choice == "medgemma":
         return os.getenv("MEDGEMMA_ENDPOINT", "medgemma-1.5-4b-it")
-    return "gemini-2.5-flash"
+    return "gemini-3-flash-preview"
 
 
 def _validate_span(entity: ExtractedEntity, criterion_text: str) -> tuple[int, int]:
@@ -159,7 +154,7 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
     """Extract medical entities from criteria using structured LLM output.
 
     Loads criteria texts from the database, renders prompts via Jinja2,
-    calls ChatVertexAI with structured output, and validates span positions.
+    calls ChatGoogleGenerativeAI with structured output, and validates span positions.
 
     Args:
         state: Current grounding state with criteria_ids.
@@ -187,9 +182,10 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
 
         # Create LLM with structured output
         model_name = _get_model_name()
-        llm = ChatVertexAI(
-            model_name=model_name,
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
             temperature=0,
+            vertexai=True,
             project=os.getenv("GCP_PROJECT_ID"),
             location=os.getenv("GCP_REGION", "us-central1"),
         )

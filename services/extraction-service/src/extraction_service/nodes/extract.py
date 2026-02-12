@@ -1,6 +1,6 @@
 """Extract node: call Gemini with structured output for criteria extraction.
 
-This node invokes ChatVertexAI.with_structured_output(ExtractionResult)
+This node invokes ChatGoogleGenerativeAI.with_structured_output(ExtractionResult)
 using Jinja2-rendered system and user prompts. The output is a list of
 criteria dicts ready for post-processing by the parse node.
 """
@@ -15,7 +15,7 @@ from typing import Any, cast
 
 from inference.factory import render_prompts
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
+from langchain_google_genai import ChatGoogleGenerativeAI
 from shared.resilience import gemini_breaker
 from tenacity import (
     before_sleep_log,
@@ -86,10 +86,11 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
                 encoded_size_mb,
             )
 
-        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        llm = ChatVertexAI(
-            model_name=model_name,
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-3-flash-preview")
+        llm = ChatGoogleGenerativeAI(
+            model=model_name,
             temperature=0,
+            vertexai=True,
             project=os.getenv("GCP_PROJECT_ID"),
             location=os.getenv("GCP_REGION", "us-central1"),
         )
