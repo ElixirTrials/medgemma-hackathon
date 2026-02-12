@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 7 of 7+3 (Production Hardening)
-Plan: 4 of TBD
-Status: Phase 7 in progress - Plan 04 complete (frontend failure status display)
-Last activity: 2026-02-12 -- Plan 07-04 complete (2 min, frontend retry UI)
+Plan: 5 of TBD
+Status: Phase 7 in progress - Plan 03 complete (MLflow observability integration)
+Last activity: 2026-02-12 -- Plan 07-03 complete (41 min, MLflow tracing for all system events)
 
 Progress: [█████████████████░] 98%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 23
-- Average duration: 7.7 min
-- Total execution time: 2.9 hours
+- Total plans completed: 24
+- Average duration: 9.1 min
+- Total execution time: 3.6 hours
 
 **By Phase:**
 
@@ -36,11 +36,11 @@ Progress: [█████████████████░] 98%
 | 05.2-test-coverage | 3 | 74 min | 24.7 min |
 | 05.3-rename-services-and-docs | 3 | 17 min | 5.7 min |
 | 06-entity-approval-auth-search | 2 | 16 min | 8 min |
-| 07-production-hardening | 3 | 20 min | 6.7 min |
+| 07-production-hardening | 4 | 61 min | 15.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 06-02 (7 min), 07-01 (6 min), 07-02 (12 min), 07-04 (2 min)
-- Trend: Phase 7 resilience patterns complete - frontend error UI added
+- Last 5 plans: 07-01 (6 min), 07-02 (12 min), 07-04 (2 min), 07-03 (41 min)
+- Trend: Phase 7 observability complete - MLflow tracing integrated across all system layers
 
 *Updated after each plan completion*
 
@@ -125,6 +125,11 @@ Recent decisions affecting current work:
 - [07-02]: Human-readable error categorization for protocol failure reasons
 - [07-02]: Upload endpoint checks circuit breaker state and warns users proactively
 - [07-02]: PENDING protocol status indicates delayed processing due to service unavailability
+- [07-03]: Use mlflow.start_span (lightweight) vs mlflow.start_run for request/event tracing
+- [07-03]: Set log_models=False in mlflow.langchain.autolog to avoid large artifacts
+- [07-03]: All MLflow operations wrapped in try/except for safe no-op without MLflow infrastructure
+- [07-03]: Skip health/ready endpoints in middleware to reduce monitoring probe noise
+- [07-03]: CircuitBreakerListener inheritance for pybreaker compatibility with type: ignore[override]
 - [07-04]: Human-readable STATUS_LABELS map for underscore-separated status values (UI consistency)
 - [07-04]: Retry button positioned in error alert for contextual action (UX pattern)
 - [07-04]: Processing banner for uploaded/extracting states without circuit breaker detection (backend handles it)
@@ -147,5 +152,5 @@ Recent decisions affecting current work:
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed Phase 7 Plan 04 (frontend failure status display & retry UI). Ready for Phase 7 completion or next phase.
+Stopped at: Completed Phase 7 Plan 03 (MLflow observability integration). All system events traced via MLflow.
 Resume file: None
