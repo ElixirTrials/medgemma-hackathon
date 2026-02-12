@@ -11,6 +11,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from math import ceil
 from typing import Any, Dict, Literal
@@ -288,6 +289,24 @@ def submit_review_action(
         },
     )
     db.add(audit_log)
+
+    # Trace HITL action in MLflow
+    try:
+        import mlflow
+
+        if os.getenv("MLFLOW_TRACKING_URI"):
+            with mlflow.start_span(
+                name=f"hitl_review_{body.action}",
+                span_type="TOOL",
+            ) as span:
+                span.set_inputs({
+                    "action": body.action,
+                    "reviewer_id": body.reviewer_id,
+                    "criteria_id": criteria_id,
+                    "batch_id": criterion.batch_id,
+                })
+    except Exception:
+        logger.debug("MLflow HITL tracing failed", exc_info=True)
 
     # Update batch status based on review progress
     _update_batch_status(db, criterion.batch_id)
