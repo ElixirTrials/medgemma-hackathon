@@ -41,7 +41,7 @@ Set `VITE_API_BASE_URL` if the API is not at the default. See `apps/hitl-ui/READ
 
 ## 4. Run agents
 
-Agent services and LangGraph usage are documented in the [Components Overview](components-overview.md) and per-service READMEs under `services/extraction-service` and `services/grounding-service`.
+Agent services and LangGraph usage are documented in the [Components Overview](components/index.md) and per-service READMEs under `services/extraction-service` and `services/grounding-service`.
 
 ## 5. Run tests
 
@@ -82,6 +82,6 @@ See `infra/README.md` for env vars and options.
 
 ## Next steps
 
-- [Components Overview](components-overview.md) — services and libraries
+- [Components Overview](components/index.md) — services and libraries
 - [Testing Guide](testing-guide.md) — testing patterns and examples
 - [Documentation index](index.md) — architecture and quick start

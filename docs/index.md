@@ -26,6 +26,6 @@ uv sync
 ## Documentation
 
 - **[Onboarding](onboarding.md)**: Getting started guide for new contributors.
-- **[Components Overview](components-overview.md)**: Detailed overview of all services and libraries.
+- **[Components Overview](components/index.md)**: Detailed overview of all services and libraries.
 - **[System Diagrams](diagrams/hitl-flow.md)**: Visual flows and architecture diagrams.
 - **[Testing Guide](testing-guide.md)**: Testing patterns and guidelines.
