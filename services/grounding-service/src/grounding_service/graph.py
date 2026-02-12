@@ -1,24 +1,21 @@
 """LangGraph workflow definition for the entity grounding agent.
 
-Defines a 4-node StateGraph for the grounding workflow:
-START -> extract_entities -> ground_to_umls ->
-         map_to_snomed -> validate_confidence -> END
+Defines a 2-node StateGraph for the agentic grounding workflow:
+START -> medgemma_ground -> validate_confidence -> END
 
-Conditional error routing after extract_entities and ground_to_umls:
+The medgemma_ground node implements an iterative agentic loop where
+MedGemma extracts entities, searches UMLS via MCP concept_search,
+and evaluates results (max 3 iterations per criterion batch).
+
+Conditional error routing after medgemma_ground:
 if state["error"] is set, routes directly to END.
-map_to_snomed -> validate_confidence is unconditional.
 """
 
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
 
-from .nodes import (
-    extract_entities_node,
-    ground_to_umls_node,
-    map_to_snomed_node,
-    validate_confidence_node,
-)
+from .nodes import medgemma_ground_node, validate_confidence_node
 from .state import GroundingState
 
 
@@ -35,46 +32,28 @@ def should_continue(state: GroundingState) -> str:
 
 
 def create_graph() -> Any:
-    """Create and compile the 4-node grounding workflow graph.
+    """Create and compile the 2-node grounding workflow graph.
 
     The graph follows this flow:
-    START -> extract_entities -> ground_to_umls -> map_to_snomed
-          -> validate_confidence -> END
+    START -> medgemma_ground -> validate_confidence -> END
 
-    After extract_entities and ground_to_umls, conditional edges check
-    for errors and route to END if any are found. map_to_snomed and
-    validate_confidence always proceed to the next step.
+    After medgemma_ground, conditional edges check for errors
+    and route to END if any are found.
 
     Returns:
         Compiled StateGraph ready for execution.
     """
     workflow = StateGraph(GroundingState)
 
-    # Add nodes
-    workflow.add_node("extract_entities", extract_entities_node)
-    workflow.add_node("ground_to_umls", ground_to_umls_node)
-    workflow.add_node("map_to_snomed", map_to_snomed_node)
+    workflow.add_node("medgemma_ground", medgemma_ground_node)
     workflow.add_node("validate_confidence", validate_confidence_node)
 
-    # Define edges with conditional error routing
-    workflow.add_edge(START, "extract_entities")
+    workflow.add_edge(START, "medgemma_ground")
     workflow.add_conditional_edges(
-        "extract_entities",
+        "medgemma_ground",
         should_continue,
-        {
-            "continue": "ground_to_umls",
-            "error": END,
-        },
+        {"continue": "validate_confidence", "error": END},
     )
-    workflow.add_conditional_edges(
-        "ground_to_umls",
-        should_continue,
-        {
-            "continue": "map_to_snomed",
-            "error": END,
-        },
-    )
-    workflow.add_edge("map_to_snomed", "validate_confidence")
     workflow.add_edge("validate_confidence", END)
 
     return workflow.compile()
