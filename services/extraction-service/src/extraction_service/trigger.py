@@ -73,7 +73,7 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
             "protocol_id": payload["protocol_id"],
             "file_uri": payload["file_uri"],
             "title": payload["title"],
-            "markdown_content": "",
+            "pdf_bytes": b"",
             "raw_criteria": [],
             "criteria_batch_id": "",
             "error": None,
