@@ -16,7 +16,7 @@ from uuid import uuid4
 
 from shared.models import OutboxEvent
 from sqlalchemy import Engine
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from events_py.models import DomainEventKind
 
@@ -67,7 +67,7 @@ class OutboxProcessor:
         with Session(self.engine) as session:
             statement = (
                 select(OutboxEvent)
-                .where(OutboxEvent.status.in_(["pending", "failed"]))
+                .where(col(OutboxEvent.status).in_(["pending", "failed"]))
                 .order_by(OutboxEvent.created_at.asc())  # type: ignore[attr-defined]
                 .limit(self.batch_size)
             )
