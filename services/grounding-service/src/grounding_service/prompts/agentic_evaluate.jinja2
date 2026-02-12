@@ -1,0 +1,22 @@
+Review the UMLS search results below and select the best match for each entity.
+
+{% for result in search_results %}
+## Entity: "{{ result.entity_text }}" ({{ result.entity_type }})
+Search term: "{{ result.search_term }}"
+UMLS candidates:
+{% for candidate in result.candidates %}
+- CUI: {{ candidate.cui }}, SNOMED: {{ candidate.snomed_code }}, Name: "{{ candidate.display }}", Confidence: {{ candidate.confidence }}
+{% endfor %}
+{% if not result.candidates %}
+- No candidates found
+{% endif %}
+
+{% endfor %}
+
+Respond with a JSON object. For each entity, select the best matching CUI and SNOMED code.
+If no good match exists, set selected_cui to null and confidence to 0.0.
+{% if iteration > 0 %}
+This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. If you want to try different search terms, respond with action_type="refine" and provide updated entities with new search_term values. Otherwise, respond with action_type="evaluate" and populate the selections array.
+{% else %}
+Respond with action_type="evaluate" and populate the selections array.
+{% endif %}

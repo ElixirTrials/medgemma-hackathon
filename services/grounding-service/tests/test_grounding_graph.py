@@ -15,16 +15,17 @@ def test_create_graph_returns_compiled() -> None:
     assert "Compiled" in type(graph).__name__ or "StateGraph" in type(graph).__name__
 
 
-def test_graph_has_four_nodes() -> None:
+def test_graph_has_two_nodes() -> None:
     graph = create_graph()
     g = graph.get_graph()
     nodes = list(g.nodes) if hasattr(g, "nodes") else list(g.nodes())
     node_names = set(nodes)
-    assert "extract_entities" in node_names
-    assert "ground_to_umls" in node_names
-    assert "map_to_snomed" in node_names
+    assert "medgemma_ground" in node_names
     assert "validate_confidence" in node_names
-    assert len(node_names) >= 4
+    # Old nodes should NOT be present
+    assert "extract_entities" not in node_names
+    assert "ground_to_umls" not in node_names
+    assert "map_to_snomed" not in node_names
 
 
 def test_should_continue_returns_error_when_state_has_error() -> None:
