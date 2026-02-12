@@ -1,8 +1,7 @@
-"""Ingest node: fetch PDF bytes and parse to markdown.
+"""Ingest node: fetch PDF bytes.
 
 This node is the first in the extraction graph. It fetches the PDF
-from the file_uri (local:// or gs://), parses it to markdown using
-pymupdf4llm with diskcache caching, and updates the protocol status
+from the file_uri (local:// or gs://) and updates the protocol status
 to 'extracting'.
 
 Architecture note: Graph nodes are integration glue and ARE allowed
@@ -19,30 +18,26 @@ from api_service.storage import engine
 from shared.models import Protocol
 from sqlmodel import Session
 
-from extraction_service.pdf_parser import fetch_pdf_bytes, parse_pdf_to_markdown
+from extraction_service.pdf_parser import fetch_pdf_bytes
 from extraction_service.state import ExtractionState
 
 logger = logging.getLogger(__name__)
 
 
 async def ingest_node(state: ExtractionState) -> dict[str, Any]:
-    """Fetch PDF and parse to markdown, updating protocol status.
+    """Fetch PDF bytes and update protocol status.
 
     Args:
         state: Current extraction state with protocol_id and file_uri.
 
     Returns:
-        Dict with markdown_content, or error dict on failure.
+        Dict with pdf_bytes, or error dict on failure.
     """
     if state.get("error"):
         return {}
 
     try:
         pdf_bytes = fetch_pdf_bytes(state["file_uri"])
-        md_text = parse_pdf_to_markdown(
-            pdf_bytes,
-            cache_key=state["protocol_id"],
-        )
 
         # Update protocol status to 'extracting'
         with Session(engine) as session:
@@ -53,11 +48,11 @@ async def ingest_node(state: ExtractionState) -> dict[str, Any]:
                 session.commit()
 
         logger.info(
-            "Ingested protocol %s: %d chars of markdown",
+            "Ingested protocol %s: %d bytes of PDF",
             state["protocol_id"],
-            len(md_text),
+            len(pdf_bytes),
         )
-        return {"markdown_content": md_text}
+        return {"pdf_bytes": pdf_bytes}
 
     except Exception as e:
         logger.exception(
