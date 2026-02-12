@@ -1,8 +1,8 @@
-# Welcome to ElixirTrials  Template
+# Clinical Trial Criteria Extraction System
 
-This is a mono-repo template combining Python backend services, LangGraph AI agents, and a React/Vite HITL frontend.
+AI-powered system for extracting and grounding clinical trial eligibility criteria from protocol PDFs. Upload a protocol and get accurately extracted, UMLS-grounded criteria ready for clinical researcher review and approval.
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 - **Python 3.12+**
@@ -11,31 +11,21 @@ This is a mono-repo template combining Python backend services, LangGraph AI age
 - **Docker**
 
 ### Installation
-Run the following commands to get started:
-
 ```bash
 # Sync dependencies
 uv sync
-
-# Create a new service (interactive)
-make create-service
 ```
 
-## 🎯 Project Goals
-- **Robust Template**: A production-ready foundation for AI applications.
-- **Unified Tooling**: Standardized patterns for backend, frontend, and AI agents.
-- **Rapid Development**: Pre-configured CI/CD, linting, and testing.
+## System Components
 
-## 🏗️ Architecture
+- **API Service**: FastAPI orchestrator providing HTTP endpoints for the frontend, managing database persistence, and triggering background workflows.
+- **Extraction Service**: LangGraph workflow using Gemini to extract structured inclusion/exclusion criteria from protocol PDFs.
+- **Grounding Service**: Entity grounding workflow using MedGemma and UMLS MCP to map medical entities to SNOMED codes.
+- **HITL UI**: React/Vite application for clinical researchers to review, approve, edit, or reject AI-extracted criteria and grounded entities.
 
-- **API Service**: FastAPI orchestrator handling requests and persistence.
-- **Agent Services**: Independent LangGraph agents for specific workflows.
-- **Inference**: Shared library for model loading and LLM interactions.
-- **Data Pipeline**: ETL processes for data ingestion.
-- **Evaluation**: Offline metrics and benchmarks.
-- **HITL UI**: React/Vite frontend for human review and approval.
+## Documentation
 
-## 📚 Documentation Index
-
-- **[Components](components-overview.md)**: Detailed docs for all services and libraries.
-- **[Diagrams](diagrams/hitl-flow.md)**: Visual flows of the system.
+- **[Onboarding](onboarding.md)**: Getting started guide for new contributors.
+- **[Components Overview](components-overview.md)**: Detailed overview of all services and libraries.
+- **[System Diagrams](diagrams/hitl-flow.md)**: Visual flows and architecture diagrams.
+- **[Testing Guide](testing-guide.md)**: Testing patterns and guidelines.
