@@ -9,6 +9,7 @@ Provides endpoints for:
 from __future__ import annotations
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, Literal
 
@@ -162,6 +163,23 @@ def submit_entity_action(
         },
     )
     db.add(audit_log)
+
+    # Trace entity review action in MLflow
+    try:
+        import mlflow
+
+        if os.getenv("MLFLOW_TRACKING_URI"):
+            with mlflow.start_span(
+                name=f"hitl_entity_{body.action}",
+                span_type="TOOL",
+            ) as span:
+                span.set_inputs({
+                    "action": body.action,
+                    "reviewer_id": body.reviewer_id,
+                    "entity_id": entity_id,
+                })
+    except Exception:
+        logger.debug("MLflow entity review tracing failed", exc_info=True)
 
     db.commit()
     db.refresh(entity)
