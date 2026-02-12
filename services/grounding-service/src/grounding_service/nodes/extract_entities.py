@@ -13,10 +13,13 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from pathlib import Path
 from typing import Any, cast
 
 from inference.factory import render_prompts
+
+warnings.filterwarnings("ignore", message=".*ChatVertexAI.*deprecated.*")
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
 from shared.resilience import vertex_ai_breaker
 from tenacity import (
@@ -182,7 +185,12 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
 
         # Create LLM with structured output
         model_name = _get_model_name()
-        llm = ChatVertexAI(model_name=model_name, temperature=0)
+        llm = ChatVertexAI(
+            model_name=model_name,
+            temperature=0,
+            project=os.getenv("GCP_PROJECT_ID"),
+            location=os.getenv("GCP_REGION", "us-central1"),
+        )
         structured_llm = llm.with_structured_output(BatchEntityExtractionResult)
 
         extraction_result = await _invoke_vertex_ai(

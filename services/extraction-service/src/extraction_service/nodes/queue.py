@@ -99,13 +99,16 @@ async def queue_node(state: ExtractionState) -> dict[str, Any]:
 
             session.commit()
 
+            # Capture IDs before session closes (avoids DetachedInstanceError)
+            batch_id = batch.id
+
         logger.info(
             "Queued CriteriaBatch %s with %d criteria for protocol %s",
-            batch.id,
+            batch_id,
             len(criteria_ids),
             state["protocol_id"],
         )
-        return {"criteria_batch_id": batch.id}
+        return {"criteria_batch_id": batch_id}
 
     except Exception as e:
         logger.exception(

@@ -4,11 +4,15 @@ import os
 from contextlib import asynccontextmanager
 from typing import Set
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 from events_py.outbox import OutboxProcessor
 from extraction_service.trigger import handle_protocol_uploaded
 from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from grounding_service.trigger import handle_criteria_extracted
 from sqlalchemy import text
 from sqlmodel import Session
@@ -48,7 +52,8 @@ async def lifespan(app: FastAPI):
         if tracking_uri:
             mlflow.set_tracking_uri(tracking_uri)
             mlflow.set_experiment("protocol-processing")
-            mlflow.langchain.autolog()
+            # NOTE: mlflow.langchain.autolog() disabled — causes ContextVar
+            # warnings with async code. Use manual mlflow logging instead.
             logger.info(
                 "MLflow initialized: tracking_uri=%s, experiment=protocol-processing",
                 tracking_uri,
@@ -163,3 +168,26 @@ async def readiness_check(db: Session = Depends(get_db)):
 async def root():
     """Returns a welcome message for the API."""
     return {"message": "Welcome to the API Service"}
+
+
+# --- Local file storage endpoints (dev only) ---
+
+@app.put("/local-upload/{blob_path:path}")
+async def local_upload(blob_path: str, request: Request):
+    """Receive a file upload and store it locally (dev mode)."""
+    from api_service.gcs import local_save_file
+
+    body = await request.body()
+    local_save_file(blob_path, body)
+    return JSONResponse(status_code=200, content={"status": "ok"})
+
+
+@app.get("/local-files/{blob_path:path}")
+async def local_files(blob_path: str):
+    """Serve a locally stored file (dev mode)."""
+    from api_service.gcs import local_get_file_path
+
+    file_path = local_get_file_path(blob_path)
+    if file_path is None:
+        return JSONResponse(status_code=404, content={"detail": "File not found"})
+    return FileResponse(str(file_path), media_type="application/pdf")

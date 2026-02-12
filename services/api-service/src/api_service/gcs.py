@@ -1,12 +1,11 @@
-"""GCS client wrapper for signed URL generation and metadata operations.
+"""Storage client for protocol PDF files.
 
-Provides utilities for:
-- Generating signed upload URLs for direct browser-to-GCS uploads
-- Generating signed download URLs for reading stored PDFs
-- Setting custom metadata on GCS blobs
+Supports two backends:
+- GCS (production): Signed URLs for direct browser-to-GCS uploads
+- Local (development): Files stored in uploads/ directory, served by the API
 
-Requires GCS_BUCKET_NAME environment variable and valid GCP credentials.
-Raises ValueError when not configured.
+Set USE_LOCAL_STORAGE=1 for local development without GCP service account keys.
+Otherwise requires GCS_BUCKET_NAME and valid GCP credentials.
 """
 
 from __future__ import annotations
@@ -14,6 +13,7 @@ from __future__ import annotations
 import logging
 import os
 from datetime import timedelta
+from pathlib import Path
 from uuid import uuid4
 
 from shared.resilience import gcs_breaker
@@ -27,6 +27,11 @@ from tenacity import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Local storage directory (relative to repo root)
+_LOCAL_UPLOAD_DIR = Path(
+    os.getenv("LOCAL_UPLOAD_DIR", "uploads/protocols")
+)
 
 # Shared retry decorator for GCS operations
 # Retry on any Exception EXCEPT ValueError (config errors)
@@ -42,6 +47,11 @@ _gcs_retry = retry(
 
 # Module-level singleton for GCS client
 _gcs_client = None
+
+
+def _use_local_storage() -> bool:
+    """Check if local file storage is enabled."""
+    return os.getenv("USE_LOCAL_STORAGE", "").strip() in ("1", "true", "yes")
 
 
 def get_gcs_client():
@@ -107,28 +117,89 @@ def _parse_gcs_uri(gcs_path: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
-@gcs_breaker
-@_gcs_retry
 def generate_upload_url(
     filename: str,
     content_type: str = "application/pdf",
     expiration_minutes: int = 15,
 ) -> tuple[str, str]:
-    """Generate a signed URL for uploading a file to GCS.
+    """Generate a URL for uploading a file.
 
-    Creates a unique blob path and returns a signed PUT URL that
-    allows direct browser upload to GCS without proxying through
-    the server.
-
-    Args:
-        filename: Original filename of the upload.
-        content_type: MIME type for the upload (default: application/pdf).
-        expiration_minutes: URL validity in minutes (default: 15).
-
-    Returns:
-        Tuple of (signed_url, gcs_path) where gcs_path is
-        gs://bucket/protocols/{uuid}/{filename}.
+    In local mode: returns a local API endpoint URL.
+    In GCS mode: returns a signed GCS PUT URL.
     """
+    if _use_local_storage():
+        return _local_generate_upload_url(filename)
+    return _gcs_generate_upload_url(filename, content_type, expiration_minutes)
+
+
+def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
+    """Set custom metadata on a stored blob."""
+    if _use_local_storage() or gcs_path.startswith("local://"):
+        logger.info("Local storage: skipping metadata for %s", gcs_path)
+        return
+    _gcs_set_blob_metadata(gcs_path, metadata)
+
+
+def generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
+    """Generate a URL for downloading a file."""
+    if _use_local_storage() or gcs_path.startswith("local://"):
+        return _local_generate_download_url(gcs_path)
+    return _gcs_generate_download_url(gcs_path, expiration_minutes)
+
+
+# --- Local storage backend ---
+
+
+def _local_generate_upload_url(filename: str) -> tuple[str, str]:
+    """Generate a local upload URL and file path."""
+    blob_id = str(uuid4())
+    blob_path = f"{blob_id}/{filename}"
+
+    # Ensure directory exists
+    upload_dir = _LOCAL_UPLOAD_DIR / blob_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    api_port = os.getenv("API_PORT", "8000")
+    upload_url = f"http://localhost:{api_port}/local-upload/{blob_path}"
+    local_uri = f"local://protocols/{blob_path}"
+
+    logger.info("Local storage: upload URL for %s -> %s", filename, local_uri)
+    return (upload_url, local_uri)
+
+
+def _local_generate_download_url(gcs_path: str) -> str:
+    """Generate a local download URL from a local:// URI."""
+    # local://protocols/{uuid}/{filename} -> /local-files/{uuid}/{filename}
+    path = gcs_path.replace("local://protocols/", "")
+    api_port = os.getenv("API_PORT", "8000")
+    return f"http://localhost:{api_port}/local-files/{path}"
+
+
+def local_save_file(blob_path: str, data: bytes) -> None:
+    """Save uploaded file to local storage."""
+    file_path = _LOCAL_UPLOAD_DIR / blob_path
+    file_path.parent.mkdir(parents=True, exist_ok=True)
+    file_path.write_bytes(data)
+    logger.info("Local storage: saved %d bytes to %s", len(data), file_path)
+
+
+def local_get_file_path(blob_path: str) -> Path | None:
+    """Get the local filesystem path for a stored file."""
+    file_path = _LOCAL_UPLOAD_DIR / blob_path
+    return file_path if file_path.exists() else None
+
+
+# --- GCS backend ---
+
+
+@gcs_breaker
+@_gcs_retry
+def _gcs_generate_upload_url(
+    filename: str,
+    content_type: str = "application/pdf",
+    expiration_minutes: int = 15,
+) -> tuple[str, str]:
+    """Generate a signed URL for uploading a file to GCS."""
     blob_path = f"protocols/{uuid4()}/{filename}"
 
     bucket_name = get_bucket_name()
@@ -152,21 +223,8 @@ def generate_upload_url(
 
 @gcs_breaker
 @_gcs_retry
-def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
-    """Set custom metadata on a GCS blob.
-
-    Args:
-        gcs_path: GCS URI (gs://bucket/path/to/blob).
-        metadata: Dict of string key-value pairs for custom metadata.
-
-    Raises:
-        ValueError: If GCS URI is invalid.
-    """
-    if gcs_path.startswith("local://"):
-        raise ValueError(
-            f"Invalid GCS path: {gcs_path}. Mock paths are no longer supported."
-        )
-
+def _gcs_set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
+    """Set custom metadata on a GCS blob."""
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
     client = get_gcs_client()
     if client is None:
@@ -181,24 +239,8 @@ def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
 
 @gcs_breaker
 @_gcs_retry
-def generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
-    """Generate a signed URL for downloading a file from GCS.
-
-    Args:
-        gcs_path: GCS URI (gs://bucket/path/to/blob).
-        expiration_minutes: URL validity in minutes (default: 60).
-
-    Returns:
-        Signed GET URL for reading the PDF.
-
-    Raises:
-        ValueError: If GCS URI is invalid.
-    """
-    if gcs_path.startswith("local://"):
-        raise ValueError(
-            f"Invalid GCS path: {gcs_path}. Mock paths are no longer supported."
-        )
-
+def _gcs_generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
+    """Generate a signed URL for downloading a file from GCS."""
     bucket_name, blob_path = _parse_gcs_uri(gcs_path)
     client = get_gcs_client()
     if client is None:

@@ -27,6 +27,11 @@ export function useHealthCheck() {
         queryKey: ['health'],
         queryFn: () => fetchApi<HealthResponse>('/health'),
         refetchInterval: 30000, // Check every 30 seconds
+        retry: 5,
+        retryDelay: (attemptIndex) => {
+            // First retry waits 10s (backend startup), subsequent retries 3s
+            return attemptIndex === 0 ? 10000 : 3000;
+        },
     });
 }
 
