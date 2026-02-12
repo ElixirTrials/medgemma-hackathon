@@ -22,6 +22,8 @@ from events_py.models import DomainEventKind
 
 logger = logging.getLogger(__name__)
 
+MAX_RETRIES = 3
+
 
 class OutboxProcessor:
     """Processes pending outbox events with at-least-once delivery.
@@ -65,7 +67,7 @@ class OutboxProcessor:
         with Session(self.engine) as session:
             statement = (
                 select(OutboxEvent)
-                .where(OutboxEvent.status == "pending")
+                .where(OutboxEvent.status.in_(["pending", "failed"]))
                 .order_by(OutboxEvent.created_at.asc())  # type: ignore[attr-defined]
                 .limit(self.batch_size)
             )
@@ -102,8 +104,34 @@ class OutboxProcessor:
                         event.event_type,
                     )
                 except Exception:
-                    event.status = "failed"
                     event.retry_count += 1
+                    if event.retry_count >= MAX_RETRIES:
+                        event.status = "dead_letter"
+                        logger.warning(
+                            "Event %s exhausted retries (%d), marking as dead_letter",
+                            event.id,
+                            event.retry_count,
+                        )
+                        # Update protocol status to dead_letter if protocol event
+                        if event.aggregate_type == "protocol":
+                            from shared.models import Protocol
+
+                            protocol = session.get(Protocol, event.aggregate_id)
+                            if protocol:
+                                protocol.status = "dead_letter"
+                                protocol.error_reason = "Maximum retries exceeded"
+                                protocol.metadata_ = {
+                                    **protocol.metadata_,
+                                    "error": {
+                                        "category": "pipeline_failed",
+                                        "reason": "Maximum retries exceeded",
+                                        "retry_count": event.retry_count,
+                                    },
+                                }
+                                session.add(protocol)
+                    else:
+                        event.status = "failed"
+
                     session.add(event)
                     logger.exception(
                         "Failed to process event %s (type=%s, retry_count=%d)",
