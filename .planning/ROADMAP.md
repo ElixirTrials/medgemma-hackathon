@@ -211,10 +211,11 @@ Plans:
   2. PM can view "Grounding & HITL Review" sequence diagram showing CriteriaExtracted to Grounding Service to DB to HITL UI to Approval to Audit Log flow
   3. Each journey narrative explains the user story and runtime behavior
   4. Diagrams explicitly note "happy path only" and link to error handling documentation
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 10-01: TBD
+- [x] 10-01: Upload & Extraction journey with sequence diagram, narrative, navigation updates, and grounding-review placeholder
+- [x] 10-02: Grounding & HITL Review journey with sequence diagram and narrative
 
 ### Phase 11: Component Deep Dives
 **Goal**: Per-service engineering manual documenting responsibilities, key abstractions, configuration, and environment variables
@@ -351,6 +352,6 @@ v1.1: 8 → 9 → 10 → 11 → 12
 | 7. Production Hardening | v1.0 | 4/4 | Complete | 2026-02-12 |
 | 8. Documentation Foundation | v1.1 | 2/2 | Complete | 2026-02-12 |
 | 9. Architecture & Data Models | v1.1 | 2/2 | Complete | 2026-02-12 |
-| 10. User Journey Narratives | v1.1 | 0/TBD | Not started | - |
+| 10. User Journey Narratives | v1.1 | 2/2 | Complete | 2026-02-12 |
 | 11. Component Deep Dives | v1.1 | 0/TBD | Not started | - |
 | 12. Status & Code Tour | v1.1 | 0/TBD | Not started | - |

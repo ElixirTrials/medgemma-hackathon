@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 ## Current Position
 
 Phase: 10 of 12 (User Journey Narratives)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-12 — Phase 10 Plan 01 complete (Upload & Extraction journey), Plan 02 next
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-12 — Phase 10 Plan 02 complete (Grounding & HITL Review journey)
 
-Progress: [████████████████████░░░░] 78% (29/37 total plans estimated)
+Progress: [████████████████████░░░░] 81% (30/37 total plans estimated)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 29
-- Average duration: 8.1 min
-- Total execution time: 4.15 hours
+- Total plans completed: 30
+- Average duration: 7.9 min
+- Total execution time: 4.17 hours
 
 **By Phase:**
 
@@ -39,13 +39,13 @@ Progress: [████████████████████░░░
 | 7 | 4 | 42 min | 11 min |
 | 8 | 2 | 6 min | 3 min |
 | 9 | 2 | 8 min | 4 min |
-| 10 | 1 | 10 min | 10 min |
+| 10 | 2 | 12 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 2, 4, 4, 4, 10 min
+- Last 5 plans: 4, 4, 4, 10, 2 min
 - Trend: Efficient (documentation plans remain fast)
 
-*Updated after Phase 10 Plan 1*
+*Updated after Phase 10 Plan 2*
 
 ## Accumulated Context
 
@@ -64,6 +64,8 @@ Recent decisions affecting current work:
 - v1.1 (09-01): Stop at C4 Container level (avoid maintenance burden of Component/Code diagrams)
 - v1.1 (09-01): Create placeholder for data-models.md to satisfy strict mode while Plan 02 adds content
 - [Phase 10-01]: Remove placeholder links to non-existent component docs, use plain text references to Phase 11 instead, to satisfy strict mode validation
+- [Phase 10-02]: Show grounding loop with 2 MCP tool calls (concept_search + get_snomed_code) to illustrate pattern without overwhelming detail
+- [Phase 10-02]: Document tiered grounding strategy (exact/word/fuzzy/no match with confidence scores) to explain AI decision-making
 
 ### Pending Todos
 
@@ -78,5 +80,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 10-01-PLAN.md (Upload & Extraction journey)
-Resume file: .planning/phases/10-user-journey-narratives/10-01-SUMMARY.md
+Stopped at: Completed 10-02-PLAN.md (Grounding & HITL Review journey) - Phase 10 complete
+Resume file: .planning/phases/10-user-journey-narratives/10-02-SUMMARY.md
