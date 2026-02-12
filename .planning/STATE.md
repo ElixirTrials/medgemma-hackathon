@@ -9,23 +9,24 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 17-frontend-structured-data-display (COMPLETE)
-Plan: 1 of 1 in Phase 17 (DONE)
-Status: Phase 17 complete, ready for Phase 18
-Last activity: 2026-02-12 — Phase 17 Plan 01 executed (temporal/threshold display + EntityCard verification)
+Phase: 19-extraction-structured-output (COMPLETE)
+Plan: 1 of 1 in Phase 19 (DONE)
+Status: Phase 19 complete, v1.4 milestone 3/3 phases done
+Last activity: 2026-02-12 — Phase 19 Plan 01 executed (few-shot examples + Field descriptions)
 
-Progress: ██████░░░░░░░░░░░░░░ 33% (v1.4: 1/3 phases complete)
+Progress: ████████████████████ 100% (v1.4: 3/3 phases complete)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 32
-- Average duration: 7.7 min
-- Total execution time: 4.31 hours
+- Total plans completed: 33
+- Average duration: 7.6 min
+- Total execution time: 4.38 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 17 | 01 | 2min | 2 | 1 |
+| 19 | 01 | 4min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -40,12 +41,14 @@ Progress: ██████░░░░░░░░░░░░░░ 33% (v1.4
 - v1.4: Display-only for temporal constraints and thresholds (no inline editing in CriterionCard)
 - v1.4: Indigo color for temporal badges, teal for numeric thresholds (distinct from existing color scheme)
 - v1.4: extractThresholdsList handles 3 possible data shapes defensively (wrapper, array, single-object)
+- v1.4: XML-style few-shot examples for Gemini structured output (5 examples covering age, lab, score, conditional, combined)
+- v1.4: Dual approach for structured output improvement (prompt examples + Pydantic Field descriptions)
 
 ### Investigation Results (v1.4)
 
 - 3 protocols processed: 103 criteria, 266 entities
 - UMLS grounding: 0/266 entities have CUI or SNOMED (100% failure)
-- numeric_thresholds: 0/103 criteria populated (LLM returns empty lists)
+- numeric_thresholds: 0/103 criteria populated (LLM returned empty lists) -- NOW ADDRESSED with 5 few-shot examples + enhanced Field descriptions (Phase 19)
 - temporal_constraint: 47/103 criteria have data, NOW DISPLAYED in UI (Phase 17)
 - Entity display works but shows "Low (0%)" and "expert_review" for all entities
 
@@ -60,6 +63,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 17-01-PLAN.md (Phase 17 complete)
+Stopped at: Completed 19-01-PLAN.md (Phase 19 complete, v1.4 milestone complete)
 Resume file: .planning/ROADMAP.md
-Next action: `/gsd:plan-phase 18` (grounding pipeline fix)
+Next action: Validate extraction improvement with Gemini access, or plan next milestone
