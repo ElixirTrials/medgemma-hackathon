@@ -8,24 +8,24 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from events_py.outbox import OutboxProcessor
-from extraction_service.trigger import handle_protocol_uploaded
-from fastapi import Depends, FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
-from grounding_service.trigger import handle_criteria_extracted
-from sqlalchemy import text
-from sqlmodel import Session
-from starlette.middleware.sessions import SessionMiddleware
+from events_py.outbox import OutboxProcessor  # noqa: E402
+from extraction_service.trigger import handle_protocol_uploaded  # noqa: E402
+from fastapi import Depends, FastAPI, Request  # noqa: E402
+from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
+from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
+from grounding_service.trigger import handle_criteria_extracted  # noqa: E402
+from sqlalchemy import text  # noqa: E402
+from sqlmodel import Session  # noqa: E402
+from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
 
-from api_service.auth import router as auth_router
-from api_service.dependencies import get_current_user, get_db
-from api_service.entities import router as entities_router
-from api_service.middleware import MLflowRequestMiddleware
-from api_service.protocols import router as protocols_router
-from api_service.reviews import router as reviews_router
-from api_service.search import router as search_router
-from api_service.storage import create_db_and_tables, engine
+from api_service.auth import router as auth_router  # noqa: E402
+from api_service.dependencies import get_current_user, get_db  # noqa: E402
+from api_service.entities import router as entities_router  # noqa: E402
+from api_service.middleware import MLflowRequestMiddleware  # noqa: E402
+from api_service.protocols import router as protocols_router  # noqa: E402
+from api_service.reviews import router as reviews_router  # noqa: E402
+from api_service.search import router as search_router  # noqa: E402
+from api_service.storage import create_db_and_tables, engine  # noqa: E402
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -171,6 +171,7 @@ async def root():
 
 
 # --- Local file storage endpoints (dev only) ---
+
 
 @app.put("/local-upload/{blob_path:path}")
 async def local_upload(blob_path: str, request: Request):
