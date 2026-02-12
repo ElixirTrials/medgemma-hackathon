@@ -1,11 +1,11 @@
-site_name: ElixirTrials  Template Documentation
-site_description: Template Repo for ElixirTrials 
-site_author: ElixirTrials  Team
-site_url: https://elixirtrials-.github.io/template-repo/docs/
+site_name: Clinical Trial Criteria Extraction System
+site_description: AI-powered system for extracting and grounding clinical trial eligibility criteria from protocol PDFs
+site_author: MedGemma Hackathon Team
+site_url: https://noahdolevelixir.github.io/medgemma-hackathon/
 site_dir: site/docs
 docs_dir: docs
-repo_name: elixirtrials-/template-repo
-repo_url: https://github.com/elixirtrials-/template-repo
+repo_name: noahdolevelixir/medgemma-hackathon
+repo_url: https://github.com/noahdolevelixir/medgemma-hackathon
 edit_uri: edit/main/docs/
 exclude_docs: '**/node_modules/**
 
@@ -65,16 +65,6 @@ theme:
 plugins:
 - search
 - monorepo
-- mermaid2:
-    arguments:
-      theme: base
-      themeVariables:
-        primaryColor: '#6366f1'
-        primaryTextColor: '#fff'
-        primaryBorderColor: '#4f46e5'
-        lineColor: '#64748b'
-        secondaryColor: '#f1f5f9'
-        tertiaryColor: '#e2e8f0'
 - mkdocstrings:
     default_handler: python
     handlers:
@@ -100,23 +90,22 @@ plugins:
           show_submodules: true
           show_inheritance_diagram: true
           show_root_toc_entry: true
+markdown_extensions:
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
 nav:
 - Home: index.md
 - Onboarding: onboarding.md
 - Components:
   - Overview: components-overview.md
-  - extraction-service: !include './services/extraction-service/mkdocs.yml'
-  - grounding-service: !include './services/grounding-service/mkdocs.yml'
-  - api-service: !include './services/api-service/mkdocs.yml'
-  - data-pipeline: !include './libs/data-pipeline/mkdocs.yml'
-  - evaluation: !include './libs/evaluation/mkdocs.yml'
-  - events-py: !include './libs/events-py/mkdocs.yml'
-  - events-ts: !include './libs/events-ts/mkdocs.yml'
-  - hitl-ui: !include './apps/hitl-ui/mkdocs.yml'
-  - inference: !include './libs/inference/mkdocs.yml'
-  - model-training: !include './libs/model-training/mkdocs.yml'
-  - shared: !include './libs/shared/mkdocs.yml'
-  - shared-ts: !include './libs/shared-ts/mkdocs.yml'
 - Diagrams:
   - HITL Flow: diagrams/hitl-flow.md
   - Agent Flow: diagrams/agent-flow.md
