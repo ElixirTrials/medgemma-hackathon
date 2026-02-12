@@ -60,17 +60,33 @@ class NumericThreshold(BaseModel):
     """
 
     value: float = Field(
-        description="The numeric value of the threshold",
+        description=(
+            "The primary numeric value of the threshold "
+            "(e.g., 40 for 'age 40-85', 8 for 'HbA1c <8%', 150 for '>=150mg')"
+        ),
     )
     unit: str = Field(
-        description="Unit of measurement, e.g., 'years', 'mg/dL', '%', 'kg/m2'",
+        description=(
+            "Unit of measurement, e.g., 'years', 'mg/dL', '%', "
+            "'kg/m2', 'WOMAC', 'ECOG', 'mg', 'mmol/L'"
+        ),
     )
     comparator: str = Field(
-        description=("Comparison operator: '>=', '<=', '>', '<', '==', or 'range'"),
+        description=(
+            "Comparison operator: '>=' (greater than or equal), "
+            "'<=' (less than or equal), '>' (greater than), "
+            "'<' (less than), '==' (equals), or "
+            "'range' (between two values, requires upper_value)"
+        ),
     )
     upper_value: float | None = Field(
         default=None,
-        description="Upper bound value for range comparisons (e.g., age 18-65)",
+        description=(
+            "Upper bound value when comparator is 'range'. "
+            "Example: 'age 18-65 years' results in value=18, "
+            "upper_value=65, comparator='range'. "
+            "Only set when comparator='range'."
+        ),
     )
 
 
@@ -102,12 +118,26 @@ class ExtractedCriterion(BaseModel):
     conditions: list[str] = Field(
         default_factory=list,
         description=(
-            "Conditional dependencies, e.g., 'if female of childbearing potential'"
+            "Conditional dependencies extracted as complete natural language phrases. "
+            "Look for markers: 'if', 'for patients who/with', 'when', "
+            "'in case of', 'provided that', 'unless'. "
+            "Extract the full conditional clause, not just the keyword. "
+            "Examples: 'if female of childbearing potential', "
+            "'for patients with diabetes'. "
+            "Leave empty [] if the criterion has no conditional dependency."
         ),
     )
     numeric_thresholds: list[NumericThreshold] = Field(
         default_factory=list,
-        description="Numeric thresholds mentioned in the criterion",
+        description=(
+            "List of ALL numeric thresholds mentioned in the criterion. "
+            "Extract ALL numeric values with their units and comparison operators. "
+            "Common patterns: age ranges ('40 to 85 years' -> comparator='range'), "
+            "lab values ('HbA1c <8%' -> comparator='<'), "
+            "dosages ('>=150mg' -> comparator='>='), "
+            "scores ('WOMAC >=1.5' -> comparator='>='). "
+            "A single criterion may have multiple thresholds."
+        ),
     )
     assertion_status: AssertionStatus = Field(
         description=(
