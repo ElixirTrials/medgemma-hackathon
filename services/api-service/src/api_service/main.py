@@ -17,6 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from api_service.auth import router as auth_router
 from api_service.dependencies import get_current_user, get_db
 from api_service.entities import router as entities_router
+from api_service.middleware import MLflowRequestMiddleware
 from api_service.protocols import router as protocols_router
 from api_service.reviews import router as reviews_router
 from api_service.search import router as search_router
@@ -38,6 +39,31 @@ async def lifespan(app: FastAPI):
     logger.info("Initializing database...")
     create_db_and_tables()
     logger.info("Database initialized successfully")
+
+    # Initialize MLflow
+    try:
+        import mlflow
+
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+        if tracking_uri:
+            mlflow.set_tracking_uri(tracking_uri)
+            mlflow.set_experiment("protocol-processing")
+            mlflow.langchain.autolog(log_models=False)
+            logger.info(
+                "MLflow initialized: tracking_uri=%s, experiment=protocol-processing",
+                tracking_uri,
+            )
+        else:
+            logger.info(
+                "MLFLOW_TRACKING_URI not set, skipping MLflow initialization"
+            )
+    except ImportError:
+        logger.info("mlflow not installed, skipping initialization")
+    except Exception:
+        logger.warning(
+            "MLflow initialization failed, continuing without tracing",
+            exc_info=True,
+        )
 
     # Start outbox processor as background task
     processor = OutboxProcessor(
@@ -82,6 +108,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add MLflow request tracing middleware
+app.add_middleware(MLflowRequestMiddleware)
 
 # Mount auth router (public endpoints - no auth required)
 app.include_router(auth_router)
