@@ -410,21 +410,58 @@ class UmlsClient:
             return ""
 
     @staticmethod
+    def _extract_code_from_value(value: str) -> str:
+        """Extract a numeric SNOMED code from a value that may be a URL.
+
+        The UMLS atoms API returns code/sourceConcept as full URLs like
+        ``https://uts-ws.nlm.nih.gov/rest/content/2025AB/source/SNOMEDCT_US/387517004``.
+        This extracts the trailing numeric code segment.
+
+        Args:
+            value: Raw value from UMLS API (may be a URL or plain code).
+
+        Returns:
+            Extracted numeric code, or the original value if no URL pattern.
+        """
+        if "/" in value:
+            # Extract last path segment (e.g., 387517004 from URL)
+            last_segment = value.rstrip("/").rsplit("/", 1)[-1]
+            if last_segment and last_segment != "NONE":
+                return last_segment
+        return value
+
+    @staticmethod
     def _extract_snomed_code_from_atoms(data: dict[str, object]) -> str:
-        """Extract SNOMED code from atoms API response."""
+        """Extract SNOMED code from atoms API response.
+
+        The atoms endpoint returns either:
+        - ``{"result": [...]}`` (list of atoms directly)
+        - ``{"result": {"results": [...]}}`` (nested dict with results)
+        """
         result = data.get("result", {})
-        if not isinstance(result, dict):
+
+        # Handle direct list of atoms (most common for /CUI/{cui}/atoms)
+        atoms: Sequence[object] = []
+        if isinstance(result, list):
+            atoms = result
+        elif isinstance(result, dict):
+            inner = result.get("results", [])
+            if isinstance(inner, Sequence):
+                atoms = inner
+
+        if not atoms:
             return ""
-        results = result.get("results", [])
-        if not isinstance(results, Sequence) or not results:
-            return ""
-        first = results[0]
+
+        first = atoms[0]
         if not isinstance(first, dict):
             return ""
+
         for key in ("code", "sourceConcept", "sourceConceptId", "sourceUi"):
             value = first.get(key)
-            if isinstance(value, str) and value:
-                return value
+            if isinstance(value, str) and value and value != "NONE":
+                extracted = UmlsClient._extract_code_from_value(value)
+                if extracted and extracted != "NONE":
+                    return extracted
         return ""
 
     @staticmethod
