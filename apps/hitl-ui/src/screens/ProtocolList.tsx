@@ -8,24 +8,56 @@ import { useProtocolList } from '../hooks/useProtocols';
 import type { Protocol } from '../hooks/useProtocols';
 import { cn } from '../lib/utils';
 
-const STATUS_OPTIONS = ['All', 'uploaded', 'extracting', 'extracted', 'reviewed'] as const;
+const STATUS_OPTIONS = [
+    'All',
+    'uploaded',
+    'extracting',
+    'extraction_failed',
+    'grounding',
+    'grounding_failed',
+    'pending_review',
+    'complete',
+    'dead_letter',
+] as const;
 
 const STATUS_COLORS: Record<string, string> = {
     uploaded: 'bg-blue-100 text-blue-800',
     extracting: 'bg-yellow-100 text-yellow-800',
+    extraction_failed: 'bg-red-100 text-red-800',
+    grounding: 'bg-cyan-100 text-cyan-800',
+    grounding_failed: 'bg-orange-100 text-orange-800',
+    pending_review: 'bg-indigo-100 text-indigo-800',
+    complete: 'bg-green-100 text-green-800',
+    dead_letter: 'bg-red-200 text-red-900',
+    archived: 'bg-gray-100 text-gray-500',
+    // Keep legacy statuses for backward compat
     extracted: 'bg-green-100 text-green-800',
     reviewed: 'bg-purple-100 text-purple-800',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    uploaded: 'Uploaded',
+    extracting: 'Extracting',
+    extraction_failed: 'Extraction Failed',
+    grounding: 'Grounding',
+    grounding_failed: 'Grounding Failed',
+    pending_review: 'Pending Review',
+    complete: 'Complete',
+    dead_letter: 'Dead Letter',
+    archived: 'Archived',
+    extracted: 'Extracted',
+    reviewed: 'Reviewed',
 };
 
 function StatusBadge({ status }: { status: string }) {
     return (
         <span
             className={cn(
-                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize',
+                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
                 STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-800'
             )}
         >
-            {status}
+            {STATUS_LABELS[status] ?? status}
         </span>
     );
 }
@@ -112,7 +144,7 @@ export default function ProtocolList() {
                                 setPage(1);
                             }}
                         >
-                            {opt === 'All' ? 'All' : opt.charAt(0).toUpperCase() + opt.slice(1)}
+                            {opt === 'All' ? 'All' : (STATUS_LABELS[opt] ?? opt)}
                         </button>
                     );
                 })}

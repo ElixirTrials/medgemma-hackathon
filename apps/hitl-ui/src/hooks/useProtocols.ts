@@ -31,7 +31,17 @@ export interface Protocol {
     id: string;
     title: string;
     file_uri: string;
-    status: 'uploaded' | 'extracting' | 'extracted' | 'reviewed';
+    status:
+        | 'uploaded'
+        | 'extracting'
+        | 'extraction_failed'
+        | 'grounding'
+        | 'grounding_failed'
+        | 'pending_review'
+        | 'complete'
+        | 'dead_letter'
+        | 'archived';
+    error_reason: string | null;
     page_count: number | null;
     quality_score: number | null;
     metadata_: Record<string, unknown>;
@@ -135,6 +145,21 @@ export function useConfirmUpload() {
                 method: 'POST',
                 body: JSON.stringify(pdfBase64 ? { pdf_bytes_base64: pdfBase64 } : {}),
             }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['protocols'] });
+        },
+    });
+}
+
+export function useRetryProtocol() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (protocolId: string) =>
+            fetchApi<{ status: string; protocol_id: string }>(
+                `/protocols/${protocolId}/retry`,
+                { method: 'POST' }
+            ),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['protocols'] });
         },
