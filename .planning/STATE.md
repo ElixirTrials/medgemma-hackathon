@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-02-12)
 
 ## Current Position
 
-Phase: 18-grounding-pipeline-debug-fix (COMPLETE)
-Plan: 1 of 1 in Phase 18 (DONE)
-Status: Phase 18 complete, grounding pipeline fixed and verified
-Last activity: 2026-02-12 — Phase 18 Plan 01 executed (MCP result parsing, SNOMED fix, integration tests)
+Phase: 20-medgemma-agentic-grounding (PLANNED)
+Plan: 0 of TBD in Phase 20
+Status: Gap closure phases 20-21 added to roadmap, ready for planning
+Last activity: 2026-02-12 — Added gap closure phases for MedGemma integration and Gemini 3 Flash upgrade
 
-Progress: ████████████████████ 100% (v1.4: 3/3 phases complete)
+Progress: ████████████████░░░░ 60% (v1.4: 3/5 phases complete, 2 new gap closure phases added)
 
 ## Performance Metrics
 
@@ -46,6 +46,11 @@ Progress: ████████████████████ 100% (v1.
 - v1.4: Dual approach for structured output improvement (prompt examples + Pydantic Field descriptions)
 - v1.4: langchain-mcp-adapters 0.2.x ainvoke() returns list-of-content-blocks, not dict/string
 - v1.4: UMLS atoms API returns code as full URL; extract trailing segment for SNOMED code
+- v1.4: MedGemma as agentic reasoner — drives grounding via iterative UMLS MCP calls (not passive entity extractor)
+- v1.4: ModelGardenChatModel + AgentConfig ported from gemma-hackathon for Vertex endpoint integration
+- v1.4: MedGemma doesn't support native tool calling — programmatic agentic loop (code orchestrates MedGemma ↔ UMLS MCP turns)
+- v1.4: concept_search returns both CUI and SNOMED — map_to_snomed direct API call becomes redundant
+- v1.4: Criteria extraction upgraded to gemini-3-flash-preview
 
 ### Investigation Results (v1.4)
 
@@ -54,6 +59,8 @@ Progress: ████████████████████ 100% (v1.
 - numeric_thresholds: 0/103 criteria populated (LLM returned empty lists) -- NOW ADDRESSED with 5 few-shot examples + enhanced Field descriptions (Phase 19)
 - temporal_constraint: 47/103 criteria have data, NOW DISPLAYED in UI (Phase 17)
 - Entity display works but showed "Low (0%)" and "expert_review" for all entities -- should improve after re-grounding with Phase 18 fix
+- MedGemma endpoint configured (VERTEX_ENDPOINT_ID) but NOT wired — entity extraction uses Gemini, not MedGemma
+- ENTITY_EXTRACTION_MODEL defaults to "gemini" — MedGemma never selected
 
 ### Pending Todos
 
@@ -66,6 +73,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 18-01-PLAN.md (grounding pipeline fixed, all integration tests pass)
+Stopped at: Added gap closure phases 20 (MedGemma Agentic Grounding) and 21 (Gemini 3 Flash Upgrade)
 Resume file: .planning/ROADMAP.md
-Next action: Re-grounding existing protocols to verify >50% entity CUI/SNOMED population
+Next action: `/gsd:plan-phase 20` to create execution plan for MedGemma agentic grounding

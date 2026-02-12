@@ -6,7 +6,7 @@
 - 🚧 **v1.1 Documentation Site** - Phases 8-12 (paused after Phase 10)
 - 🚧 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (paused)
 - ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
-- 🚀 **v1.4 Structured Entity Display & Grounding Fixes** - Phases 17-19
+- 🚀 **v1.4 Structured Entity Display & Grounding Fixes** - Phases 17-21
 
 ## Phases
 
@@ -281,10 +281,10 @@ Plans:
   2. Common medical terms like "acetaminophen", "osteoarthritis", "Heparin" successfully resolve to UMLS CUI
   3. Entities with UMLS CUI get SNOMED-CT codes via map_to_snomed
   4. Re-running grounding on existing protocols yields >50% entities with non-null CUI/SNOMED
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 18-01: TBD
+- [ ] 18-01-PLAN.md — Fix MCP tool result parsing, error handling, and SNOMED lookup with integration tests
 
 ### Phase 19: Extraction Structured Output Improvement
 **Goal**: Make Gemini populate numeric_thresholds and conditions fields for criteria that contain numeric values or conditional dependencies
@@ -294,10 +294,38 @@ Plans:
   1. Extraction system prompt includes few-shot examples for numeric_thresholds (age ranges, lab values, dosage limits)
   2. Extraction system prompt includes few-shot examples for conditions (conditional dependencies)
   3. Re-extracting criteria for existing protocols produces numeric_thresholds for criteria containing numeric values (e.g., age ranges, lab value cutoffs)
+**Plans**: 1 plan
+
+Plans:
+- [ ] 19-01-PLAN.md — Few-shot examples for numeric_thresholds and conditions, enhanced Field descriptions, extraction verification
+
+### Phase 20: MedGemma Agentic Grounding
+**Goal**: Replace Gemini-based entity extraction + separate UMLS pipeline with MedGemma as an agentic reasoner that iteratively uses UMLS MCP tools to extract, ground, and map entities to UMLS CUI and SNOMED codes
+**Depends on**: Phase 18 (UMLS MCP fixes must be in place)
+**Requirements**: MGR-01, MGR-02, MGR-03, MGR-04
+**Gap Closure**: Closes gaps from v1.4 audit — MedGemma endpoint not wired, entity extraction uses Gemini instead of MedGemma, no iterative refinement
+**Success Criteria** (what must be TRUE):
+  1. `ModelGardenChatModel` and `AgentConfig.from_env()` ported from gemma-hackathon to `libs/inference/`, using `VERTEX_ENDPOINT_ID` from `.env` for MedGemma endpoint
+  2. Agentic grounding node implements iterative loop: MedGemma extracts entities + suggests UMLS search terms → UMLS MCP `concept_search` returns CUI+SNOMED → MedGemma evaluates results and refines if needed → max 3 iterations
+  3. Grounding graph simplified from 4 nodes to 2: `medgemma_ground` (agentic loop) → `validate_confidence`
+  4. Common medical terms (acetaminophen, osteoarthritis, Heparin) grounded with CUI + SNOMED via the agentic loop
 **Plans**: TBD
 
 Plans:
-- [ ] 19-01: TBD
+- [ ] 20-01: TBD
+
+### Phase 21: Upgrade to Gemini 3 Flash
+**Goal**: Upgrade criteria extraction model from gemini-2.5-flash to gemini-3-flash-preview for improved extraction quality
+**Depends on**: Nothing (independent config change)
+**Requirements**: G3F-01, G3F-02
+**Gap Closure**: Closes gap — extraction uses outdated model
+**Success Criteria** (what must be TRUE):
+  1. `.env` GEMINI_MODEL_NAME and all hardcoded defaults in `extract.py`, `queue.py` updated to `gemini-3-flash-preview`
+  2. Extraction verified working on existing protocol PDF with new model
+**Plans**: TBD
+
+Plans:
+- [ ] 21-01: TBD
 
 ---
 
@@ -448,7 +476,7 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 **Coverage: 6/6 v1.3 requirements shipped. No orphans.**
 
-### v1.4 Requirements (10 total - all mapped)
+### v1.4 Requirements (16 total - all mapped)
 
 | Requirement | Phase | Description |
 |-------------|-------|-------------|
@@ -462,8 +490,14 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 | EXT-01 | Phase 19 | Few-shot examples for numeric_thresholds |
 | EXT-02 | Phase 19 | Populated numeric_thresholds on re-extraction |
 | EXT-03 | Phase 19 | Few-shot examples for conditions |
+| MGR-01 | Phase 20 | MedGemma Vertex endpoint via ModelGardenChatModel |
+| MGR-02 | Phase 20 | Agentic grounding loop with iterative UMLS MCP refinement |
+| MGR-03 | Phase 20 | concept_search for both CUI and SNOMED (replaces map_to_snomed) |
+| MGR-04 | Phase 20 | Simplified grounding graph (3 nodes → 1 agentic + validate) |
+| G3F-01 | Phase 21 | Criteria extraction uses gemini-3-flash-preview |
+| G3F-02 | Phase 21 | Extraction verified with new model |
 
-**Coverage: 10/10 v1.4 requirements mapped. No orphans.**
+**Coverage: 16/16 v1.4 requirements mapped. No orphans.**
 
 ## Dependency Graph
 
@@ -500,10 +534,13 @@ Phase 12 (Implementation Status & Code Tour) [PAUSED]
 ### v1.4 (Structured Entity Display & Grounding Fixes - Current)
 ```
 Phase 17 (Frontend Structured Data Display)
-Phase 18 (Grounding Pipeline Debug & Fix)
-Phase 19 (Extraction Structured Output Improvement)
+Phase 18 (Grounding Pipeline Debug & Fix) ---+
+Phase 19 (Extraction Structured Output)      |
+                                              |
+Phase 20 (MedGemma Agentic Grounding) -------+ (depends on 18)
+Phase 21 (Gemini 3 Flash Upgrade)
 ```
-(All 3 phases are independent and can be parallelized)
+(17, 18, 19, 21 are independent; 20 depends on 18)
 
 ### v1.2 (GCP Cloud Run Deployment - Paused)
 ```
@@ -521,7 +558,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 - v1.1: 8 → 9 → 10 → [11-12 paused]
 - v1.2: 13 → 14 → 15
 - v1.3: 16
-- v1.4: 17 + 18 + 19 (parallel)
+- v1.4: 17 + 18 + 19 (parallel) → 20 (after 18) + 21 (independent)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -545,5 +582,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 15. Cloud Run Deployment & Docs | v1.2 | 0/TBD | Not started | - |
 | 16. Multimodal PDF Extraction | v1.3 | 1/1 | Complete | 2026-02-12 |
 | 17. Frontend Structured Data Display | v1.4 | 0/1 | Planned | - |
-| 18. Grounding Pipeline Debug & Fix | v1.4 | 0/TBD | Not started | - |
-| 19. Extraction Structured Output | v1.4 | 0/TBD | Not started | - |
+| 18. Grounding Pipeline Debug & Fix | v1.4 | 0/1 | Planned | - |
+| 19. Extraction Structured Output | v1.4 | 0/1 | Planned | - |
+| 20. MedGemma Agentic Grounding | v1.4 | 0/TBD | Planned | - |
+| 21. Gemini 3 Flash Upgrade | v1.4 | 0/TBD | Planned | - |
