@@ -54,9 +54,7 @@ async def lifespan(app: FastAPI):
                 tracking_uri,
             )
         else:
-            logger.info(
-                "MLFLOW_TRACKING_URI not set, skipping MLflow initialization"
-            )
+            logger.info("MLFLOW_TRACKING_URI not set, skipping MLflow initialization")
     except ImportError:
         logger.info("mlflow not installed, skipping initialization")
     except Exception:

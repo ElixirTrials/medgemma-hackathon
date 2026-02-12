@@ -32,8 +32,7 @@ logger = logging.getLogger(__name__)
 # Retry on any Exception EXCEPT ValueError (config errors)
 _gcs_retry = retry(
     retry=(
-        retry_if_exception_type(Exception)
-        & retry_if_not_exception_type(ValueError)
+        retry_if_exception_type(Exception) & retry_if_not_exception_type(ValueError)
     ),
     stop=stop_after_attempt(3),
     wait=wait_random_exponential(multiplier=1, min=2, max=10),

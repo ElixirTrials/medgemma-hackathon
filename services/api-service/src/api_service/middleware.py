@@ -41,19 +41,23 @@ class MLflowRequestMiddleware(BaseHTTPMiddleware):
                 name=f"{request.method} {request.url.path}",
                 span_type="HTTP",
             ) as span:
-                span.set_inputs({
-                    "method": request.method,
-                    "path": request.url.path,
-                    "query": str(request.query_params),
-                })
+                span.set_inputs(
+                    {
+                        "method": request.method,
+                        "path": request.url.path,
+                        "query": str(request.query_params),
+                    }
+                )
 
                 response = await call_next(request)
                 latency_ms = (time.perf_counter() - start) * 1000
 
-                span.set_outputs({
-                    "status_code": response.status_code,
-                    "latency_ms": round(latency_ms, 2),
-                })
+                span.set_outputs(
+                    {
+                        "status_code": response.status_code,
+                        "latency_ms": round(latency_ms, 2),
+                    }
+                )
 
                 return response
 
