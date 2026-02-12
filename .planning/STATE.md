@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 7 of 7+3 (Production Hardening)
-Plan: 1 of TBD
-Status: Phase 7 in progress - Plan 01 complete (protocol status state machine & dead-letter handling)
-Last activity: 2026-02-12 -- Plan 07-01 complete (6 min)
+Plan: 2 of TBD
+Status: Phase 7 in progress - Plan 02 partial (circuit breakers + failure tracking)
+Last activity: 2026-02-12 -- Plan 07-02 partial complete (12 min, retry decorators pending)
 
 Progress: [█████████████████░] 98%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 21
-- Average duration: 7.8 min
-- Total execution time: 2.7 hours
+- Total plans completed: 22
+- Average duration: 7.9 min
+- Total execution time: 2.9 hours
 
 **By Phase:**
 
@@ -36,11 +36,11 @@ Progress: [█████████████████░] 98%
 | 05.2-test-coverage | 3 | 74 min | 24.7 min |
 | 05.3-rename-services-and-docs | 3 | 17 min | 5.7 min |
 | 06-entity-approval-auth-search | 2 | 16 min | 8 min |
-| 07-production-hardening | 1 | 6 min | 6 min |
+| 07-production-hardening | 2 | 18 min | 9 min |
 
 **Recent Trend:**
-- Last 5 plans: 05.3-03 (4 min), 06-01 (9 min), 06-02 (7 min), 07-01 (6 min)
-- Trend: Phase 7 started - protocol status state machine & dead-letter handling
+- Last 5 plans: 06-01 (9 min), 06-02 (7 min), 07-01 (6 min), 07-02 (12 min)
+- Trend: Phase 7 resilience patterns - circuit breakers and failure tracking
 
 *Updated after each plan completion*
 
@@ -120,10 +120,15 @@ Recent decisions affecting current work:
 - [07-01]: Failed events re-polled via status.in_(['pending', 'failed']) for retry logic
 - [07-01]: Lazy archival triggered on get_protocol access (7-day cutoff)
 - [07-01]: Used col() wrapper for mypy compatibility with in_() operator
+- [07-02]: Per-service circuit breakers (gemini, umls, gcs, vertex_ai) for independent failure handling
+- [07-02]: Circuit breaker threshold: 3 consecutive failures, 60s recovery timeout (pybreaker)
+- [07-02]: Human-readable error categorization for protocol failure reasons
+- [07-02]: Upload endpoint checks circuit breaker state and warns users proactively
+- [07-02]: PENDING protocol status indicates delayed processing due to service unavailability
 
 ### Pending Todos
 
-None yet.
+- [07-02]: Complete retry decorator application on external service calls (GCS, PDF fetch, MCP, Gemini, Vertex AI)
 
 ### Quick Tasks Completed
 
