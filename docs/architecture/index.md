@@ -5,7 +5,7 @@ This section documents the system architecture of the Clinical Trial Criteria Ex
 ## Documentation
 
 - **[System Architecture](system-architecture.md)** -- C4 Container diagram showing system structure, technology stack, and service communication patterns (REST, transactional outbox, SDK calls)
-- **[Data Models](data-models.md)** -- Database schema (ER diagram) and LangGraph agent state documentation *(coming in Phase 9 Plan 02)*
+- **[Data Models](data-models.md)** -- Database schema (ER diagram) and LangGraph agent state documentation
 
 ## Key Architectural Decisions
 
