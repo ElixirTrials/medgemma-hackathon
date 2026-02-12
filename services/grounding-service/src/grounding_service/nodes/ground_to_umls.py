@@ -59,57 +59,57 @@ async def _ground_via_mcp(
 
     grounded: list[dict[str, Any]] = []
 
-    async with MultiServerMCPClient(mcp_config) as mcp_client:  # type: ignore[arg-type, misc]
-        tools = await mcp_client.get_tools()
-        concept_linking_tool = None
-        for tool in tools:
-            if tool.name == "concept_linking":
-                concept_linking_tool = tool
-                break
+    mcp_client = MultiServerMCPClient(mcp_config)  # type: ignore[arg-type]
+    tools = await mcp_client.get_tools()
+    concept_linking_tool = None
+    for tool in tools:
+        if tool.name == "concept_linking":
+            concept_linking_tool = tool
+            break
 
-        if concept_linking_tool is None:
-            raise RuntimeError("concept_linking tool not found on MCP server")
+    if concept_linking_tool is None:
+        raise RuntimeError("concept_linking tool not found on MCP server")
 
-        for entity in entities:
-            try:
-                result = await concept_linking_tool.ainvoke(
-                    {
-                        "term": entity["text"],
-                        "context": entity.get("context_window", ""),
-                    }
-                )
-                # Parse MCP tool result
-                if isinstance(result, dict):
-                    grounded_entity = {
-                        **entity,
-                        "umls_cui": result.get("cui"),
-                        "preferred_term": result.get("name"),
-                        "grounding_confidence": result.get("confidence", 0.0),
-                        "grounding_method": result.get("method", "expert_review"),
-                    }
-                else:
-                    grounded_entity = {
-                        **entity,
-                        "umls_cui": None,
-                        "preferred_term": None,
-                        "grounding_confidence": 0.0,
-                        "grounding_method": "expert_review",
-                    }
-                grounded.append(grounded_entity)
-            except Exception:
-                logger.warning(
-                    "MCP grounding failed for entity '%s', flagging for expert review",
-                    entity["text"],
-                )
-                grounded.append(
-                    {
-                        **entity,
-                        "umls_cui": None,
-                        "preferred_term": None,
-                        "grounding_confidence": 0.0,
-                        "grounding_method": "expert_review",
-                    }
-                )
+    for entity in entities:
+        try:
+            result = await concept_linking_tool.ainvoke(
+                {
+                    "term": entity["text"],
+                    "context": entity.get("context_window", ""),
+                }
+            )
+            # Parse MCP tool result
+            if isinstance(result, dict):
+                grounded_entity = {
+                    **entity,
+                    "umls_cui": result.get("cui"),
+                    "preferred_term": result.get("name"),
+                    "grounding_confidence": result.get("confidence", 0.0),
+                    "grounding_method": result.get("method", "expert_review"),
+                }
+            else:
+                grounded_entity = {
+                    **entity,
+                    "umls_cui": None,
+                    "preferred_term": None,
+                    "grounding_confidence": 0.0,
+                    "grounding_method": "expert_review",
+                }
+            grounded.append(grounded_entity)
+        except Exception:
+            logger.warning(
+                "MCP grounding failed for entity '%s', flagging for expert review",
+                entity["text"],
+            )
+            grounded.append(
+                {
+                    **entity,
+                    "umls_cui": None,
+                    "preferred_term": None,
+                    "grounding_confidence": 0.0,
+                    "grounding_method": "expert_review",
+                }
+            )
 
     return grounded
 

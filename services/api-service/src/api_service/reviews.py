@@ -484,8 +484,16 @@ def _criterion_to_response(criterion: Criteria) -> CriterionResponse:
         category=criterion.category,
         text=criterion.text,
         temporal_constraint=criterion.temporal_constraint,
-        conditions=criterion.conditions,
-        numeric_thresholds=criterion.numeric_thresholds,
+        conditions=(
+            criterion.conditions
+            if isinstance(criterion.conditions, dict)
+            else None
+        ),
+        numeric_thresholds=(
+            criterion.numeric_thresholds
+            if isinstance(criterion.numeric_thresholds, dict)
+            else None
+        ),
         assertion_status=criterion.assertion_status,
         confidence=criterion.confidence,
         source_section=criterion.source_section,
