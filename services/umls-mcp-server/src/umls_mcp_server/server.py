@@ -1,5 +1,6 @@
 """FastMCP server exposing UMLS concept search, linking, and semantic type tools."""
 
+import logging
 import re
 
 from dotenv import load_dotenv
@@ -9,6 +10,8 @@ from umls_mcp_server.umls_api import SnomedCandidate, get_umls_client
 
 # Load .env from current working directory (e.g. repo root) so UMLS_API_KEY is set.
 load_dotenv()
+
+logger = logging.getLogger(__name__)
 
 mcp = FastMCP("UMLS Grounding Server")
 
@@ -66,19 +69,22 @@ async def concept_linking(
     Returns:
         Best matching concept with CUI, name, confidence, and method.
     """
+    logger.debug("concept_linking called: term=%r, context=%r", term, context)
     with get_umls_client() as client:
         candidates = client.search_snomed(term, limit=5)
     if candidates:
         first = candidates[0]
         is_exact = bool(re.fullmatch(r"\d+", term.strip()))
-        return {
+        result_dict = {
             "cui": first.cui,
             "name": first.display,
             "source": first.ontology,
             "confidence": 0.95 if is_exact else 0.75,
             "method": "exact_match" if is_exact else "semantic_similarity",
         }
-    return {
+        logger.debug("concept_linking result: %r", result_dict)
+        return result_dict
+    result_dict = {
         "cui": None,
         "name": None,
         "source": None,
@@ -86,6 +92,8 @@ async def concept_linking(
         "method": "expert_review",
         "nearest_term": term,
     }
+    logger.debug("concept_linking result (no candidates): %r", result_dict)
+    return result_dict
 
 
 @mcp.tool()

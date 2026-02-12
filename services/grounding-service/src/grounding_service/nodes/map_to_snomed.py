@@ -41,22 +41,40 @@ async def map_to_snomed_node(state: GroundingState) -> dict[str, Any]:
 
     updated: list[dict[str, Any]] = []
     snomed_count = 0
+    no_cui_count = 0
+    failed_count = 0
 
     for entity in grounded_entities:
         cui = entity.get("umls_cui")
         if cui:
-            snomed_code = await get_snomed_code_for_cui(cui)
-            entity["snomed_code"] = snomed_code
-            if snomed_code:
-                snomed_count += 1
+            try:
+                snomed_code = await get_snomed_code_for_cui(cui)
+                entity["snomed_code"] = snomed_code
+                if snomed_code:
+                    snomed_count += 1
+            except Exception as e:
+                logger.warning(
+                    "SNOMED lookup failed for entity '%s' (CUI=%s): %s: %s",
+                    entity.get("text", "?"),
+                    cui,
+                    type(e).__name__,
+                    str(e),
+                    exc_info=True,
+                )
+                entity["snomed_code"] = None
+                failed_count += 1
         else:
             entity["snomed_code"] = None
+            no_cui_count += 1
         updated.append(entity)
 
     logger.info(
-        "Mapped %d/%d entities to SNOMED-CT for batch %s",
+        "SNOMED mapping: %d with code, %d without CUI, %d failed lookup "
+        "(batch %s, total %d)",
         snomed_count,
-        len(updated),
+        no_cui_count,
+        failed_count,
         state.get("batch_id"),
+        len(updated),
     )
     return {"grounded_entities": updated}
