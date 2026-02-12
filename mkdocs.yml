@@ -107,6 +107,8 @@ nav:
 
   - Architecture:
       - Overview: architecture/index.md
+      - System Architecture: architecture/system-architecture.md
+      - Data Models: architecture/data-models.md
 
   - User Journeys:
       - Overview: journeys/index.md
