@@ -3,26 +3,73 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
-import { useProtocol } from '../hooks/useProtocols';
+import { useProtocol, useRetryProtocol } from '../hooks/useProtocols';
 import { cn } from '../lib/utils';
 
 const STATUS_COLORS: Record<string, string> = {
     uploaded: 'bg-blue-100 text-blue-800',
     extracting: 'bg-yellow-100 text-yellow-800',
+    extraction_failed: 'bg-red-100 text-red-800',
+    grounding: 'bg-cyan-100 text-cyan-800',
+    grounding_failed: 'bg-orange-100 text-orange-800',
+    pending_review: 'bg-indigo-100 text-indigo-800',
+    complete: 'bg-green-100 text-green-800',
+    dead_letter: 'bg-red-200 text-red-900',
+    archived: 'bg-gray-100 text-gray-500',
     extracted: 'bg-green-100 text-green-800',
     reviewed: 'bg-purple-100 text-purple-800',
+};
+
+const STATUS_LABELS: Record<string, string> = {
+    uploaded: 'Uploaded',
+    extracting: 'Extracting',
+    extraction_failed: 'Extraction Failed',
+    grounding: 'Grounding',
+    grounding_failed: 'Grounding Failed',
+    pending_review: 'Pending Review',
+    complete: 'Complete',
+    dead_letter: 'Dead Letter',
+    archived: 'Archived',
+    extracted: 'Extracted',
+    reviewed: 'Reviewed',
 };
 
 function StatusBadge({ status }: { status: string }) {
     return (
         <span
             className={cn(
-                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium capitalize',
+                'inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium',
                 STATUS_COLORS[status] ?? 'bg-gray-100 text-gray-800'
             )}
         >
-            {status}
+            {STATUS_LABELS[status] ?? status}
         </span>
+    );
+}
+
+function RetryButton({ protocolId }: { protocolId: string }) {
+    const retryMutation = useRetryProtocol();
+
+    return (
+        <Button
+            variant="outline"
+            size="sm"
+            onClick={(e) => {
+                e.stopPropagation();
+                retryMutation.mutate(protocolId);
+            }}
+            disabled={retryMutation.isPending}
+            className="border-red-300 text-red-700 hover:bg-red-100"
+        >
+            {retryMutation.isPending ? (
+                <>
+                    <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    Retrying...
+                </>
+            ) : (
+                'Retry Extraction'
+            )}
+        </Button>
     );
 }
 
@@ -148,6 +195,44 @@ export default function ProtocolDetail() {
                     <StatusBadge status={protocol.status} />
                 </div>
             </div>
+
+            {/* Error Information */}
+            {(protocol.status === 'extraction_failed' ||
+                protocol.status === 'grounding_failed' ||
+                protocol.status === 'dead_letter') && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-4 mb-6">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <h3 className="text-sm font-semibold text-red-800">
+                                {protocol.status === 'dead_letter'
+                                    ? 'Processing Failed (Retries Exhausted)'
+                                    : protocol.status === 'extraction_failed'
+                                      ? 'Extraction Failed'
+                                      : 'Grounding Failed'}
+                            </h3>
+                            <p className="mt-1 text-sm text-red-700">
+                                {protocol.error_reason ??
+                                    'An unknown error occurred during processing.'}
+                            </p>
+                            {protocol.status === 'dead_letter' && (
+                                <p className="mt-1 text-xs text-red-600">
+                                    This protocol will be archived after 7 days.
+                                </p>
+                            )}
+                        </div>
+                        <RetryButton protocolId={protocol.id} />
+                    </div>
+                </div>
+            )}
+
+            {/* Processing in progress banner */}
+            {(protocol.status === 'uploaded' || protocol.status === 'extracting') && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 mb-6">
+                    <p className="text-sm text-blue-700">
+                        Processing in progress. This typically takes 2-5 minutes.
+                    </p>
+                </div>
+            )}
 
             {/* Low quality warning */}
             {isLowQuality && (
