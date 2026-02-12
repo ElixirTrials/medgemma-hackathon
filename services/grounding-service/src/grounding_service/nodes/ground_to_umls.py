@@ -10,11 +10,28 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from shared.resilience import umls_breaker
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
+
 from grounding_service.state import GroundingState
 
 logger = logging.getLogger(__name__)
 
 
+@umls_breaker
+@retry(
+    retry=retry_if_exception_type((RuntimeError, ConnectionError, OSError)),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=1, min=4, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
 async def _ground_via_mcp(
     entities: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:

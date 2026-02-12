@@ -16,7 +16,30 @@ import os
 from datetime import timedelta
 from uuid import uuid4
 
+from shared.resilience import gcs_breaker
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    retry_if_not_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
+
 logger = logging.getLogger(__name__)
+
+# Shared retry decorator for GCS operations
+# Retry on any Exception EXCEPT ValueError (config errors)
+_gcs_retry = retry(
+    retry=(
+        retry_if_exception_type(Exception)
+        & retry_if_not_exception_type(ValueError)
+    ),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=1, min=2, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
 
 # Module-level singleton for GCS client
 _gcs_client = None
@@ -85,6 +108,8 @@ def _parse_gcs_uri(gcs_path: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 
+@gcs_breaker
+@_gcs_retry
 def generate_upload_url(
     filename: str,
     content_type: str = "application/pdf",
@@ -126,6 +151,8 @@ def generate_upload_url(
     return (signed_url, gcs_path)
 
 
+@gcs_breaker
+@_gcs_retry
 def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
     """Set custom metadata on a GCS blob.
 
@@ -153,6 +180,8 @@ def set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
     logger.info("Set metadata on %s: %s", gcs_path, metadata)
 
 
+@gcs_breaker
+@_gcs_retry
 def generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
     """Generate a signed URL for downloading a file from GCS.
 
