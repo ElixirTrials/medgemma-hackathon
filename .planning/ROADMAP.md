@@ -196,10 +196,11 @@ Plans:
   3. Engineer can reference DB schema ER diagram showing Protocol, Criteria, CriteriaBatch, Entity, Review, AuditLog tables with relationships
   4. Engineer can reference LangGraph state documentation showing ExtractionState and GroundingState TypedDict structures with field descriptions and data flow
   5. All diagrams include date_verified frontmatter metadata
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 09-01: TBD
+- [ ] 09-01-PLAN.md -- System architecture: C4 Container diagram + service communication wiring section
+- [ ] 09-02-PLAN.md -- Data models: database schema ER diagram + LangGraph state documentation
 
 ### Phase 10: User Journey Narratives
 **Goal**: Sequence diagrams showing upload-extraction and grounding-review workflows with narrative explanations
@@ -349,7 +350,7 @@ v1.1: 8 → 9 → 10 → 11 → 12
 | 6. Entity Approval, Auth & Search | v1.0 | 2/2 | Complete | 2026-02-11 |
 | 7. Production Hardening | v1.0 | 4/4 | Complete | 2026-02-12 |
 | 8. Documentation Foundation | v1.1 | 2/2 | Complete | 2026-02-12 |
-| 9. Architecture & Data Models | v1.1 | 0/TBD | Not started | - |
+| 9. Architecture & Data Models | v1.1 | 0/2 | Planned | - |
 | 10. User Journey Narratives | v1.1 | 0/TBD | Not started | - |
 | 11. Component Deep Dives | v1.1 | 0/TBD | Not started | - |
 | 12. Status & Code Tour | v1.1 | 0/TBD | Not started | - |
