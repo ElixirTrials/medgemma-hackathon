@@ -2,10 +2,9 @@
 
 
 def test_unauthenticated_request_requires_auth(unauthenticated_client):
-    """Verify that requests without auth header get 422 (missing required header)."""
+    """Verify that requests without auth header get 401."""
     response = unauthenticated_client.get("/protocols")
-    # FastAPI returns 422 when required Header() parameter is missing
-    assert response.status_code == 422
+    assert response.status_code == 401
 
 
 def test_invalid_auth_header_returns_401(unauthenticated_client):
@@ -15,7 +14,7 @@ def test_invalid_auth_header_returns_401(unauthenticated_client):
         headers={"Authorization": "Invalid token"},
     )
     assert response.status_code == 401
-    assert "Invalid auth header" in response.json()["detail"]
+    assert "Missing or invalid auth header" in response.json()["detail"]
 
 
 def test_authenticated_request_succeeds(test_client):

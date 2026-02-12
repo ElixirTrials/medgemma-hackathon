@@ -5,11 +5,18 @@ SHELL := /bin/bash
 
 run-dev:
 	@echo "Starting infrastructure + API + UI..."
-	@echo "1. Starting DB and MLflow..."
+	@echo "1. Activating gcloud profile..."
+	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env | cut -d= -f2); \
+	if [ -n "$$GCLOUD_PROFILE" ]; then \
+		gcloud config configurations activate $$GCLOUD_PROFILE; \
+	else \
+		echo "GCLOUD_PROFILE not set in .env, skipping"; \
+	fi
+	@echo "2. Starting DB and MLflow..."
 	docker compose -f infra/docker-compose.yml up -d db mlflow
-	@echo "2. Waiting for Postgres..."
+	@echo "3. Waiting for Postgres..."
 	@until docker compose -f infra/docker-compose.yml exec db pg_isready -U postgres 2>/dev/null; do sleep 1; done
-	@echo "3. Starting API (port 8000) and UI (port 5173)..."
+	@echo "4. Starting API (port 8000) and UI (port 5173)..."
 	@set -a && source .env && set +a && \
 	trap 'kill 0' EXIT; \
 	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port 8000 --app-dir services/api-service/src & \
@@ -21,6 +28,11 @@ run-infra:
 	docker compose -f infra/docker-compose.yml up -d db mlflow
 
 run-api:
+	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env | cut -d= -f2); \
+	if [ -n "$$GCLOUD_PROFILE" ]; then \
+		echo "Activating gcloud profile $$GCLOUD_PROFILE..."; \
+		gcloud config configurations activate $$GCLOUD_PROFILE; \
+	fi
 	@echo "Starting API service on port 8000..."
 	@set -a && source .env && set +a && \
 	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port 8000 --app-dir services/api-service/src
