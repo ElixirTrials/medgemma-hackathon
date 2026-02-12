@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** Phase 8 - Documentation Foundation (v1.1 Documentation Site milestone)
+**Current focus:** Phase 9 - System Architecture & Data Models (v1.1 Documentation Site milestone)
 
 ## Current Position
 
-Phase: 8 of 12 (Documentation Foundation)
-Plan: 1 of TBD in current phase
-Status: In progress
-Last activity: 2026-02-12 — Completed plan 08-01 (MkDocs Configuration Modernization)
+Phase: 9 of 12 (System Architecture & Data Models)
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-02-12 — Phase 8 (Documentation Foundation) complete, verified 10/10 must-haves
 
-Progress: [████████████████████░░░░] 69% (25/36 total plans estimated)
+Progress: [████████████████████░░░░] 72% (26/36 total plans estimated)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 25
-- Average duration: 8.8 min
-- Total execution time: 3.7 hours
+- Total plans completed: 26
+- Average duration: 8.6 min
+- Total execution time: 3.8 hours
 
 **By Phase:**
 
@@ -37,13 +37,13 @@ Progress: [████████████████████░░░
 | 5.3 | 3 | 24 min | 8 min |
 | 6 | 2 | 18 min | 9 min |
 | 7 | 4 | 42 min | 11 min |
-| 8 | 1 | 2 min | 2 min |
+| 8 | 2 | 6 min | 3 min |
 
 **Recent Trend:**
-- Last 5 plans: 10, 9, 12, 10, 2 min
-- Trend: Efficient (Phase 8 Plan 1 very fast)
+- Last 5 plans: 9, 12, 10, 2, 4 min
+- Trend: Efficient (Phase 8 documentation plans are fast)
 
-*Updated after Phase 8 Plan 1*
+*Updated after Phase 8 Plan 2*
 
 ## Accumulated Context
 
@@ -57,6 +57,8 @@ Recent decisions affecting current work:
 - v1.0: UMLS MCP server adapted from gemma-hackathon (proven implementation)
 - v1.1 (08-01): Use pymdownx.superfences custom fence instead of mermaid2 plugin for native Mermaid.js rendering
 - v1.1 (08-01): Enforce strict mode via CLI flag instead of mkdocs.yml config to allow local authoring flexibility
+- v1.1 (08-02): Use placeholder-first approach for documentation sections (establish navigation hierarchy now, add content in later phases)
+- v1.1 (08-02): Add CI docs validation job to catch broken documentation before merge
 
 ### Pending Todos
 
@@ -71,5 +73,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed Phase 8 Plan 1 (08-01-PLAN.md) - MkDocs Configuration Modernization
-Resume file: .planning/phases/08-documentation-foundation/08-01-SUMMARY.md
+Stopped at: Phase 8 complete, ready for Phase 9 planning
+Resume file: .planning/phases/08-documentation-foundation/08-VERIFICATION.md
