@@ -309,10 +309,11 @@ Plans:
   2. Agentic grounding node implements iterative loop: MedGemma extracts entities + suggests UMLS search terms → UMLS MCP `concept_search` returns CUI+SNOMED → MedGemma evaluates results and refines if needed → max 3 iterations
   3. Grounding graph simplified from 4 nodes to 2: `medgemma_ground` (agentic loop) → `validate_confidence`
   4. Common medical terms (acetaminophen, osteoarthritis, Heparin) grounded with CUI + SNOMED via the agentic loop
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 20-01: TBD
+- [ ] 20-01-PLAN.md — Port ModelGardenChatModel and AgentConfig from gemma-hackathon to libs/inference/
+- [ ] 20-02-PLAN.md — Agentic grounding node, prompts, schemas, and simplified 2-node graph
 
 ### Phase 21: Upgrade to Gemini 3 Flash
 **Goal**: Upgrade criteria extraction model from gemini-2.5-flash to gemini-3-flash-preview for improved extraction quality
@@ -584,5 +585,5 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 17. Frontend Structured Data Display | v1.4 | 0/1 | Planned | - |
 | 18. Grounding Pipeline Debug & Fix | v1.4 | 0/1 | Planned | - |
 | 19. Extraction Structured Output | v1.4 | 0/1 | Planned | - |
-| 20. MedGemma Agentic Grounding | v1.4 | 0/TBD | Planned | - |
+| 20. MedGemma Agentic Grounding | v1.4 | 0/2 | Planned | - |
 | 21. Gemini 3 Flash Upgrade | v1.4 | 0/TBD | Planned | - |
