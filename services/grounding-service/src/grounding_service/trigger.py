@@ -46,6 +46,49 @@ def _categorize_grounding_error(e: Exception) -> str:
     return f"Grounding failed: {type(e).__name__}"
 
 
+def _update_protocol_status(
+    protocol_id: str,
+    status: str,
+    *,
+    error_reason: str | None = None,
+    error_metadata: dict[str, Any] | None = None,
+    clear_error: bool = False,
+) -> None:
+    """Update protocol status in the database.
+
+    Args:
+        protocol_id: The protocol ID to update.
+        status: New status value.
+        error_reason: Optional human-readable error reason.
+        error_metadata: Optional error metadata dict.
+        clear_error: If True, remove error fields from metadata.
+    """
+    try:
+        with Session(engine) as session:
+            protocol = session.get(Protocol, protocol_id)
+            if not protocol:
+                return
+            protocol.status = status
+            protocol.error_reason = error_reason
+            if clear_error and "error" in protocol.metadata_:
+                metadata_copy = protocol.metadata_.copy()
+                del metadata_copy["error"]
+                protocol.metadata_ = metadata_copy
+            elif error_metadata:
+                protocol.metadata_ = {
+                    **protocol.metadata_,
+                    "error": error_metadata,
+                }
+            session.add(protocol)
+            session.commit()
+    except Exception:
+        logger.exception(
+            "Failed to update protocol %s status to %s",
+            protocol_id,
+            status,
+        )
+
+
 def handle_criteria_extracted(payload: dict[str, Any]) -> None:
     """Handle a CriteriaExtracted event by running the grounding workflow.
 
@@ -62,10 +105,14 @@ def handle_criteria_extracted(payload: dict[str, Any]) -> None:
             mark the event as failed for retry.
     """
     batch_id = payload.get("batch_id", "unknown")
+    protocol_id = payload.get("protocol_id")
     logger.info(
         "Handling CriteriaExtracted event for batch %s",
         batch_id,
     )
+
+    if protocol_id:
+        _update_protocol_status(protocol_id, "grounding")
 
     try:
         initial_state: dict[str, Any] = {
@@ -90,30 +137,28 @@ def handle_criteria_extracted(payload: dict[str, Any]) -> None:
             batch_id,
         )
 
+        if protocol_id:
+            _update_protocol_status(
+                protocol_id,
+                "pending_review",
+                clear_error=True,
+            )
+
     except Exception as e:
         logger.exception(
             "Grounding workflow failed for batch %s",
             batch_id,
         )
-        # Update protocol status with failure category
-        protocol_id = payload.get("protocol_id")
         if protocol_id:
-            try:
-                with Session(engine) as session:
-                    protocol = session.get(Protocol, protocol_id)
-                    if protocol:
-                        protocol.status = "grounding_failed"
-                        protocol.error_reason = _categorize_grounding_error(e)
-                        protocol.metadata_ = {
-                            **protocol.metadata_,
-                            "error": {
-                                "category": "grounding_failed",
-                                "reason": protocol.error_reason,
-                                "exception_type": type(e).__name__,
-                            },
-                        }
-                        session.add(protocol)
-                        session.commit()
-            except Exception:
-                logger.exception("Failed to update protocol status for %s", protocol_id)
+            reason = _categorize_grounding_error(e)
+            _update_protocol_status(
+                protocol_id,
+                "grounding_failed",
+                error_reason=reason,
+                error_metadata={
+                    "category": "grounding_failed",
+                    "reason": reason,
+                    "exception_type": type(e).__name__,
+                },
+            )
         raise
