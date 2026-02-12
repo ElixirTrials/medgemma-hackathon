@@ -14,6 +14,14 @@ from typing import Any, cast
 
 from inference.factory import render_prompts
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
+from shared.resilience import gemini_breaker
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from extraction_service.schemas.criteria import ExtractionResult
 from extraction_service.state import ExtractionState
@@ -21,6 +29,37 @@ from extraction_service.state import ExtractionState
 logger = logging.getLogger(__name__)
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+
+
+@gemini_breaker
+@retry(
+    retry=retry_if_exception_type(Exception),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=1, min=2, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+async def _invoke_gemini(
+    structured_llm: Any, system_prompt: str, user_prompt: str
+) -> ExtractionResult:
+    """Invoke Gemini with retry and circuit breaker.
+
+    Args:
+        structured_llm: LLM instance with structured output.
+        system_prompt: System message content.
+        user_prompt: User message content.
+
+    Returns:
+        ExtractionResult from Gemini.
+    """
+    result = await structured_llm.ainvoke(
+        [("system", system_prompt), ("user", user_prompt)]
+    )
+
+    # Handle both Pydantic model and dict responses
+    if isinstance(result, dict):
+        return ExtractionResult(**result)
+    return cast(ExtractionResult, result)
 
 
 async def extract_node(state: ExtractionState) -> dict[str, Any]:
@@ -50,15 +89,9 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
             },
         )
 
-        result = await structured_llm.ainvoke(
-            [("system", system_prompt), ("user", user_prompt)]
+        extraction_result = await _invoke_gemini(
+            structured_llm, system_prompt, user_prompt
         )
-
-        # Handle both Pydantic model and dict responses
-        if isinstance(result, dict):
-            extraction_result = ExtractionResult(**result)
-        else:
-            extraction_result = cast(ExtractionResult, result)
 
         criteria_dicts = [c.model_dump() for c in extraction_result.criteria]
 

@@ -18,6 +18,14 @@ from typing import Any, cast
 
 from inference.factory import render_prompts
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
+from shared.resilience import vertex_ai_breaker
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 from grounding_service.schemas.entities import (
     BatchEntityExtractionResult,
@@ -111,6 +119,37 @@ def _validate_span(entity: ExtractedEntity, criterion_text: str) -> tuple[int, i
     return span_start, span_end
 
 
+@vertex_ai_breaker
+@retry(
+    retry=retry_if_exception_type(Exception),
+    stop=stop_after_attempt(3),
+    wait=wait_random_exponential(multiplier=1, min=2, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+async def _invoke_vertex_ai(
+    structured_llm: Any, system_prompt: str, user_prompt: str
+) -> BatchEntityExtractionResult:
+    """Invoke Vertex AI with retry and circuit breaker.
+
+    Args:
+        structured_llm: LLM instance with structured output.
+        system_prompt: System message content.
+        user_prompt: User message content.
+
+    Returns:
+        BatchEntityExtractionResult from Vertex AI.
+    """
+    result = await structured_llm.ainvoke(
+        [("system", system_prompt), ("user", user_prompt)]
+    )
+
+    # Handle both Pydantic model and dict responses
+    if isinstance(result, dict):
+        return BatchEntityExtractionResult(**result)
+    return cast(BatchEntityExtractionResult, result)
+
+
 async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
     """Extract medical entities from criteria using structured LLM output.
 
@@ -146,15 +185,9 @@ async def extract_entities_node(state: GroundingState) -> dict[str, Any]:
         llm = ChatVertexAI(model_name=model_name, temperature=0)
         structured_llm = llm.with_structured_output(BatchEntityExtractionResult)
 
-        result = await structured_llm.ainvoke(
-            [("system", system_prompt), ("user", user_prompt)]
+        extraction_result = await _invoke_vertex_ai(
+            structured_llm, system_prompt, user_prompt
         )
-
-        # Handle both Pydantic model and dict responses
-        if isinstance(result, dict):
-            extraction_result = BatchEntityExtractionResult(**result)
-        else:
-            extraction_result = cast(BatchEntityExtractionResult, result)
 
         # Build raw_entities with span validation (Pitfall 4)
         raw_entities: list[dict[str, Any]] = []
