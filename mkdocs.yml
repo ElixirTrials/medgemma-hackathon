@@ -112,6 +112,8 @@ nav:
 
   - User Journeys:
       - Overview: journeys/index.md
+      - Upload & Extraction: journeys/upload-extraction.md
+      - Grounding & HITL Review: journeys/grounding-review.md
 
   - Components:
       - Overview: components/index.md
