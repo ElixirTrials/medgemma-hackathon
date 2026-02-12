@@ -4,7 +4,8 @@
 
 - ✅ **v1.0 Core Pipeline** - Phases 1-7 (shipped 2026-02-12)
 - 🚧 **v1.1 Documentation Site** - Phases 8-12 (paused after Phase 10)
-- 🚀 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (current)
+- 🚧 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (paused)
+- ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
 
 ## Phases
 
@@ -303,6 +304,15 @@ Plans:
 Plans:
 - [ ] 15-01: TBD
 
+<details>
+<summary>✅ v1.3 Multimodal PDF Extraction (Phase 16) — SHIPPED 2026-02-12</summary>
+
+- [x] Phase 16: Multimodal PDF Extraction (1/1 plans) — completed 2026-02-12
+
+See `.planning/milestones/v1.3-ROADMAP.md` for full details.
+
+</details>
+
 ## Requirement Coverage
 
 ### v1.0 Requirements (22 total - all shipped)
@@ -376,6 +386,19 @@ Plans:
 
 **Coverage: 15/15 v1.2 requirements mapped. No orphans.**
 
+### v1.3 Requirements (6 total - all shipped)
+
+| Requirement | Phase | Description | Status |
+|-------------|-------|-------------|--------|
+| EXT-01 | Phase 16 | Raw PDF bytes to Gemini as multimodal input | Shipped |
+| EXT-02 | Phase 16 | ingest_node fetches bytes without markdown conversion | Shipped |
+| EXT-03 | Phase 16 | extract_node sends PDF as multimodal content part | Shipped |
+| EXT-04 | Phase 16 | Prompt references attached PDF | Shipped |
+| EXT-05 | Phase 16 | ExtractionResult schema unchanged | Shipped |
+| EXT-06 | Phase 16 | Upload, dead letter, error handling preserved | Shipped |
+
+**Coverage: 6/6 v1.3 requirements shipped. No orphans.**
+
 ## Dependency Graph
 
 ### v1.0 (Shipped)
@@ -423,6 +446,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 - v1.0: 1 → 2 → 3 → 4 → 5 → 5.1 → 5.2 → 5.3 → 6 → 7
 - v1.1: 8 → 9 → 10 → [11-12 paused]
 - v1.2: 13 → 14 → 15
+- v1.3: 16
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -444,3 +468,4 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 13. Terraform Foundation | v1.2 | 0/TBD | Not started | - |
 | 14. Cloud SQL, Networking & Registry | v1.2 | 0/TBD | Not started | - |
 | 15. Cloud Run Deployment & Docs | v1.2 | 0/TBD | Not started | - |
+| 16. Multimodal PDF Extraction | v1.3 | 1/1 | Complete | 2026-02-12 |

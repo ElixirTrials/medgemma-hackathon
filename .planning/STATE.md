@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** Milestone v1.3 — Multimodal PDF Extraction
+**Current focus:** v1.3 milestone complete. Planning next milestone or resuming paused milestones.
 
 ## Current Position
 
-Phase: Phase 16 (Multimodal PDF Extraction)
-Plan: 16-01 complete
-Status: Ready for next plan
-Last activity: 2026-02-12 — Multimodal PDF extraction refactor complete
+Phase: All shipped phases complete
+Plan: N/A
+Status: Between milestones
+Last activity: 2026-02-12 — v1.3 Multimodal PDF Extraction milestone shipped
 
-Progress: ████████████████░░░░ 81% (Phases 1-12 complete/paused, 16-01 complete)
+Progress: ████████████████████ 100% (v1.0 shipped, v1.1 paused, v1.2 paused, v1.3 shipped)
 
 ## Performance Metrics
 
@@ -31,11 +31,11 @@ Progress: ████████████████░░░░ 81% (Phas
 - v1.0: Docker Compose infrastructure with PostgreSQL, MLflow, PubSub emulator
 - v1.2: Terraform for GCP Cloud Run deployment (paused, phases 13-15)
 - v1.3: Direct PDF multimodal extraction replaces pymupdf4llm markdown conversion
-- [Phase 16]: Use base64 PDF data URIs for Gemini multimodal input instead of markdown conversion
+- v1.3: Base64 PDF data URIs for Gemini multimodal input
 
 ### Pending Todos
 
-None (Phase 16-01 complete).
+None.
 
 ### Blockers/Concerns
 
@@ -44,6 +44,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-12
-Stopped at: Completed 16-01-PLAN.md (Multimodal PDF Extraction)
-Resume file: .planning/phases/16-multimodal-pdf-extraction/16-01-SUMMARY.md
-Next action: Test extraction with real protocols or continue Phase 16
+Stopped at: v1.3 milestone archived
+Resume file: .planning/ROADMAP.md
+Next action: `/gsd:new-milestone` or resume paused milestone
