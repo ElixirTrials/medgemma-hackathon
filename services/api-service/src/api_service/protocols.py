@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import base64
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from math import ceil
 
 from events_py.models import DomainEventKind
@@ -88,6 +88,13 @@ class ProtocolListResponse(BaseModel):
     page: int
     page_size: int
     pages: int
+
+
+class RetryResponse(BaseModel):
+    """Response for retry endpoint."""
+
+    status: str
+    protocol_id: str
 
 
 # --- Endpoints ---
@@ -215,6 +222,61 @@ def confirm_upload(
     return _protocol_to_response(protocol)
 
 
+@router.post("/{protocol_id}/retry", response_model=RetryResponse)
+def retry_protocol(
+    protocol_id: str,
+    db: Session = Depends(get_db),
+) -> RetryResponse:
+    """Retry a failed protocol by resetting status and creating a new outbox event.
+
+    Accepts protocols in extraction_failed, grounding_failed, or dead_letter states.
+    Resets the protocol status to uploaded and creates a PROTOCOL_UPLOADED event
+    to re-trigger the processing pipeline.
+    """
+    protocol = db.get(Protocol, protocol_id)
+    if not protocol:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Protocol {protocol_id} not found",
+        )
+
+    # Validate protocol is in a retryable state
+    retryable_states = ["extraction_failed", "grounding_failed", "dead_letter"]
+    if protocol.status not in retryable_states:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Protocol is not in a retryable state (current: {protocol.status})",
+        )
+
+    # Reset protocol status
+    protocol.status = "uploaded"
+    protocol.error_reason = None
+
+    # Clear error metadata if present
+    if "error" in protocol.metadata_:
+        metadata_copy = protocol.metadata_.copy()
+        del metadata_copy["error"]
+        protocol.metadata_ = metadata_copy
+
+    # Create new outbox event to re-trigger pipeline
+    persist_with_outbox(
+        session=db,
+        entity=protocol,
+        event_type=DomainEventKind.PROTOCOL_UPLOADED,
+        aggregate_type="protocol",
+        aggregate_id=protocol.id,
+        payload={
+            "protocol_id": protocol.id,
+            "title": protocol.title,
+            "file_uri": protocol.file_uri,
+        },
+    )
+
+    db.commit()
+
+    return RetryResponse(status="retry_queued", protocol_id=protocol_id)
+
+
 @router.get("", response_model=ProtocolListResponse)
 def list_protocols(
     page: int = Query(default=1, ge=1),
@@ -226,17 +288,24 @@ def list_protocols(
 
     Returns a paginated list sorted by creation date (newest first).
     Includes total count, page number, page size, and total pages.
+    Excludes archived protocols from default view unless explicitly filtered.
     """
     # Build count query
     count_stmt = select(func.count()).select_from(Protocol)
     if status:
         count_stmt = count_stmt.where(Protocol.status == status)
+    else:
+        # Exclude archived protocols from default view
+        count_stmt = count_stmt.where(Protocol.status != "archived")
     total = db.exec(count_stmt).one()
 
     # Build data query
     data_stmt = select(Protocol)
     if status:
         data_stmt = data_stmt.where(Protocol.status == status)
+    else:
+        # Exclude archived protocols from default view
+        data_stmt = data_stmt.where(Protocol.status != "archived")
     data_stmt = (
         data_stmt.offset((page - 1) * page_size)
         .limit(page_size)
@@ -260,13 +329,21 @@ def get_protocol(
     protocol_id: str,
     db: Session = Depends(get_db),
 ) -> ProtocolResponse:
-    """Get protocol detail including quality score and metadata."""
+    """Get protocol detail including quality score and metadata.
+
+    Performs lazy archival: if a protocol is in dead_letter status and
+    hasn't been updated in 7+ days, it is automatically transitioned to archived.
+    """
     protocol = db.get(Protocol, protocol_id)
     if not protocol:
         raise HTTPException(
             status_code=404,
             detail=f"Protocol {protocol_id} not found",
         )
+
+    # Check for dead-letter archival
+    _check_dead_letter_archival(protocol, db)
+
     return _protocol_to_response(protocol)
 
 
@@ -286,3 +363,25 @@ def _protocol_to_response(protocol: Protocol) -> ProtocolResponse:
         created_at=protocol.created_at,
         updated_at=protocol.updated_at,
     )
+
+
+def _check_dead_letter_archival(protocol: Protocol, session: Session) -> None:
+    """Check if a dead-letter protocol should be archived.
+
+    Archives protocols that have been in dead_letter status for more than 7 days
+    since their last update. This is a lazy archival strategy triggered on access.
+    """
+    if protocol.status != "dead_letter":
+        return
+
+    # Check if updated_at is more than 7 days ago
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    if protocol.updated_at < cutoff:
+        logger.info(
+            "Archiving dead-letter protocol %s (last updated: %s)",
+            protocol.id,
+            protocol.updated_at,
+        )
+        protocol.status = "archived"
+        session.add(protocol)
+        session.commit()
