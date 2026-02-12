@@ -312,8 +312,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 20-01-PLAN.md — Port ModelGardenChatModel and AgentConfig from gemma-hackathon to libs/inference/
-- [ ] 20-02-PLAN.md — Agentic grounding node, prompts, schemas, and simplified 2-node graph
+- [x] 20-01-PLAN.md — Port ModelGardenChatModel and AgentConfig from gemma-hackathon to libs/inference/
+- [x] 20-02-PLAN.md — Agentic grounding node, prompts, schemas, and simplified 2-node graph
 
 ### Phase 21: Upgrade to Gemini 3 Flash
 **Goal**: Upgrade criteria extraction model from gemini-2.5-flash to gemini-3-flash-preview for improved extraction quality
@@ -323,10 +323,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `.env` GEMINI_MODEL_NAME and all hardcoded defaults in `extract.py`, `queue.py` updated to `gemini-3-flash-preview`
   2. Extraction verified working on existing protocol PDF with new model
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 21-01: TBD
+- [x] 21-01: Update all gemini-2.5-flash references to gemini-3-flash-preview
 
 ---
 
@@ -582,8 +582,8 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 14. Cloud SQL, Networking & Registry | v1.2 | 0/TBD | Not started | - |
 | 15. Cloud Run Deployment & Docs | v1.2 | 0/TBD | Not started | - |
 | 16. Multimodal PDF Extraction | v1.3 | 1/1 | Complete | 2026-02-12 |
-| 17. Frontend Structured Data Display | v1.4 | 0/1 | Planned | - |
-| 18. Grounding Pipeline Debug & Fix | v1.4 | 0/1 | Planned | - |
-| 19. Extraction Structured Output | v1.4 | 0/1 | Planned | - |
-| 20. MedGemma Agentic Grounding | v1.4 | 0/2 | Planned | - |
-| 21. Gemini 3 Flash Upgrade | v1.4 | 0/TBD | Planned | - |
+| 17. Frontend Structured Data Display | v1.4 | 1/1 | Complete | 2026-02-12 |
+| 18. Grounding Pipeline Debug & Fix | v1.4 | 1/1 | Complete | 2026-02-12 |
+| 19. Extraction Structured Output | v1.4 | 1/1 | Complete | 2026-02-12 |
+| 20. MedGemma Agentic Grounding | v1.4 | 2/2 | Complete | 2026-02-12 |
+| 21. Gemini 3 Flash Upgrade | v1.4 | 1/1 | Complete | 2026-02-13 |

@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-02-12)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** v1.4 Structured Entity Display & Grounding Fixes
+**Current focus:** v1.4 Structured Entity Display & Grounding Fixes — COMPLETE
 
 ## Current Position
 
-Phase: 20-medgemma-agentic-grounding (COMPLETE)
-Plan: 2 of 2 in Phase 20
-Status: Phase 20 complete — MedGemma agentic grounding node created, graph rewired to 2 nodes
-Last activity: 2026-02-12 — Completed 20-02: agentic grounding node + graph rewire
+Phase: 21-gemini-3-flash-upgrade (COMPLETE)
+Plan: 1 of 1 in Phase 21
+Status: v1.4 milestone complete — all 5 phases (17-21) executed
+Last activity: 2026-02-13 — Completed 21-01: upgrade Gemini model to gemini-3-flash-preview
 
-Progress: ██████████████████░░ 80% (v1.4: 4/5 phases complete)
+Progress: ████████████████████ 100% (v1.4: 5/5 phases complete)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 36
-- Average duration: 7.5 min
-- Total execution time: 4.7 hours
+- Total plans completed: 37
+- Average duration: 7.3 min
+- Total execution time: 4.8 hours
 
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
@@ -30,6 +30,7 @@ Progress: ██████████████████░░ 80% (v1.4
 | 19 | 01 | 4min | 2 | 2 |
 | 20 | 01 | 3min | 2 | 5 |
 | 20 | 02 | 8min | 2 | 9 |
+| 21 | 01 | 1min | 1 | 5 |
 
 ## Accumulated Context
 
@@ -61,12 +62,11 @@ Progress: ██████████████████░░ 80% (v1.4
 ### Investigation Results (v1.4)
 
 - 3 protocols processed: 103 criteria, 266 entities
-- UMLS grounding: 0/266 entities had CUI or SNOMED (100% failure) -- NOW FIXED in Phase 18 (MCP result parsing + SNOMED extraction)
-- numeric_thresholds: 0/103 criteria populated (LLM returned empty lists) -- NOW ADDRESSED with 5 few-shot examples + enhanced Field descriptions (Phase 19)
-- temporal_constraint: 47/103 criteria have data, NOW DISPLAYED in UI (Phase 17)
-- Entity display works but showed "Low (0%)" and "expert_review" for all entities -- should improve after re-grounding with Phase 18 fix
-- MedGemma endpoint configured (VERTEX_ENDPOINT_ID) but NOT wired — entity extraction uses Gemini, not MedGemma
-- ENTITY_EXTRACTION_MODEL defaults to "gemini" — MedGemma never selected
+- UMLS grounding: 0/266 entities had CUI or SNOMED (100% failure) -- FIXED in Phase 18 (MCP result parsing + SNOMED extraction)
+- numeric_thresholds: 0/103 criteria populated -- ADDRESSED in Phase 19 (few-shot examples + enhanced Field descriptions)
+- temporal_constraint: 47/103 criteria have data -- DISPLAYED in Phase 17
+- MedGemma endpoint configured but NOT wired -- FIXED in Phase 20 (agentic grounding with ModelGardenChatModel)
+- Gemini model upgraded from gemini-2.5-flash to gemini-3-flash-preview in Phase 21
 
 ### Pending Todos
 
@@ -78,7 +78,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-12
-Stopped at: Completed 20-02-PLAN.md (MedGemma agentic grounding node + graph rewire)
-Resume file: .planning/phases/20-medgemma-agentic-grounding/20-02-SUMMARY.md
-Next action: Proceed to Phase 21 (next phase in v1.4 milestone)
+Last session: 2026-02-13
+Stopped at: Completed Phase 21 — v1.4 milestone fully executed
+Resume file: .planning/phases/21-gemini-3-flash-upgrade/21-01-SUMMARY.md
+Next action: /gsd:complete-milestone or /gsd:new-milestone for next iteration
