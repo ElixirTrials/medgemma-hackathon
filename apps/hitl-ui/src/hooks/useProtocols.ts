@@ -156,10 +156,9 @@ export function useRetryProtocol() {
 
     return useMutation({
         mutationFn: (protocolId: string) =>
-            fetchApi<{ status: string; protocol_id: string }>(
-                `/protocols/${protocolId}/retry`,
-                { method: 'POST' }
-            ),
+            fetchApi<{ status: string; protocol_id: string }>(`/protocols/${protocolId}/retry`, {
+                method: 'POST',
+            }),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['protocols'] });
         },
