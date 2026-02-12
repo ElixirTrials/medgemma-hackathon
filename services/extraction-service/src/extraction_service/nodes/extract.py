@@ -7,12 +7,14 @@ criteria dicts ready for post-processing by the parse node.
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
 from pathlib import Path
 from typing import Any, cast
 
 from inference.factory import render_prompts
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_vertexai import ChatVertexAI  # type: ignore[import-untyped]
 from shared.resilience import gemini_breaker
 from tenacity import (
@@ -40,21 +42,18 @@ PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
     reraise=True,
 )
 async def _invoke_gemini(
-    structured_llm: Any, system_prompt: str, user_prompt: str
+    structured_llm: Any, messages: list[SystemMessage | HumanMessage]
 ) -> ExtractionResult:
     """Invoke Gemini with retry and circuit breaker.
 
     Args:
         structured_llm: LLM instance with structured output.
-        system_prompt: System message content.
-        user_prompt: User message content.
+        messages: List of system and user messages (supports multimodal content).
 
     Returns:
         ExtractionResult from Gemini.
     """
-    result = await structured_llm.ainvoke(
-        [("system", system_prompt), ("user", user_prompt)]
-    )
+    result = await structured_llm.ainvoke(messages)
 
     # Handle both Pydantic model and dict responses
     if isinstance(result, dict):
@@ -63,10 +62,10 @@ async def _invoke_gemini(
 
 
 async def extract_node(state: ExtractionState) -> dict[str, Any]:
-    """Extract structured criteria from protocol markdown using Gemini.
+    """Extract structured criteria from PDF using Gemini multimodal input.
 
     Args:
-        state: Current extraction state with markdown_content and title.
+        state: Current extraction state with pdf_bytes and title.
 
     Returns:
         Dict with raw_criteria list of dicts, or error dict on failure.
@@ -75,8 +74,25 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
         return {}
 
     try:
+        # Encode PDF as base64
+        pdf_base64 = base64.b64encode(state["pdf_bytes"]).decode("utf-8")
+        pdf_data_uri = f"data:application/pdf;base64,{pdf_base64}"
+
+        # Warn if approaching size limit
+        encoded_size_mb = len(pdf_base64) / (1024 * 1024)
+        if encoded_size_mb > 18:
+            logger.warning(
+                "PDF size after base64 encoding: %.2f MB (approaching 20MB limit)",
+                encoded_size_mb,
+            )
+
         model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        llm = ChatVertexAI(model_name=model_name, temperature=0)
+        llm = ChatVertexAI(
+            model_name=model_name,
+            temperature=0,
+            project=os.getenv("GCP_PROJECT_ID"),
+            location=os.getenv("GCP_REGION", "us-central1"),
+        )
         structured_llm = llm.with_structured_output(ExtractionResult)
 
         system_prompt, user_prompt = render_prompts(
@@ -85,18 +101,26 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
             user_template="user.jinja2",
             prompt_vars={
                 "title": state["title"],
-                "markdown_content": state["markdown_content"],
             },
         )
 
-        extraction_result = await _invoke_gemini(
-            structured_llm, system_prompt, user_prompt
-        )
+        # Construct multimodal messages
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(
+                content=[
+                    {"type": "text", "text": user_prompt},
+                    {"type": "image_url", "image_url": {"url": pdf_data_uri}},
+                ]
+            ),
+        ]
+
+        extraction_result = await _invoke_gemini(structured_llm, messages)
 
         criteria_dicts = [c.model_dump() for c in extraction_result.criteria]
 
         logger.info(
-            "Extracted %d criteria from protocol %s",
+            "Extracted %d criteria from protocol %s (PDF multimodal input)",
             len(criteria_dicts),
             state["protocol_id"],
         )
