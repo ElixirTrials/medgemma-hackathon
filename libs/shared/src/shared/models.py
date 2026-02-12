@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from enum import Enum
 from typing import Any, Dict
 from uuid import uuid4
 
@@ -29,15 +30,30 @@ def _ts_col_update() -> Column:  # type: ignore[type-arg]
     )
 
 
+class ProtocolStatus(str, Enum):
+    """Protocol processing status enum."""
+
+    UPLOADED = "uploaded"
+    EXTRACTING = "extracting"
+    EXTRACTION_FAILED = "extraction_failed"
+    GROUNDING = "grounding"
+    GROUNDING_FAILED = "grounding_failed"
+    PENDING_REVIEW = "pending_review"
+    COMPLETE = "complete"
+    DEAD_LETTER = "dead_letter"
+    ARCHIVED = "archived"
+
+
 class Protocol(SQLModel, table=True):
     """Uploaded clinical trial protocol PDF."""
 
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     title: str = Field()
     file_uri: str = Field()
-    status: str = Field(default="uploaded", index=True)
+    status: str = Field(default=ProtocolStatus.UPLOADED, index=True)
     page_count: int | None = Field(default=None)
     quality_score: float | None = Field(default=None)
+    error_reason: str | None = Field(default=None)
     metadata_: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSON))
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
