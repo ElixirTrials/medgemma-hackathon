@@ -28,12 +28,33 @@ logger = logging.getLogger(__name__)
 _REQUIRED_RESULT_FIELDS = ("cui", "name", "method", "confidence")
 
 
+def _parse_content_blocks(blocks: list[Any]) -> dict[str, Any]:
+    """Extract JSON dict from a list of MCP content blocks.
+
+    langchain-mcp-adapters 0.2.x returns content as a list of
+    ``{"type": "text", "text": "<json>"}`` blocks.
+
+    Args:
+        blocks: List of content block dicts.
+
+    Returns:
+        Parsed dict from the first text block, or empty dict.
+    """
+    for block in blocks:
+        if isinstance(block, dict) and block.get("type") == "text":
+            text_val = block.get("text", "")
+            if isinstance(text_val, str):
+                return json.loads(text_val)  # type: ignore[no-any-return]
+    return {}
+
+
 def _normalize_tool_result(raw_result: object) -> dict[str, Any]:
     """Normalize MCP tool result to a dict regardless of wrapper type.
 
     langchain-mcp-adapters 0.2.x may return:
-    - A JSON string (most common)
-    - A ToolMessage with a .content attribute containing a JSON string
+    - A list of content blocks (most common in 0.2.x)
+    - A JSON string
+    - A ToolMessage with a .content attribute containing a JSON string or list
     - A dict (direct passthrough in some adapter versions)
 
     Args:
@@ -48,6 +69,10 @@ def _normalize_tool_result(raw_result: object) -> dict[str, Any]:
     if isinstance(raw_result, str):
         return json.loads(raw_result)  # type: ignore[no-any-return]
 
+    # langchain-mcp-adapters 0.2.x returns a list of content blocks directly
+    if isinstance(raw_result, list):
+        return _parse_content_blocks(raw_result)
+
     # ToolMessage wrapper from langchain-mcp-adapters
     if hasattr(raw_result, "content"):
         content = raw_result.content  # type: ignore[union-attr]
@@ -55,11 +80,8 @@ def _normalize_tool_result(raw_result: object) -> dict[str, Any]:
             return json.loads(content)  # type: ignore[no-any-return]
         if isinstance(content, dict):
             return content
-        # content may be a list of content blocks
         if isinstance(content, list):
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "text":
-                    return json.loads(block["text"])  # type: ignore[no-any-return]
+            return _parse_content_blocks(content)
 
     logger.warning(
         "Unexpected tool result type: %s (value: %r)",
