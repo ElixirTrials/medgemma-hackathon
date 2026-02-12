@@ -3,7 +3,8 @@
 ## Milestones
 
 - ✅ **v1.0 Core Pipeline** - Phases 1-7 (shipped 2026-02-12)
-- 🚧 **v1.1 Documentation Site** - Phases 8-12 (in progress)
+- 🚧 **v1.1 Documentation Site** - Phases 8-12 (paused after Phase 10)
+- 🚀 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (current)
 
 ## Phases
 
@@ -166,7 +167,8 @@ Plans:
 
 </details>
 
-## 🚧 v1.1 Documentation Site (In Progress)
+<details>
+<summary>🚧 v1.1 Documentation Site (Phases 8-12) - PAUSED after Phase 10</summary>
 
 **Milestone Goal:** Comprehensive MkDocs documentation that bridges high-level intent and low-level code, making the system accessible to engineers, PMs, and clinical researchers.
 
@@ -227,7 +229,7 @@ Plans:
   3. Engineer can reference grounding-service.md showing MedGemma integration, UMLS MCP tools, grounding strategy, and configuration
   4. Engineer can reference hitl-ui.md showing React component structure, state management (TanStack Query + Zustand), key screens, and hooks
   5. All component docs cross-reference architecture diagrams and user journeys
-**Plans**: TBD
+**Plans**: TBD (paused)
 
 Plans:
 - [ ] 11-01: TBD
@@ -242,10 +244,64 @@ Plans:
   3. New engineer can follow code tour walkthrough showing 5+ "slides" following protocol lifecycle from upload to review
   4. Each code tour slide includes: title, user story, code location (file path, no line numbers), relevant code snippet, and "why this matters" explanation
   5. Code tour uses reference strategy preventing drift (function names not line numbers, automated link checking)
-**Plans**: TBD
+**Plans**: TBD (paused)
 
 Plans:
 - [ ] 12-01: TBD
+
+</details>
+
+## 🚀 v1.2 GCP Cloud Run Deployment (Current)
+
+**Milestone Goal:** Deploy the entire application to Google Cloud Run using Terraform, with all configuration consumed from .env file and documented .env.example for operators. This is a lean 50-protocol pilot deployment — prioritize simplicity over enterprise patterns.
+
+### Phase 13: Terraform Foundation
+**Goal**: Terraform backend, GCP APIs, Artifact Registry, and IAM service accounts are provisioned — establishing the foundation for all Cloud Run resources
+**Depends on**: Nothing (first phase of v1.2)
+**Requirements**: TF-01, TF-02, SEC-02, REG-01
+**Success Criteria** (what must be TRUE):
+  1. Operator can run `terraform init` from `infra/terraform/` and Terraform connects to GCS backend with automatic state locking enabled
+  2. All required GCP APIs (Cloud Run, Cloud SQL, Secret Manager, VPC Access, Artifact Registry) are enabled via Terraform with explicit dependencies
+  3. Artifact Registry repository for Docker images exists and accepts image pushes from authenticated clients
+  4. Four IAM service accounts (api-service, extraction-service, grounding-service, hitl-ui) are created with predefined roles (cloudsql.client, secretmanager.secretAccessor) assigned
+  5. Terraform uses region variable pattern (single source of truth for us-central1) preventing VPC connector region mismatches
+
+**Plans**: TBD
+
+Plans:
+- [ ] 13-01: TBD
+
+### Phase 14: Cloud SQL, Networking & Container Registry
+**Goal**: Private Cloud SQL PostgreSQL instance, VPC networking with Serverless Connector, Secret Manager integration, and container images in Artifact Registry are deployed — enabling Cloud Run services to connect to database and secrets securely
+**Depends on**: Phase 13
+**Requirements**: DB-01, DB-02, SEC-01, REG-02
+**Success Criteria** (what must be TRUE):
+  1. Cloud SQL PostgreSQL 16 instance is provisioned with private IP only (no public IP) and VPC peering to the default network
+  2. VPC Serverless Connector (10.8.0.0/28 subnet) enables Cloud Run services to access Cloud SQL via private IP with explicit Terraform dependencies preventing race conditions
+  3. Secret Manager stores all sensitive configuration (DATABASE_URL, UMLS_API_KEY, Google OAuth client ID/secret) with service account IAM bindings for secretAccessor role
+  4. Build script (`scripts/build-and-push.sh`) builds all 4 Docker images, pushes to Artifact Registry, and captures SHA256 digests for Terraform consumption
+  5. Connection pool configuration is documented (pool_size=2, max_overflow=1) and max_connections on Cloud SQL set to 100
+
+**Plans**: TBD
+
+Plans:
+- [ ] 14-01: TBD
+
+### Phase 15: Cloud Run Deployment & Documentation
+**Goal**: All four services deploy to Cloud Run with health checks, autoscaling limits, environment configuration, and complete deployment documentation — enabling end-to-end integration testing and operator handoff
+**Depends on**: Phase 14
+**Requirements**: TF-03, CR-01, CR-02, CR-03, CFG-01, CFG-02, CFG-03
+**Success Criteria** (what must be TRUE):
+  1. Reusable Terraform module `cloud-run-service` deploys all 4 services (api-service, extraction-service, grounding-service, hitl-ui) with VPC connector, secret references, and IAM bindings — DRY pattern eliminates duplication
+  2. Cloud Run services have startup probes configured on `/health` endpoints with initial_delay_seconds=30 for LangGraph services to prevent premature traffic routing
+  3. Autoscaling is configured with max_instances=10 per service to prevent connection pool exhaustion (40 instances total vs 100 Cloud SQL connections with pool_size=2+max_overflow=1=3 per instance)
+  4. `.env.example` documents every required variable with descriptions and example values, and `terraform.tfvars.example` provides template for all Terraform input variables including image digests
+  5. `infra/terraform/README.md` provides complete deployment guide with prerequisites, step-by-step instructions, troubleshooting section, and verification checklist
+
+**Plans**: TBD
+
+Plans:
+- [ ] 15-01: TBD
 
 ## Requirement Coverage
 
@@ -276,29 +332,49 @@ Plans:
 | REQ-08.1 | Phase 7 | Retry Logic with Exponential Backoff |
 | REQ-08.2 | Phase 7 | Pipeline Success Rate Target |
 
-### v1.1 Requirements (17 total - all mapped)
+### v1.1 Requirements (17 total - 12 shipped, 5 paused)
+
+| Requirement | Phase | Description | Status |
+|-------------|-------|-------------|--------|
+| INFRA-01 | Phase 8 | MkDocs native Mermaid.js via superfences | Shipped |
+| INFRA-02 | Phase 8 | mkdocs.yml navigation with 6 sections | Shipped |
+| INFRA-03 | Phase 8 | Strict mode build with zero warnings | Shipped |
+| ARCH-01 | Phase 9 | C4 Container diagram | Shipped |
+| ARCH-02 | Phase 9 | Service communication wiring diagram | Shipped |
+| DATA-01 | Phase 9 | Database schema documentation | Shipped |
+| DATA-02 | Phase 9 | LangGraph state documentation | Shipped |
+| JOUR-01 | Phase 10 | Upload & Extraction narrative | Shipped |
+| JOUR-02 | Phase 10 | Grounding & HITL Review narrative | Shipped |
+| COMP-01 | Phase 11 | api-service component deep dive | Paused |
+| COMP-02 | Phase 11 | extraction-service component deep dive | Paused |
+| COMP-03 | Phase 11 | grounding-service component deep dive | Paused |
+| COMP-04 | Phase 11 | hitl-ui component deep dive | Paused |
+| STAT-01 | Phase 12 | Feature status table | Paused |
+| STAT-02 | Phase 12 | Test coverage analysis | Paused |
+| TOUR-01 | Phase 12 | Code tour with 5+ slides | Paused |
+| TOUR-02 | Phase 12 | Code tour slide structure | Paused |
+
+### v1.2 Requirements (15 total - all mapped)
 
 | Requirement | Phase | Description |
 |-------------|-------|-------------|
-| INFRA-01 | Phase 8 | MkDocs native Mermaid.js via superfences |
-| INFRA-02 | Phase 8 | mkdocs.yml navigation with 6 sections |
-| INFRA-03 | Phase 8 | Strict mode build with zero warnings |
-| ARCH-01 | Phase 9 | C4 Container diagram |
-| ARCH-02 | Phase 9 | Service communication wiring diagram |
-| DATA-01 | Phase 9 | Database schema documentation |
-| DATA-02 | Phase 9 | LangGraph state documentation |
-| JOUR-01 | Phase 10 | Upload & Extraction narrative |
-| JOUR-02 | Phase 10 | Grounding & HITL Review narrative |
-| COMP-01 | Phase 11 | api-service component deep dive |
-| COMP-02 | Phase 11 | extraction-service component deep dive |
-| COMP-03 | Phase 11 | grounding-service component deep dive |
-| COMP-04 | Phase 11 | hitl-ui component deep dive |
-| STAT-01 | Phase 12 | Feature status table |
-| STAT-02 | Phase 12 | Test coverage analysis |
-| TOUR-01 | Phase 12 | Code tour with 5+ slides |
-| TOUR-02 | Phase 12 | Code tour slide structure |
+| TF-01 | Phase 13 | Terraform init and apply from infra/terraform/ |
+| TF-02 | Phase 13 | GCS backend with state locking |
+| TF-03 | Phase 15 | Reusable Cloud Run service modules |
+| CR-01 | Phase 15 | Deploy 4 services to Cloud Run Gen 2 |
+| CR-02 | Phase 15 | Health check startup probes on /health |
+| CR-03 | Phase 15 | Autoscaling with max_instances limits |
+| DB-01 | Phase 14 | Cloud SQL PostgreSQL 16 private IP |
+| DB-02 | Phase 14 | VPC Serverless Connector for private access |
+| SEC-01 | Phase 14 | Secret Manager for credentials |
+| SEC-02 | Phase 13 | IAM service accounts with least privilege |
+| REG-01 | Phase 13 | Artifact Registry repository |
+| REG-02 | Phase 14 | Build and push script for container images |
+| CFG-01 | Phase 15 | .env.example with all variables documented |
+| CFG-02 | Phase 15 | terraform.tfvars.example template |
+| CFG-03 | Phase 15 | infra/terraform/README.md deployment guide |
 
-**Coverage: 17/17 v1.1 requirements mapped. No orphans.**
+**Coverage: 15/15 v1.2 requirements mapped. No orphans.**
 
 ## Dependency Graph
 
@@ -319,7 +395,7 @@ Phase 4 (HITL Review)    Phase 5 (Grounding)*
     Phase 7 (Production Hardening)
 ```
 
-### v1.1 (Documentation Site)
+### v1.1 (Documentation Site - Paused)
 ```
 Phase 8 (Documentation Foundation)
     |
@@ -327,16 +403,26 @@ Phase 9 (Architecture & Data Models)
     |
 Phase 10 (User Journey Narratives)
     |
-Phase 11 (Component Deep Dives)
+Phase 11 (Component Deep Dives) [PAUSED]
     |
-Phase 12 (Implementation Status & Code Tour)
+Phase 12 (Implementation Status & Code Tour) [PAUSED]
+```
+
+### v1.2 (GCP Cloud Run Deployment - Current)
+```
+Phase 13 (Terraform Foundation)
+    |
+Phase 14 (Cloud SQL, Networking & Container Registry)
+    |
+Phase 15 (Cloud Run Deployment & Documentation)
 ```
 
 ## Progress
 
 **Execution Order:**
-v1.0: 1 → 2 → 3 → 4 → 5 → 5.1 → 5.2 → 5.3 → 6 → 7
-v1.1: 8 → 9 → 10 → 11 → 12
+- v1.0: 1 → 2 → 3 → 4 → 5 → 5.1 → 5.2 → 5.3 → 6 → 7
+- v1.1: 8 → 9 → 10 → [11-12 paused]
+- v1.2: 13 → 14 → 15
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -353,5 +439,8 @@ v1.1: 8 → 9 → 10 → 11 → 12
 | 8. Documentation Foundation | v1.1 | 2/2 | Complete | 2026-02-12 |
 | 9. Architecture & Data Models | v1.1 | 2/2 | Complete | 2026-02-12 |
 | 10. User Journey Narratives | v1.1 | 2/2 | Complete | 2026-02-12 |
-| 11. Component Deep Dives | v1.1 | 0/TBD | Not started | - |
-| 12. Status & Code Tour | v1.1 | 0/TBD | Not started | - |
+| 11. Component Deep Dives | v1.1 | 0/TBD | Paused | - |
+| 12. Status & Code Tour | v1.1 | 0/TBD | Paused | - |
+| 13. Terraform Foundation | v1.2 | 0/TBD | Not started | - |
+| 14. Cloud SQL, Networking & Registry | v1.2 | 0/TBD | Not started | - |
+| 15. Cloud Run Deployment & Docs | v1.2 | 0/TBD | Not started | - |

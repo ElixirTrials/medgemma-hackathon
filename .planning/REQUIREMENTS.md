@@ -1,49 +1,48 @@
-# Requirements: Documentation Site
+# Requirements: GCP Cloud Run Deployment
 
 **Defined:** 2026-02-12
-**Core Value:** Comprehensive documentation that bridges high-level intent and low-level code, making the system accessible to engineers, PMs, and clinical researchers
+**Core Value:** Operators can deploy the entire Clinical Trial Criteria Extraction System to GCP Cloud Run using Terraform, with all configuration documented in .env.example and terraform.tfvars.example
 
-## v1.1 Requirements
+## v1.2 Requirements
 
-Requirements for documentation site milestone. Each maps to roadmap phases.
+Requirements for GCP Cloud Run deployment milestone. Each maps to roadmap phases.
 
-### Documentation Infrastructure
+### Terraform Infrastructure
 
-- [ ] **INFRA-01**: MkDocs configuration updated with native Mermaid.js via superfences (replacing deprecated mermaid2 plugin)
-- [ ] **INFRA-02**: mkdocs.yml navigation structure includes all 6 documentation sections with correct hierarchy
-- [ ] **INFRA-03**: Documentation build passes in strict mode with zero warnings
+- [ ] **TF-01**: Operator can run `terraform init && terraform apply` from `infra/terraform/` to provision all GCP resources
+- [ ] **TF-02**: Terraform state is stored in a GCS backend with automatic locking
+- [ ] **TF-03**: Terraform uses reusable modules for Cloud Run services (DRY pattern for 4 services)
 
-### System Architecture
+### Cloud Run Deployment
 
-- [ ] **ARCH-01**: system-architecture.md contains a Mermaid C4 Container diagram showing React UI, FastAPI, PostgreSQL, LangGraph agents, and FastMCP interactions
-- [ ] **ARCH-02**: system-architecture.md contains a wiring diagram section explaining service communication patterns (REST for frontend-to-backend, transactional outbox for event-driven agent triggers)
+- [ ] **CR-01**: All 4 services (api-service, extraction-service, grounding-service, hitl-ui) deploy to Cloud Run Gen 2 using existing Dockerfiles
+- [ ] **CR-02**: Cloud Run services have health check startup probes configured on `/health` endpoints
+- [ ] **CR-03**: Cloud Run autoscaling is configured with max_instances limit to prevent cost surprises and connection exhaustion
 
-### User Journeys
+### Database & Networking
 
-- [ ] **JOUR-01**: user-journeys.md contains "Upload & Extraction" narrative with Mermaid sequence diagram (Researcher to HITL UI to API to GCS to Outbox to Extraction Service to DB)
-- [ ] **JOUR-02**: user-journeys.md contains "Grounding & HITL Review" narrative with Mermaid sequence diagram (CriteriaExtracted to Grounding Service to DB to HITL UI to Approval to Audit Log)
+- [ ] **DB-01**: Cloud SQL PostgreSQL 16 instance is provisioned with private IP only (no public exposure)
+- [ ] **DB-02**: VPC Serverless Connector enables Cloud Run to Cloud SQL private communication
 
-### Component Deep Dives
+### Security & Secrets
 
-- [ ] **COMP-01**: components/api-service.md documents responsibilities, key endpoints, configuration, and environment variables
-- [ ] **COMP-02**: components/extraction-service.md documents LangGraph graph nodes, PDF parsing, Gemini integration, and configuration
-- [ ] **COMP-03**: components/grounding-service.md documents MedGemma integration, UMLS MCP tools, grounding strategy, and configuration
-- [ ] **COMP-04**: components/hitl-ui.md documents React component structure, state management, key screens, and hooks
+- [ ] **SEC-01**: Secret Manager stores all sensitive values (DATABASE_URL, UMLS_API_KEY, OAuth credentials) — never in Terraform state or .env files
+- [ ] **SEC-02**: Dedicated IAM service accounts per Cloud Run service with least-privilege roles
 
-### Data Models & State
+### Container Registry
 
-- [ ] **DATA-01**: data-models.md documents database schema (Protocol, Criteria, CriteriaBatch, Entity, Review, AuditLog) with field descriptions and relationships
-- [ ] **DATA-02**: data-models.md documents LangGraph state (ExtractionState TypedDict, GroundingState TypedDict) with field descriptions and data flow
+- [ ] **REG-01**: Artifact Registry repository is provisioned for container image storage
+- [ ] **REG-02**: A build-and-push script builds all 4 Docker images and pushes to Artifact Registry
 
-### Implementation Status
+### Configuration & Documentation
 
-- [ ] **STAT-01**: implementation-status.md contains feature status table marking each feature as Stable, Beta, or Stubbed
-- [ ] **STAT-02**: implementation-status.md contains test coverage analysis comparing src vs tests across all services
+- [ ] **CFG-01**: `.env.example` documents every variable needed for deployment with descriptions
+- [ ] **CFG-02**: `terraform.tfvars.example` provides a template for all Terraform input variables
+- [ ] **CFG-03**: `infra/terraform/README.md` documents deployment prerequisites, steps, and troubleshooting
 
-### Code Tour
+## v1.1 Requirements (Paused)
 
-- [ ] **TOUR-01**: code-tour.md contains 5+ "slides" following the protocol lifecycle from upload to review
-- [ ] **TOUR-02**: Each code tour slide includes: title, user story, code location (file path), relevant code snippet, and explanation of why it matters
+Phases 11-12 (Component Deep Dives, Implementation Status & Code Tour) remain unplanned. See .planning/MILESTONES.md for details.
 
 ## v1.0 Requirements (Archived)
 
@@ -53,39 +52,38 @@ All 22 v1.0 requirements shipped. See .planning/MILESTONES.md for details.
 
 | Feature | Reason |
 |---------|--------|
-| Video walkthroughs | Expensive to maintain, validate text-first approach |
-| Real-time collaborative editing | Over-engineering for documentation, use git workflow |
-| Auto-translation | Machine translation dangerous for technical/medical content |
-| Live code execution in docs | Security risk, high complexity |
-| API auto-generation | Defer until API stabilizes post-pilot |
-| Documentation versioning (mike) | Single version until product has releases |
-| PDF export per section | Web-first, validate before adding |
+| Multi-region deployment | Over-engineered for 50-protocol pilot |
+| Custom domain with SSL | Not needed for internal pilot |
+| Traffic splitting / blue-green | Add post-pilot when rollout safety matters |
+| Terraform workspaces (multi-env) | Single environment sufficient for pilot |
+| Cloud Build CI/CD pipeline | Manual deploys via terraform apply sufficient for pilot |
+| VPC Service Controls | Enterprise security feature, defer to production |
+| Cloud CDN for static assets | Cloud Run serves hitl-ui directly for pilot |
+| MLflow Cloud Run deployment | Keep as local dev tool for now |
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INFRA-01 | Phase 8 | Pending |
-| INFRA-02 | Phase 8 | Pending |
-| INFRA-03 | Phase 8 | Pending |
-| ARCH-01 | Phase 9 | Pending |
-| ARCH-02 | Phase 9 | Pending |
-| DATA-01 | Phase 9 | Pending |
-| DATA-02 | Phase 9 | Pending |
-| JOUR-01 | Phase 10 | Pending |
-| JOUR-02 | Phase 10 | Pending |
-| COMP-01 | Phase 11 | Pending |
-| COMP-02 | Phase 11 | Pending |
-| COMP-03 | Phase 11 | Pending |
-| COMP-04 | Phase 11 | Pending |
-| STAT-01 | Phase 12 | Pending |
-| STAT-02 | Phase 12 | Pending |
-| TOUR-01 | Phase 12 | Pending |
-| TOUR-02 | Phase 12 | Pending |
+| TF-01 | Phase 13 | Pending |
+| TF-02 | Phase 13 | Pending |
+| TF-03 | Phase 15 | Pending |
+| CR-01 | Phase 15 | Pending |
+| CR-02 | Phase 15 | Pending |
+| CR-03 | Phase 15 | Pending |
+| DB-01 | Phase 14 | Pending |
+| DB-02 | Phase 14 | Pending |
+| SEC-01 | Phase 14 | Pending |
+| SEC-02 | Phase 13 | Pending |
+| REG-01 | Phase 13 | Pending |
+| REG-02 | Phase 14 | Pending |
+| CFG-01 | Phase 15 | Pending |
+| CFG-02 | Phase 15 | Pending |
+| CFG-03 | Phase 15 | Pending |
 
 **Coverage:**
-- v1.1 requirements: 17 total
-- Mapped to phases: 17
+- v1.2 requirements: 15 total
+- Mapped to phases: 15
 - Unmapped: 0
 
 ---

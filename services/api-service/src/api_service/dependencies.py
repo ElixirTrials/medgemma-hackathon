@@ -20,7 +20,7 @@ def get_db() -> Generator[Session, None, None]:
         yield session
 
 
-def get_current_user(authorization: str = Header(...)) -> dict:
+def get_current_user(authorization: str | None = Header(default=None)) -> dict:
     """Extract and validate JWT from Authorization header.
 
     Expected format: Bearer <token>
@@ -31,8 +31,8 @@ def get_current_user(authorization: str = Header(...)) -> dict:
     Raises:
         HTTPException: 401 if token is missing, expired, or invalid.
     """
-    if not authorization.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Invalid auth header")
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid auth header")
 
     token = authorization[7:]
     try:

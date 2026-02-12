@@ -6,7 +6,7 @@ from typing import Set
 
 from events_py.outbox import OutboxProcessor
 from extraction_service.trigger import handle_protocol_uploaded
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from grounding_service.trigger import handle_criteria_extracted
@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
         if tracking_uri:
             mlflow.set_tracking_uri(tracking_uri)
             mlflow.set_experiment("protocol-processing")
-            mlflow.langchain.autolog(log_models=False)
+            mlflow.langchain.autolog()
             logger.info(
                 "MLflow initialized: tracking_uri=%s, experiment=protocol-processing",
                 tracking_uri,
@@ -97,7 +97,9 @@ app.add_middleware(
 
 # Configure CORS
 # In production, restrict origins to specific domains
-cors_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+cors_origins = os.getenv(
+    "CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173"
+).split(",")
 
 app.add_middleware(
     CORSMiddleware,
@@ -109,6 +111,19 @@ app.add_middleware(
 
 # Add MLflow request tracing middleware
 app.add_middleware(MLflowRequestMiddleware)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Catch unhandled exceptions and return JSON so CORS headers are preserved."""
+    logger.error(
+        "Unhandled exception on %s %s: %s", request.method, request.url.path, exc
+    )
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
 
 # Mount auth router (public endpoints - no auth required)
 app.include_router(auth_router)

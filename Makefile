@@ -1,7 +1,33 @@
 # Documentation Makefile for monorepo
 SHELL := /bin/bash
 
-.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test
+.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-api run-ui
+
+run-dev:
+	@echo "Starting infrastructure + API + UI..."
+	@echo "1. Starting DB and MLflow..."
+	docker compose -f infra/docker-compose.yml up -d db mlflow
+	@echo "2. Waiting for Postgres..."
+	@until docker compose -f infra/docker-compose.yml exec db pg_isready -U postgres 2>/dev/null; do sleep 1; done
+	@echo "3. Starting API (port 8000) and UI (port 5173)..."
+	@set -a && source .env && set +a && \
+	trap 'kill 0' EXIT; \
+	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port 8000 --app-dir services/api-service/src & \
+	cd apps/hitl-ui && npm run dev & \
+	wait
+
+run-infra:
+	@echo "Starting infrastructure services (DB, MLflow)..."
+	docker compose -f infra/docker-compose.yml up -d db mlflow
+
+run-api:
+	@echo "Starting API service on port 8000..."
+	@set -a && source .env && set +a && \
+	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port 8000 --app-dir services/api-service/src
+
+run-ui:
+	@echo "Starting UI dev server..."
+	cd apps/hitl-ui && npm run dev
 
 create-component:
 	@read -p "Enter component name: " COMPONENT_NAME; \
@@ -100,6 +126,12 @@ test:
 
 help:
 	@echo "ElixirTrials  - Makefile Commands"
+	@echo ""
+	@echo "Development:"
+	@echo "  make run-dev   - Start infra + API + UI (all-in-one)"
+	@echo "  make run-infra - Start DB, MLflow only"
+	@echo "  make run-api   - Start API service (port 8000)"
+	@echo "  make run-ui    - Start UI dev server (port 5173)"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make check           - Run linters, type checkers, and tests"
