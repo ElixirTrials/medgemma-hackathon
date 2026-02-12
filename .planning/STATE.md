@@ -10,18 +10,18 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 ## Current Position
 
 Phase: 7 of 7+3 (Production Hardening)
-Plan: 0 of TBD
-Status: Phase 6 complete, Phase 7 not yet planned
-Last activity: 2026-02-11 -- Phase 6 complete, verified, ready for Phase 7
+Plan: 1 of TBD
+Status: Phase 7 in progress - Plan 01 complete (protocol status state machine & dead-letter handling)
+Last activity: 2026-02-12 -- Plan 07-01 complete (6 min)
 
-Progress: [█████████████████░] 97%
+Progress: [█████████████████░] 98%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 20
-- Average duration: 7.9 min
-- Total execution time: 2.6 hours
+- Total plans completed: 21
+- Average duration: 7.8 min
+- Total execution time: 2.7 hours
 
 **By Phase:**
 
@@ -36,10 +36,11 @@ Progress: [█████████████████░] 97%
 | 05.2-test-coverage | 3 | 74 min | 24.7 min |
 | 05.3-rename-services-and-docs | 3 | 17 min | 5.7 min |
 | 06-entity-approval-auth-search | 2 | 16 min | 8 min |
+| 07-production-hardening | 1 | 6 min | 6 min |
 
 **Recent Trend:**
-- Last 5 plans: 05.3-02 (7 min), 05.3-03 (4 min), 06-01 (9 min), 06-02 (7 min)
-- Trend: Phase 6 complete - backend + frontend for auth, entity approval, search
+- Last 5 plans: 05.3-03 (4 min), 06-01 (9 min), 06-02 (7 min), 07-01 (6 min)
+- Trend: Phase 7 started - protocol status state machine & dead-letter handling
 
 *Updated after each plan completion*
 
@@ -114,6 +115,11 @@ Recent decisions affecting current work:
 - [06-02]: Debounce search input with 300ms delay to avoid excessive API calls
 - [06-02]: SNOMED badge with blue medical theme, UMLS CUI as clickable link to external browser
 - [06-02]: Show grounding confidence with same 3-tier badge as criteria confidence
+- [07-01]: ProtocolStatus enum stored as string in DB (not PostgreSQL enum type) for simplicity
+- [07-01]: error_reason field stores human-readable message, metadata_.error stores technical details
+- [07-01]: Failed events re-polled via status.in_(['pending', 'failed']) for retry logic
+- [07-01]: Lazy archival triggered on get_protocol access (7-day cutoff)
+- [07-01]: Used col() wrapper for mypy compatibility with in_() operator
 
 ### Pending Todos
 
@@ -131,6 +137,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-02-11
-Stopped at: Phase 6 complete and verified (7/7 must-haves passed). Ready for Phase 7 (Production Hardening).
+Last session: 2026-02-12
+Stopped at: Completed Phase 7 Plan 01 (protocol status state machine & dead-letter handling). Ready for Plan 07-02.
 Resume file: None
