@@ -12,7 +12,7 @@ status: current
 
 **Goal:** Get structured inclusion/exclusion criteria extracted automatically without manual data entry
 
-**Why it matters:** Manual criteria extraction takes 2-4 hours per protocol. This workflow automates the entire process, reducing time to approximately 5 minutes and ensuring consistent structured output for downstream grounding and review.
+**Why it matters:** Manual criteria extraction takes 2-4 hours per protocol. This workflow automates it, reducing time to approximately 5 minutes and ensuring consistent structure for downstream grounding and review.
 
 ## Runtime Flow
 
@@ -76,59 +76,54 @@ sequenceDiagram
 
 ### Setup: The Upload Experience
 
-When a clinical researcher uploads a protocol PDF, they're initiating an end-to-end automated pipeline that will extract structured eligibility criteria ready for human review. The upload mechanism is designed for reliability and performance at scale.
+When a clinical researcher uploads a protocol PDF, they're initiating an end-to-end automated pipeline that will extract structured criteria ready for human review and grounding.
 
-The upload happens client-side using Google Cloud Storage signed URLs. This architectural decision means large PDFs (50+ MB) never pass through our API servers, avoiding memory pressure and keeping upload latency low regardless of file size. The HITL UI first requests a signed URL from the API Service, then uploads the PDF directly to GCS using that time-limited URL.
+The upload happens client-side using Google Cloud Storage signed URLs. This design decision means large PDFs (50+ MB) never pass through our API servers, avoiding memory issues and keeping upload latency low. The HITL UI requests a signed URL from the API Service, then uploads the file directly to GCS—no sensitive protocol data traverses our backend during the upload phase.
 
-Once the upload completes, the API Service stores a Protocol record in PostgreSQL with key metadata: original filename, file size, page count (estimated from PDF metadata), and a unique file URI pointing to the GCS object. The status field is set to "uploaded", beginning the protocol's state progression through the pipeline.
-
-Critically, the API Service also creates an OutboxEvent record with type "ProtocolUploaded" in the same database transaction as the Protocol record. This transactional outbox pattern guarantees that the event won't be lost even if the API service crashes immediately after the Protocol is created—the event is durably persisted in the database, waiting to be processed.
+Once the upload completes, the API Service stores a Protocol record with metadata: page count, file size, and a file URI pointing to the GCS location. This metadata will be used in downstream stages to optimize processing (e.g., skipping OCR for text-native PDFs).
 
 ### Action: Asynchronous Extraction
 
-The real extraction work happens asynchronously, decoupled from the upload request-response cycle. This means the researcher gets instant feedback ("Protocol uploaded successfully!") while extraction runs in the background without blocking the UI.
+The real work happens asynchronously via the **transactional outbox pattern**. The API Service inserts an OutboxEvent record (`ProtocolUploaded`) in the same database transaction as the Protocol, guaranteeing the event won't be lost even if the service crashes immediately after.
 
-Within 5-10 seconds, the Outbox Processor service polls the database for pending OutboxEvent records and finds the ProtocolUploaded event. It triggers the Extraction Service's `handle_protocol_uploaded` function, passing the protocol ID and file URI as parameters.
+Within 5 seconds, the **Outbox Processor** polls pending events from the database and triggers the Extraction Service by calling its `handle_protocol_uploaded` function. This decoupling means the frontend gets an instant response ("Protocol uploaded successfully!") while extraction runs in the background.
 
-The Extraction Service follows a four-stage workflow powered by LangGraph:
+The **Extraction Service** follows a four-stage workflow:
 
-1. **Download**: Fetch the PDF from GCS using the file_uri. For large files, this uses streaming download to avoid loading the entire PDF into memory.
+1. **Download**: Fetch the PDF from GCS using the `file_uri` stored in the Protocol record
+2. **Parse**: Use **pymupdf4llm** to extract text, preserving tables and multi-column layouts. This tool is specifically designed for LLM input preparation and handles complex protocol formatting (e.g., nested inclusion/exclusion lists, tabular criteria) better than generic PDF parsers
+3. **Extract**: Send parsed text to **Gemini** with a specialized prompt that requests structured JSON output containing inclusion/exclusion criteria
+4. **Store**: Write a `CriteriaBatch` record (representing the full set of extracted criteria) and individual `Criteria` records to PostgreSQL
 
-2. **Parse**: Use pymupdf4llm to extract text while preserving document structure. This library is specifically chosen because it maintains tables, multi-column layouts, and formatting context that Gemini needs for accurate extraction. For a typical 50-page protocol, this step takes 10-15 seconds.
+Each criterion includes:
 
-3. **Extract**: Send the parsed text to Gemini API with a specialized prompt that requests structured JSON output. The prompt instructs Gemini to identify:
-   - **Type**: Inclusion or exclusion criterion
-   - **Category**: Demographic, medical history, biomarker, medication, procedure, etc.
-   - **Temporal constraints**: Time windows like "within 30 days of enrollment" or "at least 6 months prior"
-   - **Numeric thresholds**: Quantitative limits like "eGFR >= 60 mL/min" or "age 18-65 years"
-   - **Confidence score**: A 0.0-1.0 value indicating Gemini's certainty in the extraction
+- **Type**: `inclusion` or `exclusion`
+- **Category**: `demographic`, `medical_history`, `biomarker`, `medication`, `procedure`, or `other`
+- **Text**: The criterion as extracted from the protocol
+- **Temporal constraints**: If present (e.g., "within 30 days of enrollment")
+- **Numeric thresholds**: If present (e.g., "eGFR >= 60 mL/min")
+- **Confidence score**: 0.0 to 1.0, indicating Gemini's confidence in the extraction accuracy
 
-   Gemini returns a JSON array of criteria, each with these structured fields. For a protocol with 20-30 criteria, this extraction typically takes 30-60 seconds depending on Gemini API latency.
-
-4. **Store**: Write a CriteriaBatch record to PostgreSQL containing metadata about the extraction (model version, extraction timestamp, quality metrics), then insert individual Criteria records linked to the batch. Each criterion includes the extracted structured data plus the original text span from the protocol for human verification.
+The structured output from Gemini uses **JSON schema validation** to ensure criteria conform to the expected structure before being stored in the database.
 
 ### Resolution: Ready for Grounding
 
-Once all criteria are stored, the Extraction Service publishes a CriteriaExtracted event via the transactional outbox, triggering the next phase: entity grounding with UMLS and SNOMED CT codes (see [Grounding & HITL Review](./grounding-review.md)).
+Once all criteria are stored, the Extraction Service publishes a **CriteriaExtracted** event via the outbox. This triggers the next phase: entity grounding (see [Grounding & HITL Review Journey](./grounding-review.md)).
 
-From the researcher's perspective, they can check the protocol's status in the review queue. The status progresses through a visible state machine:
-- **uploading** → **extracting** → **grounding** → **pending_review**
+From the researcher's perspective, they can now see the protocol in their queue with status **"extracting"**. Once extraction completes (typically 2-3 minutes for a 50-page protocol), the status updates to **"grounding"** and eventually **"pending_review"** when ready for human validation.
 
-Once extraction completes (typically 2-3 minutes total for a 50-page protocol), the status updates to "grounding" and the extraction summary shows the number of criteria extracted. The researcher doesn't need to monitor this—they can navigate away and return later when the protocol reaches "pending_review" status.
-
-The asynchronous, event-driven architecture means researchers can upload multiple protocols in parallel without waiting for each extraction to complete. The system processes them concurrently, with each protocol progressing through the pipeline independently.
+The transactional outbox pattern guarantees **at-least-once delivery**: if the Extraction Service crashes mid-processing, the Outbox Processor will retry the event. The Extraction Service implements idempotency checks to avoid duplicate CriteriaBatch records on retries.
 
 ## What Could Go Wrong?
 
-This diagram shows the happy path only. For error scenarios and recovery mechanisms, see:
+This diagram shows the **happy path only**. For error scenarios, see future component documentation:
 
-- **PDF quality issues** (scanned images, corrupted files, password-protected PDFs): [API Service: PDF Quality Validation](../components/api-service.md#pdf-quality)
-- **Gemini extraction failures** (rate limits, timeouts, malformed responses): [Extraction Service: Error Handling](../components/extraction-service.md#error-handling)
-- **Timeout and retry logic** (transient failures, circuit breaker patterns): [Extraction Service: Retry Patterns](../components/extraction-service.md#retry-patterns)
-- **Dead letter queue** (permanently failed events after max retries): [System Architecture: Dead Letter Handling](../architecture/system-architecture.md#dead-letter-handling)
+- **PDF quality issues** (corrupted files, scanned images without OCR): API Service component docs (coming in Phase 11)
+- **Gemini extraction failures** (rate limits, malformed responses, low confidence scores): Extraction Service component docs (coming in Phase 11)
+- **Timeout and retry logic** (long-running extractions, transient failures): Extraction Service component docs (coming in Phase 11)
+- **Dead letter queue** (events that fail after max retries): See [System Architecture](../architecture/system-architecture.md) Production Hardening section
 
 ## Next Steps
 
-- **For users**: After extraction completes, protocols enter the grounding phase where medical entities are mapped to standardized UMLS and SNOMED codes. See [Grounding & HITL Review Journey](./grounding-review.md)
-
-- **For engineers**: To understand the extraction LangGraph workflow internals, state machine transitions, and prompt engineering details, see [Extraction Service Deep Dive](../components/extraction-service.md)
+- **For users:** After extraction completes, protocols enter the grounding phase where medical entities (diseases, drugs, biomarkers) are identified and linked to UMLS/SNOMED codes. See [Grounding & HITL Review Journey](./grounding-review.md)
+- **For engineers:** To understand the extraction LangGraph workflow internals, see Extraction Service component docs (coming in Phase 11)
