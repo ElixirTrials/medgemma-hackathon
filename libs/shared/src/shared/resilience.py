@@ -38,12 +38,14 @@ class MLflowCircuitBreakerListener(CircuitBreakerListener):
                 name=f"circuit_breaker_{cb.name}",
                 span_type="TOOL",
             ) as span:
-                span.set_inputs({
-                    "service": cb.name,
-                    "old_state": str(old_state),
-                    "new_state": str(new_state),
-                    "fail_counter": cb.fail_counter,
-                })
+                span.set_inputs(
+                    {
+                        "service": cb.name,
+                        "old_state": str(old_state),
+                        "new_state": str(new_state),
+                        "fail_counter": cb.fail_counter,
+                    }
+                )
         except Exception:
             logger.debug("MLflow circuit breaker logging failed", exc_info=True)
 

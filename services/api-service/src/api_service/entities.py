@@ -173,11 +173,13 @@ def submit_entity_action(
                 name=f"hitl_entity_{body.action}",
                 span_type="TOOL",
             ) as span:
-                span.set_inputs({
-                    "action": body.action,
-                    "reviewer_id": body.reviewer_id,
-                    "entity_id": entity_id,
-                })
+                span.set_inputs(
+                    {
+                        "action": body.action,
+                        "reviewer_id": body.reviewer_id,
+                        "entity_id": entity_id,
+                    }
+                )
     except Exception:
         logger.debug("MLflow entity review tracing failed", exc_info=True)
 

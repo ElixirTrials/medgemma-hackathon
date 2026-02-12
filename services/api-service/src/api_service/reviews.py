@@ -299,12 +299,14 @@ def submit_review_action(
                 name=f"hitl_review_{body.action}",
                 span_type="TOOL",
             ) as span:
-                span.set_inputs({
-                    "action": body.action,
-                    "reviewer_id": body.reviewer_id,
-                    "criteria_id": criteria_id,
-                    "batch_id": criterion.batch_id,
-                })
+                span.set_inputs(
+                    {
+                        "action": body.action,
+                        "reviewer_id": body.reviewer_id,
+                        "criteria_id": criteria_id,
+                        "batch_id": criterion.batch_id,
+                    }
+                )
     except Exception:
         logger.debug("MLflow HITL tracing failed", exc_info=True)
 
@@ -485,9 +487,7 @@ def _criterion_to_response(criterion: Criteria) -> CriterionResponse:
         text=criterion.text,
         temporal_constraint=criterion.temporal_constraint,
         conditions=(
-            criterion.conditions
-            if isinstance(criterion.conditions, dict)
-            else None
+            criterion.conditions if isinstance(criterion.conditions, dict) else None
         ),
         numeric_thresholds=(
             criterion.numeric_thresholds
