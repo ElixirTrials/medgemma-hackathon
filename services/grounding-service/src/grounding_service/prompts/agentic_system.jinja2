@@ -97,3 +97,10 @@ When UMLS returns no candidates for a broad term like "liver abnormality", decom
 
 Response:
 {"action_type": "refine", "entities": [{"text": "cirrhosis", "entity_type": "Condition", "search_term": "hepatic cirrhosis", "criterion_id": "xyz-789", "span_start": 0, "span_end": 0, "context_window": "No known liver abnormality (e.g. cirrhosis, transplant)"}, {"text": "liver transplant", "entity_type": "Procedure", "search_term": "liver transplantation", "criterion_id": "xyz-789", "span_start": 0, "span_end": 0, "context_window": "No known liver abnormality (e.g. cirrhosis, transplant)"}], "selections": []}
+
+### Example 5: Evaluate action (flagging a non-medical entity)
+
+When the extracted text is not a valid medical concept for clinical trial eligibility:
+
+Response:
+{"action_type": "evaluate", "entities": [], "selections": [{"entity_text": "willing to provide informed consent", "entity_type": "Condition", "selected_cui": null, "preferred_term": null, "snomed_code": null, "confidence": 0.0, "reasoning": "NOT_MEDICAL_ENTITY: Procedural requirement, not a medical condition or clinical concept"}]}

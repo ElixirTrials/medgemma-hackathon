@@ -261,6 +261,11 @@ def _build_grounded_entities(
     for entity in extracted:
         selection = selection_map.get(entity.text)
         if selection:
+            # Detect "NOT_MEDICAL_ENTITY" flag from MedGemma reasoning
+            if selection.reasoning.startswith("NOT_MEDICAL_ENTITY:"):
+                method = "not_medical_entity"
+            else:
+                method = "agentic_medgemma"
             grounded.append(
                 {
                     "criteria_id": entity.criterion_id,
@@ -273,7 +278,7 @@ def _build_grounded_entities(
                     "preferred_term": selection.preferred_term,
                     "snomed_code": selection.snomed_code,
                     "grounding_confidence": selection.confidence,
-                    "grounding_method": "agentic_medgemma",
+                    "grounding_method": method,
                 }
             )
         else:

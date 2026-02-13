@@ -18,23 +18,35 @@ If no good match exists, set selected_cui to null and confidence to 0.0.
 
 ## Handling entities with no UMLS candidates
 
-When an entity has "No candidates found", consider whether the extracted text is a **broad or compound medical concept** that doesn't map to a single UMLS concept. Examples:
-- "liver abnormality" (broad category, not a specific UMLS concept)
-- "clinically significant cardiac disease (e.g. CHF, MI, arrhythmia)"
-- "major organ dysfunction"
+When an entity has "No candidates found", use your medical knowledge to determine WHY and take the appropriate action:
 
-**If the entity text is a broad/compound term with no UMLS match**, you SHOULD respond with action_type="refine" and decompose it into specific sub-entities that each map to exactly one UMLS concept. Keep the same criterion_id for all decomposed entities. Each sub-entity should have its own search_term.
+### Option A: Try a synonym (action_type="refine")
+The entity IS a valid medical concept but the search term was wrong. Try a medically identical synonym.
+- "OA" → refine with search_term="osteoarthritis"
+- "heart attack" → refine with search_term="myocardial infarction"
+Keep the same entity, just change search_term.
 
-Example: If "liver abnormality" has no candidates, refine into:
-- "hepatic cirrhosis" (Condition, search_term="hepatic cirrhosis")
-- "liver transplant" (Procedure, search_term="liver transplantation")
-- "hepatic steatosis" (Condition, search_term="hepatic steatosis")
-Use your medical knowledge to determine the specific conditions/procedures that the broad term encompasses, especially when the criterion text provides examples (e.g., "e.g. cirrhosis, transplant").
+### Option B: Decompose a broad term (action_type="refine")
+The entity is a broad/compound medical category that doesn't have a single UMLS code. Decompose into specific sub-entities that each map to exactly one UMLS concept. Keep the same criterion_id. Use your medical knowledge to identify the specific conditions, especially when the criterion provides examples (e.g., "e.g. cirrhosis, transplant").
+- "liver abnormality (e.g. cirrhosis, transplant)" → refine with entities: "hepatic cirrhosis" (Condition), "liver transplantation" (Procedure)
+- "major organ dysfunction" → refine with entities: "heart failure" (Condition), "renal failure" (Condition), "hepatic failure" (Condition)
 
-**If the entity text is already a specific medical term** that simply wasn't found (e.g., a rare drug name or misspelling), use action_type="refine" with a corrected search_term instead.
+### Option C: Flag as not a medical entity (action_type="evaluate")
+The extracted text is NOT a valid medical entity for clinical trial eligibility. It may be a procedural requirement, logistical detail, or text that was incorrectly extracted as a medical entity. In this case, respond with action_type="evaluate" and set:
+- selected_cui: null
+- confidence: 0.0
+- reasoning: MUST start with "NOT_MEDICAL_ENTITY: " followed by explanation
+Examples of non-medical entities that should be flagged:
+- "willing to provide informed consent" (procedural, not medical)
+- "able to attend follow-up visits" (logistical)
+- "English-speaking" (not a medical inclusion criterion)
 
-**If you have already tried refining** and still have no matches, respond with action_type="evaluate" with selected_cui=null.
+### Decision order
+1. First: Is this actually a medical entity? If NO → Option C
+2. If YES: Is the search term wrong or is there a better synonym? If YES → Option A
+3. If synonym doesn't help: Is this a broad category that should be decomposed? If YES → Option B
+4. If none of the above: evaluate with selected_cui=null (genuine grounding failure)
 
 {% if iteration > 0 %}
-This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. You may refine search terms, decompose broad entities into specific sub-entities, or evaluate with the best available matches.
+This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. You may try synonyms, decompose broad entities, flag non-medical entities, or evaluate with the best available matches.
 {% endif %}
