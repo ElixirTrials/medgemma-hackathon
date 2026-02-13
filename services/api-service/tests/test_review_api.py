@@ -197,3 +197,226 @@ class TestAuditLog:
         r = test_client.get("/reviews/audit-log")
         assert r.status_code == 200
         assert r.json()["items"] == [] or "items" in r.json()
+
+
+class TestStructuredModify:
+    """POST /reviews/criteria/{criteria_id}/action with structured fields."""
+
+    def test_text_only_modify_still_works(self, test_client, db_session) -> None:
+        """Backward compat: text-only modify without structured fields."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id, text="Original text")
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_text": "Updated text",
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["text"] == "Updated text"
+        db_session.refresh(c)
+        assert c.temporal_constraint is None
+        assert c.numeric_thresholds is None
+        assert c.conditions is None
+
+    def test_structured_modify_temporal_constraint(
+        self, test_client, db_session
+    ) -> None:
+        """Structured modify: temporal_constraint only."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id)
+        temporal_data = {
+            "duration": "6 months",
+            "relation": "within",
+            "reference_point": "screening",
+        }
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_structured_fields": {"temporal_constraint": temporal_data},
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["temporal_constraint"] == temporal_data
+        db_session.refresh(c)
+        assert c.temporal_constraint == temporal_data
+
+    def test_structured_modify_numeric_thresholds(
+        self, test_client, db_session
+    ) -> None:
+        """Structured modify: numeric_thresholds only."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id)
+        thresholds_data = {"value": 18.0, "unit": "years", "comparator": ">="}
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_structured_fields": {"numeric_thresholds": thresholds_data},
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["numeric_thresholds"] == thresholds_data
+        db_session.refresh(c)
+        assert c.numeric_thresholds == thresholds_data
+
+    def test_structured_modify_conditions(self, test_client, db_session) -> None:
+        """Structured modify: conditions only."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id)
+        conditions_data = {"dependencies": ["if diabetic"]}
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_structured_fields": {"conditions": conditions_data},
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["conditions"] == conditions_data
+        db_session.refresh(c)
+        assert c.conditions == conditions_data
+
+    def test_structured_modify_all_fields(self, test_client, db_session) -> None:
+        """Structured modify: all three structured fields at once."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id)
+        temporal_data = {"duration": "3 months", "relation": "after"}
+        thresholds_data = {"value": 65.0, "unit": "years", "comparator": "<"}
+        conditions_data = {"dependencies": ["if pregnant", "and not diabetic"]}
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_structured_fields": {
+                    "temporal_constraint": temporal_data,
+                    "numeric_thresholds": thresholds_data,
+                    "conditions": conditions_data,
+                },
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["temporal_constraint"] == temporal_data
+        assert r.json()["numeric_thresholds"] == thresholds_data
+        assert r.json()["conditions"] == conditions_data
+        db_session.refresh(c)
+        assert c.temporal_constraint == temporal_data
+        assert c.numeric_thresholds == thresholds_data
+        assert c.conditions == conditions_data
+
+    def test_dual_write_text_and_structured(self, test_client, db_session) -> None:
+        """Dual-write pattern: both text and structured fields in one request."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id, text="Original text")
+        temporal_data = {"duration": "1 year", "relation": "within"}
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_text": "Updated text",
+                "modified_structured_fields": {"temporal_constraint": temporal_data},
+            },
+        )
+        assert r.status_code == 200
+        assert r.json()["text"] == "Updated text"
+        assert r.json()["temporal_constraint"] == temporal_data
+        db_session.refresh(c)
+        assert c.text == "Updated text"
+        assert c.temporal_constraint == temporal_data
+
+    def test_structured_modify_audit_log_schema_version(
+        self, test_client, db_session
+    ) -> None:
+        """Audit log includes schema_version=structured_v1 for structured modify."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id)
+        temporal_data = {"duration": "2 weeks", "relation": "before"}
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_structured_fields": {"temporal_constraint": temporal_data},
+            },
+        )
+        assert r.status_code == 200
+        audit_r = test_client.get(f"/reviews/audit-log?target_id={c.id}")
+        assert audit_r.status_code == 200
+        items = audit_r.json()["items"]
+        assert len(items) >= 1
+        log_entry = items[0]
+        assert log_entry["details"]["schema_version"] == "structured_v1"
+
+    def test_text_only_modify_audit_log_schema_version(
+        self, test_client, db_session
+    ) -> None:
+        """Audit log includes schema_version=text_v1 for text-only modify."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id, text="Original")
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_text": "Updated",
+            },
+        )
+        assert r.status_code == 200
+        audit_r = test_client.get(f"/reviews/audit-log?target_id={c.id}")
+        assert audit_r.status_code == 200
+        items = audit_r.json()["items"]
+        assert len(items) >= 1
+        log_entry = items[0]
+        assert log_entry["details"]["schema_version"] == "text_v1"
+
+    def test_structured_modify_before_after_includes_structured(
+        self, test_client, db_session
+    ) -> None:
+        """Audit log captures before/after values for structured fields."""
+        p = _add_protocol(db_session)
+        b = _add_batch(db_session, p.id)
+        c = _add_criterion(db_session, b.id)
+        # Set initial temporal_constraint
+        c.temporal_constraint = {"duration": "old duration", "relation": "old"}
+        db_session.add(c)
+        db_session.commit()
+        db_session.refresh(c)
+        # Modify with new temporal_constraint
+        new_temporal = {"duration": "new duration", "relation": "new"}
+        r = test_client.post(
+            f"/reviews/criteria/{c.id}/action",
+            json={
+                "action": "modify",
+                "reviewer_id": "user-1",
+                "modified_structured_fields": {"temporal_constraint": new_temporal},
+            },
+        )
+        assert r.status_code == 200
+        audit_r = test_client.get(f"/reviews/audit-log?target_id={c.id}")
+        assert audit_r.status_code == 200
+        items = audit_r.json()["items"]
+        assert len(items) >= 1
+        log_entry = items[0]
+        before = log_entry["details"]["before_value"]
+        after = log_entry["details"]["after_value"]
+        assert before["temporal_constraint"] == {
+            "duration": "old duration",
+            "relation": "old",
+        }
+        assert after["temporal_constraint"] == new_temporal
