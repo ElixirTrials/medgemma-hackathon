@@ -10,7 +10,9 @@ import {
 import { useState } from 'react';
 
 import type { EntityActionRequest, EntityResponse } from '../hooks/useEntities';
+import type { UmlsSearchResult } from '../hooks/useUmlsSearch';
 import { cn } from '../lib/utils';
+import { UmlsCombobox } from './UmlsCombobox';
 import { Button } from './ui/Button';
 
 interface EntityCardProps {
@@ -201,48 +203,53 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                 <div className="space-y-3 mb-3 border-t pt-3">
                     <div>
                         <label
-                            htmlFor={`edit-cui-${entity.id}`}
+                            htmlFor={`edit-umls-${entity.id}`}
                             className="block text-sm font-medium text-muted-foreground mb-1"
                         >
-                            UMLS CUI
+                            Search UMLS Concept
                         </label>
-                        <input
-                            id={`edit-cui-${entity.id}`}
-                            type="text"
-                            value={editCui}
-                            onChange={(e) => setEditCui(e.target.value)}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                    </div>
-                    <div>
-                        <label
-                            htmlFor={`edit-snomed-${entity.id}`}
-                            className="block text-sm font-medium text-muted-foreground mb-1"
-                        >
-                            SNOMED Code
-                        </label>
-                        <input
-                            id={`edit-snomed-${entity.id}`}
-                            type="text"
-                            value={editSnomed}
-                            onChange={(e) => setEditSnomed(e.target.value)}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        />
-                    </div>
-                    <div>
-                        <label
-                            htmlFor={`edit-term-${entity.id}`}
-                            className="block text-sm font-medium text-muted-foreground mb-1"
-                        >
-                            Preferred Term
-                        </label>
-                        <input
-                            id={`edit-term-${entity.id}`}
-                            type="text"
+                        <UmlsCombobox
                             value={editPreferredTerm}
-                            onChange={(e) => setEditPreferredTerm(e.target.value)}
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            onChange={(val) => setEditPreferredTerm(val)}
+                            onSelect={(result: UmlsSearchResult) => {
+                                setEditCui(result.cui);
+                                setEditSnomed(result.snomed_code);
+                                setEditPreferredTerm(result.preferred_term);
+                            }}
+                            placeholder="Search UMLS concepts..."
                         />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <label
+                                htmlFor={`edit-cui-${entity.id}`}
+                                className="block text-xs font-medium text-muted-foreground mb-1"
+                            >
+                                CUI
+                            </label>
+                            <input
+                                id={`edit-cui-${entity.id}`}
+                                type="text"
+                                value={editCui}
+                                onChange={(e) => setEditCui(e.target.value)}
+                                className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                        </div>
+                        <div>
+                            <label
+                                htmlFor={`edit-snomed-${entity.id}`}
+                                className="block text-xs font-medium text-muted-foreground mb-1"
+                            >
+                                SNOMED
+                            </label>
+                            <input
+                                id={`edit-snomed-${entity.id}`}
+                                type="text"
+                                value={editSnomed}
+                                onChange={(e) => setEditSnomed(e.target.value)}
+                                className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            />
+                        </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button size="sm" onClick={handleModifySave} disabled={isSubmitting}>
