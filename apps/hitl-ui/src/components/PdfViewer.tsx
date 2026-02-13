@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/TextLayer.css';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -13,12 +13,15 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 interface PdfViewerProps {
     url: string;
+    targetPage?: number | null;    // Page to scroll to (1-based)
+    highlightText?: string | null;  // Text to highlight on the target page
 }
 
-export default function PdfViewer({ url }: PdfViewerProps) {
+export default function PdfViewer({ url, targetPage, highlightText }: PdfViewerProps) {
     const [numPages, setNumPages] = useState<number | null>(null);
     const [pageNumber, setPageNumber] = useState(1);
     const [loadError, setLoadError] = useState<string | null>(null);
+    const [flashKey, setFlashKey] = useState(0);
 
     function onDocumentLoadSuccess({ numPages }: { numPages: number }) {
         setNumPages(numPages);
@@ -29,8 +32,47 @@ export default function PdfViewer({ url }: PdfViewerProps) {
         setLoadError(error.message || 'Failed to load PDF');
     }
 
+    // Navigate to targetPage when it changes
+    useEffect(() => {
+        if (targetPage && targetPage >= 1 && numPages && targetPage <= numPages) {
+            setPageNumber(targetPage);
+            setFlashKey(prev => prev + 1);
+        }
+    }, [targetPage, numPages]);
+
+    // Custom text renderer for highlighting
+    const textRenderer = useCallback(
+        (textItem: { str: string }) => {
+            if (!highlightText || pageNumber !== targetPage) {
+                return textItem.str;
+            }
+            // Case-insensitive search for highlight text within this text item
+            const lowerStr = textItem.str.toLowerCase();
+            const lowerHighlight = highlightText.toLowerCase();
+            // Only attempt highlight if the text item contains part of the search
+            // Use first 40 chars of highlightText for matching (criteria text can be very long)
+            const searchSnippet = lowerHighlight.slice(0, 40);
+            if (searchSnippet && lowerStr.includes(searchSnippet)) {
+                const startIdx = lowerStr.indexOf(searchSnippet);
+                const before = textItem.str.slice(0, startIdx);
+                const match = textItem.str.slice(startIdx, startIdx + searchSnippet.length);
+                const after = textItem.str.slice(startIdx + searchSnippet.length);
+                return `${before}<mark class="bg-yellow-200/80">${match}</mark>${after}`;
+            }
+            return textItem.str;
+        },
+        [highlightText, pageNumber, targetPage]
+    );
+
     return (
         <div className="h-full flex flex-col">
+            <style>{`
+                .react-pdf__Page__textContent mark {
+                    background-color: rgb(254 240 138 / 0.8);
+                    padding: 0 2px;
+                    border-radius: 2px;
+                }
+            `}</style>
             <div className="flex-1 overflow-auto flex justify-center bg-muted/30 p-4">
                 {loadError ? (
                     <div className="flex items-center justify-center h-full">
@@ -51,7 +93,13 @@ export default function PdfViewer({ url }: PdfViewerProps) {
                             </div>
                         }
                     >
-                        <Page pageNumber={pageNumber} width={500} />
+                        <div key={flashKey}>
+                            <Page
+                                pageNumber={pageNumber}
+                                width={500}
+                                customTextRenderer={textRenderer}
+                            />
+                        </div>
                     </Document>
                 )}
             </div>
