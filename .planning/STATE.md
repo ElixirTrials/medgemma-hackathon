@@ -9,23 +9,24 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 
 ## Current Position
 
-Phase: 22 — Backend Data Model + API Extension
+Phase: 23 — Core Structured Editor Component
 Plan: 01 of 1
 Status: Plan 01 complete
-Last activity: 2026-02-13 — Completed 22-01: Backend API Extension for Structured Field Edits
+Last activity: 2026-02-13 — Completed 23-01: Core Structured Editor Component
 
 Progress: ████████████████████ 100%
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 38
-- Average duration: 7.2 min
-- Total execution time: 4.85 hours
+- Total plans completed: 39
+- Average duration: 7.1 min
+- Total execution time: 4.92 hours
 
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                      |
 | ----- | ---- | -------- | ---------- | ------------------------------------------ |
+| 23    | 01   | 4 min    | 2026-02-13 | Core structured editor component           |
 | 22    | 01   | 3 min    | 2026-02-13 | Backend API extension for structured edits |
 
 ## Accumulated Context
@@ -47,6 +48,9 @@ Progress: ████████████████████ 100%
 - [Phase 22-01]: Use optional modified_structured_fields field for backward compatibility
 - [Phase 22-01]: Add schema_version to AuditLog details for versioned audit trail
 - [Phase 22-01]: Support dual-write pattern (text + structured in same request)
+- [Phase 23-01]: Discriminated union types for relation categories (standard/range/temporal)
+- [Phase 23-01]: State cleanup via useEffect prevents value leak between relation categories
+- [Phase 23-01]: Co-located sub-components in ValueInput.tsx for simplicity
 
 ### Cauldron Reference (v1.5)
 
@@ -79,6 +83,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 22-01 (Backend API Extension for Structured Field Edits)
-Resume file: .planning/phases/22-backend-data-model-api-extension/22-01-SUMMARY.md
-Next action: Review ROADMAP.md to identify next phase for v1.5
+Stopped at: Completed Phase 23-01 (Core Structured Editor Component)
+Resume file: .planning/phases/23-core-structured-editor-component/23-01-SUMMARY.md
+Next action: Review ROADMAP.md to identify next phase for v1.5 (likely Phase 24: CriterionCard integration)
