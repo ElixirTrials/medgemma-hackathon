@@ -10,18 +10,23 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 ## Current Position
 
 Phase: 22 — Backend Data Model + API Extension
-Plan: Not yet planned
-Status: Roadmap complete, ready for planning
-Last activity: 2026-02-13 — v1.5 roadmap defined (Phases 22-28)
+Plan: 01 of 1
+Status: Plan 01 complete
+Last activity: 2026-02-13 — Completed 22-01: Backend API Extension for Structured Field Edits
 
-Progress: ░░░░░░░░░░░░░░░░░░░░ 0%
+Progress: ████████████████████ 100%
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 37
-- Average duration: 7.3 min
-- Total execution time: 4.8 hours
+- Total plans completed: 38
+- Average duration: 7.2 min
+- Total execution time: 4.85 hours
+
+**Recent Plans:**
+| Phase | Plan | Duration | Date       | Notes                                      |
+| ----- | ---- | -------- | ---------- | ------------------------------------------ |
+| 22    | 01   | 3 min    | 2026-02-13 | Backend API extension for structured edits |
 
 ## Accumulated Context
 
@@ -39,6 +44,9 @@ Progress: ░░░░░░░░░░░░░░░░░░░░ 0%
 - v1.5: Cauldron-style field mapping editor as reference implementation for HITL editing
 - v1.5: Keep side-by-side view, add scroll-to-source on criterion click
 - v1.5: Three editable structured components: entity (SNOMED/UMLS), relation (comparator), value
+- [Phase 22-01]: Use optional modified_structured_fields field for backward compatibility
+- [Phase 22-01]: Add schema_version to AuditLog details for versioned audit trail
+- [Phase 22-01]: Support dual-write pattern (text + structured in same request)
 
 ### Cauldron Reference (v1.5)
 
@@ -55,7 +63,7 @@ Key patterns from Cauldron's CriteriaEditPanel:
 
 - CriterionCard: text/type/category editable, but NOT relation/value/threshold
 - EntityCard: UMLS CUI/SNOMED/preferred_term editable (modify mode exists)
-- No API endpoint for modified_numeric_thresholds or modified_temporal_constraint
+- ~~No API endpoint for modified_numeric_thresholds or modified_temporal_constraint~~ ✅ Done (22-01)
 - No evidence linking (click-to-scroll to protocol source text)
 - No rationale capture for edits
 - No multi-mapping per criterion
@@ -71,6 +79,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: v1.5 roadmap defined (Phases 22-28)
-Resume file: .planning/ROADMAP.md
-Next action: /gsd:plan-phase 22
+Stopped at: Completed Phase 22-01 (Backend API Extension for Structured Field Edits)
+Resume file: .planning/phases/22-backend-data-model-api-extension/22-01-SUMMARY.md
+Next action: Review ROADMAP.md to identify next phase for v1.5
