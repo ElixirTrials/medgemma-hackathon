@@ -5,31 +5,29 @@
 See: .planning/PROJECT.md (updated 2026-02-13)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** v1.5 Structured Criteria Editor — Full field mapping editor with evidence linking
+**Current focus:** v1.6 Correction Workflow & Corpus Building — Editor polish + gold-standard corpus for prompt iteration
 
 ## Current Position
 
-Phase: 27 — Multi-Mapping Support
-Plan: 01 of 1
-Status: Phase complete
-Last activity: 2026-02-13 — Completed 27-01: Multi-Mapping Support for Structured Criteria
-
-Progress: ████████████████████ 100%
+Phase: 28 (complete)
+Plan: —
+Status: Phase 28 complete, all v1.5 plans done
+Last activity: 2026-02-13 — Phase 28 completed (Evidence Linking UI)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 44
+- Total plans completed: 45
 - Average duration: 6.6 min
-- Total execution time: 5.20 hours
+- Total execution time: 5.33 hours
 
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                           |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------- |
+| 28    | 02   | 8 min    | 2026-02-13 | Evidence linking UI with click-to-scroll        |
 | 27    | 01   | 6 min    | 2026-02-13 | Multi-mapping support for structured criteria   |
 | 28    | 01   | 4 min    | 2026-02-13 | Page number data pipeline                       |
 | 26    | 01   | 3 min    | 2026-02-13 | Rationale capture for review actions            |
-| 25    | 02   | 2 min    | 2026-02-13 | Frontend UMLS autocomplete system               |
 
 ## Accumulated Context
 
@@ -67,7 +65,10 @@ Progress: ████████████████████ 100%
 - [Phase 27-01]: Store field_mappings in conditions JSONB column (general-purpose field, separate from legacy temporal/threshold)
 - [Phase 27-01]: Minimum 1 mapping enforcement via disabled remove button (UI constraint clearer than validation error)
 - [Phase 27-01]: v1.5-multi schema_version for audit logs (enables filtering multi-mapping edits)
-- [Phase 28]: page_number as optional int | None for backward compatibility
+- [Phase 28-01]: page_number as optional int | None for backward compatibility
+- [Phase 28-02]: Use first 40 chars of criterion text for highlight matching (full criteria text can be very long)
+- [Phase 28-02]: Toggle selection pattern (clicking same criterion deselects it)
+- [Phase 28-02]: Only show click affordance when page_number exists (graceful degradation)
 
 ### Cauldron Reference (v1.5)
 
@@ -89,7 +90,7 @@ Key patterns from Cauldron's CriteriaEditPanel:
 - ~~No rationale capture for edits~~ ✅ Done (26-01 - optional rationale textarea in modify mode)
 - ~~No page_number data pipeline~~ ✅ Done (28-01 - page_number flows from extraction to API)
 - ~~No multi-mapping per criterion~~ ✅ Done (27-01 - useFieldArray with add/remove buttons, field_mappings array storage)
-- No PDF viewer with scroll-to-source (need to wire page_number → PDF scroll)
+- ~~No PDF viewer with scroll-to-source~~ ✅ Done (28-02 - click-to-scroll with text highlighting)
 - No display of field_mappings in non-edit mode (saved mappings not shown as badges)
 - No initialValues population from saved field_mappings (editor always starts with 1 empty mapping)
 
@@ -104,6 +105,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 27-01 (Multi-Mapping Support for Structured Criteria)
-Resume file: .planning/phases/27-multi-mapping-support/27-01-SUMMARY.md
-Next action: Phase 27 complete. Ready for next phase planning.
+Stopped at: Completed Phase 28-02 (Evidence Linking UI)
+Resume file: .planning/phases/28-pdf-scroll-to-source-evidence-linking/28-02-SUMMARY.md
+Next action: Phase 28 complete. All v1.5 plans done. Ready for v1.6 planning (Correction Workflow & Corpus Building).
