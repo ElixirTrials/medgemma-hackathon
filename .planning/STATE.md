@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 Phase: 28 (complete)
 Plan: —
 Status: Phase 28 complete, all v1.5 plans done
-Last activity: 2026-02-13 — Phase 28 completed (Evidence Linking UI)
+Last activity: 2026-02-13 — Completed quick task 2: Fix MedGemma entity decomposition
 
 ## Performance Metrics
 
@@ -102,9 +102,16 @@ None.
 
 None.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 2 | Fix MedGemma entity extraction to split compound criteria into individual UMLS/SNOMED concepts | 2026-02-13 | 8f0ee8b | [2-fix-medgemma-entity-extraction-to-split-](./quick/2-fix-medgemma-entity-extraction-to-split-/) |
+| 3 | Switch PDF extraction to Gemini File API (google.genai.Client, removes 20MB base64 limit) | 2026-02-13 | d65042f | [3-switch-pdf-extraction-to-gemini-file-api](./quick/3-switch-pdf-extraction-to-gemini-file-api/) |
+
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 28-02 (Evidence Linking UI)
-Resume file: .planning/phases/28-pdf-scroll-to-source-evidence-linking/28-02-SUMMARY.md
-Next action: Phase 28 complete. All v1.5 plans done. Ready for v1.6 planning (Correction Workflow & Corpus Building).
+Stopped at: Completed quick task 3: Switch PDF extraction to Gemini File API
+Resume file: .planning/quick/3-switch-pdf-extraction-to-gemini-file-api/3-SUMMARY.md
+Next action: Ready for v1.6 planning or next quick task.
