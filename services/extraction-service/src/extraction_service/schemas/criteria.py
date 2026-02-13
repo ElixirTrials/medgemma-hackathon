@@ -159,6 +159,14 @@ class ExtractedCriterion(BaseModel):
         default=None,
         description="Section header where this criterion was found in the protocol",
     )
+    page_number: int | None = Field(
+        default=None,
+        description=(
+            "The 1-based page number in the PDF where this criterion appears. "
+            "Report the page where the criterion text begins. "
+            "If the criterion spans multiple pages, report the first page."
+        ),
+    )
 
 
 class ExtractionResult(BaseModel):

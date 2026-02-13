@@ -89,6 +89,7 @@ class Criteria(SQLModel, table=True):
     assertion_status: str | None = Field(default=None)
     confidence: float = Field(default=1.0)
     source_section: str | None = Field(default=None)
+    page_number: int | None = Field(default=None)
     review_status: str | None = Field(default=None)
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
