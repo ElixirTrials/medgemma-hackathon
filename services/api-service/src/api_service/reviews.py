@@ -125,6 +125,7 @@ def list_batches(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None),
+    protocol_id: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> BatchListResponse:
     """List criteria batches with pagination, protocol info, and review progress.
@@ -138,12 +139,16 @@ def list_batches(
     count_stmt = select(func.count()).select_from(CriteriaBatch)
     if status:
         count_stmt = count_stmt.where(CriteriaBatch.status == status)
+    if protocol_id:
+        count_stmt = count_stmt.where(CriteriaBatch.protocol_id == protocol_id)
     total = db.exec(count_stmt).one()
 
     # Build data query
     data_stmt = select(CriteriaBatch)
     if status:
         data_stmt = data_stmt.where(CriteriaBatch.status == status)
+    if protocol_id:
+        data_stmt = data_stmt.where(CriteriaBatch.protocol_id == protocol_id)
     data_stmt = (
         data_stmt.offset((page - 1) * page_size)
         .limit(page_size)

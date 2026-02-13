@@ -1,9 +1,10 @@
-import { AlertTriangle, ArrowLeft, Check, Copy, Loader2 } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { useProtocol, useRetryProtocol } from '../hooks/useProtocols';
+import { useBatchesByProtocol } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -139,7 +140,9 @@ function QualityBar({ score }: { score: number }) {
 
 export default function ProtocolDetail() {
     const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
     const { data: protocol, isLoading, error } = useProtocol(id ?? '');
+    const { data: batchData } = useBatchesByProtocol(id ?? '');
 
     if (isLoading) {
         return (
@@ -287,10 +290,18 @@ export default function ProtocolDetail() {
             </div>
 
             {/* Actions */}
-            <div className="mt-6">
+            <div className="mt-6 flex items-center gap-3">
                 <Button variant="outline" asChild>
                     <Link to="/protocols">Back to List</Link>
                 </Button>
+                {batchData?.items?.[0] && (
+                    <Button
+                        onClick={() => navigate(`/reviews/${batchData.items[0].id}`)}
+                    >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Review Criteria ({batchData.items[0].criteria_count})
+                    </Button>
+                )}
             </div>
         </div>
     );

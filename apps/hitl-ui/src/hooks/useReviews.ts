@@ -125,6 +125,17 @@ export function useBatchList(page: number, pageSize: number, status?: string) {
     });
 }
 
+export function useBatchesByProtocol(protocolId: string) {
+    return useQuery({
+        queryKey: ['review-batches', 'protocol', protocolId],
+        queryFn: () =>
+            fetchApi<BatchListResponse>(
+                `/reviews/batches?protocol_id=${encodeURIComponent(protocolId)}`
+            ),
+        enabled: !!protocolId,
+    });
+}
+
 export function useBatchCriteria(batchId: string, sortBy?: string, sortOrder?: string) {
     const params = new URLSearchParams();
     if (sortBy) {
