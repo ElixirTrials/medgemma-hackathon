@@ -9,25 +9,26 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 
 ## Current Position
 
-Phase: 23 — Core Structured Editor Component
-Plan: 01 of 1
+Phase: 25 — UMLS Concept Search Autocomplete
+Plan: 02 of 2
 Status: Plan 01 complete
-Last activity: 2026-02-13 — Completed 23-01: Core Structured Editor Component
+Last activity: 2026-02-13 — Completed 25-01: UMLS Search Proxy Endpoint
 
-Progress: ████████████████████ 100%
+Progress: ██████████░░░░░░░░░░ 50%
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 39
-- Average duration: 7.1 min
-- Total execution time: 4.92 hours
+- Total plans completed: 40
+- Average duration: 7.0 min
+- Total execution time: 4.97 hours
 
 **Recent Plans:**
-| Phase | Plan | Duration | Date       | Notes                                      |
-| ----- | ---- | -------- | ---------- | ------------------------------------------ |
-| 23    | 01   | 4 min    | 2026-02-13 | Core structured editor component           |
-| 22    | 01   | 3 min    | 2026-02-13 | Backend API extension for structured edits |
+| Phase | Plan | Duration | Date       | Notes                                           |
+| ----- | ---- | -------- | ---------- | ----------------------------------------------- |
+| 25    | 01   | 3 min    | 2026-02-13 | UMLS search proxy endpoint                      |
+| 24    | 01   | 2 min    | 2026-02-13 | CriterionCard integration review workflow       |
+| 23    | 01   | 4 min    | 2026-02-13 | Core structured editor component                |
 
 ## Accumulated Context
 
@@ -51,6 +52,10 @@ Progress: ████████████████████ 100%
 - [Phase 23-01]: Discriminated union types for relation categories (standard/range/temporal)
 - [Phase 23-01]: State cleanup via useEffect prevents value leak between relation categories
 - [Phase 23-01]: Co-located sub-components in ValueInput.tsx for simplicity
+- [Phase 24]: 3-mode editMode state (none/text/structured) prevents impossible states like both modes active simultaneously
+- [Phase 24]: useEffect to sync local edit state when criterion prop changes ensures text fields reflect latest data after mutation
+- [Phase 25-01]: UMLS search proxy uses "Clinical Finding" as semantic_type default (search API doesn't return semantic types)
+- [Phase 25-01]: Error mapping: 502 for UMLS API errors, 503 for missing UMLS_API_KEY configuration
 
 ### Cauldron Reference (v1.5)
 
@@ -65,12 +70,13 @@ Key patterns from Cauldron's CriteriaEditPanel:
 
 ### Current System Gaps (v1.5 scope)
 
-- CriterionCard: text/type/category editable, but NOT relation/value/threshold
+- ~~CriterionCard: text/type/category editable, but NOT relation/value/threshold~~ ✅ Done (24-01 - structured editor toggle added)
 - EntityCard: UMLS CUI/SNOMED/preferred_term editable (modify mode exists)
 - ~~No API endpoint for modified_numeric_thresholds or modified_temporal_constraint~~ ✅ Done (22-01)
 - No evidence linking (click-to-scroll to protocol source text)
 - No rationale capture for edits
 - No multi-mapping per criterion
+- No UMLS autocomplete in entity field (Phase 25-02 pending)
 
 ### Pending Todos
 
@@ -83,6 +89,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 23-01 (Core Structured Editor Component)
-Resume file: .planning/phases/23-core-structured-editor-component/23-01-SUMMARY.md
-Next action: Review ROADMAP.md to identify next phase for v1.5 (likely Phase 24: CriterionCard integration)
+Stopped at: Completed Phase 25-01 (UMLS Search Proxy Endpoint)
+Resume file: .planning/phases/25-umls-concept-search-autocomplete/25-01-SUMMARY.md
+Next action: Execute Phase 25-02 (Frontend autocomplete component using /api/umls/search endpoint)
