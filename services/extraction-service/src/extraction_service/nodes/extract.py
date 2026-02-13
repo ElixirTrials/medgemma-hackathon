@@ -1,21 +1,22 @@
 """Extract node: call Gemini with structured output for criteria extraction.
 
-This node invokes ChatGoogleGenerativeAI.with_structured_output(ExtractionResult)
+This node invokes google.genai.Client with File API upload for PDF handling
 using Jinja2-rendered system and user prompts. The output is a list of
 criteria dicts ready for post-processing by the parse node.
 """
 
 from __future__ import annotations
 
-import base64
 import logging
 import os
+import tempfile
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
+from google import genai
+from google.genai import types
 from inference.factory import render_prompts
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import ValidationError
 from shared.resilience import gemini_breaker
 from tenacity import (
     before_sleep_log,
@@ -32,6 +33,34 @@ logger = logging.getLogger(__name__)
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
+# Max length when formatting validation errors (avoids huge console dumps)
+_VALIDATION_ERROR_STR_MAX = 200
+
+
+def _truncate(s: str, max_len: int = _VALIDATION_ERROR_STR_MAX) -> str:
+    """Truncate string for safe inclusion in error messages."""
+    if len(s) <= max_len:
+        return s
+    return s[:max_len] + "..."
+
+
+def _format_validation_error(err: ValidationError) -> str:
+    """Format ValidationError with truncated input/context for safe logging."""
+    errors = err.errors()
+    parts = [f"ValidationError ({len(errors)} error(s))"]
+    for e in errors:
+        loc = ".".join(str(x) for x in e.get("loc", ()))
+        msg = e.get("msg", "")
+        ctx = e.get("ctx") or {}
+        inp = e.get("input")
+        part = f"  {loc}: {msg}"
+        if ctx:
+            part += f" (ctx: {_truncate(str(ctx))})"
+        if inp is not None:
+            part += f" | input: {_truncate(str(inp))}"
+        parts.append(part)
+    return "\n".join(parts)
+
 
 @gemini_breaker
 @retry(
@@ -42,27 +71,44 @@ PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
     reraise=True,
 )
 async def _invoke_gemini(
-    structured_llm: Any, messages: list[SystemMessage | HumanMessage]
+    client: genai.Client,
+    model: str,
+    uploaded_file: types.File,
+    system_prompt: str,
+    user_prompt: str,
 ) -> ExtractionResult:
     """Invoke Gemini with retry and circuit breaker.
 
     Args:
-        structured_llm: LLM instance with structured output.
-        messages: List of system and user messages (supports multimodal content).
+        client: Google GenAI client instance.
+        model: Model name to use.
+        uploaded_file: Uploaded PDF file from File API.
+        system_prompt: System instruction.
+        user_prompt: User prompt text.
 
     Returns:
         ExtractionResult from Gemini.
     """
-    result = await structured_llm.ainvoke(messages)
+    response = await client.aio.models.generate_content(
+        model=model,
+        contents=[uploaded_file, user_prompt],
+        config=types.GenerateContentConfig(
+            system_instruction=system_prompt,
+            response_mime_type="application/json",
+            response_schema=ExtractionResult,
+        ),
+    )
 
-    # Handle both Pydantic model and dict responses
-    if isinstance(result, dict):
-        return ExtractionResult(**result)
-    return cast(ExtractionResult, result)
+    # Return parsed Pydantic model directly
+    if response.parsed is not None:
+        return response.parsed
+
+    # Fallback to parsing response.text if parsed is None
+    return ExtractionResult.model_validate_json(response.text)
 
 
 async def extract_node(state: ExtractionState) -> dict[str, Any]:
-    """Extract structured criteria from PDF using Gemini multimodal input.
+    """Extract structured criteria from PDF using Gemini File API.
 
     Args:
         state: Current extraction state with pdf_bytes and title.
@@ -73,28 +119,22 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
+    tmp_path = None
+    uploaded_file = None
+    client = None
+
     try:
-        # Encode PDF as base64
-        pdf_base64 = base64.b64encode(state["pdf_bytes"]).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{pdf_base64}"
+        # Instantiate client
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
-        # Warn if approaching size limit
-        encoded_size_mb = len(pdf_base64) / (1024 * 1024)
-        if encoded_size_mb > 18:
-            logger.warning(
-                "PDF size after base64 encoding: %.2f MB (approaching 20MB limit)",
-                encoded_size_mb,
-            )
+        # Write PDF to temp file for File API upload
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(state["pdf_bytes"])
+            tmp_path = tmp.name
 
-        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-3-flash-preview")
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            temperature=0,
-            vertexai=True,
-            project=os.getenv("GCP_PROJECT_ID"),
-            location=os.getenv("GCP_REGION", "us-central1"),
-        )
-        structured_llm = llm.with_structured_output(ExtractionResult)
+        # Upload via File API
+        uploaded_file = client.files.upload(file=tmp_path)
 
         system_prompt, user_prompt = render_prompts(
             prompts_dir=PROMPTS_DIR,
@@ -105,28 +145,26 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
             },
         )
 
-        # Construct multimodal messages
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(
-                content=[
-                    {"type": "text", "text": user_prompt},
-                    {"type": "image_url", "image_url": {"url": pdf_data_uri}},
-                ]
-            ),
-        ]
-
-        extraction_result = await _invoke_gemini(structured_llm, messages)
-
+        extraction_result = await _invoke_gemini(
+            client, model_name, uploaded_file, system_prompt, user_prompt
+        )
         criteria_dicts = [c.model_dump() for c in extraction_result.criteria]
 
         logger.info(
-            "Extracted %d criteria from protocol %s (PDF multimodal input)",
+            "Extracted %d criteria from protocol %s (Gemini File API)",
             len(criteria_dicts),
             state["protocol_id"],
         )
         return {"raw_criteria": criteria_dicts}
 
+    except ValidationError as e:
+        msg = _format_validation_error(e)
+        logger.error(
+            "Extraction validation failed for protocol %s: %s",
+            state.get("protocol_id", "unknown"),
+            msg,
+        )
+        return {"error": f"Extraction failed (validation): {msg}"}
     except Exception as e:
         logger.exception(
             "Extraction failed for protocol %s: %s",
@@ -134,3 +172,17 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
             e,
         )
         return {"error": f"Extraction failed: {e}"}
+    finally:
+        # Clean up temp file
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception as cleanup_err:
+                logger.warning("Failed to delete temp file %s: %s", tmp_path, cleanup_err)
+
+        # Clean up uploaded file
+        if uploaded_file and client:
+            try:
+                client.files.delete(name=uploaded_file.name)
+            except Exception as cleanup_err:
+                logger.warning("Failed to delete uploaded file %s: %s", uploaded_file.name, cleanup_err)
