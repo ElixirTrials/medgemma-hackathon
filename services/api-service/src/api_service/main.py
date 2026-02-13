@@ -104,7 +104,8 @@ app.add_middleware(
 # Configure CORS
 # In production, restrict origins to specific domains
 cors_origins = os.getenv(
-    "CORS_ORIGINS", "http://localhost:3000,http://localhost:3001,http://localhost:5173"
+    "CORS_ORIGINS",
+    "http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:5173,http://localhost:5174",
 ).split(",")
 
 app.add_middleware(
