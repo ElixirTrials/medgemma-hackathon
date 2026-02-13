@@ -24,7 +24,7 @@ For each entity, provide:
 
 1. Extract the EXACT text from the criterion -- do not paraphrase or normalize
 2. Include numeric values with their units when they are part of the entity (e.g., "HbA1c < 7%" not just "HbA1c")
-3. For compound criteria with lists of conditions (e.g., parenthetical examples, "such as" clauses), extract EACH specific condition as a separate entity. Each entity must be an atomic medical concept mappable to one UMLS CUI. For example, "liver abnormality (e.g. cirrhosis, transplant)" should produce 3 entities: "liver abnormality", "cirrhosis", "transplant" -- NOT one entity with the full text.
+3. For compound entities, extract the most specific term (e.g., "Type 2 diabetes mellitus" not just "diabetes")
 4. Do NOT extract generic terms like "patient", "subject", "history", "diagnosis"
 5. Each entity must have accurate span positions that match the source text
 6. Extract ALL entities from each criterion -- do not skip any
