@@ -10,7 +10,7 @@ import PdfViewer from '../components/PdfViewer';
 import { Button } from '../components/ui/Button';
 import type { EntityActionRequest, EntityResponse } from '../hooks/useEntities';
 import { useEntityAction, useEntityListByBatch } from '../hooks/useEntities';
-import type { ReviewActionRequest } from '../hooks/useReviews';
+import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import {
     useAuditLog,
     useBatchCriteria,
@@ -36,6 +36,7 @@ export default function ReviewPage() {
     const [sortOrder, setSortOrder] = useState('asc');
     const [auditOpen, setAuditOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('criteria');
+    const [activeCriterion, setActiveCriterion] = useState<Criterion | null>(null);
 
     // Fetch batch criteria
     const {
@@ -67,6 +68,15 @@ export default function ReviewPage() {
 
     function handleEntityAction(entityId: string, action: EntityActionRequest) {
         entityAction.mutate({ entityId, ...action });
+    }
+
+    function handleCriterionClick(criterion: Criterion) {
+        // Toggle: clicking the same criterion deselects it
+        if (activeCriterion?.id === criterion.id) {
+            setActiveCriterion(null);
+        } else {
+            setActiveCriterion(criterion);
+        }
     }
 
     const reviewedCount = criteria?.filter((c) => c.review_status !== null).length ?? 0;
@@ -128,7 +138,11 @@ export default function ReviewPage() {
                                     <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
                                 </div>
                             ) : pdfData?.url ? (
-                                <PdfViewer url={pdfData.url} />
+                                <PdfViewer
+                                    url={pdfData.url}
+                                    targetPage={activeCriterion?.page_number ?? null}
+                                    highlightText={activeCriterion?.text ?? null}
+                                />
                             ) : (
                                 <div className="flex items-center justify-center h-full">
                                     <p className="text-muted-foreground">No PDF available</p>
@@ -258,6 +272,8 @@ export default function ReviewPage() {
                                                 criterion={criterion}
                                                 onAction={handleAction}
                                                 isSubmitting={reviewAction.isPending}
+                                                onCriterionClick={handleCriterionClick}
+                                                isActive={activeCriterion?.id === criterion.id}
                                             />
                                         ))
                                     ) : (

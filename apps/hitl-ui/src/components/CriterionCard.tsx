@@ -10,6 +10,8 @@ interface CriterionCardProps {
     criterion: Criterion;
     onAction: (criterionId: string, action: ReviewActionRequest) => void;
     isSubmitting: boolean;
+    onCriterionClick?: (criterion: Criterion) => void;  // NEW
+    isActive?: boolean;  // NEW - whether this criterion is the active/highlighted one
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
@@ -141,7 +143,7 @@ function extractThresholdsList(
 
 type EditMode = 'none' | 'text' | 'structured';
 
-export default function CriterionCard({ criterion, onAction, isSubmitting }: CriterionCardProps) {
+export default function CriterionCard({ criterion, onAction, isSubmitting, onCriterionClick, isActive }: CriterionCardProps) {
     const [editMode, setEditMode] = useState<EditMode>('none');
     const [editText, setEditText] = useState(criterion.text);
     const [editType, setEditType] = useState(criterion.criteria_type);
@@ -222,6 +224,11 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
                 )}
                 <ConfidenceBadge confidence={criterion.confidence} />
                 <ReviewStatusBadge status={criterion.review_status} />
+                {criterion.page_number != null && (
+                    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600 ml-auto">
+                        p.{criterion.page_number}
+                    </span>
+                )}
             </div>
 
             {/* Body */}
@@ -319,7 +326,21 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
                     />
                 </div>
             ) : (
-                <p className="text-sm text-foreground mb-3">{criterion.text}</p>
+                <p
+                    className={cn(
+                        "text-sm text-foreground mb-3",
+                        criterion.page_number != null && "cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 transition-colors",
+                        isActive && "bg-accent/30 rounded px-1 -mx-1"
+                    )}
+                    onClick={() => {
+                        if (criterion.page_number != null && onCriterionClick) {
+                            onCriterionClick(criterion);
+                        }
+                    }}
+                    title={criterion.page_number != null ? `Click to view source (page ${criterion.page_number})` : undefined}
+                >
+                    {criterion.text}
+                </p>
             )}
 
             {/* Assertion status tag */}
