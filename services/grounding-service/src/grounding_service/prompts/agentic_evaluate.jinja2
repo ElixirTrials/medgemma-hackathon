@@ -15,8 +15,26 @@ UMLS candidates:
 
 Respond with a JSON object. For each entity, select the best matching CUI and SNOMED code.
 If no good match exists, set selected_cui to null and confidence to 0.0.
+
+## Handling entities with no UMLS candidates
+
+When an entity has "No candidates found", consider whether the extracted text is a **broad or compound medical concept** that doesn't map to a single UMLS concept. Examples:
+- "liver abnormality" (broad category, not a specific UMLS concept)
+- "clinically significant cardiac disease (e.g. CHF, MI, arrhythmia)"
+- "major organ dysfunction"
+
+**If the entity text is a broad/compound term with no UMLS match**, you SHOULD respond with action_type="refine" and decompose it into specific sub-entities that each map to exactly one UMLS concept. Keep the same criterion_id for all decomposed entities. Each sub-entity should have its own search_term.
+
+Example: If "liver abnormality" has no candidates, refine into:
+- "hepatic cirrhosis" (Condition, search_term="hepatic cirrhosis")
+- "liver transplant" (Procedure, search_term="liver transplantation")
+- "hepatic steatosis" (Condition, search_term="hepatic steatosis")
+Use your medical knowledge to determine the specific conditions/procedures that the broad term encompasses, especially when the criterion text provides examples (e.g., "e.g. cirrhosis, transplant").
+
+**If the entity text is already a specific medical term** that simply wasn't found (e.g., a rare drug name or misspelling), use action_type="refine" with a corrected search_term instead.
+
+**If you have already tried refining** and still have no matches, respond with action_type="evaluate" with selected_cui=null.
+
 {% if iteration > 0 %}
-This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. If you want to try different search terms, respond with action_type="refine" and provide updated entities with new search_term values. Otherwise, respond with action_type="evaluate" and populate the selections array.
-{% else %}
-Respond with action_type="evaluate" and populate the selections array.
+This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. You may refine search terms, decompose broad entities into specific sub-entities, or evaluate with the best available matches.
 {% endif %}
