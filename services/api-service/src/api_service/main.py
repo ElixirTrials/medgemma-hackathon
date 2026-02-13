@@ -26,6 +26,7 @@ from api_service.protocols import router as protocols_router  # noqa: E402
 from api_service.reviews import router as reviews_router  # noqa: E402
 from api_service.search import router as search_router  # noqa: E402
 from api_service.storage import create_db_and_tables, engine  # noqa: E402
+from api_service.umls_search import router as umls_search_router  # noqa: E402
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -138,6 +139,7 @@ app.include_router(protocols_router, dependencies=[Depends(get_current_user)])
 app.include_router(reviews_router, dependencies=[Depends(get_current_user)])
 app.include_router(entities_router, dependencies=[Depends(get_current_user)])
 app.include_router(search_router, dependencies=[Depends(get_current_user)])
+app.include_router(umls_search_router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health")
