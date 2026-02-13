@@ -83,6 +83,7 @@ class ReviewActionRequest(BaseModel):
     modified_text: str | None = None
     modified_type: str | None = None
     modified_category: str | None = None
+    modified_structured_fields: Dict[str, Any] | None = None
     comment: str | None = None
 
 
@@ -277,6 +278,9 @@ def submit_review_action(
     db.add(review)
 
     # Create AuditLog record
+    schema_version = (
+        "structured_v1" if body.modified_structured_fields else "text_v1"
+    )
     audit_log = AuditLog(
         event_type="review_action",
         actor_id=body.reviewer_id,
@@ -286,6 +290,7 @@ def submit_review_action(
             "action": body.action,
             "before_value": before_value,
             "after_value": after_value,
+            "schema_version": schema_version,
         },
     )
     db.add(audit_log)
@@ -400,7 +405,7 @@ def list_audit_log(
 # --- Helpers ---
 
 
-def _apply_review_action(
+def _apply_review_action(  # noqa: C901
     criterion: Criteria,
     body: ReviewActionRequest,
 ) -> tuple[Dict[str, Any], Dict[str, Any] | None]:
@@ -414,6 +419,9 @@ def _apply_review_action(
         "text": criterion.text,
         "criteria_type": criterion.criteria_type,
         "category": criterion.category,
+        "temporal_constraint": criterion.temporal_constraint,
+        "numeric_thresholds": criterion.numeric_thresholds,
+        "conditions": criterion.conditions,
     }
     after_value: Dict[str, Any] | None = None
 
@@ -429,10 +437,21 @@ def _apply_review_action(
             criterion.criteria_type = body.modified_type
         if body.modified_category is not None:
             criterion.category = body.modified_category
+        if body.modified_structured_fields is not None:
+            sf = body.modified_structured_fields
+            if "temporal_constraint" in sf:
+                criterion.temporal_constraint = sf["temporal_constraint"]
+            if "numeric_thresholds" in sf:
+                criterion.numeric_thresholds = sf["numeric_thresholds"]
+            if "conditions" in sf:
+                criterion.conditions = sf["conditions"]
         after_value = {
             "text": criterion.text,
             "criteria_type": criterion.criteria_type,
             "category": criterion.category,
+            "temporal_constraint": criterion.temporal_constraint,
+            "numeric_thresholds": criterion.numeric_thresholds,
+            "conditions": criterion.conditions,
         }
 
     return before_value, after_value
