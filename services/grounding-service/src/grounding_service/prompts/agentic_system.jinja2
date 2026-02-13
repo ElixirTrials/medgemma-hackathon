@@ -86,7 +86,14 @@ After receiving UMLS search results for the entities above:
 Response:
 {"action_type": "evaluate", "entities": [], "selections": [{"entity_text": "Type 2 diabetes mellitus", "entity_type": "Condition", "selected_cui": "C0011860", "preferred_term": "Diabetes Mellitus, Type 2", "snomed_code": "44054006", "confidence": 0.98, "reasoning": "Exact match for Type 2 diabetes mellitus in UMLS"}, {"entity_text": "metformin", "entity_type": "Medication", "selected_cui": "C0025598", "preferred_term": "Metformin", "snomed_code": "372567009", "confidence": 0.99, "reasoning": "Direct match for metformin hydrochloride"}]}
 
-### Example 3: Refine action (when initial search results are poor)
+### Example 3: Refine action (correcting a search term)
 
 Response:
 {"action_type": "refine", "entities": [{"text": "OA", "entity_type": "Condition", "search_term": "osteoarthritis", "criterion_id": "xyz-789", "span_start": 15, "span_end": 17, "context_window": "diagnosis of OA in the knee"}], "selections": []}
+
+### Example 4: Refine action (decomposing a broad entity into specific UMLS concepts)
+
+When UMLS returns no candidates for a broad term like "liver abnormality", decompose into specific medical concepts that each have a UMLS CUI:
+
+Response:
+{"action_type": "refine", "entities": [{"text": "cirrhosis", "entity_type": "Condition", "search_term": "hepatic cirrhosis", "criterion_id": "xyz-789", "span_start": 0, "span_end": 0, "context_window": "No known liver abnormality (e.g. cirrhosis, transplant)"}, {"text": "liver transplant", "entity_type": "Procedure", "search_term": "liver transplantation", "criterion_id": "xyz-789", "span_start": 0, "span_end": 0, "context_window": "No known liver abnormality (e.g. cirrhosis, transplant)"}], "selections": []}
