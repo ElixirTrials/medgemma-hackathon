@@ -146,6 +146,7 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
     const [editText, setEditText] = useState(criterion.text);
     const [editType, setEditType] = useState(criterion.criteria_type);
     const [editCategory, setEditCategory] = useState(criterion.category ?? '');
+    const [rationale, setRationale] = useState('');
 
     const isLowConfidence = criterion.confidence < 0.7;
 
@@ -177,7 +178,9 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
             modified_text: editText,
             modified_type: editType,
             modified_category: editCategory || undefined,
+            comment: rationale || undefined,
         });
+        setRationale('');
         setEditMode('none');
     }
 
@@ -185,21 +188,19 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
         setEditText(criterion.text);
         setEditType(criterion.criteria_type);
         setEditCategory(criterion.category ?? '');
+        setRationale('');
         setEditMode('none');
     }
 
-    function handleStructuredSave(values: { entity: string; relation: string; value: unknown }) {
+    function handleStructuredSave(values: { mappings: Array<{ entity: string; relation: string; value: unknown }> }) {
         // Convert StructuredFieldFormValues to the modified_structured_fields payload
-        const fields: Record<string, unknown> = {
-            entity: values.entity,
-            relation: values.relation,
-            value: values.value,
-        };
-
+        // Extract the mappings array and send as field_mappings
         onAction(criterion.id, {
             action: 'modify',
             reviewer_id: 'current-user',
-            modified_structured_fields: fields,
+            modified_structured_fields: {
+                field_mappings: values.mappings,
+            },
         });
         setEditMode('none');
     }
@@ -274,6 +275,22 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
                                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
                         </div>
+                    </div>
+                    <div>
+                        <label
+                            htmlFor={`edit-rationale-${criterion.id}`}
+                            className="block text-sm font-medium text-muted-foreground mb-1"
+                        >
+                            Rationale <span className="text-xs text-gray-400">(optional)</span>
+                        </label>
+                        <textarea
+                            id={`edit-rationale-${criterion.id}`}
+                            value={rationale}
+                            onChange={(e) => setRationale(e.target.value)}
+                            placeholder="Why are you making this change?"
+                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                            rows={2}
+                        />
                     </div>
                     <div className="flex items-center gap-2">
                         <Button size="sm" onClick={handleModifySave} disabled={isSubmitting}>
