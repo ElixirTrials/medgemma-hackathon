@@ -1,236 +1,370 @@
 # Project Research Summary
 
-**Project:** Clinical Trial Criteria Extraction System - v1.2 GCP Cloud Run Deployment
-**Domain:** Infrastructure deployment (Terraform-based containerized microservices deployment to GCP Cloud Run)
-**Researched:** 2026-02-12
+**Project:** v1.5 Structured Criteria Editor with Evidence Linking
+**Domain:** Clinical trial HITL review system enhancement
+**Researched:** 2026-02-13
 **Confidence:** HIGH
 
 ## Executive Summary
 
-This milestone adds production deployment infrastructure to an existing 4-service containerized application (api-service, extraction-service, grounding-service, hitl-ui) that currently runs via Docker Compose. The recommended approach is Terraform-managed GCP Cloud Run with Cloud SQL PostgreSQL, VPC-based private networking, and Secret Manager for credentials. All existing Dockerfiles work without modification—the deployment layer wraps existing containers with production infrastructure.
+The v1.5 milestone extends the existing HITL review system with structured field mapping capabilities inspired by Cauldron's progressive disclosure pattern. This is a form complexity upgrade: moving from simple text editing to entity-relation-value triplets with UMLS grounding, adaptive value inputs (single/range/temporal), and PDF evidence linking. The existing stack (React 18 + Vite, Tailwind, Radix UI, TanStack Query, react-hook-form, react-pdf) requires ZERO new dependencies—all capabilities are achievable with current packages.
 
-The key architectural decision is using VPC Serverless Connectors to enable Cloud Run (serverless) to communicate with Cloud SQL via private IP, eliminating public database exposure while maintaining security compliance. Infrastructure is organized as reusable Terraform modules (foundation, networking, database, secrets, cloud-run-service) with a single root orchestrator, keeping state management simple for the 50-protocol pilot scale. Container images are built separately from Terraform (via CI/CD scripts), then referenced by digest in Terraform to enable proper change detection.
+The recommended approach follows existing architecture patterns: extend ReviewActionRequest with `modified_structured_fields`, replace CriterionCard's simple textarea with a StructuredFieldEditor component using React Hook Form's useReducer + useFieldArray pattern, and add imperative scroll methods to PdfViewer using react-pdf's text layer APIs. This is NOT a greenfield feature—it's an inline enhancement to the existing review workflow, maintaining backward compatibility with v1.4 text-only reviews.
 
-The primary risk is connection pool exhaustion: Cloud Run's auto-scaling can spawn 100+ instances during traffic spikes, each opening database connections, overwhelming Cloud SQL's connection limits. Prevention requires strict connection pool sizing (2-3 connections per instance) and Cloud Run max_instances limits calculated from database capacity. Secondary risks include VPC connector region mismatches (causes silent connection failures), Secret Manager IAM propagation delays (causes intermittent deployment failures), and cold start latency (15-30 second delays frustrate users). All are preventable with explicit Terraform dependencies, startup CPU boost configuration, and minimum instance settings.
+The primary risk is form state explosion (10+ fields with nested structures) leading to synchronization bugs. Mitigation: use useReducer with discriminated action types rather than multiple useState hooks, implement proper state cleanup when relation changes (range → equals should clear min/max fields), and validate form state at each step. Secondary risks include PDF scroll coordinate mismatches (mitigated by storing page_number + coordinates during extraction), UMLS autocomplete network waterfalls (mitigated by 300ms debouncing + AbortController), and backwards compatibility issues (mitigated by dual-write pattern with schema versioning).
 
 ## Key Findings
 
 ### Recommended Stack
 
-**Infrastructure Layer (Terraform 1.6+, Google Provider 7.19.0):** Use Terraform modules to manage GCP resources with GCS-backed state for team collaboration. Google Provider 7.19.0 adds critical write-only attributes for secrets (prevents DATABASE_URL from appearing in state files) and enhanced Cloud Run v2 support. All infrastructure is declarative IaC, with manual pre-requisites limited to GCS state bucket creation and API enablement.
+**ZERO new npm packages required.** The existing stack fully supports all v1.5 capabilities. Three new features need implementation strategies using current dependencies:
 
-**Core technologies:**
-- **Terraform 1.6+ with hashicorp/google ~> 7.0** — Infrastructure as Code with native monorepo support; version 7.0+ required for Secret Manager security improvements and Cloud Run v2 features
-- **Cloud Run Gen 2** — Serverless container hosting with autoscaling (0→N instances); Gen 2 required for VPC direct egress, startup probes, and private Cloud SQL integration
-- **Cloud SQL PostgreSQL 16 (private IP)** — Managed database replacing Docker Compose postgres; private IP via VPC peering prevents public exposure, matches local dev version
-- **VPC Serverless Connector** — Bridge between Cloud Run and VPC for private Cloud SQL access; required for secure internal networking without public database IPs
-- **Artifact Registry** — Container image storage for Cloud Run deployment; GCP-native with IAM integration, vulnerability scanning, and fast image pulls
-- **Secret Manager** — Secure secret storage replacing .env files; provides versioning, audit logs, IAM-controlled access, and rotation without code changes
+**Core technologies (already installed):**
+- **react-hook-form 7.55.0**: Form state management with useFieldArray for dynamic threshold arrays — handles nested structures with validation
+- **cmdk 1.1.1 + @radix-ui/react-popover 1.1.6**: UMLS autocomplete UI — cmdk provides command palette functionality, Radix Popover positions dropdown
+- **react-pdf 10.3.0**: PDF scroll-to-source via imperative refs — text layer already rendered, use `scrollIntoView()` + `customTextRenderer` for highlights
+- **@radix-ui/react-select 2.1.6**: Relation/comparator dropdowns — accessible, keyboard navigable, already integrated with react-hook-form Controller pattern
+- **lucide-react 0.487.0**: Icons for UI affordances (CheckCircle, Clock, Hash, etc.)
+
+**Implementation patterns:**
+- PDF scroll-to-source: DOM refs + `document.querySelector('[data-page-number="${page}"]')` + native `scrollIntoView()` API
+- UMLS autocomplete: TanStack Query hook `useUmlsSearch(query)` calling existing UMLS MCP + cmdk Command.Input with debounced onValueChange
+- Adaptive forms: react-hook-form `useWatch` to subscribe to relation field changes, conditional rendering of value inputs
 
 ### Expected Features
 
-**Must have (table stakes):**
-- Container Registry Integration (Artifact Registry) — Cloud Run requires hosted images; existing Dockerfiles build and push to registry
-- Multi-Service Deployment — Deploy 4 services (api, extraction, grounding, ui) with consistent configuration via reusable Terraform modules
-- Secret Management (Secret Manager) — Production security baseline; store DATABASE_URL, UMLS_API_KEY, OAuth credentials with IAM access control
-- Cloud SQL Connection — Database connectivity via private IP through VPC connector; Cloud Run service accounts need cloudsql.client IAM role
-- Health Checks — HTTP startup probes on /health endpoints prevent premature traffic routing; critical for LangGraph services with slow initialization
-- IAM Service Accounts — Dedicated service account per service with least privilege (Cloud SQL Client, Secret Manager Accessor); never use default compute SA
-- Remote State (GCS Backend) — Team collaboration and state locking; GCS bucket with versioning for Terraform state recovery
-- Basic Autoscaling — Cloud Run defaults (scale to zero, autoscale up) with max_instances=10 limit to prevent cost surprises and connection exhaustion
+**Must have (table stakes) — v1.5 launch:**
+- Entity → Relation → Value triplet editing — Standard EAV pattern expected in clinical data capture systems
+- UMLS/SNOMED concept search with autocomplete — Medical terminology editors require semantic search (SNOMED CT saves 18% keystrokes)
+- Adaptive value input (single/range/temporal) — Relation type dictates input structure; prevents data entry errors
+- Rationale text field for audit trail — 21 CFR Part 11 compliance requires timestamp + user + reason for all changes
+- Multi-mapping support (add/remove) — Complex criteria often have multiple constraints (e.g., "18-65 years AND BMI <30")
+- Read-only display of existing structured fields — Already implemented (temporal_constraint, numeric_thresholds badges in CriterionCard)
 
-**Should have (competitive):**
-- Terraform Modules for Reusability — DRY principle via single cloud-run-service module reused 4 times with different parameters
-- VPC Connector (Private Networking) — Secure internal communication for Cloud SQL private IP; required for SOC2/HIPAA compliance
-- Startup Probes (Custom Timing) — LangGraph services may need longer initial_delay_seconds (30s) due to model initialization overhead
-- Cost Optimization (Min Instances) — Set min_instances=1 for api-service and hitl-ui (~$15/month/service) to reduce cold start latency below 5 seconds
+**Should have (competitive advantage) — v1.6:**
+- Evidence linking: click criterion → scroll PDF to source — Regulatory audit requirement; competitors require manual navigation
+- AI-assisted field pre-population from selected text — AI coding platforms show 30-70% FTE reduction
+- Inline UMLS validation feedback — Real-time validation against UMLS API prevents invalid codes in database
+- Visual confidence indicators on AI suggestions — Explainable AI standard for 2026 medical coding compliance
 
 **Defer (v2+):**
-- Traffic Splitting / Blue-Green — Gradual rollouts useful after pilot validation; Cloud Run native support but adds rollout complexity
-- Custom Domain with SSL — Professional URLs only needed if external users access pilot UI; auto-managed SSL certs simplify setup
-- Terraform Workspaces — Separate dev/staging/prod environments; add when pilot expands beyond single environment
-- Multi-Region Deployment — High availability across regions; doubles complexity and costs, defer until pilot proves value beyond 50 protocols
+- Interactive SNOMED hierarchy browser — UMLS MCP doesn't provide hierarchy; autocomplete sufficient for v1
+- Undo/redo for edit sessions — Nice to have but not blocking (add if user testing shows frequent mistakes)
+- Batch operations with audit trail — Complex coordination; validate single-item workflow first
 
 ### Architecture Approach
 
-**Infrastructure organized as modular Terraform with clear dependency graph:** Foundation module (APIs, Artifact Registry) → Networking + IAM modules (VPC, service accounts) → Secrets + Database modules (Secret Manager, Cloud SQL with private IP) → Storage module (GCS bucket) → Cloud Run Services module (4 services with VPC connector, secrets, IAM). Root main.tf orchestrates modules with explicit dependency management for Cloud SQL VPC peering and Secret Manager IAM bindings.
+The structured field mapping editor integrates as an inline enhancement to the existing ReviewPage → CriterionCard → review action flow. No new API endpoints or database tables required—extend ReviewActionRequest with `modified_structured_fields` (optional JSON field), update `_apply_review_action()` to handle structured updates, and use existing JSONB columns (temporal_constraint, numeric_thresholds, conditions) for storage. Frontend state management uses React Hook Form for complex nested forms, TanStack Query for server sync (no new Zustand store needed), and prop-driven PDF highlighting (no global state).
 
 **Major components:**
-1. **Foundation Module** — Enables GCP APIs (Cloud Run, Cloud SQL, Secret Manager, VPC Access) and creates Artifact Registry repository for container images
-2. **Networking Module** — Creates VPC network, VPC Serverless Connector (10.8.0.0/28 subnet), and firewall rules for Cloud Run to Cloud SQL private communication
-3. **Secrets Module** — Creates Secret Manager secrets and versions for DATABASE_URL, UMLS_API_KEY, OAuth credentials; grants service accounts secretAccessor role
-4. **Database Module** — Creates Cloud SQL PostgreSQL 16 with private IP only (no public IP), VPC peering, automated backups, and connection pooling configuration
-5. **Cloud Run Services Module** — Reusable module invoked 4 times deploying api-service, extraction-service, grounding-service, hitl-ui with VPC connector, secrets, IAM bindings
-6. **IAM Module** — Creates dedicated service accounts per service with least privilege roles (cloudsql.client, secretmanager.secretAccessor, storage.objectViewer)
+1. **StructuredFieldEditor** — Replaces simple textarea in CriterionCard edit mode; uses useReducer + useFieldArray for threshold arrays; renders sub-components (TemporalConstraintFields, NumericThresholdsFields, ConditionsFields)
+2. **CriterionCard (extended)** — Adds edit mode toggle (text vs structured); handles structured save callback; passes criterion data to editor
+3. **PdfViewer (enhanced)** — Adds imperative `scrollToText(page, startChar, endChar)` method using DOM refs; highlights text via customTextRenderer prop
+4. **UMLS autocomplete integration** — TanStack Query hook `useUmlsSearch()` proxies to existing UMLS MCP; UI uses cmdk + Radix Popover for dropdown
 
 ### Critical Pitfalls
 
-1. **VPC Connector Region Mismatch** — Cloud Run, VPC connector, and Cloud SQL must all be in same region; Terraform doesn't validate at plan time, causing silent connection failures. Use Terraform locals to define region once and reference everywhere. Add explicit validation: `lifecycle { postcondition { condition = self.region == var.cloud_sql_region } }`.
+1. **Form State Explosion** — Multiple useState hooks for nested field mappings (entity/relation/value/unit/min/max) lead to synchronization bugs (relation changes from "=" to "range" but min/max fields don't initialize). Prevention: Use useReducer with discriminated action types; single state shape for all mappings; explicit state transitions (EDIT_RELATION clears value fields).
 
-2. **Secret Manager IAM Propagation Race** — IAM bindings take 60-120 seconds to propagate globally; Cloud Run deployment may fail with "Permission denied on secret" even though Terraform created the binding. Use explicit `depends_on = [google_secret_manager_secret_iam_member.secret_access]` and consider `time_sleep` resource for initial deployment.
+2. **PDF Scroll Coordinate Mismatch** — Click criterion → PDF scrolls to wrong page/location because extraction stores text spans without page numbers, and developers use HTML scrollTop instead of PDF page-level coordinates. Prevention: Store page_number + page_coordinates during extraction; use react-pdf's page-aware scroll APIs; test with multi-page PDFs, zoom, multi-column layouts.
 
-3. **Connection Pool Exhaustion** — Cloud Run scales to 100+ instances during traffic spikes; each opens 5-10 database connections, overwhelming Cloud SQL's 100-connection limit. Configure pool_size=2, max_overflow=1 per instance, and set max_instances = ceil(cloud_sql_max_connections / (pool_size + max_overflow)). For 100 DB connections and pool=3: max_instances=33.
+3. **UMLS Autocomplete Network Waterfall** — User types "acet..." → 6 sequential API calls (one per keystroke) → results arrive out-of-order → UI shows stale results. Prevention: Debounce 300ms + AbortController for in-flight requests + TanStack Query cache (staleTime: 5min) + no search for queries <3 chars.
 
-4. **Image Tag vs Digest** — Using image tags (:latest, :v1.0) prevents Terraform from detecting container updates; Cloud Run resolves tags to digests on deployment, so Terraform sees no change. Use CI/CD to capture image digest after push (`docker push && docker inspect --format='{{index .RepoDigests 0}}'`) and pass to Terraform: `image = var.image_digest` (format: `us-docker.pkg.dev/project/repo/api@sha256:abc123`).
+4. **Backwards Compatibility Explosion** — Existing reviews have modified_text/modified_type/modified_category; new system adds modified_field_mappings; old reviews crash in new UI expecting field_mappings but finding null. Prevention: Dual-write pattern (write both formats); add review_format_version field; UI checks version to decide which editor to show; audit logs include schema_version.
 
-5. **Secrets in Terraform State** — Storing secrets as Terraform variables puts plaintext credentials in terraform.tfstate file, exposing them in git history and CI logs. Always use Secret Manager with Cloud Run secret references: `value_source { secret_key_ref { secret = google_secret_manager_secret.api_key.id } }`, never `value = var.api_key`.
+5. **Progressive Disclosure State Leak** — User selects "age" entity → "range" relation → enters min=18/max=65 → changes relation to ">=" → step 3 still shows min/max fields instead of single value field → saves invalid data. Prevention: Reducer with state transitions; discriminated unions (StandardValue vs RangeValue vs TemporalValue); relation change action explicitly clears value-related fields.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure for v1.2 (phases 13-19):
+Based on research, suggested phase structure for v1.5 milestone:
 
-### Phase 13: Infrastructure Foundation (Week 1)
-**Rationale:** Establish GCP project foundation, API enablement, and Artifact Registry before any resource dependencies. This phase has zero dependencies and enables all subsequent work. Region/network variable patterns must be established here to prevent VPC connector region mismatches (Pitfall 1).
+### Phase 1: Backend Data Model + API Extension
+**Rationale:** Foundation must be in place before frontend can submit structured updates. This is low-risk (backward compatible) and unblocks all frontend work.
 
-**Delivers:** GCS state bucket (manual), Terraform backend config, provider setup, Foundation module (API enablement, Artifact Registry repository), IAM module (4 service accounts with predefined roles).
+**Delivers:**
+- ReviewActionRequest extended with optional `modified_structured_fields: Dict[str, Any]` field
+- `_apply_review_action()` updated to handle temporal_constraint, numeric_thresholds, conditions updates
+- Integration tests for structured modify actions
+- Backend deployed (backward compatible—field is optional)
 
-**Avoids:** VPC connector region mismatch (use Terraform locals for region), secrets in state (establish Secret Manager pattern), state lock conflicts (single state sufficient for pilot).
+**Addresses:**
+- Table stakes requirement: ability to persist structured field edits
+- Pitfall 4 (backwards compatibility): Establishes dual-write pattern early
 
-**Research flag:** Skip research-phase—well-documented GCP/Terraform patterns with official provider docs.
+**Avoids:**
+- Creating separate endpoint (anti-pattern identified in ARCHITECTURE.md)
+- Breaking existing text-only modify flow
 
----
-
-### Phase 14: Networking and Database (Week 1-2)
-**Rationale:** VPC and Cloud SQL must exist before Cloud Run services can deploy. Cloud SQL private IP requires VPC peering with explicit depends_on (Pitfall 6). Networking and database are tightly coupled due to VPC peering dependency; grouping prevents mid-phase integration issues.
-
-**Delivers:** Networking module (VPC, /28 VPC connector subnet, VPC Serverless Connector), Database module (Cloud SQL PostgreSQL 16 with private IP, VPC peering, automated backups), connection pool configuration documented in module README.
-
-**Implements:** VPC-based private networking architecture with Cloud SQL connection via VPC connector (standard pattern from ARCHITECTURE.md).
-
-**Avoids:** Missing private IP configuration (Pitfall 6), connection pool exhaustion prevention starts here with max_connections documentation.
-
-**Research flag:** Skip research-phase—standard Cloud SQL + VPC connector pattern with official Google Cloud docs.
+**Research flags:** SKIP — Straightforward Pydantic model extension + SQLModel JSONB updates, no complex integration
 
 ---
 
-### Phase 15: Secret Management (Week 2)
-**Rationale:** Secrets must exist and have IAM bindings before Cloud Run deployment (Pitfall 2). Separate phase allows validation of Secret Manager setup and IAM propagation timing without Cloud Run deployment complexity. Establishes pattern for manual secret value creation outside Terraform (via gcloud or console).
+### Phase 2: Core Structured Editor Component
+**Rationale:** Builds the foundational form component with all field types before integrating into review workflow. Allows isolated testing of form state management patterns.
 
-**Delivers:** Secrets module (google_secret_manager_secret resources for DATABASE_URL, UMLS_API_KEY, OAuth credentials), IAM bindings (service accounts get secretmanager.secretAccessor role), terraform.tfvars.example template documenting secret structure.
+**Delivers:**
+- StructuredFieldEditor.tsx component with useForm + useFieldArray
+- Sub-components: TemporalConstraintFields, NumericThresholdsFields, ConditionsFields
+- Radix UI Select wrappers for relation/comparator dropdowns
+- Form validation with Zod schema
+- Storybook stories for all field types and states
 
-**Addresses:** Secret management table stakes feature; replaces .env files with production-grade secret storage.
+**Uses:**
+- react-hook-form 7.55.0 (already in package.json)
+- @radix-ui/react-select 2.1.6 (already in package.json)
 
-**Avoids:** Secrets in Terraform state (Pitfall 5—secrets created as placeholders, values added via gcloud), IAM propagation race (explicit depends_on patterns established).
+**Implements:**
+- ARCHITECTURE.md "Inline Structured Editor" pattern
+- State management via useReducer to avoid Pitfall 1 (form state explosion)
+- Discriminated unions to avoid Pitfall 5 (state leak between steps)
 
-**Research flag:** Skip research-phase—Secret Manager integration well-documented in Cloud Run docs.
+**Avoids:**
+- Using separate useState for each field (documented anti-pattern)
+- Modal/drawer pattern (keeps context visible per ARCHITECTURE.md)
 
----
-
-### Phase 16: Container Build Pipeline (Week 2)
-**Rationale:** Images must exist in Artifact Registry before Cloud Run deployment. Separate from Terraform to avoid building images during terraform apply (Anti-Pattern 5 from PITFALLS.md). Establishes digest-based deployment pattern to prevent image tag change detection issues (Pitfall 3).
-
-**Delivers:** scripts/build-and-push.sh (builds 4 images, pushes to Artifact Registry, captures digests), CI/CD workflow (GitHub Actions or Cloud Build config for automated builds on push), terraform.tfvars pattern for image digest variables.
-
-**Uses:** Artifact Registry from Phase 13 foundation; existing Dockerfiles from services/* and apps/hitl-ui/* without modification.
-
-**Avoids:** Image tag vs digest issue (Pitfall 3—CI captures SHA256 digests and passes to Terraform), Artifact Registry auth failure (Pitfall 9—workload identity federation setup).
-
-**Research flag:** Needs research-phase—CI/CD integration with Artifact Registry and digest capture requires pipeline-specific patterns (GitHub Actions vs Cloud Build differ significantly).
-
----
-
-### Phase 17: Cloud Run Services Deployment (Week 3)
-**Rationale:** All dependencies now exist (VPC connector, Cloud SQL, secrets, service accounts, container images). This phase is the integration point for all previous work. Connection pool sizing and max_instances configuration happens here to prevent connection exhaustion (Pitfall 4).
-
-**Delivers:** Cloud Run Services module (reusable module with env vars, secrets, VPC connector, IAM), root main.tf invoking module 4 times (api-service, extraction-service, grounding-service, hitl-ui), connection pool configuration in database connection strings, max_instances limits based on Cloud SQL capacity.
-
-**Implements:** Multi-service deployment with VPC private networking, secret mounting, least-privilege IAM, startup probes for LangGraph services.
-
-**Avoids:** Connection pool exhaustion (Pitfall 4—pool_size=2, max_instances=33 for 100 DB connections), Secret Manager IAM propagation race (explicit depends_on from Phase 15), cold start latency (startup_cpu_boost=true, consider min_instances=1 for user-facing).
-
-**Research flag:** Skip research-phase—Cloud Run service configuration well-documented, patterns established in ARCHITECTURE.md.
+**Research flags:** SKIP — React Hook Form useFieldArray pattern is well-documented, Radix UI integration is standard
 
 ---
 
-### Phase 18: End-to-End Integration Testing (Week 3)
-**Rationale:** Validate full deployment before considering complete. Integration testing catches VPC connector connectivity issues, secret access problems, database connection failures, and ingress/egress misconfigurations that unit tests miss.
+### Phase 3: CriterionCard Integration + Review Workflow
+**Rationale:** Wires structured editor into existing review flow with minimal disruption. Enables end-to-end testing of structured modify actions.
 
-**Delivers:** Integration test suite (upload protocol → extraction workflow → grounding workflow → HITL review), load testing for connection pool limits (verify max_instances honored, no DB connection errors at 100 concurrent requests), cold start latency benchmarks, deployment verification checklist.
+**Delivers:**
+- Edit mode toggle in CriterionCard (text vs structured)
+- Conditional rendering: simple textarea OR StructuredFieldEditor
+- handleStructuredSave callback wiring to existing onAction handler
+- TypeScript types updated in useReviews.ts (ReviewActionRequest interface)
+- End-to-end test: edit structured fields → save → verify persistence
 
-**Addresses:** Health checks table stakes feature; validates startup probes work for slow-starting LangGraph services.
+**Addresses:**
+- Table stakes: users can edit and save structured fields
+- Extends existing approve/reject/modify workflow (no new actions)
 
-**Avoids:** Cold start latency exceeding timeouts (Pitfall 8—measure and optimize before production), ingress/egress misconfigurations (Pitfall 10—verify service-to-service calls and external API access).
+**Implements:**
+- ARCHITECTURE.md "Extend Existing Request Model" pattern
+- Integration with existing TanStack Query mutation (useReviewAction)
 
-**Research flag:** Skip research-phase—testing patterns standard, tools documented in official Cloud Run docs.
+**Avoids:**
+- Creating new Zustand store (form state is local per ARCHITECTURE.md)
+
+**Research flags:** SKIP — Follows established CriterionCard edit pattern (text/type/category already implemented)
 
 ---
 
-### Phase 19: Documentation and Handoff (Week 4)
-**Rationale:** Deployment infrastructure needs operational documentation for team handoff. Terraform configurations are self-documenting but operational procedures (secret rotation, scaling adjustments, cost monitoring) require explicit documentation.
+### Phase 4: UMLS Concept Search Autocomplete
+**Rationale:** Enhances entity field with semantic search. Dependent on Phase 3 (structured editor must exist). High user value but isolated feature (no dependencies from other phases).
 
-**Delivers:** infra/terraform/README.md (deployment instructions, troubleshooting guide), terraform.tfvars.example (template for production values with comments), runbook for common operations (secret rotation, database scaling, Cloud Run revision rollback), cost monitoring dashboard setup.
+**Delivers:**
+- useUmlsSearch TanStack Query hook (debounced, cached)
+- UmlsCombobox component (cmdk + Radix Popover)
+- Entity field replaced with autocomplete in StructuredFieldEditor
+- AbortController for in-flight request cancellation
+- Loading states + error handling
 
-**Uses:** All components from previous phases; documents patterns established throughout milestone.
+**Uses:**
+- cmdk 1.1.1 (already in package.json)
+- @radix-ui/react-popover 1.1.6 (already in package.json)
+- Existing UMLS MCP integration (concept_search tool)
 
-**Research flag:** Skip research-phase—documentation is synthesis of established patterns, no new technical research needed.
+**Addresses:**
+- Table stakes: UMLS/SNOMED autocomplete (18% keystroke savings)
+- FEATURES.md differentiator: semantic search vs flat text input
+
+**Avoids:**
+- Pitfall 3 (network waterfall): 300ms debounce + AbortController
+- Separate autocomplete library (cmdk already available per STACK.md)
+
+**Research flags:** SKIP — cmdk + Radix Popover pattern documented in shadcn/ui examples, debouncing is standard React pattern
+
+---
+
+### Phase 5: Rationale Capture + Audit Trail Enhancement
+**Rationale:** Compliance requirement for 21 CFR Part 11. Must be tied to review actions but separate feature from field mapping logic.
+
+**Delivers:**
+- Rationale textarea added to StructuredFieldEditor
+- Required validation: can't save modify action without rationale
+- Rationale included in ReviewActionRequest.comment field (or new rationale field)
+- Audit log displays rationale for structured field changes
+- Cancel confirmation dialog when rationale has content
+
+**Addresses:**
+- Table stakes: 21 CFR Part 11 audit trail requirement (timestamp + user + reason)
+- FEATURES.md compliance requirement
+
+**Implements:**
+- Rationale as part of reducer state (not separate useState) to avoid Pitfall 6
+
+**Avoids:**
+- Rationale orphaned from review action (Pitfall 6)
+
+**Research flags:** SKIP — Simple form field + validation, standard audit trail pattern
+
+---
+
+### Phase 6: Multi-Mapping Support (Add/Remove Mappings)
+**Rationale:** Complex criteria often require multiple structured fields (e.g., "18-65 years AND BMI <30"). Builds on Phase 2-5 (editor must work for single mapping first).
+
+**Delivers:**
+- useFieldArray for mappings array (not just thresholds within one mapping)
+- Add/Remove mapping buttons in StructuredFieldEditor
+- Backend handles array of field_mappings in modified_structured_fields
+- UI validation: can't add empty mapping, can't remove last mapping
+- Visual grouping: cards/borders around each mapping
+
+**Addresses:**
+- Table stakes: multi-threshold support for complex criteria
+- FEATURES.md differentiator: granular CDISC export via multiple mappings
+
+**Implements:**
+- react-hook-form useFieldArray at mapping level (nested array)
+
+**Avoids:**
+- Creating separate component for each mapping (use repeater pattern)
+
+**Research flags:** SKIP — useFieldArray is well-documented for nested arrays
+
+---
+
+### Phase 7: PDF Scroll-to-Source (Evidence Linking)
+**Rationale:** High-value competitive feature but requires extraction schema updates (page_number, coordinates). Can be added after core editing workflow is validated.
+
+**Delivers:**
+- Extraction schema update: add page_number + source_coordinates to Criterion model
+- Extraction service stores page/coordinates during PDF parsing
+- PdfViewer enhanced with scrollToText(page, startChar, endChar) imperative method
+- CriterionCard criterion text click handler
+- ReviewPage wires highlight prop to PdfViewer
+- Text highlighting via customTextRenderer prop
+
+**Uses:**
+- react-pdf 10.3.0 customTextRenderer (already in package.json)
+- Native scrollIntoView() API
+
+**Addresses:**
+- FEATURES.md differentiator: click criterion → scroll PDF to source
+- Competitive advantage: regulatory audit acceleration
+
+**Avoids:**
+- Pitfall 2 (coordinate mismatch): Store page_number + page-level coordinates, not document offsets
+- react-pdf-highlighter library (heavy dependency per STACK.md anti-patterns)
+
+**Research flags:** REQUIRES RESEARCH — Extraction service needs investigation for how to capture page numbers and bounding boxes during multimodal extraction; coordinate transform logic for react-pdf text layer may need experimentation
+
+---
+
+### Phase 8: AI-Assisted Field Suggestions (v1.6 feature, optional)
+**Rationale:** Deferred to v1.6—validates manual workflow first before adding AI assistance. High complexity (MedGemma integration, text selection handling).
+
+**Delivers:**
+- Text selection handler in PdfViewer
+- POST /api/suggest-fields endpoint (MedGemma entity extraction + UMLS MCP)
+- "Suggest Fields" button in StructuredFieldEditor
+- AI suggestion cards with confidence indicators
+- Accept/Modify/Reject actions for suggestions
+
+**Addresses:**
+- FEATURES.md differentiator: AI-assisted field population (30-70% FTE reduction)
+- v1.6 competitive advantage
+
+**Deferred rationale:**
+- Not blocking for v1.5 launch (manual editing is table stakes)
+- Requires text selection UX design
+- MedGemma prompt engineering for entity extraction
+
+**Research flags:** REQUIRES RESEARCH — MedGemma entity extraction prompt design, confidence calibration for medical coding domain
 
 ---
 
 ### Phase Ordering Rationale
 
-- **Foundation first (13) enables all other work:** APIs, Artifact Registry, service accounts have no dependencies and are prerequisites for everything else
-- **Networking + Database together (14) due to tight coupling:** Cloud SQL private IP requires VPC peering; splitting into separate phases adds coordination overhead for no benefit
-- **Secrets before Cloud Run (15 before 17) prevents IAM race conditions:** Allows explicit depends_on and time for IAM propagation before services attempt secret access
-- **Container build before Cloud Run (16 before 17) avoids Terraform complexity:** Separates concerns (Docker build vs infrastructure deployment), establishes digest-based change detection pattern
-- **Cloud Run deployment (17) is integration milestone:** All dependencies exist; this phase validates architecture decisions from research
-- **Testing before documentation (18 before 19) validates completeness:** Can't document what doesn't work; integration testing catches issues before handoff
+- **Phase 1 before all**: Backend must accept structured data before frontend can submit it
+- **Phase 2 before 3**: Isolated component development before integration reduces debugging complexity
+- **Phase 3 before 4-6**: Core workflow must work before enhancing with autocomplete, rationale, multi-mapping
+- **Phase 4-6 parallel-friendly**: UMLS autocomplete, rationale, multi-mapping are independent features (can be built simultaneously if resourced)
+- **Phase 7 after 3**: Evidence linking requires extraction schema changes (higher risk); core editing must be validated first
+- **Phase 8 deferred to v1.6**: AI assistance not blocking; manual workflow proven before automating
+
+**Dependency graph:**
+```
+Phase 1 (Backend)
+    ↓
+Phase 2 (Component)
+    ↓
+Phase 3 (Integration) ← MINIMUM VIABLE
+    ↓
+Phase 4, 5, 6 (Enhancements — parallel)
+    ↓
+Phase 7 (Evidence Linking — requires extraction changes)
+    ↓
+Phase 8 (AI Assist — v1.6)
+```
 
 ### Research Flags
 
-Phases likely needing deeper research during planning:
-- **Phase 16 (Container Build Pipeline):** CI/CD integration patterns differ between GitHub Actions and Cloud Build; digest capture and Workload Identity Federation setup requires pipeline-specific research
+**Phases needing deeper research during planning:**
+- **Phase 7 (PDF Scroll-to-Source):** Extraction service investigation required—how to capture page numbers and bounding boxes during multimodal extraction? Current extraction returns structured data without coordinates. May need new graph node or modify extract node.
+- **Phase 8 (AI Suggestions):** MedGemma prompt engineering for entity extraction from selected text; confidence calibration for medical coding domain; text selection UX patterns.
 
-Phases with standard patterns (skip research-phase):
-- **Phase 13 (Foundation):** GCP project setup and Terraform basics well-documented in official HashiCorp and Google Cloud docs
-- **Phase 14 (Networking + Database):** Cloud SQL private IP and VPC connector patterns standard, covered thoroughly in Google Cloud SQL docs
-- **Phase 15 (Secret Management):** Secret Manager integration with Cloud Run documented in official Google Cloud Run guides
-- **Phase 17 (Cloud Run Services):** Cloud Run v2 service configuration well-documented, reusable module pattern established in research
-- **Phase 18 (Integration Testing):** Standard testing approaches, tools documented in Cloud Run and load testing guides
-- **Phase 19 (Documentation):** Synthesis of established patterns, no new technical domain
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1:** Pydantic model extension + SQLModel JSONB updates are well-documented
+- **Phase 2:** React Hook Form useFieldArray + Radix UI integration are established patterns with extensive documentation
+- **Phase 3:** Follows existing CriterionCard edit mode pattern (text/type/category already implemented)
+- **Phase 4:** cmdk + Radix Popover autocomplete pattern documented in shadcn/ui examples; UMLS MCP already integrated
+- **Phase 5:** Simple form validation + audit trail enhancement (standard pattern)
+- **Phase 6:** useFieldArray for nested arrays is well-documented in React Hook Form docs
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Terraform provider version 7.19.0 verified from GitHub releases (Feb 2025); all GCP services documented in official Google Cloud docs updated Feb 2026 |
-| Features | HIGH | Feature requirements derived from official Cloud Run, Cloud SQL, Secret Manager documentation; table stakes vs differentiators validated against real-world Cloud Run migration articles |
-| Architecture | HIGH | VPC connector + Cloud SQL private IP pattern standard for production deployments; Terraform module structure validated from HashiCorp and Google best practices docs (2026) |
-| Pitfalls | HIGH | All 10 critical pitfalls sourced from official Google Cloud troubleshooting docs, GitHub issues, and recent (2024-2026) Medium articles on production Cloud Run deployments |
+| Stack | HIGH | All capabilities achievable with existing package.json (verified line-by-line); zero new dependencies required |
+| Features | MEDIUM | WebSearch verification of clinical trial standards, UMLS autocomplete patterns, audit trail requirements; no Context7 or official Cauldron documentation (reference implementation from project context) |
+| Architecture | HIGH | Based on verified existing codebase patterns (CriterionCard edit mode, TanStack Query mutations, react-pdf setup); mature library documentation (React Hook Form, Radix UI) |
+| Pitfalls | HIGH | Derived from React state management best practices, PDF viewer integration gotchas, autocomplete patterns, database migration patterns—all well-documented in community sources |
 
 **Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Connection pool sizing for specific workload:** Research provides general guidance (pool_size=2-3), but exact values depend on per-service query patterns. During Phase 17, monitor actual connection usage with Cloud SQL metrics and tune pool_size based on real traffic.
+- **Extraction schema for evidence linking:** Current multimodal extraction (extraction-service) returns structured data but not page numbers or bounding boxes. Phase 7 planning needs investigation: Can we extract page metadata from LangGraph extraction context? Or add separate PDF text layer parsing step?
 
-- **CI/CD pipeline choice (GitHub Actions vs Cloud Build):** Research covered both but didn't make specific recommendation. During Phase 16, choose based on existing team tooling: GitHub Actions if already using GitHub, Cloud Build if wanting tighter GCP integration. Both patterns validated in research.
+- **UMLS MCP response format:** Assumed UMLS MCP `concept_search` returns `{cui, preferred_term, semantic_types}` but not verified against actual MCP implementation. Phase 4 planning should verify response schema or add mapping layer.
 
-- **Cold start latency targets for pilot:** Research identifies cold start as issue (15-30s) and mitigations (startup CPU boost, min_instances), but acceptable latency depends on user requirements. During Phase 18, establish baseline latency SLO (e.g., p95 < 5s) and tune configuration to meet target.
+- **Backward compatibility strategy validation:** Proposed dual-write pattern (write both modified_text and modified_structured_fields) needs validation with product team—is maintaining text representation of structured fields acceptable? Or should structured edits only write structured data?
 
-- **Exact Cloud SQL instance tier:** Research recommends db-f1-micro for pilot (1 vCPU, 3.75GB RAM, ~$50/month) but actual tier depends on concurrent user load. During Phase 14, start with db-f1-micro and document scaling path to db-n1-standard-1 if CPU >70% sustained.
+- **Rationale field location:** Unclear if rationale should use existing ReviewActionRequest.comment field (currently for review-level comments) or new dedicated rationale field. Phase 5 planning should decide based on audit trail requirements.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Terraform Provider Google Releases (GitHub)](https://github.com/hashicorp/terraform-provider-google/releases) — Version 7.19.0 verified Feb 2025
-- [Google Cloud Run Documentation](https://cloud.google.com/run/docs) — All Cloud Run patterns current as of Feb 2026
-- [Cloud SQL Connection from Cloud Run](https://docs.cloud.google.com/sql/docs/postgres/connect-run) — Private IP and VPC connector patterns
-- [Terraform GCP Provider - Cloud Run V2 Service](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/cloud_run_v2_service) — Resource reference
-- [Cloud Run VPC Connectors Documentation](https://docs.cloud.google.com/run/docs/configuring/vpc-connectors) — VPC egress configuration
-- [Secret Manager with Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets) — Secret mounting patterns
-- [Terraform Best Practices on Google Cloud (Official)](https://docs.cloud.google.com/docs/terraform/best-practices/operations) — Google's Terraform guidance
+
+**From STACK-STRUCTURED-EDITOR.md:**
+- [react-pdf documentation](https://github.com/wojtekmaj/react-pdf) — customTextRenderer for text layer manipulation
+- [cmdk - Fast, unstyled command menu](https://github.com/dip/cmdk) — Command palette library for autocomplete
+- [Radix UI documentation](https://www.radix-ui.com/) — Popover, Select components
+- [React Hook Form documentation](https://react-hook-form.com/) — useFieldArray, useWatch, Controller patterns
+- [shadcn/ui Combobox component](https://ui.shadcn.com/docs/components/radix/combobox) — Reference implementation for cmdk + Radix Popover
+
+**From ARCHITECTURE.md:**
+- [React Hook Form useFieldArray](https://react-hook-form.com/docs/usefieldarray) — Dynamic array management
+- [TanStack Query Documentation](https://tanstack.com/query/latest) — Server state patterns
+- [react-pdf-highlighter-extended GitHub](https://github.com/DanielArnould/react-pdf-highlighter-extended) — PDF highlighting library
+
+**From PITFALLS.md:**
+- [Managing Complex State in React with useReducer](https://www.aleksandrhovhannisyan.com/blog/managing-complex-state-react-usereducer/) — Form state patterns
+- [Debounce Your Search - Atomic Object](https://spin.atomicobject.com/automplete-timing-debouncing/) — Autocomplete best practices
+- [Backward Compatible Database Changes - PlanetScale](https://planetscale.com/blog/backward-compatible-databases-changes) — Migration patterns
 
 ### Secondary (MEDIUM confidence)
-- [Best Practices for Terraform on GCP (Medium, Jan 2024)](https://medium.com/@truonghongcuong68/terraform-best-practices-on-google-cloud-a-practical-guide-057f96b19489) — Module organization patterns
-- [Securely Using .env Files with Cloud Run and Terraform (Medium, 2023)](https://mikesparr.medium.com/securely-using-dotenv-env-files-with-google-cloud-run-and-terraform-e8b14ff04bff) — Secret migration patterns
-- [Cloud SQL with Private IP Only (Medium, 2024)](https://medium.com/google-cloud/cloud-sql-with-private-ip-only-the-good-the-bad-and-the-ugly-de4ac23ce98a) — VPC peering gotchas
-- [Terraform Monorepo Best Practices (Spacelift, 2026)](https://spacelift.io/blog/terraform-monorepo) — State management patterns
-- [3 Ways to Optimize Cloud Run Response Times (Google Cloud Blog, 2025)](https://cloud.google.com/blog/topics/developers-practitioners/3-ways-optimize-cloud-run-response-times) — Cold start optimization
 
-### Tertiary (LOW confidence)
-- [Mitigate Cloud Run Cold Startup Strategies (Medium, 2024)](https://omermahgoub.medium.com/mitigate-cloud-run-cold-startup-strategies-to-improve-response-time-cad5a6aea327) — Startup CPU boost practical results (needs validation with actual workload)
-- [Docker Layer Caching in Cloud Build (Depot.dev, 2024)](https://depot.dev/blog/docker-layer-caching-in-google-cloud-build) — Build optimization techniques (effectiveness varies by codebase)
+**From FEATURES.md:**
+- [CDISC Data Standards](https://www.allucent.com/resources/blog/what-cdisc-and-what-are-cdisc-data-standards) — Clinical trial data standards
+- [21 CFR Part 11 Audit Trail Requirements](https://www.remdavis.com/news/21-cfr-part-11-audit-trail-requirements) — Regulatory compliance
+- [SNOMED CT Saves Keystrokes](https://pmc.ncbi.nlm.nih.gov/articles/PMC3041304/) — Semantic autocompletion benefits
+- [OHDSI ATLAS cohort editor](https://www.nature.com/articles/s41598-023-49560-w) — Reference implementation patterns
+- [Progressive Disclosure - Nielsen Norman Group](https://www.nngroup.com/articles/progressive-disclosure/) — UX pattern
 
 ---
-*Research completed: 2026-02-12*
-*Ready for roadmap: yes*
+*Research completed: 2026-02-13*
+*Ready for roadmap: YES*

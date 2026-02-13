@@ -1,442 +1,318 @@
-# Feature Research: Terraform GCP Cloud Run Deployment
+# Feature Research
 
-**Domain:** Infrastructure deployment for containerized microservices on GCP Cloud Run
-**Researched:** 2026-02-12
-**Confidence:** HIGH
+**Domain:** Structured criteria field mapping editor for clinical trial HITL UI
+**Researched:** 2026-02-13
+**Confidence:** MEDIUM
 
 ## Feature Landscape
 
 ### Table Stakes (Users Expect These)
 
-Features users assume exist. Missing these = deployment feels incomplete or unprofessional.
+Features users assume exist. Missing these = product feels incomplete.
 
 | Feature | Why Expected | Complexity | Notes |
 |---------|--------------|------------|-------|
-| Container Registry Integration | Cloud Run requires container images | LOW | Artifact Registry is the standard; existing Dockerfiles already built |
-| Environment Variable Configuration | Every deployment needs runtime config | LOW | Terraform `env` blocks; separate from secrets |
-| Secret Management (Secret Manager) | Credentials/API keys must be secure | MEDIUM | Secret Manager integration; never use env vars for secrets |
-| Cloud SQL Connection | Database connectivity is fundamental | MEDIUM | Unix socket pattern with `/cloudsql/CONNECTION_NAME`; automatic with Cloud Run |
-| Health Checks | Service reliability and readiness detection | LOW | Startup probes prevent premature traffic; liveness probes for ongoing health |
-| IAM Service Accounts | Least privilege security | MEDIUM | Dedicated service accounts per service; never use default compute SA |
-| CI/CD Integration | Automated deployments from GitHub Actions | MEDIUM | Build → Push to Artifact Registry → Terraform apply |
-| Remote State (GCS Backend) | Team collaboration, state locking | LOW | GCS bucket with versioning; automatic state locking |
-| Multi-Service Deployment | 4 services (API, extraction, grounding, UI) | LOW | Multiple `google_cloud_run_v2_service` resources in same config |
-| Basic Autoscaling | Scale to zero, scale up on demand | LOW | Cloud Run default behavior; configure max instances |
+| Entity → Relation → Value triplet editing | Standard EAV/CR pattern in clinical data capture; OHDSI ATLAS uses criterion → concept set → temporal structure | MEDIUM | Progressive disclosure (3-step) reduces cognitive load; already exists as display-only in CriterionCard |
+| UMLS/SNOMED concept search with autocomplete | SNOMED CT saves 18% keystrokes via semantic autocompletion; expected in medical terminology editors | MEDIUM | UMLS MCP already integrated; needs autocomplete UI wrapper with debouncing |
+| Read-only display of existing structured fields | Thresholds/temporal constraints already extracted; users expect to see them before editing | LOW | Already complete in CriterionCard (temporal_constraint, numeric_thresholds badges) |
+| Approve/reject/modify workflow per criterion | Standard HITL pattern for review interfaces; already exists for text/type/category | LOW | Extend existing CriterionCard modify mode to include structured fields |
+| Rationale/reason field for audit trail | 21 CFR Part 11 requires timestamp + user + reason for all clinical data changes | MEDIUM | New field; integrate with existing review action endpoints |
+| Inline validation feedback | Medical coding audit trails require validation against UMLS API before storage; prevents invalid codes | MEDIUM | UMLS validation client already exists; add real-time validation to concept search |
+| Multi-threshold support | Clinical criteria often have multiple numeric constraints (e.g., "18-65 years AND BMI <30") | LOW | Backend already stores arrays; UI needs add/remove controls |
 
 ### Differentiators (Competitive Advantage)
 
-Features that set the deployment apart. Not required, but valuable for specific use cases.
+Features that set the product apart. Not required, but valuable.
 
 | Feature | Value Proposition | Complexity | Notes |
 |---------|-------------------|------------|-------|
-| Terraform Modules for Reusability | DRY principle, consistency across services | LOW | Single module for Cloud Run service; parameters for name, image, env vars |
-| VPC Connector (Private Networking) | Secure internal communication, Cloud SQL private IP | MEDIUM | Required if using Cloud SQL private IP; overkill for pilot with public SQL |
-| Traffic Splitting / Blue-Green | Gradual rollouts, canary deployments | MEDIUM | Cloud Run native; useful after pilot validation |
-| Custom Domain with SSL | Professional URLs, custom branding | LOW | Auto-managed SSL certs; only if pilot has external users |
-| Cost Optimization (Min Instances) | Predictable cold start latency | LOW | Set min_instances=1 for critical services; costs ~$10/month per service |
-| Startup Probes (Custom Timing) | Fine-tuned health checks for slow-starting services | LOW | LangGraph services may need longer initial_delay_seconds |
-| GCS Bucket Terraform Provisioning | Manage existing GCS bucket via IaC | LOW | Protocol storage bucket already exists; add to Terraform for consistency |
-| Database Migration in CI/CD | Alembic migrations run pre-deployment | MEDIUM | Already in Dockerfile CMD; ensure idempotent in Cloud Run |
-| Structured Logging (Cloud Logging) | Centralized observability | LOW | Automatic with Cloud Run; configure log levels via env vars |
-| Terraform Workspaces | Separate dev/staging/prod environments | MEDIUM | Alternative to separate .tfvars files; useful post-pilot |
+| Evidence linking: click criterion → scroll PDF to source | Regulatory audit requirement; competitors require manual navigation | HIGH | Needs span positions from extraction + PDF text layer sync + scroll-to-position logic |
+| AI-assisted field pre-population from selected text | AI coding platforms show 30-70% FTE reduction; accelerates review workflow | MEDIUM | Extract selected text → prompt MedGemma → suggest entity/relation/value; requires text selection handler |
+| Adaptive value input (single/range/temporal) | Context-aware inputs reduce errors; standard in CDASH-compliant eCRF systems | MEDIUM | Relation dictates input type: "=" → single, "range" → min/max, "within" → duration + unit |
+| Visual confidence indicators on AI suggestions | Explainable AI with MEAT evidence standard for 2026 medical coding compliance | LOW | Reuse existing confidence badge component; attach to AI suggestions |
+| Multi-mapping per criterion | Complex criteria map to multiple structured fields; enables granular CDISC export | MEDIUM | Add/remove mappings UI; backend stores array of triplets per criterion |
+| Interactive SNOMED hierarchy browser | Contextual search performs better than flat autocomplete for medical coders | HIGH | UMLS MCP doesn't provide hierarchy; would need additional API or defer to v2 |
+| Undo/redo for edit sessions | Reduces fear of making mistakes; standard in professional editing tools | MEDIUM | Local state management with history stack; not persisted |
 
 ### Anti-Features (Commonly Requested, Often Problematic)
 
-Features that seem good but create problems for a small pilot.
+Features that seem good but create problems.
 
 | Feature | Why Requested | Why Problematic | Alternative |
 |---------|---------------|-----------------|-------------|
-| Multi-Region Deployment | "High availability" mindset | Doubles complexity, costs; pilot doesn't need HA | Single region (us-central1); add multi-region post-validation |
-| Complex VPC with Private Service Connect | Security best practice in enterprise | Overkill for pilot; adds networking complexity | Use Cloud SQL public IP with authorized networks; SSL enforced |
-| Terraform Cloud/Enterprise | Centralized state, policy enforcement | Monthly cost, learning curve; GCS backend sufficient | GCS backend with state locking; free, simple |
-| Over-Granular IAM Policies | Principle of least privilege | Time-consuming for pilot; premature optimization | Start with predefined roles (Cloud Run Admin, Secret Manager Accessor); refine later |
-| Load Balancer in Front of Cloud Run | "Production-ready" architecture | Cloud Run has built-in LB; external LB adds cost/complexity | Use Cloud Run's native load balancer; only add external LB for multi-service routing |
-| Separate Terraform State per Service | Isolation, independent deployments | State management overhead; harder to manage service dependencies | Single Terraform config for all services; modularize with locals/modules |
-| Auto-Scaling to Hundreds of Instances | "Handle viral traffic" | Pilot won't have viral traffic; risk of surprise costs | Set max_instances=10 per service; monitor and adjust |
-| Custom VPC for Cloud Run | Network isolation | Cloud Run uses Google-managed VPC by default; custom VPC only needed for VPC connector | Use default Cloud Run networking; add VPC connector only if private Cloud SQL needed |
+| Bulk edit for all criteria at once | "Faster workflow" appeal | Breaks audit trail (can't track which reviewer approved which criterion); high error rate | Keyboard shortcuts for approve/next, filter by confidence to batch-review similar items |
+| Custom UMLS code entry without validation | "Expert users know best" | Violates 21 CFR Part 11 audit trail requirements; allows invalid codes into database | Allow custom codes but require UMLS validation API check before save; flag unvalidated codes for expert review |
+| Real-time collaborative editing | "Like Google Docs" | Conflict resolution complexity; clinical review requires single reviewer per decision for regulatory compliance | Session locking per criterion; show "In review by [user]" badge |
+| Free-text relation field | "More flexible than dropdown" | Breaks structured export to CDISC; no standardization for queries | Fixed relation vocabulary (=, !=, >, >=, <, <=, within, not_in_last, contains, not_contains); add "other" with expert review flag |
 
 ## Feature Dependencies
 
 ```
-[Remote State (GCS Backend)]
-    └──enables──> [CI/CD Terraform Apply]
+[Evidence linking]
+    └──requires──> [Span positions from extraction]
+                       └──requires──> [PDF text layer parsing]
 
-[Container Registry (Artifact Registry)]
-    └──requires──> [Multi-Service Deployment]
-                       └──depends on──> [Existing Dockerfiles]
+[AI-assisted field suggestions]
+    └──requires──> [Text selection handler]
+    └──requires──> [MedGemma entity extraction]
+    └──requires──> [UMLS MCP concept search]
 
-[Secret Manager]
-    └──requires──> [IAM Service Accounts]
-                       └──grants──> [Secret Manager Secret Accessor role]
+[Adaptive value input]
+    └──requires──> [Relation selection]
 
-[Cloud SQL Connection]
-    └──optionally requires──> [VPC Connector] (if using private IP)
-    └──requires──> [IAM Service Accounts]
-                       └──grants──> [Cloud SQL Client role]
+[Multi-mapping per criterion]
+    └──requires──> [Triplet editor UI]
+    └──requires──> [Backend API for array storage]
 
-[Health Checks]
-    └──enhances──> [Autoscaling] (prevents premature scaling)
+[Rationale capture] ──enhances──> [Audit trail logging]
 
-[CI/CD Integration]
-    └──requires──> [Remote State (GCS Backend)]
-    └──requires──> [Container Registry]
-    └──triggers──> [Multi-Service Deployment]
+[Inline validation] ──enhances──> [UMLS concept search]
 
-[Terraform Modules]
-    └──enhances──> [Multi-Service Deployment] (DRY, consistency)
-
-[Traffic Splitting]
-    └──conflicts with──> [Simple Deployment] (adds rollout complexity)
+[Undo/redo] ──conflicts──> [Auto-save] (must choose: explicit save or auto-save)
 ```
 
 ### Dependency Notes
 
-- **Cloud SQL Connection requires IAM Service Accounts:** Cloud Run service identity needs `roles/cloudsql.client` to connect via Unix socket.
-- **Secret Manager requires IAM Service Accounts:** Service accounts need `roles/secretmanager.secretAccessor` on specific secrets.
-- **VPC Connector optional for Cloud SQL:** Public IP with SSL is simpler for pilot; private IP requires VPC connector and adds complexity.
-- **Health Checks enhance Autoscaling:** Startup probes prevent Cloud Run from routing traffic before service is ready; critical for LangGraph services with slow initialization.
-- **CI/CD requires Remote State:** GitHub Actions Terraform apply needs access to GCS backend for state locking.
-- **Terraform Modules reduce boilerplate:** Single module for Cloud Run services; reused 4 times with different parameters.
+- **Evidence linking requires span positions:** Extraction must store character offsets or bounding boxes; current multimodal extraction doesn't return positions
+- **AI suggestions require text selection:** User must select source text in PDF viewer before triggering suggestion engine
+- **Adaptive value input requires relation selection:** Relation type (e.g., "range") determines whether to show single input, min/max inputs, or duration + unit
+- **Multi-mapping requires triplet editor:** Can't add multiple mappings without base triplet editing workflow
+- **Undo/redo conflicts with auto-save:** If changes auto-save, undo must interact with backend state; if no auto-save, undo is purely client-side
 
-## MVP Definition (Pilot Deployment)
+## MVP Definition
 
-### Launch With (v1 - Initial Pilot)
+### Launch With (v1.5 - Current Milestone)
 
-Minimum viable deployment for ~50 protocols, single team.
+Minimum viable product — what's needed to validate the concept.
 
-- [x] **Container Registry Integration** — Use Artifact Registry (already set up); build images in CI/CD
-- [x] **Multi-Service Deployment** — Deploy 4 services (api-service, extraction-service, grounding-service, hitl-ui) to Cloud Run
-- [x] **Environment Variable Configuration** — Non-sensitive config via Terraform `env` blocks (DATABASE_URL, CORS_ORIGINS, etc.)
-- [x] **Secret Management** — Store sensitive values (POSTGRES_PASSWORD, GOOGLE_APPLICATION_CREDENTIALS, UMLS_API_KEY) in Secret Manager
-- [x] **Cloud SQL Connection** — PostgreSQL 16 on Cloud SQL; connect via public IP + authorized networks + SSL (simpler than VPC)
-- [x] **IAM Service Accounts** — Dedicated service account per service with least privilege (Cloud SQL Client, Secret Manager Accessor)
-- [x] **Basic Health Checks** — HTTP startup probes on `/health` endpoint; configure initial_delay_seconds for LangGraph services
-- [x] **Remote State (GCS Backend)** — GCS bucket with versioning for Terraform state; automatic state locking
-- [x] **Basic Autoscaling** — Cloud Run defaults (scale to zero, autoscale up); set max_instances=10 per service to prevent cost surprises
-- [x] **CI/CD Integration** — GitHub Actions workflow: build Docker images → push to Artifact Registry → Terraform apply
-- [x] **Terraform Modules** — Reusable module for Cloud Run service; reduces duplication across 4 services
+- [x] **Read-only structured field display** — Already complete (temporal constraints, numeric thresholds badges in CriterionCard)
+- [ ] **Entity → Relation → Value triplet editor** — Core functionality; enables structured field editing
+- [ ] **UMLS concept search for entity field** — Table stakes for medical terminology editing
+- [ ] **Adaptive value input (single/range/temporal)** — Prevents data entry errors; standard in clinical data capture
+- [ ] **Rationale text field** — 21 CFR Part 11 compliance requirement
+- [ ] **Modify action with structured fields** — Extend existing review workflow to save triplets
+- [ ] **Multi-mapping support (add/remove)** — Complex criteria need multiple structured mappings
 
-### Add After Validation (v1.x - Post-Pilot)
+### Add After Validation (v1.6+)
 
-Features to add once core deployment is working and pilot shows traction.
+Features to add once core is working.
 
-- [ ] **Traffic Splitting** — Blue-green deployments for gradual rollouts; add when pilot moves to production
-- [ ] **Custom Domain with SSL** — Map custom domain to hitl-ui; only needed if external users access UI
-- [ ] **VPC Connector** — Private IP for Cloud SQL; add if security review requires private networking
-- [ ] **Cost Optimization (Min Instances)** — Set min_instances=1 for API service to reduce cold starts; monitor cost vs latency
-- [ ] **Terraform Workspaces** — Separate dev/staging/prod environments; add when pilot expands to multiple environments
-- [ ] **Structured Logging** — Configure Cloud Logging filters, alerting; add when pilot needs operational monitoring
-- [ ] **Database Migration Automation** — Separate Alembic migration step in CI/CD; ensure migrations run before deployment
-- [ ] **GCS Bucket Terraform Provisioning** — Manage protocol storage bucket via Terraform; currently manual setup
+- [ ] **Evidence linking (click → scroll PDF)** — High value but complex; validate workflow first
+- [ ] **AI-assisted field suggestions** — Accelerates review but not blocking; add after manual editing works
+- [ ] **Inline UMLS validation feedback** — Enhance UX after base search works
+- [ ] **Visual confidence indicators on suggestions** — Add when AI suggestions implemented
+- [ ] **Undo/redo for edit sessions** — Nice to have; add if user testing shows frequent mistakes
 
-### Future Consideration (v2+ - Production Scale)
+### Future Consideration (v2+)
 
-Features to defer until pilot proves value and scales beyond 50 protocols.
+Features to defer until product-market fit is established.
 
-- [ ] **Multi-Region Deployment** — High availability across regions; only needed at larger scale
-- [ ] **Complex IAM Policies** — Custom roles with granular permissions; start with predefined roles
-- [ ] **Load Balancer for Multi-Service Routing** — External Application Load Balancer; only if complex routing needed
-- [ ] **Private Service Connect** — Advanced VPC networking; enterprise security requirement
-- [ ] **Monitoring & Alerting** — Cloud Monitoring dashboards, PagerDuty integration; add when on-call needed
-- [ ] **Backup & Disaster Recovery** — Automated Cloud SQL backups, point-in-time recovery; configure retention policies
-- [ ] **Cost Allocation Tags** — Label resources for cost tracking; useful when multiple teams/projects
+- [ ] **Interactive SNOMED hierarchy browser** — Needs additional API integration; autocomplete sufficient for v1
+- [ ] **Batch operations with audit trail** — Complex coordination; validate single-item workflow first
+- [ ] **Custom validation rules per protocol** — Enterprise feature; not needed for 50-protocol pilot
 
 ## Feature Prioritization Matrix
 
-| Feature | User Value | Implementation Cost | Priority | Rationale |
-|---------|------------|---------------------|----------|-----------|
-| Container Registry Integration | HIGH | LOW | P1 | Required for Cloud Run deployment |
-| Multi-Service Deployment | HIGH | LOW | P1 | Core requirement for 4 services |
-| Environment Variable Configuration | HIGH | LOW | P1 | Essential for runtime config |
-| Secret Management | HIGH | MEDIUM | P1 | Security baseline; never commit secrets |
-| Cloud SQL Connection | HIGH | MEDIUM | P1 | Database is fundamental |
-| IAM Service Accounts | HIGH | MEDIUM | P1 | Security best practice |
-| Health Checks | HIGH | LOW | P1 | Prevents broken deployments |
-| Remote State (GCS Backend) | HIGH | LOW | P1 | Required for team collaboration |
-| Basic Autoscaling | HIGH | LOW | P1 | Cloud Run default; just configure limits |
-| CI/CD Integration | HIGH | MEDIUM | P1 | Automation is essential |
-| Terraform Modules | MEDIUM | LOW | P1 | DRY principle; reduces errors |
-| Traffic Splitting | MEDIUM | MEDIUM | P2 | Useful post-pilot for safe rollouts |
-| Custom Domain with SSL | MEDIUM | LOW | P2 | Nice to have for branding |
-| VPC Connector | LOW | MEDIUM | P2 | Only if private Cloud SQL required |
-| Cost Optimization (Min Instances) | MEDIUM | LOW | P2 | Trade-off: cost vs cold start latency |
-| Startup Probes (Custom Timing) | MEDIUM | LOW | P2 | May need for LangGraph services |
-| GCS Bucket Terraform Provisioning | LOW | LOW | P2 | Consistency, not urgent |
-| Database Migration Automation | MEDIUM | MEDIUM | P2 | Currently works in Dockerfile |
-| Structured Logging | MEDIUM | LOW | P2 | Cloud Run has basic logging already |
-| Terraform Workspaces | LOW | MEDIUM | P3 | Defer until multi-environment needed |
-| Multi-Region Deployment | LOW | HIGH | P3 | Overkill for pilot |
-| Complex IAM Policies | LOW | HIGH | P3 | Premature optimization |
-| Load Balancer for Routing | LOW | HIGH | P3 | Cloud Run LB sufficient |
-| Private Service Connect | LOW | HIGH | P3 | Enterprise-only requirement |
-| Monitoring & Alerting | MEDIUM | MEDIUM | P3 | Add when operational maturity needed |
-| Backup & Disaster Recovery | MEDIUM | MEDIUM | P3 | Cloud SQL has default backups |
-| Cost Allocation Tags | LOW | LOW | P3 | Useful for multi-team, not pilot |
+| Feature | User Value | Implementation Cost | Priority | Dependencies |
+|---------|------------|---------------------|----------|--------------|
+| Triplet editor (entity → relation → value) | HIGH | MEDIUM | P1 | None (base feature) |
+| UMLS concept search autocomplete | HIGH | MEDIUM | P1 | UMLS MCP (exists) |
+| Adaptive value input | HIGH | MEDIUM | P1 | Triplet editor |
+| Rationale text field | HIGH | LOW | P1 | None |
+| Multi-mapping (add/remove) | HIGH | MEDIUM | P1 | Triplet editor |
+| Modify action API extension | HIGH | LOW | P1 | Triplet editor |
+| Evidence linking | HIGH | HIGH | P2 | Span positions (not implemented) |
+| AI field suggestions | MEDIUM | MEDIUM | P2 | Text selection, MedGemma |
+| Inline UMLS validation | MEDIUM | MEDIUM | P2 | Concept search |
+| Confidence indicators on suggestions | MEDIUM | LOW | P2 | AI suggestions |
+| Undo/redo | LOW | MEDIUM | P3 | None |
+| SNOMED hierarchy browser | LOW | HIGH | P3 | Additional API |
 
 **Priority key:**
-- P1: Must have for initial deployment (launch blockers)
-- P2: Should have, add when possible (post-launch enhancements)
-- P3: Nice to have, future consideration (defer until validated)
+- P1: Must have for v1.5 launch (structured editing workflow)
+- P2: Should have, add in v1.6 (evidence linking, AI assist)
+- P3: Nice to have, future consideration (advanced UX)
 
-## Deployment Pattern Analysis
+## Existing System Integration
 
-### Standard Terraform Cloud Run Pattern (Recommended for Pilot)
+### Already Built (v1.4 - Leverage These)
 
-**What:** Single Terraform configuration managing all 4 Cloud Run services, Cloud SQL instance, Secret Manager secrets, IAM bindings, and Artifact Registry repository.
+| Component | Current State | Use For |
+|-----------|---------------|---------|
+| CriterionCard | Text/type/category edit mode; temporal constraint + threshold badges (display-only) | Extend modify mode to include triplet editing |
+| EntityCard | UMLS CUI/SNOMED/preferred_term edit mode with text inputs | Reference implementation for concept editing UX |
+| UMLS MCP integration | concept_search, concept_linking tools wired to grounding-service | Backend for autocomplete; add frontend query wrapper |
+| Review action endpoints | POST /criteria/:id/review with approve/reject/modify actions | Extend ReviewActionRequest schema to include modified_field_mappings |
+| PDF viewer (split-screen) | Left panel shows PDF via GCS signed URL | Evidence linking target; needs scroll-to-position enhancement |
+| Confidence badges | High/medium/low display with percentage | Reuse for AI suggestion confidence |
+| Audit log | reviewer_id, timestamp, action, before/after values | Extend to log structured field changes |
 
-**Why:** Simplifies dependency management, ensures consistent deployment, easier to reason about service relationships.
+### Gaps to Close (New Implementation Needed)
 
-**Structure:**
+| Gap | Why It's Missing | What's Needed |
+|-----|------------------|---------------|
+| Span positions from extraction | Multimodal extraction returns structured data without character offsets | Add bounding box or text span extraction to extraction-service; store in criteria.source_spans JSONB |
+| Structured field editing UI | CriterionCard modify mode only edits text/type/category | New FieldMappingEditor component with progressive disclosure |
+| Autocomplete concept search | UMLS MCP tools are backend-only; no frontend autocomplete | TanStack Query hook + debounced input + Combobox component |
+| Adaptive value inputs | No conditional input rendering based on relation type | InputByRelationType component with single/range/temporal variants |
+| Multi-mapping storage | Database stores single temporal_constraint and numeric_thresholds array | Add criteria.field_mappings JSONB column for array of {entity, relation, value, unit?, upper_value?} |
+| Rationale field in review actions | Review actions don't require reason text | Add optional rationale field to ReviewActionRequest; make required for modify actions |
+| Text selection handler | PDF viewer is read-only; no text selection hooks | Add onTextSelect callback to PDF viewer; pass selected text to suggestion engine |
+
+## Competitor Feature Analysis
+
+| Feature | OHDSI ATLAS | Clinical Trial Design Software (Medidata) | Our Approach |
+|---------|-------------|-------------------------------------------|--------------|
+| Structured criteria editor | Cohort criteria with domain → concept set → temporal requirements; UI forms for criteria attributes | AI-powered modeling with scenario testing; not focused on manual structured editing | Cauldron-style progressive disclosure (field → relation → value) with UMLS autocomplete |
+| Evidence linking | No source document linking; criteria are created from scratch | Source documents not in HITL loop; focus on protocol design optimization | Click criterion → scroll PDF to source text with span highlighting |
+| Terminology search | Requires concept sets to be pre-defined; uses OMOP CDM vocabulary | Proprietary medical coding; not UMLS-based | UMLS MCP autocomplete with semantic search; 18% keystroke savings via autocompletion |
+| Audit trail | Not applicable (research use, not regulatory) | FDA-compliant audit trail with timestamps and user tracking | 21 CFR Part 11 compliant: timestamp + user + reason + before/after values |
+| AI assistance | No AI features | AI for protocol optimization, patient subpopulation modeling | MedGemma agentic grounding for entity extraction + field suggestions |
+| Multi-mapping | Single criterion can have multiple inclusion criteria; modular approach | Not applicable (focuses on protocol design, not extraction validation) | Multiple entity → relation → value triplets per criterion with add/remove UI |
+
+## UX Flow: Editing Entity/Relation/Value Triplets
+
+### 3-Step Progressive Disclosure Pattern
+
+Based on Cauldron reference implementation and OHDSI ATLAS cohort editor patterns:
+
 ```
-infra/terraform/
-├── main.tf                 # Provider, backend config
-├── variables.tf            # Input variables (project_id, region, image_tags)
-├── outputs.tf              # Service URLs, connection strings
-├── modules/
-│   └── cloud-run-service/  # Reusable module
-│       ├── main.tf         # google_cloud_run_v2_service resource
-│       ├── variables.tf    # Service-specific inputs
-│       └── outputs.tf      # Service URL, service name
-├── services.tf             # Calls module 4 times (api, extraction, grounding, ui)
-├── database.tf             # Cloud SQL instance
-├── secrets.tf              # Secret Manager secrets
-├── iam.tf                  # Service account + bindings
-└── backend.tf              # GCS backend configuration
-```
+Step 1: Select Entity (Medical Concept)
+┌────────────────────────────────────────┐
+│ Entity: [Acetaminophen         ▼]     │  ← Autocomplete search via UMLS MCP
+│         Type to search UMLS...         │     Shows: preferred_term, CUI, SNOMED
+│                                        │     Semantic autocomplete (18% keystroke savings)
+└────────────────────────────────────────┘
+         ↓ (on selection)
 
-**Dependencies captured in code:**
-- Cloud SQL instance created before Cloud Run services (implicit)
-- Secrets created before IAM bindings (implicit)
-- Service accounts created before Cloud Run services (explicit `depends_on`)
+Step 2: Select Relation (Comparator)
+┌────────────────────────────────────────┐
+│ Relation: [Greater than or equal ▼]   │  ← Dropdown with 10 options
+│           (=, !=, >, >=, <, <=,        │     Relation type determines Step 3 input
+│            within, not_in_last,        │
+│            contains, not_contains)     │
+└────────────────────────────────────────┘
+         ↓ (on selection)
 
-### .env to Terraform Variable Mapping
-
-**Pattern:** Environment variables in `.env.example` map to Terraform inputs and Secret Manager secrets.
-
-| `.env.example` Variable | Terraform Mapping | Storage |
-|------------------------|-------------------|---------|
-| `POSTGRES_USER` | `var.db_user` | Cloud SQL instance config |
-| `POSTGRES_PASSWORD` | `google_secret_manager_secret` | Secret Manager (never in code) |
-| `POSTGRES_DB` | `var.db_name` | Cloud SQL database name |
-| `DATABASE_URL` | Constructed in Terraform | Environment variable (public connection string) |
-| `GCS_BUCKET_NAME` | `var.gcs_bucket_name` | Environment variable |
-| `GOOGLE_APPLICATION_CREDENTIALS` | Service account key JSON | Secret Manager (mounted as volume) |
-| `UMLS_API_KEY` | `google_secret_manager_secret` | Secret Manager |
-| `CORS_ORIGINS` | `var.cors_origins` | Environment variable |
-| `VITE_API_BASE_URL` | Cloud Run service URL (output) | Environment variable for UI |
-
-**Conversion pattern:**
-1. **Non-sensitive config** → Terraform variables → Cloud Run `env` blocks
-2. **Sensitive secrets** → Secret Manager → Cloud Run `secret` references
-3. **Inter-service URLs** → Terraform outputs → Cloud Run `env` blocks
-
-### Secret Management Best Practices
-
-**Avoid:**
-- Environment variables for sensitive data (visible to Viewer role)
-- Hardcoded secrets in Terraform files
-- Service account keys in repositories
-
-**Use:**
-- Secret Manager for all sensitive values
-- Terraform to create secret placeholders (not populate values)
-- `gcloud secrets versions add` to populate secrets outside Terraform
-- Pin secret versions in Terraform (avoid `latest` for reproducibility)
-
-**Example Terraform pattern:**
-```hcl
-# Create secret placeholder
-resource "google_secret_manager_secret" "postgres_password" {
-  secret_id = "postgres-password"
-  replication {
-    auto {}
-  }
-}
-
-# Reference in Cloud Run (version pinned)
-resource "google_cloud_run_v2_service" "api" {
-  template {
-    containers {
-      env {
-        name = "POSTGRES_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.postgres_password.secret_id
-            version = "1"  # Pin version for reproducibility
-          }
-        }
-      }
-    }
-  }
-}
+Step 3: Enter Value (Adaptive Input)
+┌────────────────────────────────────────┐
+│ If relation = standard (=, !=, >, <, >=, <=):
+│   Value: [1000] Unit: [mg ▼]           │  ← Single input + unit dropdown
+│
+│ If relation = range:
+│   Min: [500]  Max: [1000]  Unit: [mg]  │  ← Min/max inputs + unit
+│
+│ If relation = temporal (within, not_in_last):
+│   Duration: [6]  Unit: [months ▼]      │  ← Number + temporal unit (hours/days/weeks/months/years)
+│   Reference: [screening ▼]             │  ← Optional reference point
+└────────────────────────────────────────┘
 ```
 
-### Cloud SQL Connection Patterns
+### Complete Editing Workflow
 
-**Two options:**
-
-1. **Public IP + Authorized Networks (Recommended for Pilot)**
-   - Simpler configuration
-   - No VPC connector needed
-   - SSL enforced by default
-   - Authorize Cloud Run's egress IP ranges (dynamic, use `0.0.0.0/0` with SSL)
-   - Connection string: `postgresql://USER:PASS@PUBLIC_IP:5432/DB?sslmode=require`
-
-2. **Private IP + VPC Connector (Production)**
-   - More secure (no public exposure)
-   - Requires VPC connector setup (/28 subnet)
-   - Higher complexity, additional cost ($10/month for connector)
-   - Connection string: `postgresql://USER:PASS@PRIVATE_IP:5432/DB`
-
-**Cloud Run Unix Socket Pattern (Alternative):**
-- Cloud Run can connect via Unix socket using Cloud SQL Proxy sidecar
-- Connection string: `postgresql://USER:PASS@/cloudsql/PROJECT:REGION:INSTANCE/DB`
-- Requires `roles/cloudsql.client` IAM role on service account
-- Zero networking configuration
-
-**Recommendation for pilot:** Unix socket pattern (simplest, most secure, no VPC needed).
-
-### Container Build & Deploy Flow
-
-**CI/CD Pipeline:**
-
-1. **Trigger:** Push to `main` branch or manual workflow dispatch
-2. **Build:** GitHub Actions builds Docker images using existing Dockerfiles
-3. **Tag:** Images tagged with git commit SHA (e.g., `gcr.io/PROJECT/api-service:abc123`)
-4. **Push:** Images pushed to Artifact Registry
-5. **Terraform:** Update `terraform.tfvars` with new image tags
-6. **Apply:** `terraform apply` updates Cloud Run services with new images
-7. **Verify:** Health checks confirm services are running
-
-**Terraform variable pattern:**
-```hcl
-# terraform.tfvars (updated by CI/CD)
-image_tags = {
-  api        = "sha-abc123"
-  extraction = "sha-abc123"
-  grounding  = "sha-abc123"
-  ui         = "sha-def456"
-}
-
-# services.tf
-module "api_service" {
-  source = "./modules/cloud-run-service"
-  image  = "gcr.io/${var.project_id}/api-service:${var.image_tags.api}"
-  # ...
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│ CriterionCard (Modify Mode)                                 │
+├─────────────────────────────────────────────────────────────┤
+│ Text: [Age 18-65 years, BMI <30, no acetaminophen >1g/day] │
+│ Type: [Inclusion ▼]  Category: [Demographic]               │
+│                                                             │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Structured Field Mappings                               │ │
+│ ├─────────────────────────────────────────────────────────┤ │
+│ │ Mapping 1:                                              │ │
+│ │   Entity:   [Age (C0001779) ▼]                          │ │
+│ │   Relation: [range ▼]                                   │ │
+│ │   Value:    Min: [18]  Max: [65]  Unit: [years ▼]      │ │
+│ │   [Remove Mapping]                                      │ │
+│ │                                                         │ │
+│ │ Mapping 2:                                              │ │
+│ │   Entity:   [Body Mass Index (C0005893) ▼]             │ │
+│ │   Relation: [< ▼]                                       │ │
+│ │   Value:    [30]  Unit: [kg/m² ▼]                      │ │
+│ │   [Remove Mapping]                                      │ │
+│ │                                                         │ │
+│ │ Mapping 3:                                              │ │
+│ │   Entity:   [Acetaminophen (C0000970) ▼]               │ │
+│ │   Relation: [> ▼]                                       │ │
+│ │   Value:    [1]  Unit: [g/day ▼]                       │ │
+│ │   [Remove Mapping]                                      │ │
+│ │                                                         │ │
+│ │ [+ Add Mapping]                                         │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ Rationale for changes (required):                          │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Corrected acetaminophen threshold to match protocol     │ │
+│ │ Section 5.3 (extraction had wrong unit conversion)      │ │
+│ └─────────────────────────────────────────────────────────┘ │
+│                                                             │
+│ [Save]  [Cancel]                                            │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-**Alternative (simpler for pilot):** Use `latest` tag during pilot, pin SHAs post-validation.
+### AI-Assisted Suggestion Flow (v1.6+)
 
-## Anti-Pattern: Over-Engineering for a Pilot
-
-### Common Mistakes
-
-1. **Multi-environment from day one**
-   - Problem: Terraform workspaces, separate state files, complex variable management
-   - Pilot impact: Delays deployment by weeks, adds no value for 50 protocols
-   - Alternative: Single environment, add staging/prod after validation
-
-2. **Microservice-per-database**
-   - Problem: Separate Cloud SQL instance per service
-   - Pilot impact: 4x database cost (~$200/month vs ~$50/month), 4x management overhead
-   - Alternative: Single PostgreSQL instance with schemas/databases; isolate post-pilot
-
-3. **Perfect IAM from day one**
-   - Problem: Custom roles with minimal permissions, complex policy bindings
-   - Pilot impact: Hours of IAM debugging, premature optimization
-   - Alternative: Predefined roles (Cloud Run Admin, Secret Manager Accessor), refine later
-
-4. **Infrastructure testing**
-   - Problem: Terratest, Kitchen-Terraform, complex validation pipelines
-   - Pilot impact: Testing infrastructure takes longer than building it
-   - Alternative: Manual smoke tests, `terraform validate`, add automated tests at scale
-
-5. **GitOps with complex branching**
-   - Problem: Separate branches for dev/staging/prod, PR-based deployments
-   - Pilot impact: Process overhead for single-person team
-   - Alternative: Direct deploys from `main`, add GitOps when team grows
-
-### Right-Sizing Principles for Pilot
-
-- **Start simple, add complexity when needed** (not when anticipated)
-- **Optimize for deployment speed, not theoretical scale** (50 protocols, not 5 million)
-- **Defer security hardening until post-validation** (use good defaults, not perfect isolation)
-- **Single region, single environment, shared database** (simplicity over resilience)
-- **Terraform for reproducibility, not for every resource** (GCS bucket can be manual)
-
-## Expected Terraform Configuration Complexity
-
-### Lines of Code Estimate
-
-| File | Lines | Purpose |
-|------|-------|---------|
-| `main.tf` | 20 | Provider, backend |
-| `variables.tf` | 50 | Input variables with descriptions |
-| `outputs.tf` | 30 | Service URLs, connection info |
-| `services.tf` | 80 | 4 Cloud Run services using module |
-| `database.tf` | 40 | Cloud SQL instance + database |
-| `secrets.tf` | 60 | Secret Manager secrets (4-5 secrets) |
-| `iam.tf` | 80 | Service accounts + IAM bindings |
-| `modules/cloud-run-service/main.tf` | 100 | Reusable service module |
-| `modules/cloud-run-service/variables.tf` | 40 | Module inputs |
-| `modules/cloud-run-service/outputs.tf` | 10 | Module outputs |
-| **Total** | **~510 lines** | Complete deployment infrastructure |
-
-**Complexity level:** MEDIUM (comparable to a Django app with 3-4 models).
-
-### Time Estimate (First Deployment)
-
-- Terraform setup (backend, provider): 1 hour
-- Cloud Run module development: 2 hours
-- Multi-service configuration: 2 hours
-- Cloud SQL + secrets setup: 2 hours
-- IAM configuration: 2 hours
-- CI/CD integration: 3 hours
-- Testing + debugging: 4 hours
-- **Total:** ~16 hours (2 days) for experienced Terraform user
-
-**For team with limited Terraform experience:** Add 8 hours for learning curve (total: 3 days).
+```
+User selects text in PDF viewer: "patients aged 18-65 years"
+         ↓
+Click "Suggest Fields" button
+         ↓
+Frontend: POST /api/suggest-fields { selected_text: "...", criterion_id: "..." }
+         ↓
+Backend: MedGemma extracts entities → UMLS MCP concept_search
+         ↓
+Frontend receives:
+[
+  { entity: "Age", cui: "C0001779", snomed: "397669002", relation: "range",
+    min: 18, max: 65, unit: "years", confidence: 0.92 }
+]
+         ↓
+UI shows suggestion card:
+┌─────────────────────────────────────────┐
+│ AI Suggestion (92% confidence)          │
+│ Entity: Age (C0001779)                  │
+│ Relation: range                         │
+│ Value: 18-65 years                      │
+│ [Accept] [Modify] [Reject]              │
+└─────────────────────────────────────────┘
+         ↓
+On accept: pre-populate triplet editor with suggestion
+```
 
 ## Sources
 
-### Official Documentation (HIGH Confidence)
+### Clinical Trial Standards and Compliance
+- [A Guide to CDISC Standards Used in Clinical Research | Certara](https://www.certara.com/blog/a-guide-to-cdisc-standards-used-in-clinical-research/)
+- [CDISC Data Standards Explained: CDASH, SDTM, SEND, and ADaM](https://www.allucent.com/resources/blog/what-cdisc-and-what-are-cdisc-data-standards)
+- [21 CFR Part 11 Audit Trail Requirements | Remington-Davis](https://www.remdavis.com/news/21-cfr-part-11-audit-trail-requirements)
+- [Audit Trails & Transparency: Tracking Changes in Clinical Data - OpenClinica](https://www.openclinica.com/blog/audit-trails-transparency-tracking-changes-in-clinical-data/)
 
-- [Cloud Run documentation](https://cloud.google.com/run/docs) - General Cloud Run concepts
-- [Terraform GCP Provider - Cloud Run V2 Service](https://registry.terraform.io/providers/hashicorp/google/latest/docs/resources/cloud_run_v2_service) - Terraform resource reference
-- [Cloud SQL Connection from Cloud Run](https://cloud.google.com/sql/docs/postgres/connect-run) - Database connectivity patterns
-- [Secret Manager with Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets) - Secret management best practices
-- [Cloud Run Environment Variables](https://docs.cloud.google.com/run/docs/configuring/services/environment-variables) - Configuration patterns
-- [Cloud Run Health Checks](https://docs.cloud.google.com/run/docs/configuring/healthchecks) - Startup and liveness probes
-- [Terraform GCS Backend](https://developer.hashicorp.com/terraform/language/backend/gcs) - Remote state configuration
+### UMLS and Medical Terminology Interfaces
+- [Find Concepts | SNOMED CT Terminology Services Guide | SNOMED International](https://docs.snomed.org/snomed-ct-practical-guides/snomed-ct-terminology-services-guide/4-terminology-service-types/4.8-find-concepts)
+- [SNOMED CT Saves Keystrokes: Quantifying Semantic Autocompletion - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3041304/)
+- [UMLS Metathesaurus Browser](https://uts.nlm.nih.gov/uts/umls/home)
 
-### Best Practices & Patterns (MEDIUM Confidence)
+### Clinical Trial Software and Structured Editors
+- [Implementation of inclusion and exclusion criteria in clinical studies in OHDSI ATLAS software | Scientific Reports](https://www.nature.com/articles/s41598-023-49560-w)
+- [ATLAS Documentation | OHDSI](https://www.ohdsi.org/web/wiki/doku.php?id=documentation:software:atlas:cohorts)
+- [Clinical Trial Design Software - Medidata](https://www.medidata.com/en/clinical-trial-products/medidata-ai/real-world-data/clinical-trial-design-software/)
 
-- [Best practices for Terraform operations on GCP](https://docs.cloud.google.com/docs/terraform/best-practices/operations) - Google's official Terraform guidance
-- [Terraform Best Practices on Google Cloud](https://medium.com/@truonghongcuong68/terraform-best-practices-on-google-cloud-a-practical-guide-057f96b19489) - Practical implementation patterns
-- [Securely using dotenv files with Cloud Run and Terraform](https://mikesparr.medium.com/securely-using-dotenv-env-files-with-google-cloud-run-and-terraform-e8b14ff04bff) - .env migration patterns
-- [IAM Best Practices for Service Accounts](https://cloud.google.com/iam/docs/best-practices-service-accounts) - Least privilege principles
-- [Terraform Modules: Reusability Best Practices](https://scalr.com/learning-center/mastering-terraform-modules-a-practical-guide-to-reusability-and-efficiency/) - DRY patterns
+### AI-Assisted Medical Coding
+- [Top 10 AI in Medical Coding Software for 2026](https://www.aptarro.com/insights/top-ai-in-medical-coding-software)
+- [AI in Medical Coding and Billing: Implementation Guide 2026](https://topflightapps.com/ideas/ai-in-medical-billing-and-coding/)
+- [Understanding Medical Coding Audit Trails — AMBCI](https://ambci.org/medical-billing-and-coding-certification-blog/understanding-medical-coding-audit-trails)
 
-### Cost Optimization (MEDIUM Confidence)
+### Entity-Attribute-Value (EAV) Clinical Data Models
+- [Data Model Considerations for Clinical Effectiveness Researchers - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3824370/)
+- [Entity–attribute–value model - Wikipedia](https://en.wikipedia.org/wiki/Entity%E2%80%93attribute%E2%80%93value_model)
 
-- [Google Cloud Run Pricing and Cost Optimization](https://www.prosperops.com/blog/google-cloud-run-pricing-and-cost-optimization/) - Right-sizing strategies
-- [Cloud Run Pricing 2025](https://cloudchipr.com/blog/cloud-run-pricing) - Pricing breakdown
-- [Minimize Costs on Cloud Run](https://df-mokhtari.medium.com/how-to-minimize-costs-when-deplyoing-a-full-stack-application-to-google-cloud-run-9-effective-tips-46f06bb433fb) - Practical optimization tips
-
-### CI/CD Integration (MEDIUM Confidence)
-
-- [Streamlining CI/CD for Cloud Run with GitHub Actions and Terraform](https://medium.com/@pawansenapati1999/streamlining-ci-cd-for-cloud-run-with-github-actions-and-terraform-c628092b86e0) - End-to-end pipeline example
-- [Google Cloud Run CI/CD: Terraform Cloud & GitHub Actions](https://mkdev.me/posts/google-cloud-run-with-ci-cd-via-terraform-cloud-and-github-actions) - Alternative patterns
-
-### Anti-Patterns & Pitfalls (MEDIUM Confidence)
-
-- [9 Platform Engineering Anti-Patterns](https://jellyfish.co/library/platform-engineering/anti-patterns/) - Over-engineering traps
-- [Cloud Native Engineering Anti-Patterns](https://www.coforge.com/what-we-know/blog/cloud-native-engineering-anti-patterns) - Common mistakes
-- [10 Cloud Antipatterns](https://en.paradigmadigital.com/dev/10-cloud-antipatterns/) - What to avoid
+### Adaptive Data Capture and Progressive Disclosure
+- [Progressive Disclosure - NN/G](https://www.nngroup.com/articles/progressive-disclosure/)
+- [Progressive disclosure in UX design: Types and use cases - LogRocket Blog](https://blog.logrocket.com/ux-design/progressive-disclosure-ux-types-use-cases/)
+- [Predictive modeling of biomedical temporal data in healthcare applications - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC11519529/)
 
 ---
-
-*Feature research for: Terraform GCP Cloud Run Deployment Infrastructure*
-*Researched: 2026-02-12*
-*Context: Adding deployment to existing 4-service containerized application (Clinical Trial Criteria Extraction System)*
+*Feature research for: Structured criteria field mapping editor (v1.5 milestone)*
+*Researched: 2026-02-13*
+*Confidence: MEDIUM — WebSearch verification of clinical trial standards, UMLS autocomplete patterns, and audit trail requirements; no Context7 or official Cauldron documentation available (reference implementation from project context)*

@@ -1,1312 +1,813 @@
-# Architecture Research: Terraform GCP Cloud Run Deployment
+# Architecture Research: Structured Field Mapping Editor Integration
 
-**Domain:** Terraform-based GCP Cloud Run deployment for containerized microservices monorepo
-**Researched:** 2026-02-12
+**Domain:** Clinical trial criteria HITL review with structured field editing
+**Researched:** 2026-02-13
 **Confidence:** HIGH
 
-## Standard Architecture
+## Executive Summary
 
-### System Overview: Terraform Integration with Existing Services
+The structured field mapping editor extends the existing HITL review UI (ReviewPage → CriterionCard) with inline structured editing capabilities for temporal_constraint, numeric_thresholds, and conditions fields. The architecture follows the existing pattern: React Hook Form for complex form state, Radix UI for accessible components, TanStack Query for server sync, and the ReviewActionRequest model extended to support structured field updates.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                   Local Development Environment                      │
-├─────────────────────────────────────────────────────────────────────┤
-│  .env → infra/.env.example → Docker Compose → Services              │
-│  (PostgreSQL, MLflow, PubSub emulator, 4 containerized services)    │
-└─────────────────────────────────────────────────────────────────────┘
-                                    ↓
-                    .env → terraform.tfvars (manual mapping)
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│              Terraform Deployment Layer (infra/terraform/)           │
-├─────────────────────────────────────────────────────────────────────┤
-│  ┌───────────────┐  ┌───────────────┐  ┌───────────────┐            │
-│  │   Foundation  │  │   Networking  │  │    Secrets    │            │
-│  │   Module      │  │   Module      │  │    Module     │            │
-│  │ • Project     │  │ • VPC         │  │ • Secret Mgr  │            │
-│  │ • APIs        │  │ • VPC Conn    │  │ • DB creds    │            │
-│  │ • Artifact    │  │ • Firewall    │  │ • API keys    │            │
-│  │   Registry    │  │               │  │               │            │
-│  └───────┬───────┘  └───────┬───────┘  └───────┬───────┘            │
-│          │                  │                  │                     │
-│  ┌───────┴──────────────────┴──────────────────┴───────┐            │
-│  │              Database Module                         │            │
-│  │  • Cloud SQL PostgreSQL 16                           │            │
-│  │  • Private IP (VPC)                                  │            │
-│  │  • Automated backups                                 │            │
-│  └────────────────────────┬─────────────────────────────┘            │
-│                           │                                          │
-│  ┌────────────────────────┴─────────────────────────────┐            │
-│  │           Cloud Run Services Module                  │            │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐ │            │
-│  │  │api-service│ extraction │ grounding │ │ hitl-ui │ │            │
-│  │  └──────────┘ └──────────┘ └──────────┘ └─────────┘ │            │
-│  │  Each with: VPC connector, env vars, secrets, IAM   │            │
-│  └──────────────────────────────────────────────────────┘            │
-└─────────────────────────────────────────────────────────────────────┘
-                                    ↓
-┌─────────────────────────────────────────────────────────────────────┐
-│                    GCP Production Environment                        │
-├─────────────────────────────────────────────────────────────────────┤
-│  Cloud Run Services → VPC Connector → Cloud SQL (private IP)        │
-│  Containers from Artifact Registry → Secret Manager → env vars      │
-│  IAM service accounts → least privilege access                      │
-│  GCS bucket → PDF storage → signed URLs                             │
-└─────────────────────────────────────────────────────────────────────┘
-```
+Key architectural decisions:
+1. **Component strategy**: New StructuredFieldEditor component wraps CriterionCard edit mode, replacing simple textarea with structured form
+2. **Data model**: ReviewActionRequest extends with `modified_structured_fields` JSON object
+3. **State management**: React Hook Form with useFieldArray for dynamic threshold arrays, no new Zustand store needed
+4. **PDF integration**: PdfViewer extends with react-pdf-highlighter for scroll-to-source via page/coordinates metadata
 
-### Component Responsibilities
+## Current Architecture Analysis
 
-| Component | Responsibility | Integration with Existing Architecture |
-|-----------|----------------|----------------------------------------|
-| **Foundation Module** | GCP project setup, API enablement, Artifact Registry | NEW - Manages GCP APIs and container registry for Dockerfiles |
-| **Networking Module** | VPC, VPC Serverless Connector, firewall rules | NEW - Enables Cloud Run to Cloud SQL private communication |
-| **Secrets Module** | Secret Manager, secret versions, IAM bindings | NEW - Replaces .env files with Secret Manager in production |
-| **Database Module** | Cloud SQL PostgreSQL 16, private IP, backups | REPLACES - Docker Compose `db` service with managed Cloud SQL |
-| **Cloud Run Services Module** | Deploy 4 containerized services with env vars, secrets, VPC | DEPLOYS - Existing Dockerfiles (api, extraction, grounding, ui) |
-| **IAM Module** | Service accounts, role bindings, least privilege | NEW - Production service identity management |
-| **Storage Module** | GCS bucket for PDFs, lifecycle policies | ENHANCES - Production GCS bucket (local dev uses mock/local storage) |
-
-## Recommended Terraform Project Structure
+### Existing Data Flow
 
 ```
-infra/terraform/
-├── README.md                        # Deployment instructions
-├── main.tf                          # Root module - orchestrates all modules
-├── variables.tf                     # Root-level input variables
-├── outputs.tf                       # Root-level outputs (service URLs, DB connection)
-├── terraform.tfvars                 # Environment-specific values (gitignored)
-├── terraform.tfvars.example         # Template for terraform.tfvars
-├── backend.tf                       # GCS backend for state management
-├── provider.tf                      # GCP provider configuration
-│
-├── modules/                         # Reusable Terraform modules
-│   ├── foundation/                  # Project setup and Artifact Registry
-│   │   ├── main.tf                  # google_project_service, google_artifact_registry_repository
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   ├── networking/                  # VPC and VPC Serverless Connector
-│   │   ├── main.tf                  # google_compute_network, google_vpc_access_connector
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   ├── secrets/                     # Secret Manager secrets
-│   │   ├── main.tf                  # google_secret_manager_secret, google_secret_manager_secret_version
-│   │   ├── variables.tf             # Accepts sensitive values from root module
-│   │   ├── outputs.tf               # Secret IDs for Cloud Run reference
-│   │   └── README.md
-│   ├── database/                    # Cloud SQL PostgreSQL
-│   │   ├── main.tf                  # google_sql_database_instance, google_sql_database, google_sql_user
-│   │   ├── variables.tf
-│   │   ├── outputs.tf               # Connection name, private IP
-│   │   └── README.md
-│   ├── cloud-run-service/           # Reusable Cloud Run service module
-│   │   ├── main.tf                  # google_cloud_run_v2_service, google_cloud_run_service_iam_member
-│   │   ├── variables.tf             # Service name, image, env vars, secrets, VPC connector
-│   │   ├── outputs.tf               # Service URL, service name
-│   │   └── README.md
-│   ├── iam/                         # Service accounts and IAM bindings
-│   │   ├── main.tf                  # google_service_account, google_project_iam_member
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   └── README.md
-│   └── storage/                     # GCS bucket for PDFs
-│       ├── main.tf                  # google_storage_bucket, google_storage_bucket_iam_member
-│       ├── variables.tf
-│       ├── outputs.tf
-│       └── README.md
-│
-├── environments/                    # (Optional) Environment-specific configs
-│   ├── dev/
-│   │   ├── terraform.tfvars
-│   │   └── backend.tf
-│   ├── staging/
-│   │   ├── terraform.tfvars
-│   │   └── backend.tf
-│   └── prod/
-│       ├── terraform.tfvars
-│       └── backend.tf
-│
-└── scripts/                         # Helper scripts
-    ├── init-backend.sh              # Create GCS bucket for Terraform state
-    ├── build-and-push.sh            # Build Docker images, push to Artifact Registry
-    └── deploy.sh                    # terraform init, plan, apply workflow
+User Action (CriterionCard)
+    ↓
+handleModifySave() → onAction(criterionId, ReviewActionRequest)
+    ↓
+useReviewAction (TanStack Query mutation)
+    ↓
+POST /reviews/criteria/{id}/action (FastAPI)
+    ↓
+_apply_review_action() → update Criteria model
+    ↓
+db.commit() + invalidate queries
+    ↓
+UI re-renders with updated data
 ```
 
-### Structure Rationale
+### Existing Component Hierarchy
 
-- **modules/**: Each module represents a logical grouping of GCP resources with clear boundaries. Modules are reusable across environments (dev/staging/prod).
-- **cloud-run-service/**: Generic module invoked 4 times (api, extraction, grounding, ui) with different parameters. Avoids code duplication.
-- **secrets/**: Centralized secret creation. Root module passes sensitive values (from tfvars or env vars), this module creates Secret Manager secrets and versions.
-- **environments/**: Optional multi-environment support. For single-environment deployments (pilot), use root-level terraform.tfvars.
-- **scripts/**: Automation for CI/CD. build-and-push.sh bridges Docker build with Terraform (builds images, pushes to Artifact Registry, updates tfvars with image tags).
+```
+ReviewPage.tsx
+├── PdfViewer (left panel)
+│   └── Document + Page (react-pdf)
+└── CriterionCard (right panel, repeated)
+    ├── Badges (type, category, confidence, status)
+    ├── Display mode: criterion.text
+    ├── Edit mode: textarea + type/category inputs
+    └── Action buttons (Approve/Reject/Modify)
+```
+
+### Existing Request Models
+
+**Frontend (useReviews.ts):**
+```typescript
+interface ReviewActionRequest {
+    action: 'approve' | 'reject' | 'modify';
+    reviewer_id: string;
+    modified_text?: string;
+    modified_type?: string;
+    modified_category?: string;
+    comment?: string;
+}
+```
+
+**Backend (reviews.py):**
+```python
+class ReviewActionRequest(BaseModel):
+    action: Literal["approve", "reject", "modify"]
+    reviewer_id: str
+    modified_text: str | None = None
+    modified_type: str | None = None
+    modified_category: str | None = None
+    comment: str | None = None
+```
+
+## Proposed Architecture
+
+### System Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    React UI Layer                            │
+├─────────────────────────────────────────────────────────────┤
+│  ┌─────────────┐  ┌──────────────────┐  ┌───────────────┐  │
+│  │ ReviewPage  │  │ CriterionCard    │  │ PdfViewer     │  │
+│  │             │  │ ┌──────────────┐ │  │ (extended)    │  │
+│  │             │  │ │ Structured   │ │  │ + highlight   │  │
+│  │             │  │ │ FieldEditor  │ │  │ + scroll-to   │  │
+│  │             │  │ └──────────────┘ │  │               │  │
+│  └─────────────┘  └──────────────────┘  └───────────────┘  │
+├─────────────────────────────────────────────────────────────┤
+│                 State Management Layer                       │
+├─────────────────────────────────────────────────────────────┤
+│  ┌──────────────┐  ┌──────────────┐  ┌────────────────┐    │
+│  │ TanStack     │  │ React Hook   │  │ Zustand        │    │
+│  │ Query        │  │ Form         │  │ (authStore)    │    │
+│  │ (server sync)│  │ (form state) │  │                │    │
+│  └──────────────┘  └──────────────┘  └────────────────┘    │
+├─────────────────────────────────────────────────────────────┤
+│                      API Layer                               │
+├─────────────────────────────────────────────────────────────┤
+│  POST /reviews/criteria/{id}/action (extended)              │
+│  GET  /reviews/protocols/{id}/pdf-url (existing)            │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### New Components Architecture
+
+#### 1. StructuredFieldEditor Component
+
+**Location:** `apps/hitl-ui/src/components/StructuredFieldEditor.tsx`
+
+**Purpose:** Inline structured editing for temporal_constraint, numeric_thresholds, conditions
+
+**Props:**
+```typescript
+interface StructuredFieldEditorProps {
+    criterion: Criterion;
+    onSave: (structuredFields: StructuredFieldData) => void;
+    onCancel: () => void;
+    isSubmitting: boolean;
+}
+
+interface StructuredFieldData {
+    temporal_constraint?: TemporalConstraint;
+    numeric_thresholds?: NumericThreshold[];
+    conditions?: Condition[];
+}
+
+interface TemporalConstraint {
+    duration: string;
+    relation: 'within' | 'before' | 'after' | 'at_least';
+    reference_point?: string;
+}
+
+interface NumericThreshold {
+    value: number;
+    comparator: '>=' | '<=' | '>' | '<' | '==' | 'range';
+    unit: string;
+    upper_value?: number;
+}
+
+interface Condition {
+    type: string;
+    description: string;
+}
+```
+
+**Implementation Pattern:**
+- Uses React Hook Form with `useForm` and `useFieldArray` for threshold arrays
+- Radix UI components for select dropdowns (relation, comparator)
+- Controlled inputs with validation
+- Dynamic add/remove for threshold arrays
+
+**Component Structure:**
+```tsx
+<form onSubmit={handleSubmit(onSave)}>
+  <TemporalConstraintFields control={control} />
+  <NumericThresholdsFields control={control} fields={fields} append={append} remove={remove} />
+  <ConditionsFields control={control} />
+  <ActionButtons />
+</form>
+```
+
+#### 2. CriterionCard Modifications
+
+**Changes:**
+- Replace simple edit mode with StructuredFieldEditor when `isEditing && isStructuredEditMode`
+- Add toggle button: "Text Edit" vs "Structured Edit"
+- Pass structured field data to editor
+- Handle structured save callback
+
+**Updated Edit Flow:**
+```typescript
+const [editMode, setEditMode] = useState<'text' | 'structured'>('text');
+
+function handleStructuredSave(structuredFields: StructuredFieldData) {
+    onAction(criterion.id, {
+        action: 'modify',
+        reviewer_id: 'current-user',
+        modified_text: editText, // can edit both text and structured
+        modified_structured_fields: structuredFields,
+    });
+    setIsEditing(false);
+}
+```
+
+#### 3. PdfViewer Enhancement
+
+**New Capabilities:**
+- Scroll to page and highlight text
+- Accept page number and text coordinates as props
+- Use react-pdf-highlighter for highlight overlay
+
+**Extended Props:**
+```typescript
+interface PdfViewerProps {
+    url: string;
+    highlightTarget?: {
+        page: number;
+        boundingBox?: { x: number; y: number; width: number; height: number };
+        text?: string;
+    };
+}
+```
+
+**Implementation Strategy:**
+- Wrap existing react-pdf Document with react-pdf-highlighter HighlightArea
+- Add `onHighlightClick` to jump to page
+- Store highlight state in component (no Zustand needed, prop-driven)
+- Use PdfViewer's existing pageNumber state, extend to accept external page changes
+
+**Library Choice:** [react-pdf-highlighter-extended](https://github.com/DanielArnould/react-pdf-highlighter-extended) (most actively maintained, supports zoom and custom styling)
+
+## Data Model Extensions
+
+### Frontend Type Additions
+
+**File:** `apps/hitl-ui/src/hooks/useReviews.ts`
+
+```typescript
+interface ReviewActionRequest {
+    action: 'approve' | 'reject' | 'modify';
+    reviewer_id: string;
+    modified_text?: string;
+    modified_type?: string;
+    modified_category?: string;
+    modified_structured_fields?: {  // NEW
+        temporal_constraint?: Record<string, unknown>;
+        numeric_thresholds?: Record<string, unknown>;
+        conditions?: Record<string, unknown>;
+    };
+    comment?: string;
+}
+```
+
+### Backend Model Extensions
+
+**File:** `services/api-service/src/api_service/reviews.py`
+
+```python
+class ReviewActionRequest(BaseModel):
+    action: Literal["approve", "reject", "modify"]
+    reviewer_id: str
+    modified_text: str | None = None
+    modified_type: str | None = None
+    modified_category: str | None = None
+    modified_structured_fields: Dict[str, Any] | None = None  # NEW
+    comment: str | None = None
+```
+
+**Update `_apply_review_action()` function:**
+```python
+def _apply_review_action(
+    criterion: Criteria,
+    body: ReviewActionRequest,
+) -> tuple[Dict[str, Any], Dict[str, Any] | None]:
+    before_value: Dict[str, Any] = {
+        "text": criterion.text,
+        "criteria_type": criterion.criteria_type,
+        "category": criterion.category,
+        "temporal_constraint": criterion.temporal_constraint,  # NEW
+        "numeric_thresholds": criterion.numeric_thresholds,    # NEW
+        "conditions": criterion.conditions,                    # NEW
+    }
+    after_value: Dict[str, Any] | None = None
+
+    if body.action == "modify":
+        criterion.review_status = "modified"
+        if body.modified_text is not None:
+            criterion.text = body.modified_text
+        if body.modified_type is not None:
+            criterion.criteria_type = body.modified_type
+        if body.modified_category is not None:
+            criterion.category = body.modified_category
+
+        # NEW: Handle structured field updates
+        if body.modified_structured_fields is not None:
+            fields = body.modified_structured_fields
+            if "temporal_constraint" in fields:
+                criterion.temporal_constraint = fields["temporal_constraint"]
+            if "numeric_thresholds" in fields:
+                criterion.numeric_thresholds = fields["numeric_thresholds"]
+            if "conditions" in fields:
+                criterion.conditions = fields["conditions"]
+
+        after_value = {
+            "text": criterion.text,
+            "criteria_type": criterion.criteria_type,
+            "category": criterion.category,
+            "temporal_constraint": criterion.temporal_constraint,
+            "numeric_thresholds": criterion.numeric_thresholds,
+            "conditions": criterion.conditions,
+        }
+
+    return before_value, after_value
+```
+
+### Database Schema
+
+**No changes needed** — `Criteria` model already has JSONB columns:
+- `temporal_constraint: Dict[str, Any] | None`
+- `numeric_thresholds: Dict[str, Any] | None`
+- `conditions: Dict[str, Any] | None`
+
+## State Management Patterns
+
+### Form State Strategy
+
+**Primary Tool:** React Hook Form (already in package.json)
+
+**Pattern:**
+```typescript
+// In StructuredFieldEditor.tsx
+const { control, handleSubmit, watch, reset } = useForm<StructuredFieldData>({
+    defaultValues: {
+        temporal_constraint: criterion.temporal_constraint || undefined,
+        numeric_thresholds: criterion.numeric_thresholds?.thresholds || [],
+        conditions: criterion.conditions?.conditions || [],
+    }
+});
+
+const { fields, append, remove } = useFieldArray({
+    control,
+    name: 'numeric_thresholds',
+});
+```
+
+**Why React Hook Form:**
+- Already integrated in codebase
+- Built-in validation with schema integration
+- `useFieldArray` handles dynamic threshold lists perfectly
+- No additional state library needed
+- Performance optimized (minimal re-renders)
+
+**References:**
+- [React Hook Form useFieldArray](https://react-hook-form.com/docs/usefieldarray)
+- [React Hook Form nested objects best practices](https://medium.com/@krithi.muthuraj/solving-nested-dynamic-forms-using-react-hook-form-6097b0072d48)
+
+### Server State Strategy
+
+**Primary Tool:** TanStack Query (existing pattern)
+
+**No changes to query pattern:**
+- `useReviewAction()` mutation already handles arbitrary ReviewActionRequest
+- `invalidateQueries` triggers re-fetch after save
+- Optimistic updates not needed (low-frequency HITL actions)
+
+**Existing pattern works:**
+```typescript
+const reviewAction = useReviewAction();
+reviewAction.mutate({
+    criteriaId: criterion.id,
+    ...reviewActionRequest  // includes new modified_structured_fields
+});
+```
+
+### UI State Strategy
+
+**No new Zustand store needed**
+
+**Component-local state sufficient:**
+- Edit mode toggle: `useState<'text' | 'structured'>('text')`
+- PDF highlight: prop-driven from CriterionCard click
+- Form state: React Hook Form manages internally
+
+**Why avoid global state:**
+- Structured editing is per-criterion (not shared)
+- PDF highlight driven by user click (transient)
+- No cross-component coordination needed beyond props
+
+## PDF Scroll-to-Source Implementation
+
+### Data Requirements
+
+**Criteria model already has:**
+- `source_section: str | None` — section text like "Inclusion Criteria"
+
+**Needs to be added (optional enhancement):**
+- `source_page: int | None` — page number where criterion appears
+- `source_coordinates: Dict[str, Any] | None` — bounding box for precise highlight
+
+**Short-term approach (no backend changes):**
+- Extract page number from `source_section` text if present (e.g., "Page 5: Inclusion Criteria")
+- Use text search within page to find approximate location
+- Full coordinates can be added later when extraction service provides them
+
+### Component Integration
+
+**CriterionCard changes:**
+```typescript
+// Add click handler to criterion text
+<p
+    className="text-sm text-foreground mb-3 cursor-pointer hover:underline"
+    onClick={() => onScrollToPdf(criterion)}
+>
+    {criterion.text}
+</p>
+```
+
+**ReviewPage changes:**
+```typescript
+const [pdfHighlight, setPdfHighlight] = useState<PdfHighlight | null>(null);
+
+function handleScrollToPdf(criterion: Criterion) {
+    if (criterion.source_page) {
+        setPdfHighlight({
+            page: criterion.source_page,
+            text: criterion.text,
+        });
+    }
+}
+
+// Pass to PdfViewer
+<PdfViewer
+    url={pdfData.url}
+    highlightTarget={pdfHighlight}
+    onHighlightDismiss={() => setPdfHighlight(null)}
+/>
+```
+
+**PdfViewer implementation:**
+```typescript
+// Using react-pdf-highlighter-extended
+import { PdfHighlighter, Highlight, Popup } from 'react-pdf-highlighter-extended';
+
+export default function PdfViewer({ url, highlightTarget }: PdfViewerProps) {
+    const [highlights, setHighlights] = useState<Highlight[]>([]);
+
+    useEffect(() => {
+        if (highlightTarget) {
+            // Scroll to page
+            // Create temporary highlight
+            const tempHighlight: Highlight = {
+                id: 'temp',
+                position: {
+                    pageNumber: highlightTarget.page,
+                    boundingRect: highlightTarget.boundingBox || {
+                        x1: 0, y1: 0, x2: 100, y2: 100, width: 100, height: 100,
+                    },
+                },
+                content: { text: highlightTarget.text },
+            };
+            setHighlights([tempHighlight]);
+        }
+    }, [highlightTarget]);
+
+    return (
+        <PdfHighlighter
+            pdfDocument={url}
+            highlights={highlights}
+            onSelectionFinished={() => {}}
+        />
+    );
+}
+```
+
+**Library rationale:**
+- [react-pdf-highlighter-extended](https://github.com/DanielArnould/react-pdf-highlighter-extended) chosen over base react-pdf-highlighter
+- Actively maintained (last update 2025)
+- Better TypeScript support
+- Zoom support built-in
+- Custom styling capabilities
+
+**Alternative approach (if coordinates unavailable):**
+- Use react-pdf's text layer search
+- Find text occurrence on page
+- Highlight entire page section
+- Lower precision but works with current data model
 
 ## Architectural Patterns
 
-### Pattern 1: Environment Variable Flow - .env → terraform.tfvars → Secret Manager → Cloud Run
+### Pattern 1: Inline Structured Editor
 
-**What:** Local development uses .env files for configuration. Production uses Secret Manager for secrets and Terraform variables for non-sensitive config. The flow is: developer edits .env → manually maps to terraform.tfvars → Terraform creates Secret Manager secrets → Cloud Run services reference secrets via environment variables.
+**What:** Replace simple textarea with complex form inline within card component
 
-**When to use:** When transitioning from Docker Compose local development to GCP Cloud Run production. Separates sensitive (secrets) from non-sensitive (API URLs, ports) configuration. Enables secret rotation without code changes.
-
-**Trade-offs:**
-- **Pro:** Secrets never in source control; Secret Manager provides versioning, audit logs, IAM-controlled access; Cloud Run services get updated secrets on restart; clear separation of dev (local .env) and prod (Secret Manager).
-- **Con:** Manual mapping from .env to terraform.tfvars (error-prone); secrets must be created before Terraform can reference them; requires Secret Manager API enabled; adds operational complexity vs hardcoded env vars.
-
-**Example:**
-```hcl
-# infra/terraform/terraform.tfvars (gitignored)
-project_id = "clinical-trials-prod"
-region     = "us-central1"
-
-# Database credentials (will be stored in Secret Manager)
-db_password = "super-secret-password"  # From .env POSTGRES_PASSWORD
-umls_api_key = "umls-api-key-value"    # From .env UMLS_API_KEY
-
-# Non-sensitive config
-database_name = "clinical_trials"      # From .env POSTGRES_DB
-cors_origins  = "https://app.example.com"  # From .env CORS_ORIGINS
-
-# infra/terraform/modules/secrets/main.tf
-resource "google_secret_manager_secret" "db_password" {
-  secret_id = "db-password"
-  replication {
-    auto {}
-  }
-}
-
-resource "google_secret_manager_secret_version" "db_password" {
-  secret      = google_secret_manager_secret.db_password.id
-  secret_data = var.db_password  # From terraform.tfvars
-}
-
-# infra/terraform/main.tf
-module "api_service" {
-  source = "./modules/cloud-run-service"
-
-  service_name = "api-service"
-  image        = "us-central1-docker.pkg.dev/${var.project_id}/app-repo/api-service:latest"
-
-  # Environment variables (non-sensitive)
-  env_vars = {
-    DATABASE_NAME = var.database_name
-    CORS_ORIGINS  = var.cors_origins
-  }
-
-  # Secrets (sensitive, from Secret Manager)
-  secrets = {
-    DATABASE_PASSWORD = {
-      secret_name    = module.secrets.db_password_secret_id
-      secret_version = "latest"  # Or pin to specific version
-    }
-    UMLS_API_KEY = {
-      secret_name    = module.secrets.umls_api_key_secret_id
-      secret_version = "latest"
-    }
-  }
-}
-
-# infra/terraform/modules/cloud-run-service/main.tf
-resource "google_cloud_run_v2_service" "service" {
-  name     = var.service_name
-  location = var.region
-
-  template {
-    containers {
-      image = var.image
-
-      # Non-sensitive environment variables
-      dynamic "env" {
-        for_each = var.env_vars
-        content {
-          name  = env.key
-          value = env.value
-        }
-      }
-
-      # Secrets as environment variables
-      dynamic "env" {
-        for_each = var.secrets
-        content {
-          name = env.key
-          value_source {
-            secret_key_ref {
-              secret  = env.value.secret_name
-              version = env.value.secret_version
-            }
-          }
-        }
-      }
-    }
-
-    vpc_access {
-      connector = var.vpc_connector_id
-      egress    = "PRIVATE_RANGES_ONLY"  # Only use VPC for private IPs (Cloud SQL)
-    }
-  }
-}
-```
-
-**Mapping Process:**
-```bash
-# Local .env
-POSTGRES_PASSWORD=local-dev-password
-UMLS_API_KEY=dev-api-key
-
-# Developer creates infra/terraform/terraform.tfvars (gitignored)
-db_password = "production-password"  # NEVER copy from .env - use prod values
-umls_api_key = "prod-api-key"
-```
-
-### Pattern 2: VPC Serverless Connector for Cloud SQL Private IP Access
-
-**What:** Cloud Run services are serverless and don't natively run in a VPC. To connect to Cloud SQL via private IP (more secure, no public IP exposure), you create a VPC Serverless Connector. This connector acts as a bridge between Cloud Run and the VPC where Cloud SQL has a private IP. Cloud Run sends traffic through the connector to reach Cloud SQL.
-
-**When to use:** When Cloud SQL should not have a public IP for security reasons. Required for HIPAA/SOC2 compliance where database access must be restricted to internal networks. Reduces attack surface by eliminating public database endpoints.
+**When to use:**
+- Data has multiple structured sub-fields
+- Users need visual field separation
+- Still single edit session (not multi-step wizard)
 
 **Trade-offs:**
-- **Pro:** Enhanced security (no public IP); traffic stays within Google's network; supports existing VPC firewall rules; enables access to other VPC resources (Cloud Memorystore, internal services).
-- **Con:** Additional cost (~$0.06/hour per connector instance); requires VPC and subnet setup; connector has throughput limits (300 Mbps default, 1 Gbps max); adds complexity vs public IP with Cloud SQL Proxy; connector requires its own /28 subnet.
+- **Pros:** No modal/drawer needed, inline context, faster editing
+- **Cons:** Card becomes large when editing, more complex component
 
 **Example:**
-```hcl
-# infra/terraform/modules/networking/main.tf
-resource "google_compute_network" "vpc" {
-  name                    = "clinical-trials-vpc"
-  auto_create_subnetworks = false
-}
-
-# Subnet for VPC Connector (requires /28 CIDR block)
-resource "google_compute_subnetwork" "vpc_connector_subnet" {
-  name          = "vpc-connector-subnet"
-  region        = var.region
-  network       = google_compute_network.vpc.id
-  ip_cidr_range = "10.8.0.0/28"  # 16 IPs for connector instances
-}
-
-# VPC Serverless Connector
-resource "google_vpc_access_connector" "connector" {
-  name          = "cloud-run-connector"
-  region        = var.region
-  network       = google_compute_network.vpc.name
-  ip_cidr_range = "10.8.0.0/28"  # Must match subnet
-
-  min_instances = 2
-  max_instances = 3
-
-  machine_type = "e2-micro"  # Sufficient for <50 protocols/month
-}
-
-# infra/terraform/modules/database/main.tf
-resource "google_sql_database_instance" "postgres" {
-  name             = "clinical-trials-db"
-  database_version = "POSTGRES_16"
-  region           = var.region
-
-  settings {
-    tier = "db-f1-micro"  # Smallest tier for pilot
-
-    ip_configuration {
-      ipv4_enabled    = false  # No public IP
-      private_network = var.vpc_id
-      require_ssl     = true
-    }
-
-    backup_configuration {
-      enabled    = true
-      start_time = "03:00"  # Daily backups at 3 AM UTC
-    }
-  }
-
-  depends_on = [google_service_networking_connection.private_vpc_connection]
-}
-
-# Required for Cloud SQL private IP
-resource "google_compute_global_address" "private_ip_address" {
-  name          = "private-ip-address"
-  purpose       = "VPC_PEERING"
-  address_type  = "INTERNAL"
-  prefix_length = 16
-  network       = var.vpc_id
-}
-
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = var.vpc_id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-}
-
-# infra/terraform/modules/cloud-run-service/main.tf
-resource "google_cloud_run_v2_service" "service" {
-  # ... (other config)
-
-  template {
-    containers {
-      # ... (image, env vars)
-
-      # Cloud SQL connection via private IP
-      env {
-        name  = "DATABASE_URL"
-        value = "postgresql://${var.db_user}:${var.db_password}@${var.cloud_sql_private_ip}:5432/${var.db_name}"
-      }
-    }
-
-    # VPC Connector enables private IP access
-    vpc_access {
-      connector = var.vpc_connector_id
-      egress    = "PRIVATE_RANGES_ONLY"  # Only VPC traffic goes through connector
-    }
-  }
-}
+```typescript
+// CriterionCard.tsx
+{isEditing && editMode === 'structured' ? (
+    <StructuredFieldEditor
+        criterion={criterion}
+        onSave={handleStructuredSave}
+        onCancel={() => setIsEditing(false)}
+        isSubmitting={isSubmitting}
+    />
+) : (
+    <SimpleTextEditor ... />
+)}
 ```
 
-**Dependency Order:**
-1. VPC network
-2. VPC connector subnet
-3. VPC Serverless Connector
-4. Service networking connection (for Cloud SQL private IP peering)
-5. Cloud SQL instance (with private IP)
-6. Cloud Run services (reference VPC connector and Cloud SQL private IP)
+### Pattern 2: Extend Existing Request Model
 
-### Pattern 3: Artifact Registry Integration with Existing Dockerfiles
+**What:** Add optional fields to ReviewActionRequest instead of creating separate endpoint
 
-**What:** Existing Dockerfiles in `services/api-service/`, `services/extraction-service/`, `services/grounding-service/`, and `apps/hitl-ui/` are built and pushed to GCP Artifact Registry. Terraform creates the Artifact Registry repository, but does not build images (that's handled by CI/CD or manual scripts). Cloud Run services reference images by full Artifact Registry URL.
-
-**When to use:** When transitioning from Docker Compose (local builds) to GCP Cloud Run (registry-hosted images). Decouples infrastructure provisioning (Terraform) from application builds (Docker/CI). Enables immutable deployments with versioned container images.
+**When to use:**
+- New fields are optional extensions of existing action
+- Validation logic remains similar
+- UI can fall back to simple mode
 
 **Trade-offs:**
-- **Pro:** Artifact Registry is GCP-native, integrated with IAM; supports vulnerability scanning; close proximity to Cloud Run (fast pulls); versioning via image tags; cheaper than alternatives (Docker Hub, ECR cross-region).
-- **Con:** Images must be built and pushed before Terraform can deploy Cloud Run services; requires authentication (gcloud auth configure-docker); adds build step to deployment workflow; storage costs for image history.
+- **Pros:** Single endpoint, backward compatible, simpler API
+- **Cons:** Request model grows, need to handle both modes in backend
 
 **Example:**
-```hcl
-# infra/terraform/modules/foundation/main.tf
-# Enable required APIs
-resource "google_project_service" "apis" {
-  for_each = toset([
-    "artifactregistry.googleapis.com",
-    "run.googleapis.com",
-    "sql-component.googleapis.com",
-    "sqladmin.googleapis.com",
-    "secretmanager.googleapis.com",
-    "vpcaccess.googleapis.com",
-  ])
-
-  project = var.project_id
-  service = each.key
-
-  disable_on_destroy = false
-}
-
-# Artifact Registry repository for Docker images
-resource "google_artifact_registry_repository" "app_repo" {
-  location      = var.region
-  repository_id = "app-repo"
-  format        = "DOCKER"
-
-  description = "Docker images for Clinical Trials services"
-
-  depends_on = [google_project_service.apis]
-}
-
-# Grant Cloud Run service accounts pull access
-resource "google_artifact_registry_repository_iam_member" "cloud_run_reader" {
-  location   = google_artifact_registry_repository.app_repo.location
-  repository = google_artifact_registry_repository.app_repo.name
-  role       = "roles/artifactregistry.reader"
-  member     = "serviceAccount:${var.cloud_run_service_account_email}"
-}
+```python
+# Backend handles both simple and structured modifications
+if body.modified_text is not None:
+    criterion.text = body.modified_text
+if body.modified_structured_fields is not None:
+    criterion.temporal_constraint = body.modified_structured_fields.get("temporal_constraint")
 ```
 
-**Build and Push Script (scripts/build-and-push.sh):**
-```bash
-#!/bin/bash
-set -e
+### Pattern 3: Prop-Driven PDF Highlight
 
-PROJECT_ID="clinical-trials-prod"
-REGION="us-central1"
-REPO="app-repo"
+**What:** Parent component controls highlight via props, child is pure renderer
 
-# Authenticate with Artifact Registry
-gcloud auth configure-docker ${REGION}-docker.pkg.dev
-
-# Build and push each service
-SERVICES=("api-service" "extraction-service" "grounding-service")
-for service in "${SERVICES[@]}"; do
-  IMAGE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${service}:$(git rev-parse --short HEAD)"
-
-  docker build -t ${IMAGE_TAG} -f services/${service}/Dockerfile .
-  docker push ${IMAGE_TAG}
-
-  echo "${service} image: ${IMAGE_TAG}"
-done
-
-# Build and push UI (different path)
-UI_IMAGE_TAG="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/hitl-ui:$(git rev-parse --short HEAD)"
-docker build -t ${UI_IMAGE_TAG} -f apps/hitl-ui/Dockerfile .
-docker push ${UI_IMAGE_TAG}
-
-echo "hitl-ui image: ${UI_IMAGE_TAG}"
-echo ""
-echo "Update terraform.tfvars with these image tags before deploying"
-```
-
-**Terraform Variables (terraform.tfvars):**
-```hcl
-# Updated by build-and-push.sh or CI/CD
-api_service_image        = "us-central1-docker.pkg.dev/clinical-trials-prod/app-repo/api-service:a3f2c1d"
-extraction_service_image = "us-central1-docker.pkg.dev/clinical-trials-prod/app-repo/extraction-service:a3f2c1d"
-grounding_service_image  = "us-central1-docker.pkg.dev/clinical-trials-prod/app-repo/grounding-service:a3f2c1d"
-hitl_ui_image            = "us-central1-docker.pkg.dev/clinical-trials-prod/app-repo/hitl-ui:a3f2c1d"
-```
-
-**Workflow:**
-1. Developer makes code changes
-2. Run `scripts/build-and-push.sh` (builds 4 images, pushes to Artifact Registry)
-3. Update `terraform.tfvars` with new image tags
-4. Run `terraform apply` (deploys Cloud Run services with new images)
-
-### Pattern 4: IAM Service Accounts with Least Privilege
-
-**What:** Each Cloud Run service runs with its own dedicated service account, granted only the minimum IAM roles needed for its function. api-service needs Cloud SQL Client and Storage Object Viewer (read PDFs from GCS). extraction-service and grounding-service need Cloud SQL Client only. hitl-ui needs no backend permissions (static frontend, talks to api-service). This follows the principle of least privilege.
-
-**When to use:** Always, for production deployments. Reduces blast radius of security incidents. Enables IAM-based audit trails (which service accessed what). Required for SOC2/HIPAA compliance.
+**When to use:**
+- Highlight triggered by external event (criterion click)
+- No persistent highlight state needed
+- Single source of truth in parent
 
 **Trade-offs:**
-- **Pro:** Security isolation; precise audit trails; compromised service can't access other resources; easier to debug permission issues (clear role boundaries); supports Workload Identity Federation for cross-cloud.
-- **Con:** More IAM resources to manage; requires understanding GCP IAM roles; initial setup complexity; permission changes require Terraform updates; troubleshooting "403 Forbidden" errors.
+- **Pros:** Simple data flow, no duplicate state, easy to test
+- **Cons:** Parent must manage highlight lifecycle
 
 **Example:**
-```hcl
-# infra/terraform/modules/iam/main.tf
-# Service account for api-service
-resource "google_service_account" "api_service" {
-  account_id   = "api-service-sa"
-  display_name = "API Service Account"
-  description  = "Service account for api-service Cloud Run"
-}
+```typescript
+// ReviewPage.tsx (parent)
+const [highlight, setHighlight] = useState<PdfHighlight | null>(null);
 
-# Grant Cloud SQL Client role (connect to Cloud SQL)
-resource "google_project_iam_member" "api_service_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.api_service.email}"
-}
+// CriterionCard.tsx (sibling)
+onClick={() => setHighlight({ page: 5, text: "..." })}
 
-# Grant Storage Object Viewer (read PDFs from GCS)
-resource "google_storage_bucket_iam_member" "api_service_gcs_viewer" {
-  bucket = var.gcs_bucket_name
-  role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_service_account.api_service.email}"
-}
-
-# Grant Secret Manager Secret Accessor (read secrets)
-resource "google_secret_manager_secret_iam_member" "api_service_secret_accessor" {
-  for_each = toset(var.secret_ids)
-
-  secret_id = each.key
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.api_service.email}"
-}
-
-# Service account for extraction-service
-resource "google_service_account" "extraction_service" {
-  account_id   = "extraction-service-sa"
-  display_name = "Extraction Service Account"
-}
-
-# Extraction service needs Cloud SQL Client only (no GCS - api-service provides signed URLs)
-resource "google_project_iam_member" "extraction_service_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.extraction_service.email}"
-}
-
-# Grant Secret Manager access for extraction service
-resource "google_secret_manager_secret_iam_member" "extraction_service_secret_accessor" {
-  for_each = toset(var.secret_ids)
-
-  secret_id = each.key
-  role      = "roles/secretmanager.secretAccessor"
-  member    = "serviceAccount:${google_service_account.extraction_service.email}"
-}
-
-# Service account for grounding-service (same as extraction)
-resource "google_service_account" "grounding_service" {
-  account_id   = "grounding-service-sa"
-  display_name = "Grounding Service Account"
-}
-
-resource "google_project_iam_member" "grounding_service_sql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.grounding_service.email}"
-}
-
-# Service account for hitl-ui (minimal permissions - no backend access)
-resource "google_service_account" "hitl_ui" {
-  account_id   = "hitl-ui-sa"
-  display_name = "HITL UI Service Account"
-}
-
-# hitl-ui only needs Cloud Run Invoker (self-invoke, no backend access)
-# All API calls go to api-service with user auth
+// PdfViewer.tsx (child)
+<PdfViewer highlightTarget={highlight} />
 ```
 
-**Permission Matrix:**
+## Data Flow: Structured Edit
 
-| Service | Cloud SQL Client | Storage Object Viewer | Secret Manager Accessor | Vertex AI User |
-|---------|------------------|----------------------|-------------------------|----------------|
-| api-service | ✓ | ✓ (GCS bucket) | ✓ | ✗ (via API key) |
-| extraction-service | ✓ | ✗ | ✓ | ✓ (Gemini, Document AI) |
-| grounding-service | ✓ | ✗ | ✓ | ✓ (MedGemma via Vertex) |
-| hitl-ui | ✗ | ✗ | ✗ | ✗ |
-
-### Pattern 5: Terraform State Management with GCS Backend
-
-**What:** Terraform state file is stored in a GCS bucket with versioning enabled. This allows team collaboration (shared state), state locking (prevents concurrent applies), and state recovery (version history). The GCS bucket is created manually before Terraform runs (chicken-and-egg problem: can't use Terraform to create its own state bucket).
-
-**When to use:** Always, for any non-trivial deployment. Required for team collaboration. Enables CI/CD pipelines to run Terraform. Provides state backup and recovery.
-
-**Trade-offs:**
-- **Pro:** Team collaboration; state locking prevents conflicts; versioning enables rollback; encrypted at rest; IAM-controlled access; audit logs for state changes.
-- **Con:** Manual bucket creation required; requires GCS bucket permissions; state contains sensitive data (protect with IAM); bucket deletion can lose state; cross-region latency for state reads.
-
-**Example:**
-```bash
-# scripts/init-backend.sh
-#!/bin/bash
-set -e
-
-PROJECT_ID="clinical-trials-prod"
-REGION="us-central1"
-BUCKET_NAME="${PROJECT_ID}-terraform-state"
-
-# Create GCS bucket for Terraform state
-gcloud storage buckets create gs://${BUCKET_NAME} \
-  --project=${PROJECT_ID} \
-  --location=${REGION} \
-  --uniform-bucket-level-access
-
-# Enable versioning (state recovery)
-gcloud storage buckets update gs://${BUCKET_NAME} \
-  --versioning
-
-echo "Terraform state bucket created: gs://${BUCKET_NAME}"
-echo "Update infra/terraform/backend.tf with this bucket name"
-```
-
-```hcl
-# infra/terraform/backend.tf
-terraform {
-  backend "gcs" {
-    bucket = "clinical-trials-prod-terraform-state"
-    prefix = "terraform/state"  # State file path within bucket
-
-    # Optional: state locking (prevents concurrent applies)
-    # GCS backend uses object versioning for locking by default
-  }
-}
-```
-
-```hcl
-# infra/terraform/provider.tf
-terraform {
-  required_version = ">= 1.9"
-
-  required_providers {
-    google = {
-      source  = "hashicorp/google"
-      version = "~> 6.0"  # Pin major version, allow minor updates
-    }
-  }
-}
-
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-```
-
-**Initialization:**
-```bash
-cd infra/terraform
-
-# First time: create state bucket
-../scripts/init-backend.sh
-
-# Initialize Terraform (downloads providers, configures backend)
-terraform init
-
-# Migrate existing local state to GCS (if upgrading from local state)
-terraform init -migrate-state
-```
-
-## Data Flow
-
-### Data Flow 1: .env to GCP Deployment
+### Complete Flow Diagram
 
 ```
-[Developer Local Environment]
-    ↓
-.env file (gitignored)
-  - POSTGRES_PASSWORD=local-dev
-  - UMLS_API_KEY=dev-key
-  - GCS_BUCKET_NAME=local-test-bucket
-    ↓
-[Manual Mapping Step]
-    ↓
-infra/terraform/terraform.tfvars (gitignored)
-  - db_password = "prod-password"      # NOT copied from .env
-  - umls_api_key = "prod-key"
-  - gcs_bucket_name = "prod-bucket"
-    ↓
-[Terraform Apply]
-    ↓
-modules/secrets/main.tf
-  - Creates Secret Manager secrets
-  - Stores secret versions
-    ↓
-modules/database/main.tf
-  - Creates Cloud SQL instance
-  - Uses db_password from Secret Manager
-    ↓
-modules/cloud-run-service/main.tf
-  - Creates Cloud Run services
-  - Injects env vars from terraform.tfvars
-  - References secrets from Secret Manager
-    ↓
-[GCP Production Environment]
-  - Cloud Run services read env vars at startup
-  - Secret Manager provides sensitive values
-  - Cloud SQL receives connections with credentials from secrets
+1. User clicks "Modify" → setIsEditing(true)
+                        ↓
+2. User toggles "Structured Edit"
+                        ↓
+3. StructuredFieldEditor renders
+   - React Hook Form initializes with criterion data
+   - useFieldArray manages threshold array
+                        ↓
+4. User edits fields
+   - Add/remove thresholds via append/remove
+   - Select dropdowns for relation/comparator
+   - Text inputs for values/units
+                        ↓
+5. User clicks "Save"
+   - handleSubmit validates form
+   - onSave callback with StructuredFieldData
+                        ↓
+6. CriterionCard.handleStructuredSave()
+   - Constructs ReviewActionRequest with modified_structured_fields
+   - Calls onAction(criterionId, request)
+                        ↓
+7. ReviewPage.handleAction()
+   - reviewAction.mutate({ criteriaId, ...request })
+                        ↓
+8. TanStack Query mutation
+   - POST /reviews/criteria/{id}/action
+   - Body includes modified_structured_fields JSON
+                        ↓
+9. FastAPI reviews.py
+   - _apply_review_action() updates criterion
+   - Writes temporal_constraint, numeric_thresholds, conditions
+   - Creates Review + AuditLog records
+   - db.commit()
+                        ↓
+10. Mutation onSuccess
+    - invalidateQueries(['batch-criteria'])
+                        ↓
+11. UI re-fetches criteria
+    - CriterionCard re-renders with updated structured data
+    - Badges show new threshold/temporal values
 ```
 
-**Key Insight:** .env values are NEVER directly copied to production. Developer manually creates terraform.tfvars with production values. Secrets stored in Secret Manager, not tfvars (tfvars is input to Terraform, which creates secrets).
+### Key State Transitions
 
-### Data Flow 2: Container Build to Cloud Run Deployment
-
-```
-[Developer Code Changes]
-    ↓
-services/*/Dockerfile (existing)
-apps/hitl-ui/Dockerfile (existing)
-    ↓
-[scripts/build-and-push.sh]
-  1. gcloud auth configure-docker
-  2. docker build -t <ARTIFACT_REGISTRY_URL>:<git-sha> -f services/api-service/Dockerfile .
-  3. docker push <ARTIFACT_REGISTRY_URL>:<git-sha>
-  4. Repeat for extraction, grounding, hitl-ui
-    ↓
-[Artifact Registry]
-  - Stores 4 container images with git-sha tags
-  - Images: api-service:a3f2c1d, extraction-service:a3f2c1d, etc.
-    ↓
-[Update terraform.tfvars]
-  - api_service_image = "us-central1-docker.pkg.dev/.../api-service:a3f2c1d"
-  - extraction_service_image = "..."
-    ↓
-[terraform apply]
-    ↓
-modules/cloud-run-service/main.tf
-  - Creates/updates google_cloud_run_v2_service
-  - Sets container.image to Artifact Registry URL
-    ↓
-[Cloud Run Deployment]
-  - Pulls image from Artifact Registry
-  - Starts container with env vars and secrets
-  - Connects to Cloud SQL via VPC Connector
-    ↓
-[Production Service Running]
-  - Serves traffic at Cloud Run URL
-  - Access to Cloud SQL, GCS, Secret Manager via IAM
-```
-
-**Automation Opportunity:** CI/CD (Cloud Build, GitHub Actions) can automate build-and-push.sh → update tfvars → terraform apply.
-
-### Data Flow 3: Cloud Run to Cloud SQL via VPC Connector
-
-```
-[Cloud Run Service Starts]
-    ↓
-Reads DATABASE_URL from environment variables
-  - Format: postgresql://user:password@PRIVATE_IP:5432/dbname
-  - Password from Secret Manager
-  - Private IP from Cloud SQL instance
-    ↓
-[VPC Connector Configuration]
-  - vpc_access.connector = projects/.../locations/.../connectors/cloud-run-connector
-  - vpc_access.egress = "PRIVATE_RANGES_ONLY"
-    ↓
-[Application Database Query]
-  - App opens TCP connection to Cloud SQL private IP (10.x.x.x)
-    ↓
-[Cloud Run Routing]
-  - Detects destination is private IP (10.x.x.x)
-  - Routes through VPC Connector (not public internet)
-    ↓
-[VPC Connector]
-  - Forwards traffic to VPC network
-  - Uses service account IAM permissions
-    ↓
-[Cloud SQL Instance]
-  - Receives connection on private IP
-  - Validates service account has cloudsql.client role
-  - Accepts connection
-    ↓
-[Query Execution]
-  - Cloud SQL processes query
-  - Returns result via VPC Connector
-    ↓
-[Cloud Run Receives Response]
-  - Application processes result
-  - Returns HTTP response to client
-```
-
-**Cost Implication:** VPC Connector runs continuously (~$40-60/month). Alternative: Cloud SQL public IP with Cloud SQL Proxy (cheaper but less secure).
-
-### Data Flow 4: Terraform Resource Creation Order
-
-```
-[terraform init]
-    ↓
-Download google provider, configure GCS backend
-    ↓
-[terraform plan]
-    ↓
-Terraform analyzes dependencies and determines creation order:
-
-1. Foundation Module
-   - google_project_service (enable APIs)
-   - google_artifact_registry_repository
-   ↓
-2. IAM Module
-   - google_service_account (4 service accounts)
-   ↓
-3. Networking Module
-   - google_compute_network (VPC)
-   - google_compute_subnetwork (VPC connector subnet)
-   - google_vpc_access_connector
-   ↓
-4. Secrets Module
-   - google_secret_manager_secret (db_password, umls_api_key, etc.)
-   - google_secret_manager_secret_version
-   - google_secret_manager_secret_iam_member (grant service accounts access)
-   ↓
-5. Database Module
-   - google_compute_global_address (private IP range)
-   - google_service_networking_connection (VPC peering)
-   - google_sql_database_instance (depends_on VPC peering)
-   - google_sql_database
-   - google_sql_user
-   ↓
-6. Storage Module
-   - google_storage_bucket (GCS for PDFs)
-   - google_storage_bucket_iam_member (grant api-service access)
-   ↓
-7. Cloud Run Services Module (repeated 4 times)
-   - google_cloud_run_v2_service (depends on VPC connector, secrets, service accounts)
-   - google_cloud_run_service_iam_member (allow public access or Cloud Run Invoker)
-   ↓
-[terraform apply]
-    ↓
-Resources created in dependency order
-    ↓
-[Outputs]
-  - api_service_url: https://api-service-xxx-uc.a.run.app
-  - hitl_ui_url: https://hitl-ui-xxx-uc.a.run.app
-  - cloud_sql_connection_name: project:region:instance
-```
-
-**Critical Dependencies:**
-- Cloud SQL requires VPC peering to be created first (explicit `depends_on`)
-- Cloud Run requires VPC Connector, Service Accounts, Secrets to exist
-- Secret IAM bindings require both secrets and service accounts to exist
+| State | Location | Trigger | Next State |
+|-------|----------|---------|------------|
+| View mode | CriterionCard | User clicks Modify | Edit mode (text) |
+| Edit mode (text) | CriterionCard | User toggles Structured | Edit mode (structured) |
+| Edit mode (structured) | StructuredFieldEditor | User clicks Save | Submitting |
+| Submitting | TanStack Query | API responds | Success → View mode |
+| Success | CriterionCard | Query invalidation | View mode (updated data) |
 
 ## Integration Points
 
-### New Components (Terraform Creates)
+### New Component Dependencies
 
-| Component | Purpose | Replaces/Enhances |
-|-----------|---------|-------------------|
-| **VPC Network** | Private network for Cloud SQL | NEW - Docker Compose has no equivalent |
-| **VPC Serverless Connector** | Bridge between Cloud Run and VPC | NEW - Enables private IP access |
-| **Cloud SQL Instance** | Managed PostgreSQL 16 database | REPLACES Docker Compose `db` service |
-| **Artifact Registry Repository** | Container image storage | NEW - Local Docker images in dev |
-| **Secret Manager Secrets** | Secure secret storage | REPLACES .env files in production |
-| **Service Accounts** | IAM identity for Cloud Run services | NEW - No equivalent in local dev |
-| **GCS Bucket** | PDF protocol storage | ENHANCES - Already used in local dev via GOOGLE_APPLICATION_CREDENTIALS |
-| **Cloud Run Services (4)** | Serverless container runtime | REPLACES Docker Compose `api`, `extraction`, `grounding`, `ui` services |
+| Component | New Dependencies | Purpose |
+|-----------|------------------|---------|
+| StructuredFieldEditor | react-hook-form, @radix-ui/react-select | Form state + accessible selects |
+| PdfViewer | react-pdf-highlighter-extended | Text highlighting + scroll-to |
+| CriterionCard | (no new deps) | Orchestrates editor toggle |
+| ReviewPage | (no new deps) | Manages PDF highlight prop |
 
-### Modified Components (Integration Points)
+### Backend Integration Points
 
-| Existing Component | Integration Change | Why |
-|--------------------|-------------------|-----|
-| **Dockerfiles** | Build and push to Artifact Registry | Production images hosted centrally |
-| **Database Migrations (Alembic)** | Run against Cloud SQL instead of local PostgreSQL | Same migrations, different target |
-| **Environment Variables** | Read from Cloud Run env vars (injected by Terraform) | Replaces .env file reading |
-| **DATABASE_URL** | Points to Cloud SQL private IP | Format: `postgresql://user:pass@10.x.x.x:5432/db` |
-| **GCS_BUCKET_NAME** | Points to production GCS bucket | Terraform creates bucket, app uses same GCS client code |
-| **UMLS_API_KEY** | Read from Secret Manager via env var | Same code, secret source changes |
+| Endpoint | Changes | Backward Compatible |
+|----------|---------|---------------------|
+| POST /reviews/criteria/{id}/action | Add optional `modified_structured_fields` to ReviewActionRequest | YES — field is optional |
+| _apply_review_action() | Handle structured field updates | YES — only runs if field present |
+| Criteria model | (no changes) | YES — JSONB columns exist |
 
-### Services That Don't Change
+### External Service Calls
 
-| Service | Why No Change |
-|---------|---------------|
-| **MLflow** | Not deployed to GCP in initial milestone (local dev only) |
-| **PubSub Emulator** | Local dev only; production will use Cloud Pub/Sub (future milestone) |
-| **UMLS MCP Server** | Deployment not in scope (assume external/local for now) |
+**No new external services needed**
 
-## Build Order and Dependencies
+| Service | Current Usage | New Usage |
+|---------|---------------|-----------|
+| GCS | PDF signed URLs | (unchanged) |
+| PostgreSQL | Criteria JSONB storage | (unchanged) |
+| UMLS MCP | Entity grounding | (not used in this feature) |
 
-### Phase 1: Foundation Setup (Week 1)
+## Build Order & Dependencies
 
-**New Components:**
-- GCS bucket for Terraform state (manual: `scripts/init-backend.sh`)
-- `infra/terraform/backend.tf`, `provider.tf`, `variables.tf`, `outputs.tf`
-- `modules/foundation/`: Enable GCP APIs, create Artifact Registry
-- `scripts/build-and-push.sh`: Build and push Docker images
+### Phase 1: Backend Foundation
+**Dependencies:** None
+**Duration:** Low complexity
 
-**Integration Points:**
-- Existing Dockerfiles remain unchanged
-- Build script references existing Dockerfiles
+1. Extend `ReviewActionRequest` model with `modified_structured_fields`
+2. Update `_apply_review_action()` to handle structured field updates
+3. Add integration test for structured modify action
+4. Deploy backend changes (backward compatible)
 
-**Testing:**
-```bash
-cd infra/terraform
-terraform init  # Configure GCS backend
-terraform plan  # Verify foundation module
-terraform apply # Enable APIs, create Artifact Registry
+**Deliverable:** API accepts structured field updates
 
-# Build and push images
-../scripts/build-and-push.sh
-# Verify images in Artifact Registry via GCP Console
-```
+### Phase 2: Frontend Form Components
+**Dependencies:** Phase 1 complete
+**Duration:** Medium complexity
 
-**Dependencies:** None (foundational resources)
+1. Create `StructuredFieldEditor.tsx` component
+   - Temporal constraint fields
+   - Numeric thresholds with useFieldArray
+   - Conditions fields
+2. Create sub-components:
+   - `TemporalConstraintFields.tsx`
+   - `NumericThresholdsFields.tsx`
+   - `ConditionsFields.tsx`
+3. Add Radix UI Select components to ui/ folder
+4. Wire up React Hook Form validation
 
----
+**Deliverable:** Structured editor renders and validates
 
-### Phase 2: Networking and IAM (Week 1-2)
+### Phase 3: CriterionCard Integration
+**Dependencies:** Phase 2 complete
+**Duration:** Low complexity
 
-**New Components:**
-- `modules/networking/`: VPC, VPC Connector
-- `modules/iam/`: Service accounts for 4 services
+1. Add edit mode toggle to CriterionCard
+2. Conditionally render StructuredFieldEditor
+3. Wire up save callback
+4. Update TypeScript types in useReviews.ts
+5. Test structured save flow end-to-end
 
-**Integration Points:**
-- VPC Connector subnet range must not conflict with existing network ranges
-- Service account emails will be used in Cloud Run services
+**Deliverable:** Users can edit and save structured fields
 
-**Testing:**
-```bash
-terraform plan  # Verify VPC and service accounts
-terraform apply
-# Verify VPC Connector is "Ready" in GCP Console (takes 2-3 minutes)
-```
+### Phase 4: PDF Highlighting (Optional)
+**Dependencies:** Phase 3 complete
+**Duration:** Medium complexity
 
-**Dependencies:** Foundation (APIs must be enabled)
+1. Install react-pdf-highlighter-extended
+2. Extend PdfViewer with highlight support
+3. Add click handler to CriterionCard criterion text
+4. Wire up highlight prop from ReviewPage
+5. Test scroll-to-page functionality
 
----
+**Deliverable:** Clicking criterion scrolls PDF to source
 
-### Phase 3: Secrets and Database (Week 2)
+### Phase 5: Source Metadata Enhancement (Future)
+**Dependencies:** Phase 4 complete
+**Duration:** High complexity (requires backend changes)
 
-**New Components:**
-- `modules/secrets/`: Secret Manager secrets and versions
-- `modules/database/`: Cloud SQL PostgreSQL 16 with private IP
-- `terraform.tfvars`: Developer creates from `terraform.tfvars.example`
+1. Update extraction-service to capture page numbers
+2. Add `source_page` column to Criteria table (migration)
+3. Populate source_page during extraction
+4. (Optional) Add bounding box coordinates
+5. Update PdfViewer to use precise coordinates
 
-**Integration Points:**
-- Secrets replace .env file values (manual mapping from .env to tfvars)
-- Cloud SQL replaces Docker Compose `db` service
-- Database migrations (Alembic) target Cloud SQL
+**Deliverable:** Precise PDF highlighting with coordinates
 
-**Testing:**
-```bash
-# Create terraform.tfvars (gitignored)
-cp terraform.tfvars.example terraform.tfvars
-# Edit terraform.tfvars with production secrets
-
-terraform plan  # Verify secrets and Cloud SQL
-terraform apply
-
-# Test database connection via Cloud SQL Proxy
-gcloud sql connect clinical-trials-db --user=postgres
-# Run Alembic migrations against Cloud SQL
-cd ../../services/api-service
-DATABASE_URL="postgresql://..." uv run alembic upgrade head
-```
-
-**Dependencies:**
-- Networking (Cloud SQL requires VPC peering)
-- IAM (Secret Manager IAM bindings require service accounts)
-
-**Critical:** Cloud SQL instance creation takes 5-10 minutes. Use explicit `depends_on` for VPC peering.
-
----
-
-### Phase 4: Storage (Week 2)
-
-**New Components:**
-- `modules/storage/`: GCS bucket for PDF protocols
-- Bucket IAM bindings (api-service can read/write)
-
-**Integration Points:**
-- Existing GCS client code in api-service unchanged
-- Update GCS_BUCKET_NAME in terraform.tfvars to point to production bucket
-
-**Testing:**
-```bash
-terraform plan  # Verify GCS bucket
-terraform apply
-
-# Test upload via gsutil
-echo "test" | gsutil cp - gs://clinical-trials-prod-pdfs/test.txt
-gsutil cat gs://clinical-trials-prod-pdfs/test.txt
-```
-
-**Dependencies:** IAM (bucket IAM bindings require service accounts)
-
----
-
-### Phase 5: Cloud Run Services (Week 3)
-
-**New Components:**
-- `modules/cloud-run-service/`: Reusable Cloud Run service module
-- Root `main.tf`: Invoke cloud-run-service module 4 times
-
-**Integration Points:**
-- Cloud Run services reference Artifact Registry images (built in Phase 1)
-- Env vars and secrets injected from terraform.tfvars and Secret Manager
-- VPC Connector enables Cloud SQL private IP access
-- Service accounts provide IAM permissions
-
-**Testing:**
-```bash
-# Ensure images are built and pushed (from Phase 1)
-# Update terraform.tfvars with image URLs
-
-terraform plan  # Verify 4 Cloud Run services
-terraform apply
-
-# Test each service endpoint
-curl https://api-service-xxx-uc.a.run.app/health
-curl https://hitl-ui-xxx-uc.a.run.app  # Should serve React app
-```
-
-**Dependencies:**
-- Artifact Registry (images must exist)
-- VPC Connector (for Cloud SQL access)
-- Secrets (for env vars)
-- Service Accounts (for IAM)
-- Cloud SQL (database must be running)
-
-**Critical:** Cloud Run services will fail to start if:
-- Image doesn't exist in Artifact Registry
-- Secret version doesn't exist
-- Service account lacks Secret Manager access
-- Cloud SQL is unreachable (VPC Connector issues)
-
----
-
-### Phase 6: End-to-End Testing (Week 3-4)
-
-**Integration Tests:**
-1. **Upload Protocol (api-service → GCS)**
-   - POST /protocols/upload → generates signed URL
-   - Upload PDF to GCS
-   - Verify Protocol record in Cloud SQL
-
-2. **Extraction Workflow (api-service → extraction-service)**
-   - Trigger extraction workflow
-   - extraction-service fetches PDF from GCS (via signed URL from api-service)
-   - extraction-service calls Gemini API (via GOOGLE_APPLICATION_CREDENTIALS secret)
-   - Verify CriteriaBatch in Cloud SQL
-
-3. **Grounding Workflow (extraction-service → grounding-service)**
-   - Trigger grounding workflow
-   - grounding-service loads criteria from Cloud SQL
-   - grounding-service calls MedGemma (Vertex AI)
-   - Verify Entity records in Cloud SQL
-
-4. **HITL Review (hitl-ui → api-service)**
-   - Load HITL UI in browser
-   - Verify criteria appear in review queue
-   - Approve criteria
-   - Verify status update in Cloud SQL
-
-**Dependencies:** All previous phases complete
-
----
-
-### Phase 7: CI/CD and Documentation (Week 4)
-
-**New Components:**
-- `.github/workflows/deploy.yml` or Cloud Build config
-- `infra/terraform/README.md`: Deployment instructions
-- `terraform.tfvars.example`: Template for production values
-
-**Integration Points:**
-- CI/CD builds images on git push
-- CI/CD pushes to Artifact Registry
-- CI/CD runs `terraform apply` with updated image tags
-- Automated testing before deployment
-
-**Testing:**
-- Push code to GitHub/GitLab
-- Verify CI/CD pipeline runs
-- Verify new Cloud Run revision deployed
-
-**Dependencies:** All previous phases (full infrastructure exists)
-
----
-
-## Dependency Graph
+### Dependency Graph
 
 ```
-Phase 1 (Foundation)
+Phase 1 (Backend)
     ↓
-Phase 2 (Networking + IAM)
+Phase 2 (Form Components)
     ↓
-Phase 3 (Secrets + Database) ←┐
-    ↓                          │
-Phase 4 (Storage)              │
-    ↓                          │
-Phase 5 (Cloud Run) ───────────┘ (depends on all previous)
+Phase 3 (Integration) ← [MINIMUM VIABLE]
     ↓
-Phase 6 (E2E Testing)
+Phase 4 (PDF Highlight) ← [NICE TO HAVE]
     ↓
-Phase 7 (CI/CD)
+Phase 5 (Source Metadata) ← [FUTURE ENHANCEMENT]
 ```
 
-**Critical Path:** 1 → 2 → 3 → 5 (must be sequential)
-**Parallel Work:** Phase 4 (Storage) can be done in parallel with Phase 3 (both depend on Phase 2)
+## Scaling Considerations
 
-## Anti-Patterns
+| Scale | Consideration | Approach |
+|-------|---------------|----------|
+| 1-100 criteria per batch | Current (no changes needed) | In-memory React state works fine |
+| 100-1000 criteria per batch | Large DOM, slow rendering | Virtualize criteria list (react-window) |
+| Complex nested structures | Deep object nesting in thresholds | Use React Hook Form useLens for better performance |
+| High edit frequency | Many concurrent edits | Add optimistic updates to TanStack Query |
 
-### Anti-Pattern 1: Hardcoding Secrets in terraform.tfvars Committed to Git
+### Performance Optimization Opportunities
 
-**What people do:** Store `terraform.tfvars` with production secrets in Git (not gitignored), or commit secrets directly in Terraform code.
+1. **Virtualized List:** If >100 criteria per batch, use react-window for CriterionCard list
+2. **Debounced Validation:** Debounce React Hook Form validation to avoid lag on typing
+3. **Memoization:** Memoize StructuredFieldEditor render with React.memo
+4. **Code Splitting:** Lazy load StructuredFieldEditor (only needed when editing)
 
-**Why it's wrong:** Secrets exposed in Git history forever (even if later removed). Anyone with repo access can see production credentials. Violates security compliance (SOC2, HIPAA). Secret rotation requires Git commits.
+**Current scale:** 50-100 criteria per protocol — no optimization needed yet
+
+## Anti-Patterns to Avoid
+
+### Anti-Pattern 1: Separate Structured Edit Modal
+
+**What people do:** Create separate modal/drawer for structured editing
+
+**Why it's wrong:**
+- Loses context of original criterion text
+- Requires modal state management
+- Slower workflow (extra click to open modal)
 
 **Do this instead:**
-- Add `terraform.tfvars` to `.gitignore`
-- Create `terraform.tfvars.example` template (committed, no secrets)
-- Store secrets in Secret Manager, pass sensitive variables via environment variables (`TF_VAR_db_password`) or secure CI/CD secret stores
-- Use `sensitive = true` in variable definitions to prevent Terraform from logging values
+- Inline editing within CriterionCard
+- Toggle between text/structured mode
+- Keep all context visible
 
-```hcl
-# variables.tf
-variable "db_password" {
-  type      = string
-  sensitive = true  # Terraform won't show value in logs
-}
+### Anti-Pattern 2: Separate API Endpoint for Structured Updates
 
-# .gitignore
-terraform.tfvars
-*.tfvars  # Never commit tfvars files
-```
+**What people do:** Create POST /reviews/criteria/{id}/structured-update
 
-### Anti-Pattern 2: Using "latest" for Secret Versions in Production
+**Why it's wrong:**
+- Duplicate endpoint logic
+- Frontend needs to decide which endpoint to call
+- Harder to maintain (two paths for same action)
 
-**What people do:** Configure Cloud Run services to reference `version = "latest"` for Secret Manager secrets.
+**Do this instead:**
+- Extend existing ReviewActionRequest model
+- Single endpoint handles both simple and structured
+- Backend differentiates based on field presence
 
-**Why it's wrong:** Secret updates don't propagate to running Cloud Run instances until restart. "Latest" creates uncertainty about which secret version is in use. Rollback becomes difficult (can't pin to previous version). Debugging issues requires checking secret history.
+### Anti-Pattern 3: Global Zustand Store for Form State
 
-**Do this instead:** Pin secrets to specific versions in production. Use Terraform to manage secret versions. When rotating secrets, update Terraform with new version, then `terraform apply` triggers Cloud Run redeployment with new secret.
+**What people do:** Put form state in Zustand store shared across components
 
-```hcl
-# BAD: version = "latest"
-resource "google_cloud_run_v2_service" "api" {
-  template {
-    containers {
-      env {
-        name = "DB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = "db-password"
-            version = "latest"  # ❌ Unpredictable
-          }
-        }
-      }
-    }
-  }
-}
+**Why it's wrong:**
+- Form state is component-local (not shared)
+- Zustand triggers unnecessary re-renders
+- React Hook Form already manages state efficiently
 
-# GOOD: Pin to version
-resource "google_secret_manager_secret_version" "db_password_v1" {
-  secret      = google_secret_manager_secret.db_password.id
-  secret_data = var.db_password
-}
+**Do this instead:**
+- React Hook Form manages form state locally
+- Only lift state when actually shared between components
+- Use TanStack Query for server state
 
-resource "google_cloud_run_v2_service" "api" {
-  template {
-    containers {
-      env {
-        name = "DB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.db_password.id
-            version = google_secret_manager_secret_version.db_password_v1.version  # ✓ Explicit
-          }
-        }
-      }
-    }
-  }
-}
-```
+### Anti-Pattern 4: Custom Highlight Implementation
 
-### Anti-Pattern 3: Single Monolithic main.tf for All Resources
+**What people do:** Build custom PDF highlight overlay from scratch
 
-**What people do:** Put all Terraform resources (VPC, Cloud SQL, Cloud Run, IAM, Secrets) in a single `main.tf` file.
+**Why it's wrong:**
+- Complex coordinate math (viewport transforms, zoom, rotation)
+- Text layer rendering edge cases
+- Accessibility concerns
+- Weeks of development time
 
-**Why it's wrong:** Difficult to navigate (hundreds of lines). Hard to test modules independently. Can't reuse code across environments. Changes to one resource risk affecting others. Review PRs is painful. Violates separation of concerns.
-
-**Do this instead:** Use modules to group related resources. Each module has its own `main.tf`, `variables.tf`, `outputs.tf`. Root module orchestrates modules. Follow Google Cloud's best practice: "Group resources by their shared purpose."
-
-```hcl
-# BAD: infra/terraform/main.tf (500+ lines)
-resource "google_compute_network" "vpc" { ... }
-resource "google_vpc_access_connector" "connector" { ... }
-resource "google_sql_database_instance" "db" { ... }
-resource "google_cloud_run_v2_service" "api" { ... }
-resource "google_cloud_run_v2_service" "extraction" { ... }
-# ... (more resources)
-
-# GOOD: infra/terraform/main.tf (orchestrator)
-module "networking" {
-  source = "./modules/networking"
-  # ...
-}
-
-module "database" {
-  source = "./modules/database"
-  vpc_id = module.networking.vpc_id
-  # ...
-}
-
-module "api_service" {
-  source          = "./modules/cloud-run-service"
-  service_name    = "api-service"
-  vpc_connector   = module.networking.vpc_connector_id
-  # ...
-}
-```
-
-### Anti-Pattern 4: Missing depends_on for Cloud SQL Private IP
-
-**What people do:** Create Cloud SQL instance with private IP without explicit `depends_on = [google_service_networking_connection.private_vpc_connection]`.
-
-**Why it's wrong:** Cloud SQL instance creation may fail with "VPC peering not found" error. Terraform's implicit dependency detection doesn't catch this relationship. Race condition: Cloud SQL tries to allocate private IP before VPC peering is ready.
-
-**Do this instead:** Always use explicit `depends_on` for Cloud SQL instance when using private IP. Wait for VPC peering to complete before creating instance.
-
-```hcl
-# BAD: Implicit dependencies (will fail)
-resource "google_sql_database_instance" "postgres" {
-  settings {
-    ip_configuration {
-      ipv4_enabled    = false
-      private_network = google_compute_network.vpc.id
-    }
-  }
-  # ❌ Missing depends_on - may fail
-}
-
-# GOOD: Explicit dependency
-resource "google_service_networking_connection" "private_vpc_connection" {
-  network                 = google_compute_network.vpc.id
-  service                 = "servicenetworking.googleapis.com"
-  reserved_peering_ranges = [google_compute_global_address.private_ip_address.name]
-}
-
-resource "google_sql_database_instance" "postgres" {
-  settings {
-    ip_configuration {
-      ipv4_enabled    = false
-      private_network = google_compute_network.vpc.id
-    }
-  }
-
-  depends_on = [google_service_networking_connection.private_vpc_connection]  # ✓ Explicit
-}
-```
-
-### Anti-Pattern 5: Building Docker Images in Terraform
-
-**What people do:** Use Terraform `null_resource` with `local-exec` provisioner to build and push Docker images during `terraform apply`.
-
-**Why it's wrong:** Terraform is for infrastructure, not application builds. `local-exec` is fragile (requires Docker installed on Terraform runner). Terraform state becomes tied to image builds. Image builds don't benefit from Terraform's idempotency. Rebuilds on every `terraform apply` even if code unchanged.
-
-**Do this instead:** Separate concerns: CI/CD builds images, Terraform deploys infrastructure. Use `scripts/build-and-push.sh` or CI/CD pipeline to build and push images. Update `terraform.tfvars` with new image tags. Run `terraform apply` to deploy Cloud Run services with new images.
-
-```hcl
-# BAD: Building images in Terraform
-resource "null_resource" "build_api_service" {
-  provisioner "local-exec" {
-    command = "docker build -t ${var.image_url} . && docker push ${var.image_url}"
-    working_dir = "${path.root}/../../services/api-service"
-  }
-
-  triggers = {
-    always_run = timestamp()  # ❌ Runs on every apply
-  }
-}
-
-# GOOD: Separate build script (scripts/build-and-push.sh)
-# Then reference pre-built images in Terraform
-module "api_service" {
-  source = "./modules/cloud-run-service"
-  image  = var.api_service_image  # ✓ Pre-built, passed via tfvars
-}
-```
+**Do this instead:**
+- Use mature library (react-pdf-highlighter-extended)
+- Battle-tested coordinate handling
+- Built-in accessibility
+- Focus on product features
 
 ## Sources
 
-**Terraform Best Practices:**
-- [Terraform Best Practices on Google Cloud: A Practical Guide](https://medium.com/@truonghongcuong68/terraform-best-practices-on-google-cloud-a-practical-guide-057f96b19489)
-- [Best practices for Terraform operations - Google Cloud](https://docs.cloud.google.com/docs/terraform/best-practices/operations)
-- [Best practices for general style and structure - Google Cloud](https://docs.cloud.google.com/docs/terraform/best-practices/general-style-structure)
-- [Terraform GCP Provider: 5 Best Practices from Real Projects](https://controlmonkey.io/resource/terraform-gcp-provider-best-practices/)
+### React Ecosystem
+- [React Hook Form Documentation](https://react-hook-form.com/)
+- [React Hook Form useFieldArray](https://react-hook-form.com/docs/usefieldarray)
+- [React Hook Form with Shadcn UI](https://ui.shadcn.com/docs/forms/react-hook-form)
+- [React Hook Form nested structures best practices](https://medium.com/@krithi.muthuraj/solving-nested-dynamic-forms-using-react-hook-form-6097b0072d48)
+- [React Hook Form useLens for complex nesting](https://react-hook-form.com/docs/uselens)
 
-**Cloud Run and Infrastructure:**
-- [VPC with connectors - Cloud Run Documentation](https://docs.cloud.google.com/run/docs/configuring/vpc-connectors)
-- [Connect from Cloud Run - Cloud SQL for MySQL](https://docs.cloud.google.com/sql/docs/mysql/connect-run)
-- [Configure secrets for services - Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/secrets)
-- [Configure environment variables for services - Cloud Run](https://docs.cloud.google.com/run/docs/configuring/services/environment-variables)
-- [Deploying to Cloud Run - Artifact Registry](https://cloud.google.com/artifact-registry/docs/integrate-cloud-run)
+### PDF Highlighting
+- [React PDF Viewer Highlight Plugin](https://react-pdf-viewer.dev/plugins/highlight/)
+- [react-pdf-highlighter-extended GitHub](https://github.com/DanielArnould/react-pdf-highlighter-extended)
+- [react-pdf-highlighter (base library)](https://github.com/agentcooper/react-pdf-highlighter)
 
-**VPC and Networking:**
-- [GCP-CloudRun-VPC-Integration-Module](https://github.com/RuneDD/GCP-CloudRun-VPC-Integration-Module)
-- [Building a Secure Serverless Microservice on GCP with VPC and Terraform](https://medium.com/@asifsource/building-a-secure-serverless-microservice-on-gcp-with-vpc-and-terraform-05a1231fb972)
-- [A Complete Guide to GCP Serverless with Terraform](https://medium.com/@williamwarley/a-complete-guide-to-gcp-serverless-with-terraform-29a3486094f2)
-
-**Secret Manager and Environment Variables:**
-- [Securely using dotenv (.env) files with Google Cloud Run and Terraform](https://mikesparr.medium.com/securely-using-dotenv-env-files-with-google-cloud-run-and-terraform-e8b14ff04bff)
-- [Environment Variable Management with Terraform and Google Cloud Secrets Manager](https://zentered.co/articles/environment-variable-managent-with-terraform/)
-
-**Monorepo and Module Organization:**
-- [Terraform Monorepo: Structure, Benefits & Best Practices](https://spacelift.io/blog/terraform-monorepo)
-- [Terraform monorepo vs. multi-repo: The great debate](https://www.hashicorp.com/en/blog/terraform-mono-repo-vs-multi-repo-the-great-debate)
-- [Managing Terraform Modules in a Monorepo](https://medium.com/@hello_9187/managing-terraform-modules-in-a-monorepo-e7e89d124d4a)
-
-**Artifact Registry and CI/CD:**
-- [Provision Artifact Registry resources with Terraform - Google Cloud](https://docs.cloud.google.com/artifact-registry/docs/repositories/terraform)
-- [Integrating our Application CI/CD Pipelines and Terraform GitOps with Cloud Build](https://medium.com/google-cloud/integrating-our-application-ci-cd-pipelines-and-terraform-gitops-with-cloud-build-35e8d38b8468)
-- [Deploying our Video Intelligence Cloud Run Application with CI/CD: Terraform and Cloud Build](https://medium.com/google-cloud/deploying-our-video-intelligence-cloud-run-appication-with-terraform-and-cloud-build-a1f4dac7ba6a)
-- [GCP: Terraform automation for Cloud Build and Cloud Deploy](https://medium.com/@1545281333376/gcp-terraform-automation-for-cloud-build-and-cloud-deploy-58d3ba501a63)
-
-**IAM and Security:**
-- [Running Infrastructure-as-Code with the least privilege possible - Google Cloud Blog](https://cloud.google.com/blog/products/devops-sre/running-infrastructure-code-least-privilege-possible/)
-- [Using Google Cloud Service Account impersonation in your Terraform code](https://cloud.google.com/blog/topics/developers-practitioners/using-google-cloud-service-account-impersonation-your-terraform-code)
-- [Implementing IAM access control as code with HashiCorp Terraform](https://cloud.google.com/blog/topics/developers-practitioners/implementing-iam-access-control-code-hashicorp-terraform)
-
-**Dependency Management:**
-- [Best practices on dependency management - Terraform on Google Cloud](https://docs.cloud.google.com/docs/terraform/best-practices/dependency-management)
+### Architecture Patterns
+- [TanStack Query Documentation](https://tanstack.com/query/latest)
+- [Zustand Documentation](https://github.com/pmndrs/zustand)
+- [Radix UI Primitives](https://www.radix-ui.com/)
 
 ---
-
-*Architecture research for: Terraform GCP Cloud Run Deployment Integration*
-*Researched: 2026-02-12*
+*Architecture research for: Clinical Trial Criteria HITL Structured Field Mapping*
+*Researched: 2026-02-13*
+*Confidence: HIGH — Based on verified existing codebase patterns and mature library documentation*
