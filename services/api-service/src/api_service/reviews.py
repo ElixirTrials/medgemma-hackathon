@@ -281,17 +281,21 @@ def submit_review_action(
     schema_version = (
         "structured_v1" if body.modified_structured_fields else "text_v1"
     )
+    audit_details: Dict[str, Any] = {
+        "action": body.action,
+        "before_value": before_value,
+        "after_value": after_value,
+        "schema_version": schema_version,
+    }
+    if body.comment:
+        audit_details["rationale"] = body.comment
+
     audit_log = AuditLog(
         event_type="review_action",
         actor_id=body.reviewer_id,
         target_type="criteria",
         target_id=criteria_id,
-        details={
-            "action": body.action,
-            "before_value": before_value,
-            "after_value": after_value,
-            "schema_version": schema_version,
-        },
+        details=audit_details,
     )
     db.add(audit_log)
 
