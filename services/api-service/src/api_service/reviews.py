@@ -279,9 +279,18 @@ def submit_review_action(
     db.add(review)
 
     # Create AuditLog record
-    schema_version = (
-        "structured_v1" if body.modified_structured_fields else "text_v1"
+    # Determine schema version based on what fields are modified
+    has_field_mappings = (
+        body.modified_structured_fields
+        and "field_mappings" in body.modified_structured_fields
     )
+    if has_field_mappings:
+        schema_version = "v1.5-multi"
+    elif body.modified_structured_fields:
+        schema_version = "structured_v1"
+    else:
+        schema_version = "text_v1"
+
     audit_details: Dict[str, Any] = {
         "action": body.action,
         "before_value": before_value,
@@ -450,6 +459,9 @@ def _apply_review_action(  # noqa: C901
                 criterion.numeric_thresholds = sf["numeric_thresholds"]
             if "conditions" in sf:
                 criterion.conditions = sf["conditions"]
+            if "field_mappings" in sf:
+                # Store field_mappings array in conditions JSONB field
+                criterion.conditions = {"field_mappings": sf["field_mappings"]}
         after_value = {
             "text": criterion.text,
             "criteria_type": criterion.criteria_type,
