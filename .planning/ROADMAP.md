@@ -6,7 +6,8 @@
 - 🚧 **v1.1 Documentation Site** - Phases 8-12 (paused after Phase 10)
 - 🚧 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (paused)
 - ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
-- 🚀 **v1.4 Structured Entity Display & Grounding Fixes** - Phases 17-21
+- ✅ **v1.4 Structured Entity Display & Grounding Fixes** — Phases 17-21 (shipped 2026-02-13)
+- 🚀 **v1.5 Structured Criteria Editor** — Phases 22-28
 
 ## Phases
 
@@ -330,6 +331,110 @@ Plans:
 
 ---
 
+## 🚀 v1.5 Structured Criteria Editor (Current)
+
+**Milestone Goal:** Replace display-only structured data with a full Cauldron-style field mapping editor where reviewers can modify entity (SNOMED/UMLS), relation (comparator/operator), and value for each criterion — with UMLS autocomplete, multi-mapping, rationale capture, and evidence linking that scrolls to the source protocol location.
+
+### Phase 22: Backend Data Model + API Extension
+**Goal**: Extend the review action API to accept and persist structured field edits (entity/relation/value) while maintaining backward compatibility with existing text-only reviews
+**Depends on**: Nothing (first phase of v1.5, backend foundation)
+**Requirements**: API-01, API-02, API-03, EDIT-07
+**Success Criteria** (what must be TRUE):
+  1. ReviewActionRequest accepts optional `modified_structured_fields` (Dict[str, Any]) — existing text-only modify actions still work unchanged
+  2. `_apply_review_action()` updates temporal_constraint, numeric_thresholds, and conditions from structured fields when provided
+  3. Audit log captures before/after values for structured field changes with schema_version
+  4. Existing text-only reviews (pre-v1.5) continue to display correctly in the UI
+**Plans**: TBD
+
+Plans:
+- [ ] 22-01: TBD
+
+### Phase 23: Core Structured Editor Component
+**Goal**: Build the StructuredFieldEditor component with entity/relation/value triplet fields, adaptive value input, and form validation — testable in isolation before integration
+**Depends on**: Phase 22 (backend must accept structured data)
+**Requirements**: EDIT-02, EDIT-03, EDIT-04
+**Success Criteria** (what must be TRUE):
+  1. StructuredFieldEditor.tsx renders entity/relation/value triplet fields for a criterion
+  2. Relation dropdown offers full operator set (=, !=, >, >=, <, <=, within, not_in_last, contains, not_contains)
+  3. Value input adapts based on relation type — single value for standard operators, min/max for range, duration+unit for temporal
+  4. Form state managed via react-hook-form useFieldArray with proper cleanup when relation changes (no state leak)
+**Plans**: TBD
+
+Plans:
+- [ ] 23-01: TBD
+
+### Phase 24: CriterionCard Integration + Review Workflow
+**Goal**: Wire the structured editor into the existing CriterionCard review workflow so reviewers can toggle between text and structured edit modes and save structured edits end-to-end
+**Depends on**: Phase 23 (editor component must exist)
+**Requirements**: EDIT-01, EDIT-05, EDIT-06
+**Success Criteria** (what must be TRUE):
+  1. Reviewer can toggle between text edit and structured edit modes on a criterion
+  2. Structured edits save via existing modify action workflow (handleStructuredSave → useReviewAction mutation)
+  3. Structured edits persist to database and display correctly after page refresh
+  4. TypeScript types in useReviews.ts updated for ReviewActionRequest with modified_structured_fields
+**Plans**: TBD
+
+Plans:
+- [ ] 24-01: TBD
+
+### Phase 25: UMLS Concept Search Autocomplete
+**Goal**: Replace the plain text entity field with a UMLS/SNOMED autocomplete search that populates CUI, SNOMED code, and preferred term from the existing UMLS MCP server
+**Depends on**: Phase 23 (structured editor must exist)
+**Requirements**: UMLS-01, UMLS-02, UMLS-03, UMLS-04, UMLS-05, API-04
+**Success Criteria** (what must be TRUE):
+  1. Entity field provides autocomplete search via UMLS MCP concept_search
+  2. Autocomplete results show preferred term + CUI code + semantic type
+  3. Search debounced (300ms minimum) with loading indicator, minimum 3 characters
+  4. Selecting a UMLS concept populates entity fields (CUI, SNOMED code, preferred term)
+  5. UMLS search proxy endpoint available for frontend autocomplete
+**Plans**: TBD
+
+Plans:
+- [ ] 25-01: TBD
+
+### Phase 26: Rationale Capture
+**Goal**: Add optional rationale text capture to the structured editor so modify actions include reviewer reasoning for audit trail compliance
+**Depends on**: Phase 24 (review workflow integration must exist)
+**Requirements**: RATL-01, RATL-02, RATL-03
+**Success Criteria** (what must be TRUE):
+  1. Rationale text field available when modifying structured fields
+  2. Rationale persisted with the review action in audit log
+  3. Cancel clears rationale along with all other form state
+**Plans**: TBD
+
+Plans:
+- [ ] 26-01: TBD
+
+### Phase 27: Multi-Mapping Support
+**Goal**: Enable reviewers to add multiple field mappings to a single criterion for complex criteria with multiple constraints (e.g., "18-65 years AND BMI <30")
+**Depends on**: Phase 24 (single mapping save must work first)
+**Requirements**: MULTI-01, MULTI-02, MULTI-03, MULTI-04
+**Success Criteria** (what must be TRUE):
+  1. Reviewer can add multiple field mappings to a single criterion
+  2. Reviewer can remove individual field mappings from a criterion
+  3. Each mapping has independent entity/relation/value fields
+  4. Backend stores and returns array of field mappings per criterion
+**Plans**: TBD
+
+Plans:
+- [ ] 27-01: TBD
+
+### Phase 28: PDF Scroll-to-Source (Evidence Linking)
+**Goal**: Clicking a criterion scrolls the PDF viewer to the source page and highlights the relevant text, enabling rapid evidence verification during review
+**Depends on**: Phase 24 (review workflow must exist)
+**Requirements**: EVID-01, EVID-02, EVID-03, EVID-04
+**Success Criteria** (what must be TRUE):
+  1. Clicking a criterion scrolls the PDF viewer to the source page
+  2. Source text highlighted or visually indicated in PDF viewer
+  3. Extraction service captures page number for each extracted criterion
+  4. Evidence linking degrades gracefully when page data is unavailable
+**Plans**: TBD
+
+Plans:
+- [ ] 28-01: TBD
+
+---
+
 ## 🚧 v1.2 GCP Cloud Run Deployment (Paused)
 
 **Milestone Goal:** Deploy the entire application to Google Cloud Run using Terraform, with all configuration consumed from .env file and documented .env.example for operators. This is a lean 50-protocol pilot deployment — prioritize simplicity over enterprise patterns.
@@ -500,6 +605,40 @@ See `.planning/milestones/v1.3-ROADMAP.md` for full details.
 
 **Coverage: 16/16 v1.4 requirements mapped. No orphans.**
 
+### v1.5 Requirements (27 total - all mapped)
+
+| Requirement | Phase | Description |
+|-------------|-------|-------------|
+| API-01 | Phase 22 | ReviewActionRequest accepts modified_structured_fields |
+| API-02 | Phase 22 | _apply_review_action() handles structured field updates |
+| API-03 | Phase 22 | Audit log captures before/after for structured changes |
+| API-04 | Phase 25 | UMLS search proxy endpoint for frontend autocomplete |
+| EDIT-01 | Phase 24 | Toggle between text edit and structured edit modes |
+| EDIT-02 | Phase 23 | Structured editor displays entity/relation/value triplets |
+| EDIT-03 | Phase 23 | Relation dropdown with full operator set |
+| EDIT-04 | Phase 23 | Adaptive value input based on relation type |
+| EDIT-05 | Phase 24 | Save structured edits via existing modify workflow |
+| EDIT-06 | Phase 24 | Structured edits persist and display after refresh |
+| EDIT-07 | Phase 22 | Pre-v1.5 text-only reviews display correctly |
+| UMLS-01 | Phase 25 | Entity field autocomplete via UMLS MCP concept_search |
+| UMLS-02 | Phase 25 | Autocomplete shows preferred term + CUI + semantic type |
+| UMLS-03 | Phase 25 | Search debounced 300ms with loading indicator |
+| UMLS-04 | Phase 25 | Minimum 3 characters before search triggers |
+| UMLS-05 | Phase 25 | Selecting concept populates CUI, SNOMED, preferred term |
+| MULTI-01 | Phase 27 | Add multiple field mappings to a criterion |
+| MULTI-02 | Phase 27 | Remove individual field mappings |
+| MULTI-03 | Phase 27 | Each mapping has independent entity/relation/value |
+| MULTI-04 | Phase 27 | Backend stores array of field mappings per criterion |
+| RATL-01 | Phase 26 | Rationale text field for modify actions |
+| RATL-02 | Phase 26 | Rationale persisted in audit log |
+| RATL-03 | Phase 26 | Cancel clears rationale with form state |
+| EVID-01 | Phase 28 | Click criterion scrolls PDF to source page |
+| EVID-02 | Phase 28 | Source text highlighted in PDF viewer |
+| EVID-03 | Phase 28 | Extraction captures page number per criterion |
+| EVID-04 | Phase 28 | Evidence linking degrades gracefully without page data |
+
+**Coverage: 27/27 v1.5 requirements mapped. No orphans.**
+
 ## Dependency Graph
 
 ### v1.0 (Shipped)
@@ -543,6 +682,21 @@ Phase 21 (Gemini 3 Flash Upgrade)
 ```
 (17, 18, 19, 21 are independent; 20 depends on 18)
 
+### v1.5 (Structured Criteria Editor - Current)
+```
+Phase 22 (Backend API Extension)
+    |
+Phase 23 (Core Structured Editor) --------+
+    |                                      |
+Phase 24 (CriterionCard Integration) Phase 25 (UMLS Autocomplete)
+    |         |
+    |    Phase 26 (Rationale)
+    |    Phase 27 (Multi-Mapping)
+    |
+Phase 28 (Evidence Linking)
+```
+(22 → 23 → 24 sequential; 25 parallel with 24; 26, 27, 28 depend on 24)
+
 ### v1.2 (GCP Cloud Run Deployment - Paused)
 ```
 Phase 13 (Terraform Foundation)
@@ -560,6 +714,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 - v1.2: 13 → 14 → 15
 - v1.3: 16
 - v1.4: 17 + 18 + 19 (parallel) → 20 (after 18) + 21 (independent)
+- v1.5: 22 → 23 → 24 + 25 (parallel) → 26 + 27 + 28 (after 24)
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -587,3 +742,10 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 19. Extraction Structured Output | v1.4 | 1/1 | Complete | 2026-02-12 |
 | 20. MedGemma Agentic Grounding | v1.4 | 2/2 | Complete | 2026-02-12 |
 | 21. Gemini 3 Flash Upgrade | v1.4 | 1/1 | Complete | 2026-02-13 |
+| 22. Backend Data Model + API Extension | v1.5 | 0/TBD | Not started | - |
+| 23. Core Structured Editor Component | v1.5 | 0/TBD | Not started | - |
+| 24. CriterionCard Integration + Review Workflow | v1.5 | 0/TBD | Not started | - |
+| 25. UMLS Concept Search Autocomplete | v1.5 | 0/TBD | Not started | - |
+| 26. Rationale Capture | v1.5 | 0/TBD | Not started | - |
+| 27. Multi-Mapping Support | v1.5 | 0/TBD | Not started | - |
+| 28. PDF Scroll-to-Source (Evidence Linking) | v1.5 | 0/TBD | Not started | - |

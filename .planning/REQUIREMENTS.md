@@ -1,73 +1,118 @@
-# Requirements: v1.4 Structured Entity Display & Grounding Fixes
+# Requirements: v1.5 Structured Criteria Editor
 
-## Milestone Goal
+**Defined:** 2026-02-13
+**Core Value:** Clinical researchers can edit AI-extracted criteria using structured field mapping (entity/relation/value) with UMLS grounding and evidence linking to protocol source text.
 
-Fix the broken UMLS/SNOMED grounding pipeline so entities get real CUI/SNOMED codes, make the extraction LLM populate numeric thresholds, and display all structured data (temporal constraints, thresholds, SNOMED/UMLS mappings) in the HITL UI.
+## v1.5 Requirements
 
-## Investigation Findings (2026-02-12)
+### EDIT — Structured Field Mapping Editor
 
-Ran 3 protocols through the pipeline (103 criteria, 266 entities). Found:
+- [ ] **EDIT-01**: Reviewer can toggle between text edit and structured edit modes on a criterion
+- [ ] **EDIT-02**: Structured editor displays entity/relation/value triplet fields for each criterion
+- [ ] **EDIT-03**: Relation dropdown offers full operator set (=, !=, >, >=, <, <=, within, not_in_last, contains, not_contains)
+- [ ] **EDIT-04**: Value input adapts based on relation type — single value for standard operators, min/max for range, duration+unit for temporal
+- [ ] **EDIT-05**: Reviewer can save structured edits via existing modify action workflow
+- [ ] **EDIT-06**: Structured edits persist to database and display correctly after page refresh
+- [ ] **EDIT-07**: Existing text-only reviews (pre-v1.5) continue to display correctly in the UI
 
-1. **UMLS/SNOMED grounding 100% failed** — 266/266 entities have null CUI, null SNOMED. All flagged `expert_review`. MCP `concept_linking` calls fail silently per-entity.
-2. **`numeric_thresholds` never populated** — 0/103 criteria. Schema exists but Gemini returns empty lists. Criteria like "40-85 years old" and "WOMAC <1.5" should have structured thresholds.
-3. **`temporal_constraint` not displayed** — 47/103 criteria have data but CriterionCard doesn't render it.
-4. **No threshold/SNOMED UI** — Even when backend data arrives, no UI components render it.
+### UMLS — UMLS/SNOMED Concept Search
 
-## Requirements
+- [ ] **UMLS-01**: Entity field in structured editor provides autocomplete search via UMLS MCP concept_search
+- [ ] **UMLS-02**: Autocomplete results show preferred term + CUI code + semantic type
+- [ ] **UMLS-03**: Search debounced (300ms minimum) with loading indicator
+- [ ] **UMLS-04**: Minimum 3 characters required before search triggers
+- [ ] **UMLS-05**: Selecting a UMLS concept populates entity fields (CUI, SNOMED code, preferred term)
 
-### FE — Frontend Display (data exists, just not shown)
+### MULTI — Multi-Mapping Support
 
-- **FE-01**: CriterionCard displays `temporal_constraint` when present (duration, relation, reference_point as human-readable text)
-- **FE-02**: CriterionCard displays `numeric_thresholds` when present (value, comparator, unit rendered as e.g. ">=18 years", "<1.5 WOMAC")
-- **FE-03**: EntityCard displays SNOMED badge and UMLS CUI link when data is populated (code already exists in EntityCard.tsx, verify it works once backend provides data)
+- [ ] **MULTI-01**: Reviewer can add multiple field mappings to a single criterion
+- [ ] **MULTI-02**: Reviewer can remove individual field mappings from a criterion
+- [ ] **MULTI-03**: Each mapping has independent entity/relation/value fields
+- [ ] **MULTI-04**: Backend stores and returns array of field mappings per criterion
 
-### EXT — Extraction Structured Output
+### RATL — Rationale Capture
 
-- **EXT-01**: Gemini extraction prompt includes few-shot examples for `numeric_thresholds` (age ranges, lab values, dosage limits)
-- **EXT-02**: Re-extracted criteria for existing protocols have populated `numeric_thresholds` for criteria containing numeric values
-- **EXT-03**: Extraction prompt includes few-shot examples for `conditions` (conditional dependencies)
+- [ ] **RATL-01**: Rationale text field available when modifying structured fields
+- [ ] **RATL-02**: Rationale persisted with the review action in audit log
+- [ ] **RATL-03**: Cancel clears rationale along with all other form state
 
-### GRD — Grounding Pipeline Fix
+### EVID — Evidence Linking (PDF Scroll-to-Source)
 
-- **GRD-01**: Diagnose why MCP `concept_linking` tool calls fail — determine if MCP server starts, if tool returns expected format, or if UMLS API key is missing
-- **GRD-02**: Fix `ground_to_umls.py` so common medical terms (e.g., "acetaminophen", "osteoarthritis", "Heparin") successfully resolve to UMLS CUI
-- **GRD-03**: Fix `map_to_snomed.py` so entities with UMLS CUI get SNOMED-CT codes mapped
-- **GRD-04**: After fix, re-run grounding on existing protocols shows >50% entities grounded (non-zero CUI/SNOMED)
+- [ ] **EVID-01**: Clicking a criterion scrolls the PDF viewer to the source page
+- [ ] **EVID-02**: Source text highlighted or visually indicated in PDF viewer
+- [ ] **EVID-03**: Extraction service captures page number for each extracted criterion
+- [ ] **EVID-04**: Evidence linking degrades gracefully when page data is unavailable
 
-## Priority Order
+### API — Backend API Extensions
 
-1. FE-01 (temporal_constraint display) — quickest win, data already exists
-2. GRD-01 through GRD-04 (grounding fix) — highest impact, currently 0% grounded
-3. EXT-01 through EXT-03 (extraction improvement) — meaningful but lower impact
-4. FE-02, FE-03 (threshold + SNOMED display) — frontend polish after backend produces data
+- [ ] **API-01**: ReviewActionRequest accepts optional modified_structured_fields (backward compatible)
+- [ ] **API-02**: _apply_review_action() updates temporal_constraint, numeric_thresholds, and conditions from structured fields
+- [ ] **API-03**: Audit log captures before/after values for structured field changes
+- [ ] **API-04**: UMLS search proxy endpoint available for frontend autocomplete
 
-### MGR — MedGemma Agentic Grounding
+## v1.6 Requirements (Deferred)
 
-- **MGR-01**: MedGemma Vertex AI Model Garden endpoint integrated via `ModelGardenChatModel` (ported from gemma-hackathon) with `AgentConfig.from_env()` config pattern
-- **MGR-02**: Agentic grounding loop where MedGemma extracts entities, suggests UMLS search terms, evaluates UMLS MCP results, and iteratively refines until satisfactory match (max 3 iterations)
-- **MGR-03**: UMLS MCP `concept_search` used for both CUI linking and SNOMED mapping (replaces separate `map_to_snomed` direct API call)
-- **MGR-04**: Grounding graph simplified: agentic grounding node replaces `extract_entities` + `ground_to_umls` + `map_to_snomed` (3 nodes → 1 agentic node + `validate_confidence`)
+### AI — AI-Assisted Field Suggestions
 
-### G3F — Gemini 3 Flash Upgrade
+- **AI-01**: User can select text in PDF and trigger AI field suggestion
+- **AI-02**: MedGemma extracts entities from selected text and suggests triplet values
+- **AI-03**: AI suggestions display with confidence indicators
+- **AI-04**: User can accept, modify, or reject AI suggestions
 
-- **G3F-01**: Criteria extraction uses `gemini-3-flash-preview` model (upgraded from `gemini-2.5-flash`)
-- **G3F-02**: Extraction verified working with new model on existing protocol PDFs
+### UX — Advanced UX Enhancements
 
-## Priority Order
+- **UX-01**: Undo/redo for field mapping changes within an edit session
+- **UX-02**: Inline UMLS validation feedback (real-time code verification)
+- **UX-03**: Interactive SNOMED hierarchy browser for entity selection
 
-1. FE-01 (temporal_constraint display) — quickest win, data already exists
-2. GRD-01 through GRD-04 (grounding fix) — highest impact, currently 0% grounded
-3. EXT-01 through EXT-03 (extraction improvement) — meaningful but lower impact
-4. FE-02, FE-03 (threshold + SNOMED display) — frontend polish after backend produces data
-5. MGR-01 through MGR-04 (MedGemma agentic grounding) — proper MedGemma integration with iterative UMLS MCP
-6. G3F-01, G3F-02 (Gemini 3 Flash) — latest model for extraction
+## Out of Scope
 
-## Success Criteria
+| Feature | Reason |
+|---------|--------|
+| Bulk edit for all criteria | Breaks audit trail; can't track per-criterion reviewer decisions |
+| Real-time collaborative editing | Conflict resolution complexity; clinical review requires single reviewer per decision |
+| Free-text relation field | Breaks structured export; standardized operator set required |
+| Custom UMLS code without validation | Allows invalid codes into database; violates audit requirements |
+| Offline-first with IndexedDB | Desktop-only pilot environment; acceptable to require network |
+| Required rationale validation | User chose optional rationale for v1.5; can tighten in v1.6 |
 
-- [ ] Temporal constraints visible on criteria cards for criteria that have them
-- [ ] Numeric thresholds visible on criteria cards for criteria like age ranges and lab values
-- [ ] At least some entities display SNOMED code + UMLS CUI in the Entity tab
-- [ ] Grounding pipeline produces non-zero CUI/SNOMED for common medical terms
-- [ ] MedGemma drives entity extraction via Vertex AI Model Garden endpoint
-- [ ] Grounding loop iteratively refines UMLS matches using MedGemma reasoning
-- [ ] Criteria extraction uses Gemini 3 Flash
+## Traceability
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| API-01 | Phase 22 | Pending |
+| API-02 | Phase 22 | Pending |
+| API-03 | Phase 22 | Pending |
+| API-04 | Phase 25 | Pending |
+| EDIT-01 | Phase 24 | Pending |
+| EDIT-02 | Phase 23 | Pending |
+| EDIT-03 | Phase 23 | Pending |
+| EDIT-04 | Phase 23 | Pending |
+| EDIT-05 | Phase 24 | Pending |
+| EDIT-06 | Phase 24 | Pending |
+| EDIT-07 | Phase 22 | Pending |
+| UMLS-01 | Phase 25 | Pending |
+| UMLS-02 | Phase 25 | Pending |
+| UMLS-03 | Phase 25 | Pending |
+| UMLS-04 | Phase 25 | Pending |
+| UMLS-05 | Phase 25 | Pending |
+| MULTI-01 | Phase 27 | Pending |
+| MULTI-02 | Phase 27 | Pending |
+| MULTI-03 | Phase 27 | Pending |
+| MULTI-04 | Phase 27 | Pending |
+| RATL-01 | Phase 26 | Pending |
+| RATL-02 | Phase 26 | Pending |
+| RATL-03 | Phase 26 | Pending |
+| EVID-01 | Phase 28 | Pending |
+| EVID-02 | Phase 28 | Pending |
+| EVID-03 | Phase 28 | Pending |
+| EVID-04 | Phase 28 | Pending |
+
+**Coverage:**
+- v1.5 requirements: 27 total
+- Mapped to phases: 27
+- Unmapped: 0
+
+---
+*Requirements defined: 2026-02-13*
+*Last updated: 2026-02-13 after v1.5 milestone definition*
