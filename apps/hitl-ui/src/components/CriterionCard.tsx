@@ -1,8 +1,9 @@
-import { CheckCircle, Clock, Hash, Loader2, Pencil, XCircle } from 'lucide-react';
-import { useState } from 'react';
+import { CheckCircle, Clock, Hash, ListChecks, Loader2, Pencil, XCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
+import { StructuredFieldEditor } from './structured-editor/StructuredFieldEditor';
 import { Button } from './ui/Button';
 
 interface CriterionCardProps {
@@ -138,13 +139,22 @@ function extractThresholdsList(
     return [];
 }
 
+type EditMode = 'none' | 'text' | 'structured';
+
 export default function CriterionCard({ criterion, onAction, isSubmitting }: CriterionCardProps) {
-    const [isEditing, setIsEditing] = useState(false);
+    const [editMode, setEditMode] = useState<EditMode>('none');
     const [editText, setEditText] = useState(criterion.text);
     const [editType, setEditType] = useState(criterion.criteria_type);
     const [editCategory, setEditCategory] = useState(criterion.category ?? '');
 
     const isLowConfidence = criterion.confidence < 0.7;
+
+    // Sync local edit state when criterion prop changes (after mutation response)
+    useEffect(() => {
+        setEditText(criterion.text);
+        setEditType(criterion.criteria_type);
+        setEditCategory(criterion.category ?? '');
+    }, [criterion.text, criterion.criteria_type, criterion.category]);
 
     function handleApprove() {
         onAction(criterion.id, {
@@ -168,14 +178,30 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
             modified_type: editType,
             modified_category: editCategory || undefined,
         });
-        setIsEditing(false);
+        setEditMode('none');
     }
 
     function handleModifyCancel() {
         setEditText(criterion.text);
         setEditType(criterion.criteria_type);
         setEditCategory(criterion.category ?? '');
-        setIsEditing(false);
+        setEditMode('none');
+    }
+
+    function handleStructuredSave(values: { entity: string; relation: string; value: unknown }) {
+        // Convert StructuredFieldFormValues to the modified_structured_fields payload
+        const fields: Record<string, unknown> = {
+            entity: values.entity,
+            relation: values.relation,
+            value: values.value,
+        };
+
+        onAction(criterion.id, {
+            action: 'modify',
+            reviewer_id: 'current-user',
+            modified_structured_fields: fields,
+        });
+        setEditMode('none');
     }
 
     return (
@@ -198,7 +224,7 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
             </div>
 
             {/* Body */}
-            {isEditing ? (
+            {editMode === 'text' ? (
                 <div className="space-y-3 mb-3">
                     <div>
                         <label
@@ -266,6 +292,15 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
                         </Button>
                     </div>
                 </div>
+            ) : editMode === 'structured' ? (
+                <div className="mb-3">
+                    <StructuredFieldEditor
+                        criterionId={criterion.id}
+                        onSave={handleStructuredSave}
+                        onCancel={() => setEditMode('none')}
+                        isSubmitting={isSubmitting}
+                    />
+                </div>
             ) : (
                 <p className="text-sm text-foreground mb-3">{criterion.text}</p>
             )}
@@ -308,7 +343,7 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
             )}
 
             {/* Action buttons */}
-            {!isEditing && (
+            {editMode === 'none' && (
                 <div className="flex items-center gap-2 pt-2 border-t">
                     <Button
                         size="sm"
@@ -342,11 +377,21 @@ export default function CriterionCard({ criterion, onAction, isSubmitting }: Cri
                         size="sm"
                         variant="outline"
                         className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                        onClick={() => setIsEditing(true)}
+                        onClick={() => setEditMode('text')}
                         disabled={isSubmitting}
                     >
                         <Pencil className="h-4 w-4 mr-1" />
-                        Modify
+                        Modify Text
+                    </Button>
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                        onClick={() => setEditMode('structured')}
+                        disabled={isSubmitting}
+                    >
+                        <ListChecks className="h-4 w-4 mr-1" />
+                        Modify Fields
                     </Button>
                 </div>
             )}

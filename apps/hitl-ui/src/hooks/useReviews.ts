@@ -70,6 +70,7 @@ export interface ReviewActionRequest {
     modified_text?: string;
     modified_type?: string;
     modified_category?: string;
+    modified_structured_fields?: Record<string, unknown>;
     comment?: string;
 }
 
