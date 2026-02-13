@@ -1,10 +1,10 @@
 """One-off script to verify extraction with updated prompts produces numeric_thresholds."""
 import asyncio
-import base64
 import json
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 # Set DATABASE_URL before any imports that might need it
@@ -12,6 +12,7 @@ os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 # Load .env file
 from dotenv import load_dotenv
+
 load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 
 # Add service to path
@@ -38,18 +39,33 @@ async def main():
     print(f"Using PDF: {pdf_path.name} ({pdf_path.stat().st_size / 1024:.0f} KB)")
 
     try:
+        from google import genai
+        from google.genai import types
         from jinja2 import Environment, FileSystemLoader
-        from langchain_core.messages import HumanMessage, SystemMessage
-        from langchain_google_genai import ChatGoogleGenerativeAI
+
         from extraction_service.schemas.criteria import ExtractionResult
     except ImportError as e:
         print(f"Import error: {e}")
         return
 
+    tmp_path = None
+    uploaded_file = None
+    client = None
+
     try:
         pdf_bytes = pdf_path.read_bytes()
-        pdf_base64 = base64.b64encode(pdf_bytes).decode("utf-8")
-        pdf_data_uri = f"data:application/pdf;base64,{pdf_base64}"
+
+        # Write PDF to temp file for File API upload
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+            tmp.write(pdf_bytes)
+            tmp_path = tmp.name
+
+        # Instantiate client
+        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
+        # Upload via File API
+        uploaded_file = client.files.upload(file=tmp_path)
 
         # Render prompts directly using Jinja2
         prompts_dir = Path(__file__).parent.parent / "src" / "extraction_service" / "prompts"
@@ -57,28 +73,22 @@ async def main():
         system_prompt = env.get_template("system.jinja2").render()
         user_prompt = env.get_template("user.jinja2").render(title=pdf_path.stem)
 
-        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-3-flash-preview")
-        llm = ChatGoogleGenerativeAI(
-            model=model_name,
-            temperature=0,
-            vertexai=True,
-            project=os.getenv("GCP_PROJECT_ID"),
-            location=os.getenv("GCP_REGION", "us-central1"),
-        )
-        structured_llm = llm.with_structured_output(ExtractionResult)
-
-        messages = [
-            SystemMessage(content=system_prompt),
-            HumanMessage(content=[
-                {"type": "text", "text": user_prompt},
-                {"type": "image_url", "image_url": {"url": pdf_data_uri}},
-            ]),
-        ]
-
         print(f"Calling Gemini ({model_name})...")
-        result = await structured_llm.ainvoke(messages)
-        if isinstance(result, dict):
-            result = ExtractionResult(**result)
+        response = await client.aio.models.generate_content(
+            model=model_name,
+            contents=[uploaded_file, user_prompt],
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                response_schema=ExtractionResult,
+            ),
+        )
+
+        # Parse result
+        if response.parsed is not None:
+            result = response.parsed
+        else:
+            result = ExtractionResult.model_validate_json(response.text)
 
         # Analyze results
         total = len(result.criteria)
@@ -124,6 +134,20 @@ async def main():
         print(f"Error: {type(e).__name__}: {e}")
         import traceback
         traceback.print_exc()
+    finally:
+        # Clean up temp file
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except Exception as cleanup_err:
+                print(f"Warning: Failed to delete temp file {tmp_path}: {cleanup_err}")
+
+        # Clean up uploaded file
+        if uploaded_file and client:
+            try:
+                client.files.delete(name=uploaded_file.name)
+            except Exception as cleanup_err:
+                print(f"Warning: Failed to delete uploaded file {uploaded_file.name}: {cleanup_err}")
 
 
 if __name__ == "__main__":
