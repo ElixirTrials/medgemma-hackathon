@@ -7,15 +7,12 @@ functionality for frontend autocomplete consumption.
 from __future__ import annotations
 
 import logging
-from contextlib import contextmanager
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from umls_mcp_server.umls_api import (
     SnomedCandidate,
     UmlsApiError,
-    UmlsClient,
     get_umls_client,
 )
 
