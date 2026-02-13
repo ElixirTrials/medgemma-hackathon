@@ -6,14 +6,7 @@ Extract all medical entities from the following clinical trial eligibility crite
 </criterion>
 {% endfor %}
 
-Respond with a JSON object with action_type="extract" and populate the entities array.
-
-IMPORTANT: Each entity must be an atomic medical concept that maps to exactly one UMLS CUI.
-If a criterion contains compound phrases, parenthetical examples (e.g., "such as X, Y, Z"),
-or comma-separated conditions, extract EACH specific condition as a separate entity.
-Do NOT extract entire clauses or long phrases as a single entity.
-
-For each entity, provide:
+Respond with a JSON object with action_type="extract" and populate the entities array. For each entity, provide:
 - text: the exact text from the criterion
 - entity_type: one of Condition, Medication, Procedure, Lab_Value, Demographic, Biomarker
 - search_term: the standard medical term to search UMLS (e.g., "acetaminophen" not "Tylenol")
