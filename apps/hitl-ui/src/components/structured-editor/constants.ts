@@ -1,6 +1,7 @@
 // Relation configuration and constants
 
 import type {
+    FieldMapping,
     FieldValue,
     RelationCategory,
     RelationOperator,
@@ -40,10 +41,14 @@ export const TEMPORAL_UNITS: Array<{ value: TemporalUnit; label: string }> = [
     { value: 'years', label: 'Years' },
 ];
 
-export const DEFAULT_FIELD_VALUES: StructuredFieldFormValues = {
+export const DEFAULT_MAPPING: FieldMapping = {
     entity: '',
     relation: '' as const,
     value: { type: 'standard', value: '', unit: '' },
+};
+
+export const DEFAULT_FIELD_VALUES: StructuredFieldFormValues = {
+    mappings: [DEFAULT_MAPPING],
 };
 
 export function getDefaultValueForCategory(category: RelationCategory): FieldValue {

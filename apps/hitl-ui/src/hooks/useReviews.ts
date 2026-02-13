@@ -47,6 +47,13 @@ export interface BatchListResponse {
     pages: number;
 }
 
+// Field mapping for structured criteria edits (entity/relation/value triplet)
+export interface FieldMapping {
+    entity: string;
+    relation: string;
+    value: unknown;
+}
+
 export interface Criterion {
     id: string;
     batch_id: string;
@@ -59,6 +66,7 @@ export interface Criterion {
     assertion_status: string | null;
     confidence: number;
     source_section: string | null;
+    page_number: number | null;
     review_status: string | null;
     created_at: string;
     updated_at: string;
@@ -70,7 +78,10 @@ export interface ReviewActionRequest {
     modified_text?: string;
     modified_type?: string;
     modified_category?: string;
-    modified_structured_fields?: Record<string, unknown>;
+    modified_structured_fields?: {
+        field_mappings?: FieldMapping[];
+        [key: string]: unknown;
+    };
     comment?: string;
 }
 

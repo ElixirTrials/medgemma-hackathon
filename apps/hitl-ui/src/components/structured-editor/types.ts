@@ -37,10 +37,16 @@ export interface TemporalValue {
 
 export type FieldValue = StandardValue | RangeValue | TemporalValue;
 
-export interface StructuredFieldFormValues {
+// Single field mapping with all possible fields
+export interface FieldMapping {
     entity: string;
     relation: RelationOperator | '';
     value: FieldValue;
+}
+
+// Form values now contain an array of mappings
+export interface StructuredFieldFormValues {
+    mappings: FieldMapping[];
 }
 
 export interface StructuredFieldEditorProps {

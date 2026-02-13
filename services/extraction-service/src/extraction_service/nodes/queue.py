@@ -71,6 +71,7 @@ async def queue_node(state: ExtractionState) -> dict[str, Any]:
                     assertion_status=raw.get("assertion_status"),
                     confidence=raw.get("confidence", 1.0),
                     source_section=raw.get("source_section"),
+                    page_number=raw.get("page_number"),
                 )
                 session.add(criterion)
                 session.flush()  # Get criterion.id
