@@ -9,27 +9,27 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 
 ## Current Position
 
-Phase: 26 — Rationale Capture
+Phase: 27 — Multi-Mapping Support
 Plan: 01 of 1
 Status: Phase complete
-Last activity: 2026-02-13 — Completed 26-01: Rationale Capture for Review Actions
+Last activity: 2026-02-13 — Completed 27-01: Multi-Mapping Support for Structured Criteria
 
 Progress: ████████████████████ 100%
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 42
-- Average duration: 6.7 min
-- Total execution time: 5.03 hours
+- Total plans completed: 44
+- Average duration: 6.6 min
+- Total execution time: 5.20 hours
 
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                           |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------- |
+| 27    | 01   | 6 min    | 2026-02-13 | Multi-mapping support for structured criteria   |
+| 28    | 01   | 4 min    | 2026-02-13 | Page number data pipeline                       |
 | 26    | 01   | 3 min    | 2026-02-13 | Rationale capture for review actions            |
 | 25    | 02   | 2 min    | 2026-02-13 | Frontend UMLS autocomplete system               |
-| 25    | 01   | 3 min    | 2026-02-13 | UMLS search proxy endpoint                      |
-| 24    | 01   | 2 min    | 2026-02-13 | CriterionCard integration review workflow       |
 
 ## Accumulated Context
 
@@ -63,6 +63,11 @@ Progress: ████████████████████ 100%
 - [Phase 26-01]: Reuse existing comment field for rationale (backward compatibility, no schema changes)
 - [Phase 26-01]: Map comment to rationale key in AuditLog.details (semantic clarity in audit trail)
 - [Phase 26-01]: Optional rationale textarea with (optional) label and placeholder text pattern
+- [Phase 27-01]: useFieldArray for dynamic mapping management (robust array handling with minimal re-renders)
+- [Phase 27-01]: Store field_mappings in conditions JSONB column (general-purpose field, separate from legacy temporal/threshold)
+- [Phase 27-01]: Minimum 1 mapping enforcement via disabled remove button (UI constraint clearer than validation error)
+- [Phase 27-01]: v1.5-multi schema_version for audit logs (enables filtering multi-mapping edits)
+- [Phase 28]: page_number as optional int | None for backward compatibility
 
 ### Cauldron Reference (v1.5)
 
@@ -82,8 +87,11 @@ Key patterns from Cauldron's CriteriaEditPanel:
 - ~~No API endpoint for modified_numeric_thresholds or modified_temporal_constraint~~ ✅ Done (22-01)
 - ~~No UMLS autocomplete in entity field~~ ✅ Done (25-02 - autocomplete with debounced search)
 - ~~No rationale capture for edits~~ ✅ Done (26-01 - optional rationale textarea in modify mode)
-- No evidence linking (click-to-scroll to protocol source text)
-- No multi-mapping per criterion
+- ~~No page_number data pipeline~~ ✅ Done (28-01 - page_number flows from extraction to API)
+- ~~No multi-mapping per criterion~~ ✅ Done (27-01 - useFieldArray with add/remove buttons, field_mappings array storage)
+- No PDF viewer with scroll-to-source (need to wire page_number → PDF scroll)
+- No display of field_mappings in non-edit mode (saved mappings not shown as badges)
+- No initialValues population from saved field_mappings (editor always starts with 1 empty mapping)
 
 ### Pending Todos
 
@@ -96,6 +104,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 26-01 (Rationale Capture for Review Actions)
-Resume file: .planning/phases/26-rationale-capture/26-01-SUMMARY.md
-Next action: Phase 26 complete. Ready for next phase planning.
+Stopped at: Completed Phase 27-01 (Multi-Mapping Support for Structured Criteria)
+Resume file: .planning/phases/27-multi-mapping-support/27-01-SUMMARY.md
+Next action: Phase 27 complete. Ready for next phase planning.
