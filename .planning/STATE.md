@@ -11,24 +11,24 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 
 Phase: 25 — UMLS Concept Search Autocomplete
 Plan: 02 of 2
-Status: Plan 01 complete
-Last activity: 2026-02-13 — Completed 25-01: UMLS Search Proxy Endpoint
+Status: Phase complete
+Last activity: 2026-02-13 — Completed 25-02: Frontend UMLS Autocomplete System
 
-Progress: ██████████░░░░░░░░░░ 50%
+Progress: ████████████████████ 100%
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 40
-- Average duration: 7.0 min
-- Total execution time: 4.97 hours
+- Total plans completed: 41
+- Average duration: 6.8 min
+- Total execution time: 5.00 hours
 
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                           |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------- |
+| 25    | 02   | 2 min    | 2026-02-13 | Frontend UMLS autocomplete system               |
 | 25    | 01   | 3 min    | 2026-02-13 | UMLS search proxy endpoint                      |
 | 24    | 01   | 2 min    | 2026-02-13 | CriterionCard integration review workflow       |
-| 23    | 01   | 4 min    | 2026-02-13 | Core structured editor component                |
 
 ## Accumulated Context
 
@@ -56,6 +56,9 @@ Progress: ██████████░░░░░░░░░░ 50%
 - [Phase 24]: useEffect to sync local edit state when criterion prop changes ensures text fields reflect latest data after mutation
 - [Phase 25-01]: UMLS search proxy uses "Clinical Finding" as semantic_type default (search API doesn't return semantic types)
 - [Phase 25-01]: Error mapping: 502 for UMLS API errors, 503 for missing UMLS_API_KEY configuration
+- [Phase 25-02]: useState + useEffect + setTimeout for debouncing (simpler than external library)
+- [Phase 25-02]: 300ms debounce with 3-character minimum for UMLS autocomplete
+- [Phase 25-02]: UmlsCombobox as primary input, CUI/SNOMED as secondary editable fields (visual hierarchy)
 
 ### Cauldron Reference (v1.5)
 
@@ -71,12 +74,12 @@ Key patterns from Cauldron's CriteriaEditPanel:
 ### Current System Gaps (v1.5 scope)
 
 - ~~CriterionCard: text/type/category editable, but NOT relation/value/threshold~~ ✅ Done (24-01 - structured editor toggle added)
-- EntityCard: UMLS CUI/SNOMED/preferred_term editable (modify mode exists)
+- ~~EntityCard: UMLS CUI/SNOMED/preferred_term editable (modify mode exists)~~ ✅ Done (25-02 - UMLS autocomplete integrated)
 - ~~No API endpoint for modified_numeric_thresholds or modified_temporal_constraint~~ ✅ Done (22-01)
+- ~~No UMLS autocomplete in entity field~~ ✅ Done (25-02 - autocomplete with debounced search)
 - No evidence linking (click-to-scroll to protocol source text)
 - No rationale capture for edits
 - No multi-mapping per criterion
-- No UMLS autocomplete in entity field (Phase 25-02 pending)
 
 ### Pending Todos
 
@@ -89,6 +92,6 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-13
-Stopped at: Completed Phase 25-01 (UMLS Search Proxy Endpoint)
-Resume file: .planning/phases/25-umls-concept-search-autocomplete/25-01-SUMMARY.md
-Next action: Execute Phase 25-02 (Frontend autocomplete component using /api/umls/search endpoint)
+Stopped at: Completed Phase 25-02 (Frontend UMLS Autocomplete System)
+Resume file: .planning/phases/25-umls-concept-search-autocomplete/25-02-SUMMARY.md
+Next action: Phase 25 complete. Ready for next phase planning.
