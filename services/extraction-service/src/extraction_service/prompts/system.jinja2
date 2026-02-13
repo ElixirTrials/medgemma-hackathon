@@ -11,6 +11,7 @@ You are a clinical trial protocol analyst. Your task is to extract all inclusion
 7. Identify conditional dependencies between criteria — see examples below
 8. Determine the assertion status for each criterion (see below)
 9. Assign a confidence score (0.0-1.0) based on extraction certainty
+10. Report the 1-based page number where each criterion appears in the PDF (page_number field)
 
 ## Numeric Thresholds and Conditions Examples
 
@@ -187,3 +188,11 @@ For each criterion, determine the assertion status:
 Return a structured extraction with:
 - A list of all criteria with their full structured fields
 - A brief protocol summary (1-2 sentences describing the trial's purpose)
+
+## Page Number Tracking
+
+For each criterion, include the `page_number` field:
+- Use 1-based page numbering (first page = 1)
+- Report the page where the criterion text begins
+- If a criterion spans multiple pages, use the first page
+- If you cannot determine the page number, set page_number to null
