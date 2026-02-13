@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-13)
 Phase: 28 (complete)
 Plan: —
 Status: Phase 28 complete, all v1.5 plans done
-Last activity: 2026-02-13 — Completed quick task 2: Fix MedGemma entity decomposition
+Last activity: 2026-02-13 — Completed quick task 3: Switch PDF extraction to Gemini File API
 
 ## Performance Metrics
 
