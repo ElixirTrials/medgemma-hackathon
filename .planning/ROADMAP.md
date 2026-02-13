@@ -23,7 +23,7 @@
   2. Alembic migrations auto-generate from SQLModel metadata and apply cleanly to a fresh PostgreSQL database
   3. Event types (ProtocolUploaded, CriteriaExtracted, ReviewCompleted, EntitiesGrounded) are defined with outbox persistence pattern
   4. `docker compose up` starts PostgreSQL with persistent volume and all three services pass health checks
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 01-01: Domain SQLModel classes, event types, and Alembic migration
@@ -38,7 +38,7 @@ Plans:
   2. Protocol list displays paginated results with status badges (uploaded, extracting, extracted, reviewed) served from server-side pagination
   3. PDF quality score is computed on upload (text extractability, page count, encoding type), stored in GCS metadata, and visible in protocol detail view
   4. Upload rejects non-PDF files and files exceeding 50MB with clear error messages
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 02-01: Backend API: GCS signed URL upload, PDF quality analyzer, paginated list and detail endpoints
@@ -53,7 +53,7 @@ Plans:
   2. Each extracted criterion has structured fields: text, type (inclusion/exclusion), category, temporal_constraint, conditions, numeric_thresholds, assertion status (PRESENT/ABSENT/HYPOTHETICAL/HISTORICAL/CONDITIONAL), and confidence score (0.0-1.0)
   3. PDF parsing via pymupdf4llm preserves tables and multi-column layouts, with parsed content cached to avoid re-parsing
   4. CriteriaExtracted event is published via outbox pattern and grounding-service can subscribe to it
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 03-01: Extraction foundation: ExtractionState, Pydantic schemas, PDF parser with caching, Jinja2 prompts, trigger handler
@@ -68,7 +68,7 @@ Plans:
   2. Split-screen view shows original protocol PDF (left panel with page navigation, loaded via GCS signed URL) alongside extracted criteria cards (right panel)
   3. Each criterion displays a confidence badge (high/medium/low with configurable thresholds), criteria are sortable by confidence (lowest first), and low-confidence items are visually highlighted
   4. Every review action (approve/reject/modify) is logged with reviewer_id, timestamp, action type, and before/after values, queryable via API with 100% completeness
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 04-01: Review API endpoints (batch list, criteria, review actions, PDF URL, audit log) + frontend TanStack Query hooks
@@ -146,7 +146,7 @@ Plans:
   1. Researcher logs in via Google OAuth, receives a JWT, and all API endpoints require valid authentication
   2. Entity list view displays SNOMED badge (code + preferred term) with human-readable labels, and researcher can approve, reject, or modify each entity mapping individually
   3. Full-text search via GET /criteria/search?q= returns relevance-ranked results with filters for protocol, criteria type, and approval status, backed by GIN index on criteria text
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 06-01: Backend: Google OAuth + JWT auth, entity approval endpoints, full-text search with GIN index
@@ -185,7 +185,7 @@ Plans:
   3. Documentation site navigation includes all 6 sections (architecture, journeys, components, status, code-tour, diagrams) with correct hierarchy
   4. CI pipeline validates Markdown links and fails on broken references
   5. Documentation preview deploys on PRs touching docs/ directory
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 08-01: Modernize mkdocs.yml: replace mermaid2 with native superfences, enable strict mode + validation, fix template metadata
@@ -201,7 +201,7 @@ Plans:
   3. Engineer can reference DB schema ER diagram showing Protocol, Criteria, CriteriaBatch, Entity, Review, AuditLog tables with relationships
   4. Engineer can reference LangGraph state documentation showing ExtractionState and GroundingState TypedDict structures with field descriptions and data flow
   5. All diagrams include date_verified frontmatter metadata
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 09-01: System architecture: C4 Container diagram + service communication wiring section
@@ -216,7 +216,7 @@ Plans:
   2. PM can view "Grounding & HITL Review" sequence diagram showing CriteriaExtracted to Grounding Service to DB to HITL UI to Approval to Audit Log flow
   3. Each journey narrative explains the user story and runtime behavior
   4. Diagrams explicitly note "happy path only" and link to error handling documentation
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 10-01: Upload & Extraction journey with sequence diagram, narrative, navigation updates, and grounding-review placeholder
@@ -310,7 +310,7 @@ Plans:
   2. Agentic grounding node implements iterative loop: MedGemma extracts entities + suggests UMLS search terms → UMLS MCP `concept_search` returns CUI+SNOMED → MedGemma evaluates results and refines if needed → max 3 iterations
   3. Grounding graph simplified from 4 nodes to 2: `medgemma_ground` (agentic loop) → `validate_confidence`
   4. Common medical terms (acetaminophen, osteoarthritis, Heparin) grounded with CUI + SNOMED via the agentic loop
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [x] 20-01-PLAN.md — Port ModelGardenChatModel and AgentConfig from gemma-hackathon to libs/inference/
@@ -358,10 +358,10 @@ Plans:
   2. Relation dropdown offers full operator set (=, !=, >, >=, <, <=, within, not_in_last, contains, not_contains)
   3. Value input adapts based on relation type — single value for standard operators, min/max for range, duration+unit for temporal
   4. Form state managed via react-hook-form useFieldArray with proper cleanup when relation changes (no state leak)
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
-- [ ] 23-01: TBD
+- [ ] 23-01-PLAN.md — Types, constants, Radix Select relation dropdown, adaptive ValueInput, and StructuredFieldEditor with react-hook-form state management
 
 ### Phase 24: CriterionCard Integration + Review Workflow
 **Goal**: Wire the structured editor into the existing CriterionCard review workflow so reviewers can toggle between text and structured edit modes and save structured edits end-to-end
@@ -387,7 +387,7 @@ Plans:
   3. Search debounced (300ms minimum) with loading indicator, minimum 3 characters
   4. Selecting a UMLS concept populates entity fields (CUI, SNOMED code, preferred term)
   5. UMLS search proxy endpoint available for frontend autocomplete
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [ ] 25-01-PLAN.md — Backend UMLS search proxy endpoint (GET /api/umls/search)
@@ -429,7 +429,7 @@ Plans:
   2. Source text highlighted or visually indicated in PDF viewer
   3. Extraction service captures page number for each extracted criterion
   4. Evidence linking degrades gracefully when page data is unavailable
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [ ] 28-01-PLAN.md — Backend: page_number in extraction schema, DB model, prompt, queue node, and API response
@@ -452,7 +452,7 @@ Plans:
   4. Four IAM service accounts (api-service, extraction-service, grounding-service, hitl-ui) are created with predefined roles (cloudsql.client, secretmanager.secretAccessor) assigned
   5. Terraform uses region variable pattern (single source of truth for us-central1) preventing VPC connector region mismatches
 
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [ ] 13-01: TBD
@@ -468,7 +468,7 @@ Plans:
   4. Build script (`scripts/build-and-push.sh`) builds all 4 Docker images, pushes to Artifact Registry, and captures SHA256 digests for Terraform consumption
   5. Connection pool configuration is documented (pool_size=2, max_overflow=1) and max_connections on Cloud SQL set to 100
 
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [ ] 14-01: TBD
@@ -484,7 +484,7 @@ Plans:
   4. `.env.example` documents every required variable with descriptions and example values, and `terraform.tfvars.example` provides template for all Terraform input variables including image digests
   5. `infra/terraform/README.md` provides complete deployment guide with prerequisites, step-by-step instructions, troubleshooting section, and verification checklist
 
-**Plans**: 2 plans
+**Plans**: 1 plan
 
 Plans:
 - [ ] 15-01: TBD
@@ -745,7 +745,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 20. MedGemma Agentic Grounding | v1.4 | 2/2 | Complete | 2026-02-12 |
 | 21. Gemini 3 Flash Upgrade | v1.4 | 1/1 | Complete | 2026-02-13 |
 | 22. Backend Data Model + API Extension | v1.5 | 0/1 | Planned | - |
-| 23. Core Structured Editor Component | v1.5 | 0/TBD | Not started | - |
+| 23. Core Structured Editor Component | v1.5 | 0/1 | Planned | - |
 | 24. CriterionCard Integration + Review Workflow | v1.5 | 0/1 | Planned | - |
 | 25. UMLS Concept Search Autocomplete | v1.5 | 0/2 | Planned | - |
 | 26. Rationale Capture | v1.5 | 0/1 | Planned | - |
