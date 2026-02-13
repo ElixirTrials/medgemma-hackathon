@@ -70,6 +70,7 @@ class CriterionResponse(BaseModel):
     assertion_status: str | None
     confidence: float
     source_section: str | None
+    page_number: int | None = None
     review_status: str | None
     created_at: datetime
     updated_at: datetime
@@ -520,6 +521,7 @@ def _criterion_to_response(criterion: Criteria) -> CriterionResponse:
         assertion_status=criterion.assertion_status,
         confidence=criterion.confidence,
         source_section=criterion.source_section,
+        page_number=criterion.page_number,
         review_status=criterion.review_status,
         created_at=criterion.created_at,
         updated_at=criterion.updated_at,
