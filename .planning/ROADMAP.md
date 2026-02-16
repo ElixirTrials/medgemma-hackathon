@@ -482,10 +482,11 @@ Plans:
   4. Criteria sections are sorted with headers (Inclusion first, then Exclusion)
   5. Saved field_mappings pre-populate the structured editor when entering modify mode (fix buildInitialValues() priority)
   6. Saved field_mappings are displayed as badges/chips in read mode (outside edit mode) showing entity/relation/value triplets
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 30-01: TBD
+- [ ] 30-01-PLAN.md — Review status borders, sticky search/filter bar, section sorting with headers
+- [ ] 30-02-PLAN.md — Reject dialog with predefined reasons, field mapping read-mode badges with AND/OR connectors
 
 ### Phase 31: TerminologyRouter & Pipeline Consolidation ‖ PARALLEL with Phase 30
 **Goal**: Build entity-type-aware terminology routing with ToolUniverse API and consolidate extraction+grounding into a unified 5-node LangGraph pipeline — backend work that runs in parallel with frontend UX polish
@@ -501,10 +502,12 @@ Plans:
   7. criteria_extracted outbox event is removed; protocol_uploaded outbox is retained for async pipeline trigger
   8. Ground node delegates to helper functions for entity extraction and terminology routing (not inline logic)
   9. Pipeline compiles and runs end-to-end on test protocol with mock grounding (verifies state flow before real grounding integration)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 31-01: TBD
+- [ ] 31-01-PLAN.md — Service skeleton, PipelineState, YAML routing config, TerminologyRouter with tests
+- [ ] 31-02-PLAN.md — Extraction tools (pdf_parser, gemini_extractor), ingest/extract/parse nodes
+- [ ] 31-03-PLAN.md — Ground node, persist node, MedGemma decider, 5-node graph assembly, outbox wiring
 
 ### Phase 32: Entity Model, Ground Node & Multi-Code Display
 **Goal**: Extend Entity model to store multi-system codes, implement ground node with real terminology routing, add pipeline error handling, and display multi-terminology codes in the UI
@@ -519,10 +522,12 @@ Plans:
   6. Failed protocols can be retried via API endpoint without re-upload
   7. Multi-terminology codes (RxNorm, ICD-10, LOINC, HPO) are visible per entity in the UI as separate badges
   8. Graceful fallback for missing codes and pre-v1.5 data
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 32-01: TBD
+- [ ] 32-01-PLAN.md — Entity model extension, terminology clients, and search proxy endpoints
+- [ ] 32-02-PLAN.md — Ground node with Gemini structured extraction, TerminologyRouter, LangGraph checkpointing, and retry endpoint
+- [ ] 32-03-PLAN.md — Multi-code badge display, per-system autocomplete, and retry UX
 
 ### Phase 33: Re-Extraction Tooling & Review Protection
 **Goal**: Enable re-extraction on existing protocols without re-upload, with review protection to preserve human corrections and determinism improvements for reproducibility
