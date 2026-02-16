@@ -4,16 +4,17 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { DashboardCard } from '../features/dashboard/DashboardCard';
 import { useHealthCheck } from '../hooks/useApi';
-import { useBatchList } from '../hooks/useReviews';
+import { usePendingSummary } from '../hooks/useReviews';
 import { useAppStore } from '../stores/useAppStore';
 
 export default function Dashboard() {
     const { data: health, isLoading, error } = useHealthCheck();
-    const { data: pendingBatches } = useBatchList(1, 1, 'pending_review');
+    const { data: pendingSummary } = usePendingSummary();
     const { sidebarOpen, toggleSidebar } = useAppStore();
     const navigate = useNavigate();
 
-    const pendingCount = pendingBatches?.total ?? 0;
+    const pendingBatches = pendingSummary?.pending_batches ?? 0;
+    const pendingCriteria = pendingSummary?.pending_criteria ?? 0;
 
     return (
         <div className="container mx-auto p-6">
@@ -53,11 +54,13 @@ export default function Dashboard() {
                 </DashboardCard>
 
                 <DashboardCard title="Pending Reviews" description="Items awaiting human approval">
-                    <p className="text-2xl font-bold">{pendingCount}</p>
+                    <p className="text-2xl font-bold">
+                        {pendingBatches} batch{pendingBatches === 1 ? '' : 'es'}
+                    </p>
                     <p className="text-sm text-muted-foreground mb-3">
-                        {pendingCount === 0
+                        {pendingBatches === 0
                             ? 'No pending items'
-                            : `${pendingCount} batch${pendingCount === 1 ? '' : 'es'} awaiting review`}
+                            : `${pendingBatches} batch${pendingBatches === 1 ? '' : 'es'} (${pendingCriteria} criteria) pending review`}
                     </p>
                     <Button
                         onClick={() => navigate('/reviews')}
