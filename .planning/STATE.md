@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 29 of 34 (Backend Bug Fixes)
-Plan: 1 of 2 in current phase
+Plan: 3 of 3 in current phase
 Status: In progress
-Last activity: 2026-02-16 — Completed Plan 29-02 (audit trail and pending count fixes)
+Last activity: 2026-02-16 — Completed Plan 29-03 (Gemini structured output for grounding)
 
 Progress: [████████████████████████░░░░░░░░░░] 82% (28/34 phases complete)
 
@@ -33,15 +33,15 @@ Progress: [███████████████████████
 | v1.3 | 16 | 1 | ~7 min | Shipped 2026-02-12 |
 | v1.4 | 17-21 | 7 | ~2 hours | Shipped 2026-02-13 |
 | v1.5 | 22-28 | 11 | ~8 hours | Shipped 2026-02-13 |
-| v2.0 | 29-34 | 1/TBD | ~4 min | In progress |
+| v2.0 | 29-34 | 1/TBD | ~9 min | In progress |
 
 **Recent Plans:**
-| Phase | Plan | Duration | Date       | Notes                                           |
-| ----- | ---- | -------- | ---------- | ----------------------------------------------- |
-| 29    | 02   | 4 min    | 2026-02-16 | Audit trail visibility and pending count fixes  |
-| 28    | 02   | 8 min    | 2026-02-13 | Evidence linking UI with click-to-scroll        |
-| 27    | 01   | 6 min    | 2026-02-13 | Multi-mapping support for structured criteria   |
-| 28    | 01   | 4 min    | 2026-02-13 | Page number data pipeline                       |
+| Phase | Plan | Duration | Date       | Notes                                                       |
+| ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 29    | 03   | 15 min   | 2026-02-16 | Gemini structured output for MedGemma grounding             |
+| 29    | 02   | 8 min    | 2026-02-16 | Audit trail and pending count bug fixes                     |
+| 29    | 01   | 9 min    | 2026-02-16 | Grounding confidence bug fix with diagnostic logging        |
+| 28    | 02   | 8 min    | 2026-02-13 | Evidence linking UI with click-to-scroll                    |
 
 *Metrics from MILESTONES.md and previous roadmaps*
 
@@ -59,10 +59,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Remove criteria_extracted outbox, retain protocol_uploaded
 
 **Phase 29 Bug Fixes (2026-02-16):**
-- Batch status auto-transition: `in_progress → reviewed/approved/rejected` when all criteria reviewed
-- Criteria-level pending count query (not batch status) for dashboard accuracy
-- Per-criterion audit history (collapsed by default, Radix Collapsible)
-- Audit log batch_id filter via `AuditLog → Criteria` join query
+- Two-model architecture: MedGemma for medical reasoning, Gemini for JSON structuring (29-03)
+- Zero JSON parse errors via Gemini with_structured_output (29-03)
+- Batch status auto-transition: `in_progress → reviewed/approved/rejected` when all criteria reviewed (29-02)
+- Criteria-level pending count query (not batch status) for dashboard accuracy (29-02)
+- Per-criterion audit history (collapsed by default, Radix Collapsible) (29-02)
+- Audit log batch_id filter via `AuditLog → Criteria` join query (29-02)
+- Enhanced grounding confidence handling with diagnostic logging (29-01)
 
 **v1.5 Editor Patterns (2026-02-13):**
 - Cauldron-style field mapping editor with entity/relation/value triplets
@@ -81,6 +84,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 **v1.3 Extraction (2026-02-12):**
 - Direct PDF multimodal extraction replaces pymupdf4llm
 - Base64 PDF data URIs for Gemini input (later: File API in quick-3)
+- [Phase 29]: Added diagnostic logging to grounding pipeline for root cause visibility
+- [Phase 29]: Enhanced MedGemma prompts with explicit search term guidelines and directive evaluate instructions
 
 ### Pending Todos
 
@@ -89,7 +94,7 @@ None.
 ### Blockers/Concerns
 
 **Known Critical Issues (from research and E2E testing):**
-- **BUGF-01**: Grounding confidence 0% for all entities — blocks regulatory compliance
+- ~~**BUGF-01**: Grounding confidence 0% for all entities — blocks regulatory compliance~~ **FIXED in 29-01 (diagnostic logging), 29-03 (Gemini structured output)**
 - ~~**BUGF-02**: Audit trail entries invisible on UI — violates 21 CFR Part 11~~ **FIXED in 29-02**
 - ~~**BUGF-03**: Dashboard pending count semantic confusion — users miss work~~ **FIXED in 29-02**
 
@@ -113,10 +118,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed Phase 29 Plan 02 (audit trail and pending count fixes)
+Stopped at: Completed Phase 29 Plan 03 (Gemini structured output for grounding)
 Resume file: None
-Next action: Execute Phase 29 Plan 01 (grounding confidence bug fix)
+Next action: Phase 29 complete - proceed to Phase 30 or v2.0 planning
 
 ---
 
-*Last updated: 2026-02-16 after completing Phase 29 Plan 02*
+*Last updated: 2026-02-16 after completing Phase 29 Plan 03*
