@@ -29,9 +29,7 @@ from tenacity import (
 logger = logging.getLogger(__name__)
 
 # Local storage directory (relative to repo root)
-_LOCAL_UPLOAD_DIR = Path(
-    os.getenv("LOCAL_UPLOAD_DIR", "uploads/protocols")
-)
+_LOCAL_UPLOAD_DIR = Path(os.getenv("LOCAL_UPLOAD_DIR", "uploads/protocols"))
 
 # Shared retry decorator for GCS operations
 # Retry on any Exception EXCEPT ValueError (config errors)

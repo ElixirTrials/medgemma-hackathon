@@ -18,7 +18,7 @@ from typing import Any, Dict, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from shared.models import AuditLog, Criteria, CriteriaBatch, Protocol, Review
+from shared.models import AuditLog, Criteria, CriteriaBatch, Entity, Protocol, Review
 from sqlmodel import Session, col, func, select
 
 from api_service.dependencies import get_db
@@ -56,6 +56,18 @@ class BatchListResponse(BaseModel):
     pages: int
 
 
+class CriterionEntityResponse(BaseModel):
+    """Embedded entity summary within a criterion response."""
+
+    id: str
+    entity_type: str
+    text: str
+    umls_cui: str | None
+    snomed_code: str | None
+    preferred_term: str | None
+    grounding_confidence: float | None
+
+
 class CriterionResponse(BaseModel):
     """Response model for a single criterion."""
 
@@ -72,6 +84,7 @@ class CriterionResponse(BaseModel):
     source_section: str | None
     page_number: int | None = None
     review_status: str | None
+    entities: list[CriterionEntityResponse] = []
     created_at: datetime
     updated_at: datetime
 
@@ -240,7 +253,22 @@ def list_batch_criteria(
 
     criteria = db.exec(stmt).all()
 
-    return [_criterion_to_response(c) for c in criteria]
+    # Batch-load entities for all criteria in one query
+    criteria_ids = [c.id for c in criteria]
+    entities_by_criteria: dict[str, list[Entity]] = {cid: [] for cid in criteria_ids}
+    if criteria_ids:
+        entity_stmt = (
+            select(Entity)
+            .where(col(Entity.criteria_id).in_(criteria_ids))
+            .order_by(col(Entity.span_start).asc())
+        )
+        for entity in db.exec(entity_stmt).all():
+            entities_by_criteria[entity.criteria_id].append(entity)
+
+    return [
+        _criterion_to_response(c, entities_by_criteria.get(c.id, []))
+        for c in criteria
+    ]
 
 
 @router.post(
@@ -518,8 +546,22 @@ def _update_batch_status(db: Session, batch_id: str) -> None:
     db.add(batch)
 
 
-def _criterion_to_response(criterion: Criteria) -> CriterionResponse:
+def _criterion_to_response(
+    criterion: Criteria, entities: list[Entity] | None = None
+) -> CriterionResponse:
     """Convert a Criteria model to CriterionResponse."""
+    entity_responses = [
+        CriterionEntityResponse(
+            id=e.id,
+            entity_type=e.entity_type,
+            text=e.text,
+            umls_cui=e.umls_cui,
+            snomed_code=e.snomed_code,
+            preferred_term=e.preferred_term,
+            grounding_confidence=e.grounding_confidence,
+        )
+        for e in (entities or [])
+    ]
     return CriterionResponse(
         id=criterion.id,
         batch_id=criterion.batch_id,
@@ -528,11 +570,17 @@ def _criterion_to_response(criterion: Criteria) -> CriterionResponse:
         text=criterion.text,
         temporal_constraint=criterion.temporal_constraint,
         conditions=(
-            criterion.conditions if isinstance(criterion.conditions, dict) else None
+            criterion.conditions
+            if isinstance(criterion.conditions, dict)
+            else {"conditions_list": criterion.conditions}
+            if isinstance(criterion.conditions, list)
+            else None
         ),
         numeric_thresholds=(
             criterion.numeric_thresholds
             if isinstance(criterion.numeric_thresholds, dict)
+            else {"thresholds": criterion.numeric_thresholds}
+            if isinstance(criterion.numeric_thresholds, list)
             else None
         ),
         assertion_status=criterion.assertion_status,
@@ -540,6 +588,7 @@ def _criterion_to_response(criterion: Criteria) -> CriterionResponse:
         source_section=criterion.source_section,
         page_number=criterion.page_number,
         review_status=criterion.review_status,
+        entities=entity_responses,
         created_at=criterion.created_at,
         updated_at=criterion.updated_at,
     )

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 
 from api_service.storage import engine
@@ -23,6 +24,21 @@ from shared.models import Protocol
 from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_mlflow() -> bool:
+    """Ensure MLflow tracking is configured in the current thread."""
+    try:
+        import mlflow
+
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+        if tracking_uri:
+            mlflow.set_tracking_uri(tracking_uri)
+            mlflow.set_experiment("protocol-processing")
+            return True
+    except ImportError:
+        pass
+    return False
 
 
 def _categorize_grounding_error(e: Exception) -> str:
@@ -130,7 +146,30 @@ def handle_criteria_extracted(payload: dict[str, Any]) -> None:
         from grounding_service.graph import get_graph
 
         graph = get_graph()
-        asyncio.run(graph.ainvoke(initial_state))
+
+        if _ensure_mlflow():
+            import mlflow
+
+            with mlflow.start_span(
+                name="grounding_workflow",
+                span_type="CHAIN",
+            ) as span:
+                span.set_inputs(
+                    {
+                        "batch_id": batch_id,
+                        "protocol_id": protocol_id,
+                        "criteria_count": len(payload.get("criteria_ids", [])),
+                    }
+                )
+                result = asyncio.run(graph.ainvoke(initial_state))
+                span.set_outputs(
+                    {
+                        "entity_count": len(result.get("entity_ids", [])),
+                        "error": result.get("error"),
+                    }
+                )
+        else:
+            asyncio.run(graph.ainvoke(initial_state))
 
         logger.info(
             "Grounding workflow completed for batch %s",

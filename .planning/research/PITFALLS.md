@@ -1,229 +1,268 @@
 # Pitfalls Research
 
-**Domain:** Adding structured field mapping editor to existing HITL review system
+**Domain:** Clinical NLP HITL System - Corpus Building and Editor Polish
 **Researched:** 2026-02-13
 **Confidence:** HIGH
 
 ## Critical Pitfalls
 
-### Pitfall 1: Form State Explosion from Nested Field Mappings
+### Pitfall 1: Form Pre-loading with react-hook-form useFieldArray - Database ID Conflicts
 
 **What goes wrong:**
-When adding structured field mapping (entity → relation → value triplets with units, min/max, temporal constraints), developers create separate useState hooks for each field. With multiple mappings per criterion, this creates 10+ state variables per card, leading to synchronization bugs where one field updates but related fields don't (e.g., relation changes from "=" to "range" but min/max fields aren't initialized).
+The `useFieldArray` hook generates its own UUID as `id` for each field, which overwrites database IDs when pre-populating from saved data. This breaks the connection between UI state and persisted records, causing update/delete operations to target the wrong records or fail silently.
 
 **Why it happens:**
-The existing CriterionCard uses simple useState for text/type/category (3 fields). Developers extend this pattern naively for structured mappings without recognizing that field mappings are complex nested objects requiring coordinated state transitions. The spread operator only performs shallow merges, causing nested object updates to lose sibling properties.
+Developers assume they can pass database objects directly to `append()` or set as `defaultValues`, but `useFieldArray` mandates using its generated `field.id` (not index) as the React key. When database records have an `id` field, it gets replaced, severing the link to the backend.
 
 **How to avoid:**
-Use useReducer with discriminated action types for the entire field mapping structure. Define a single state shape containing all mappings as an array, where each action (ADD_MAPPING, UPDATE_ENTITY, UPDATE_RELATION, UPDATE_VALUE) updates the entire mapping atomically. Use Immer or immutable update patterns for nested objects to ensure all related fields update together.
+- Store database IDs in a separate field (e.g., `database_id`, `criterion_id`) in the form state, never as `id`
+- Use `field.id` from `useFieldArray` exclusively for React keys
+- Create a mapping layer that translates between `field.id` (UI) and `database_id` (persistence) when submitting
+- When pre-populating, restructure data: `{ database_id: record.id, entity: record.entity, ... }` not `{ id: record.id, ... }`
 
 **Warning signs:**
-- More than 5 useState hooks in edit mode component
-- Separate handlers for related fields (e.g., handleEntityChange, handleRelationChange, handleValueChange)
-- Manual synchronization logic between fields (useEffect watching one field to update another)
-- Bug reports: "Changed relation to 'range' but min/max fields stayed disabled"
+- Criteria or entities update but appear to create new records instead
+- Delete operations fail with "record not found" errors
+- Form state contains UUIDs that don't match database primary keys
+- Multiple form submissions create duplicate records with different IDs
 
 **Phase to address:**
-Phase that introduces structured field mapping editor (form state architecture design)
+Phase 28-03 (Read Mode Display) and Phase 28-04 (Form Pre-loading from Database)
 
 ---
 
-### Pitfall 2: PDF Scroll-to-Source Coordinate Mismatch
+### Pitfall 2: Async Data Pre-loading with defaultValues Instead of values
 
 **What goes wrong:**
-Click on criterion → PDF scrolls to wrong page or wrong location. This happens because react-pdf and similar libraries require page-level coordinates (page index + x/y offset within page), but criterion data stores document-level positions (character offset or absolute coordinates). Developers use scrollTop without accounting for page breaks, zoom level, or coordinate system transforms.
+Using `defaultValues` in `useForm()` to populate data fetched asynchronously (from API) only initializes the form on first render. When data arrives after mount, form fields remain empty or stale. Subsequent data changes don't update the form, breaking edit-existing-record workflows.
 
 **Why it happens:**
-The existing PDF viewer renders pages but doesn't expose a coordinate API. Developers assume scrolling is like HTML (just set scrollTop), not realizing PDFs have a separate coordinate system per page. Extraction doesn't store page-level coordinates—just text spans. No utility exists to convert document position → (pageIndex, offsetX, offsetY).
+`defaultValues` is a one-time initialization prop evaluated at mount. Developers expect it to update when the query resolves, but React Hook Form explicitly ignores later changes to `defaultValues` for performance. The correct pattern (`values` prop or `reset()` method) is less documented and non-obvious.
 
 **How to avoid:**
-- Store page_number and page_coordinates during extraction (not just text spans)
-- Use react-pdf-viewer's jumpToDestination or scrollToPage with page index
-- If using windowToPage coordinate transforms, account for zoom level and viewport transforms
-- Test with multi-column layouts and pages with different dimensions
-- Store bounding boxes (x, y, width, height, page) for each criterion during extraction
+- Use the `values` prop in `useForm()` for data that changes: `useForm({ values: fetchedData })`
+- Alternatively, call `reset(fetchedData)` in a `useEffect` when data loads
+- Never set `defaultValues` to undefined/empty object and expect it to update later
+- Pattern: `useForm({ values: criterion ?? DEFAULT_FIELD_VALUES })`
 
 **Warning signs:**
-- Extraction data has text spans but no page_number field
-- Scroll implementation uses document.getElementById().scrollIntoView() on PDF viewer container
-- Coordinate calculations don't account for page.getViewport().scale
-- Bug reports: "Works on first page, breaks on page 2"
-- No testing with zoomed-in PDF viewer
+- Form fields are blank when editing existing records
+- Console shows data loaded but form doesn't populate
+- Form only works when creating new records, not editing
+- Refreshing page works, but navigating to edit page doesn't
 
 **Phase to address:**
-Phase that adds scroll-to-source feature (extraction schema update + frontend integration)
+Phase 28-04 (Form Pre-loading from Database)
 
 ---
 
-### Pitfall 3: UMLS Autocomplete Network Waterfall
+### Pitfall 3: JSONB Schema Evolution Without Versioning Strategy
 
 **What goes wrong:**
-User types "acet..." in entity field → 6 sequential API calls (one per keystroke) → results arrive out-of-order → UI shows results for "ac" after showing results for "acet" → user selects wrong term. With 300-500ms API latency, this creates 2-3 second lag and flickering results.
+Field mappings stored in `conditions` JSONB column evolve schema over time (e.g., adding `upper_value` for ranges, adding `field_mappings` array). Old records with schema v1 break when code expects v2 structure, causing runtime errors, data loss on edit, or silent field drops.
 
 **Why it happens:**
-Developers add onChange → fetch(query) without debouncing. UMLS API has ~300-500ms latency. Race conditions occur: requests sent as "a", "ac", "ace", "acet" but responses arrive as "a", "ace", "a", "acet". No request cancellation, so all 6 requests complete even though only the last is relevant.
+JSONB's schema-less flexibility encourages "just add the field" thinking. Developers update write path with new structure but forget to migrate existing records or add read-time schema adapters. Code assumes latest schema, crashes on old data.
 
 **How to avoid:**
-- Debounce UMLS queries with 300ms delay (user stops typing before search triggers)
-- Cancel in-flight requests when new query starts (AbortController)
-- Show loading spinner during search, disable selection until results load
-- Cache results client-side (TanStack Query with staleTime: 5 minutes)
-- For queries <3 characters, don't search (show "Type 3+ characters" message)
-- Use query ID to detect stale responses: if responseId < currentQueryId, discard results
+- Add `schema_version` field to every JSONB document: `{ schema_version: "v1.5-multi", field_mappings: [...] }`
+- Write migration scripts when schema changes: convert v1 → v2 in database
+- Add read-time adapter layer that normalizes all versions to latest schema for UI
+- Document schema changes in audit logs so corpus evaluation can account for version differences
+- Never assume field presence; use optional chaining and defaults: `conditions?.field_mappings ?? []`
 
 **Warning signs:**
-- No useDebounce or useDebouncedValue hook
-- fetch() calls in onChange handler without AbortController
-- No loading state between typing and results
-- No minimum query length check
-- Bug reports: "Autocomplete shows old results", "Results flicker while typing"
-- Network tab shows 10+ overlapping UMLS requests
+- TypeError: "Cannot read property X of undefined" when loading old criteria
+- Some criteria load correctly, others throw errors (indicates mixed schema versions)
+- Edit-then-save drops fields that were present in original record
+- Corpus evaluation metrics change dramatically after code deployment (schema mismatch)
 
 **Phase to address:**
-Phase that adds UMLS autocomplete to entity editor (API integration design)
+Phase 28-05 (JSONB Migration Strategy) and Phase 29-02 (Corpus Versioning)
 
 ---
 
-### Pitfall 4: Backwards Compatibility Explosion with Review Data
+### Pitfall 4: Re-extraction Overwrites Human Corrections Without Corpus Capture
 
 **What goes wrong:**
-Existing reviews have modified_text/modified_type/modified_category. New system adds modified_field_mappings. Old reviews break in new UI because code expects field_mappings but finds null. Migrations add empty arrays, but business logic can't distinguish "user approved empty mappings" from "mappings not reviewed yet". Audit trail loses fidelity: before/after comparisons show "[old format]" vs "[new format]" instead of actual changes.
+Running extraction on same protocol again (to test prompt improvements) overwrites criteria records that have human corrections, destroying gold-standard data. Corpus building fails because corrected versions are lost before being flagged for corpus inclusion.
 
 **Why it happens:**
-Developers add modified_field_mappings column with default [], assuming empty array = "no mappings". But existing reviews (approved before feature launch) have null because they were never edited with the new UI. No migration strategy for converting modified_text → modified_field_mappings. Audit logs store raw JSON without version markers, so old reviews can't be displayed correctly.
+Re-extraction logic uses `protocol_id` to find existing batches and replaces criteria in-place to avoid duplicates. But it doesn't distinguish between "AI-only" and "human-reviewed" records. Developers assume re-extraction is safe since "we can always re-review," forgetting that reviews *are the corpus*.
 
 **How to avoid:**
-- Dual-write pattern: new reviews write both modified_text (legacy) and modified_field_mappings (new)
-- Migration: backfill review_format_version = 'v1_text_only' for existing reviews
-- UI checks version: if v1_text_only, show text editor; if v2_field_mappings, show structured editor
-- Audit logs include schema_version field so comparisons use correct format
-- Display layer converts v1 → v2 format read-only (don't mutate old reviews, just display them)
-- API accepts both formats: /review accepts modified_text OR modified_field_mappings
+- Add `is_locked` flag to criteria that have human reviews (`review_status IS NOT NULL`)
+- Re-extraction creates new batch, never updates criteria with `is_locked = true`
+- Implement "export to corpus" step that copies reviewed criteria to separate `gold_corpus` table before allowing re-extraction
+- Add database constraint: prevent DELETE/UPDATE on criteria if `review_status IS NOT NULL` without explicit `override_lock` flag
+- UI shows clear warning: "5 criteria have reviews. Re-extraction will create new batch, not overwrite."
 
 **Warning signs:**
-- Migration only adds column with default value (no version marker)
-- No handling for null vs. [] distinction
-- Existing review pages crash with "Cannot read property 'length' of null"
-- Audit log comparisons show "[object Object]" instead of readable diffs
-- No strategy for displaying old reviews in new UI
-- Bug reports: "Approved reviews now show as 'Pending' after deploy"
+- Corpus size decreases instead of growing over time
+- Reviewers report "I already corrected this but it's back to the AI version"
+- Audit log shows DELETE followed by INSERT for same criterion text
+- Evaluation metrics can't reproduce because gold data was overwritten
 
 **Phase to address:**
-Phase that defines review data schema and migration strategy (before implementing editor)
+Phase 29-01 (Re-extraction Strategy) and Phase 29-02 (Corpus Versioning)
 
 ---
 
-### Pitfall 5: Progressive Disclosure State Leak Between Steps
+### Pitfall 5: PDF Scroll-to-Source Without Fuzzy Text Matching
 
 **What goes wrong:**
-3-step editing flow: (1) select entity → (2) select relation → (3) enter value. User selects "age" entity, chooses "range" relation, enters min=18/max=65. User clicks back to step 2, changes relation to ">=". Step 3 still shows min/max fields with 18/65 instead of single value field. User saves, backend receives {relation: ">=", value: null, min: 18, max: 65}—invalid data.
+`highlightText` prop uses exact string match to find criterion text in PDF. OCR artifacts (extra spaces, line breaks, encoding issues) cause match failures. PDF displays correct page but no highlight, confusing reviewers about evidence location.
 
 **Why it happens:**
-Each step sets partial state (entityState, relationState, valueState) but steps don't reset dependent state. Relation change (step 2) should clear valueState (step 3), but developer forgets cleanup. UI conditionally renders fields based on relation but doesn't clear stale values. Backend validation catches invalid combinations, but user loses work.
+PDFs contain unpredictable whitespace and formatting. Criterion text extracted from `page_number` metadata might say "Age >= 18 years" but PDF has "Age  ≥ 18\nyears" (double space, Unicode ≥, line break). Exact match fails silently.
 
 **How to avoid:**
-- Use reducer with explicit state transitions: EDIT_RELATION action clears all value-related fields
-- Define allowed state shapes: StandardValue {value}, RangeValue {min, max}, TemporalValue {value, unit}
-- Use discriminated unions so TypeScript enforces value shape matches relation type
-- Step components receive only their slice of state (no direct access to sibling steps)
-- Validation at each step: can't advance from step 2 until step 3 state is initialized correctly
-- Reset button on each step clears forward steps (back from step 3 → step 2 resets step 3)
+- Normalize both criterion text and PDF text: lowercase, collapse whitespace, normalize Unicode
+- Use fuzzy matching with Levenshtein distance threshold (90% similarity)
+- Fallback strategy: if exact match fails, search ±1 page with fuzzy match
+- Store extraction metadata: `{ text, normalized_text, page_number, bbox }` where `bbox` gives coordinates
+- If using PDF coordinates, prefer bounding box over text search entirely
 
 **Warning signs:**
-- State setters called directly in step components without going through reducer
-- No cleanup logic when relation changes (no useEffect watching relation to reset value fields)
-- Backend validation errors like "range relation requires min and max"
-- TypeScript allows {relation: ">=", min: 10} (should be impossible type)
-- User bug reports: "Changed my mind in step 2, but step 3 still had old values"
+- "Click to view source" navigates to correct page but nothing highlights
+- Works for some criteria, fails for others with similar text (indicates inconsistent formatting)
+- Criteria with special characters (≥, ≤, μ) never highlight
+- Multiline criteria don't highlight but single-line ones do
 
 **Phase to address:**
-Phase that implements multi-step field editor (state machine design)
+Phase 28-02 (Evidence Linking - PDF Scroll and Highlight)
 
 ---
 
-### Pitfall 6: Rationale Textarea Orphaned from Review Action
+### Pitfall 6: Read Mode Display Assumes Structured Fields Exist
 
 **What goes wrong:**
-User modifies field mappings, fills rationale textarea with "Corrected age range based on protocol section 4.2", clicks Cancel instead of Save. Later edits same criterion, rationale textarea still contains old text. User clicks Save without noticing, ships stale rationale that doesn't match current edits. Audit trail shows rationale for edit A attached to edit B.
+Code renders "read mode" display of field mappings without checking if data is structured. Criteria extracted before structured editing feature was added have `conditions = null` or `conditions = ["if patient is diabetic"]` (string array, not field mappings). Renderer crashes or shows "undefined" everywhere.
 
 **Why it happens:**
-Rationale state lives in local component state, not tied to the specific edit transaction. Cancel clears form state (entity/relation/value) but forgets to clear rationale. No unique edit session ID linking rationale to form state. Developers assume user won't click Cancel, so don't implement cleanup.
+Incremental feature development means data has multiple shapes. Old criteria have text-only, new ones have structured fields. Developers test against recent data, miss edge cases of legacy data.
 
 **How to avoid:**
-- Rationale must be part of the same reducer state as field mappings
-- Cancel action resets entire state including rationale (all or nothing)
-- Rationale validation: can't save if rationale is empty or unchanged from placeholder
-- Edit session ID: each time user enters edit mode, generate new ID. Rationale tied to session.
-- Confirmation dialog on Cancel: "You have unsaved changes including a rationale. Discard?"
-- Backend validation: reject review actions without rationale (or with empty string)
+- Always check data shape before rendering: `if (Array.isArray(conditions?.field_mappings))`
+- Add TypeScript type guards: `function isFieldMappings(data): data is { field_mappings: FieldMapping[] }`
+- Fallback to text-only display for unstructured criteria: "Entity: [not structured]"
+- Add "Migrate to Structured" button for old criteria instead of crashing
+- Document data shapes with examples in code comments
 
 **Warning signs:**
-- Rationale textarea uses separate useState(editRationale) from form state
-- Cancel handler clears form fields but not rationale
-- No confirmation dialog on Cancel when rationale has content
-- Backend accepts empty rationale string
-- Bug reports: "My rationale from yesterday appeared in today's edit"
+- TypeError when loading old criteria: "Cannot read property 'map' of undefined"
+- Some criteria show structured view, others show blank cards
+- Criteria created before date X always fail to render
+- Console shows data but UI is empty (rendering failed silently)
 
 **Phase to address:**
-Phase that implements rationale capture (edit workflow design)
+Phase 28-03 (Read Mode Display)
 
 ---
 
-### Pitfall 7: Evidence Linking Without Source Text Stability
+### Pitfall 7: Corpus Evaluation Without Inter-Annotator Agreement Tracking
 
 **What goes wrong:**
-User clicks "Age: ≥18 years" in PDF → entity field pre-fills with "18" and stores evidence pointer {page: 2, text: "Age: ≥18 years", char_start: 850, char_end: 865}. Protocol gets re-extracted with new PDF (corrected version) → text at char_start:850 is now "Prior cancer history" (paragraph shifted up). Evidence pointer broken, user sees wrong highlighted text.
+Building corpus from single reviewer per criterion produces unreliable gold standard. Evaluation metrics appear good but don't generalize because "gold" data reflects one reviewer's interpretation, which may be inconsistent or idiosyncratic.
 
 **Why it happens:**
-Evidence pointers store character offsets, which are fragile to document changes. Developers assume protocol PDFs never change, but protocols get amended, corrected versions uploaded, or re-extracted with improved parsing. No content hash to detect when PDF changed. No warning in UI that evidence pointer may be stale.
+Corpus building treats any human review as gold truth. Research shows inter-annotator agreement (IAA) is critical for clinical NLP but tracking it requires multiple reviewers per item, which is expensive. Developers skip IAA to save time, discover later that corpus is noisy.
 
 **How to avoid:**
-- Store content hash of protocol PDF with each evidence pointer
-- On review load, check protocol.current_hash == evidence.protocol_hash
-- If hashes differ, show warning badge: "Protocol updated since evidence was captured"
-- Store actual text snippet: evidence.captured_text = "Age: ≥18 years"
-- On review load, fuzzy match captured_text against protocol to find new position
-- If match found, update pointer silently; if no match, show "Evidence not found in current version"
-- Allow user to re-capture evidence from updated protocol
+- Sample 10-20% of criteria for dual review (two reviewers, compare results)
+- Calculate Cohen's Kappa or similar IAA metric for sampled subset
+- Flag criteria with reviewer disagreement for adjudication or exclusion from corpus
+- Store `reviewer_id` in audit log and allow filtering corpus by reviewer to identify outliers
+- Document acceptable IAA threshold (typically >0.7 for clinical tasks) and refuse corpus inclusion below threshold
 
 **Warning signs:**
-- Evidence pointers use only char_start/char_end (no content hash)
-- No version/hash stored with protocol
-- No handling for missing evidence pointers
-- Bug reports: "Clicked evidence link, highlighted wrong text"
-- No testing with amended protocols
+- Model evaluation shows high accuracy on corpus but low accuracy on new protocols
+- Different reviewers produce wildly different corrections for similar criteria
+- Prompt changes that should improve metrics have no effect or make them worse
+- Corpus-based evaluation metrics don't correlate with expert judgment
 
 **Phase to address:**
-Phase that implements evidence linking (extraction schema + review data model)
+Phase 29-03 (Corpus Quality Assessment)
 
 ---
 
-### Pitfall 8: UMLS Autocomplete Without Offline Fallback
+### Pitfall 8: Entity Disambiguation Without Context Propagation
 
 **What goes wrong:**
-User in field clinic with intermittent network. Types "diabetes" in entity field → autocomplete shows spinner → 30 second timeout → error message → can't complete review. No way to manually enter UMLS code if autocomplete fails. User forced to skip entity grounding, reducing data quality.
+UMLS grounding maps entity text to CUI without considering criterion context. "AD" maps to "Alzheimer's Disease" when protocol is about atopic dermatitis. Corpus captures incorrect grounding, polluting training data.
 
 **Why it happens:**
-Developers assume 100% network availability (desktop office environment). UMLS autocomplete has no offline cache or fallback to manual entry. No progressive enhancement: field is completely disabled until autocomplete loads. No recent searches cache for common terms.
+Entity disambiguation is context-dependent. MedGemma agentic grounding uses UMLS MCP, which returns top matches by string similarity, not semantic fit. Agent doesn't pass protocol context or criterion category as constraints.
 
 **How to avoid:**
-- Cache last 100 UMLS searches in localStorage/IndexedDB
-- On network error, show cached results with "(cached)" badge
-- Always show "Manual entry" option below autocomplete
-- Manual entry: separate text inputs for CUI, SNOMED code, preferred term
-- Save draft reviews to localStorage (offline-first pattern)
-- On reconnect, sync drafts to server
-- Show network status indicator: "Working offline - 3 drafts pending sync"
+- Pass protocol summary and criterion text as context to UMLS grounding agent
+- Use semantic type filters: for demographics criteria, prefer semantic type "Age Group" over "Disease"
+- Store grounding alternatives: `[{ cui: "C0002395", confidence: 0.8, semantic_type: "Disease" }, ...]`
+- Allow reviewer to pick from alternatives in UI (disambiguation UI)
+- Track grounding corrections in corpus: if reviewer changes CUI, log as training signal for disambiguation
 
 **Warning signs:**
-- No error.code === 'NETWORK_ERROR' handling in autocomplete
-- No localStorage caching
-- Autocomplete is only way to enter entity codes (no manual fallback)
-- No offline testing in development
-- Bug reports: "Can't review when VPN drops"
+- Entity grounding confidence is high but obviously wrong (wrong domain)
+- Reviewer repeatedly corrects same entity text to different CUI (indicates systematic error)
+- Abbreviations ground incorrectly (AD, RA, MS mapped to wrong expansion)
+- Corpus contains multiple CUIs for same text in similar contexts (inconsistent grounding)
 
 **Phase to address:**
-Phase that implements UMLS autocomplete (network resilience design)
+Phase 28-07 (Entity Disambiguation Polish) and Phase 29-04 (Grounding Corpus)
+
+---
+
+### Pitfall 9: Audit Log Query Performance Degrades with Corpus Growth
+
+**What goes wrong:**
+Audit log table grows unbounded as corpus expands (one log entry per review action). Queries for "all reviews for criterion X" or "all reviews by reviewer Y" become slow (>5s), blocking corpus export and evaluation workflows.
+
+**Why it happens:**
+`AuditLog` table has no composite indexes on common query patterns: `(target_type, target_id)` or `(actor_id, created_at)`. Full table scans occur for filtered queries. 50 protocols × 50 criteria × 3 reviews each = 7,500 rows minimum, grows to 100k+ with re-extractions.
+
+**How to avoid:**
+- Add database indexes:
+  - `CREATE INDEX idx_audit_target ON audit_log(target_type, target_id, created_at DESC);`
+  - `CREATE INDEX idx_audit_actor ON audit_log(actor_id, created_at DESC);`
+  - `CREATE INDEX idx_audit_event ON audit_log(event_type, created_at DESC);`
+- Implement audit log partitioning: archive logs older than 90 days to separate table
+- Add pagination to audit log API with cursor-based navigation
+- Cache frequently accessed audit queries (Redis, 5-minute TTL)
+
+**Warning signs:**
+- API endpoint `/reviews/audit-log` times out or returns 504
+- Database CPU spikes when loading review page
+- `EXPLAIN` shows "Seq Scan" on audit_log for filtered queries
+- Corpus export script takes >10 minutes to collect review history
+
+**Phase to address:**
+Phase 29-05 (Corpus Export Performance)
+
+---
+
+### Pitfall 10: State Synchronization Between Edit Modes (Text vs. Structured)
+
+**What goes wrong:**
+Switching from "Modify Text" to "Modify Fields" mode loses unsaved changes. User edits text, decides to add structured fields, clicks "Modify Fields," and text edits disappear. Reverse also occurs: structured edits lost when switching to text mode.
+
+**Why it happens:**
+`editMode` state toggles between `'text'` and `'structured'`, each with separate form state. Toggling unmounts one component and mounts the other, discarding unsaved changes. No cross-mode state synchronization.
+
+**How to avoid:**
+- Persist unsaved changes in parent component state that survives mode switches
+- Warn user before mode switch if unsaved changes exist: "You have unsaved text edits. Switch anyway?"
+- Auto-save draft changes to localStorage on mode switch, restore on mount
+- Implement unified edit mode with tabs: both text and structured editors visible, submit saves all
+- Add "Cancel" button that reverts to last saved state regardless of mode
+
+**Warning signs:**
+- Users report "my changes disappeared when I clicked Modify Fields"
+- Higher rate of accidental duplicate reviews (user re-enters lost changes)
+- Support requests: "how do I edit both text and fields at once?"
+- Audit log shows repeated modify actions for same criterion (user re-doing lost work)
+
+**Phase to address:**
+Phase 28-06 (State Management for Multi-Mode Editing)
 
 ---
 
@@ -231,135 +270,137 @@ Phase that implements UMLS autocomplete (network resilience design)
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Skip field mapping migrations, just add modified_field_mappings column | Ships feature 2 days faster | Old reviews break in new UI, audit trail loses fidelity, rollback requires data backfill | Never—breaks production data |
-| Use useState for field mappings instead of useReducer | Less code (20 lines vs 60) | State synchronization bugs, impossible to add undo/redo, hard to test | Never for complex forms with 5+ related fields |
-| Debounce UMLS queries but skip request cancellation | 80% of UX improvement for 20% effort | Race conditions show stale results 1% of time, confusing users | Acceptable for MVP if documented as known issue |
-| Store evidence as char_start/char_end without content hash | Simpler data model (2 fields vs 4) | Breaks when protocols updated, no way to detect staleness | Acceptable if protocols never change (rare) |
-| Skip rationale validation, trust user to fill it | No backend changes needed | Audit trail has gaps, compliance issues if audited | Never for regulated domains (clinical trials) |
-| No offline cache for UMLS, require network | Standard React Query pattern | Field users can't complete reviews, data quality drops | Acceptable for desktop-only office environments |
+| Storing field_mappings in `conditions` JSONB without schema_version | Avoid database migration, fast iteration | Schema evolution breaks old data, requires manual data migration scripts | MVP only; must add versioning before multi-user pilot |
+| Single reviewer per criterion for corpus | 50% faster corpus building (no dual review overhead) | Noisy gold standard, poor model generalization, unreliable evaluation | Never for production corpus; acceptable for initial prompt testing |
+| Exact text match for PDF highlighting | Simple implementation, works for clean PDFs | Fails on 30-40% of criteria due to OCR artifacts, frustrates reviewers | Never; fuzzy matching is critical for usability |
+| No re-extraction lock on reviewed criteria | Simpler re-extraction logic, no database constraints | Risk of destroying gold-standard data, corpus corruption | Never; lock mechanism is mandatory before corpus building |
+| Mixing database IDs and useFieldArray IDs | Faster initial implementation, less mapping code | Silent data corruption, wrong records updated, impossible to debug | Never; separation is critical for data integrity |
+| Loading async data with defaultValues | Seems like "default" is right, follows naming intuition | Form never populates, broken edit workflows | Never; must use `values` prop or `reset()` method |
+
+---
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| react-pdf viewer scroll | Use scrollTop on container div (treats PDF like HTML) | Use jumpToDestination(pageIndex, offsetX, offsetY) with page-level coordinates |
-| UMLS Terminology Service | Search on every keystroke without debounce | Debounce 300ms + AbortController + cache results with TanStack Query |
-| PostgreSQL JSONB updates | UPDATE criteria SET modified_field_mappings = '{}' (loses nested data) | Use jsonb_set or ORM-level merge to preserve nested structure |
-| TanStack Query mutations | Don't handle rollback on error | Implement onMutate rollback: save old state, restore on error |
-| Evidence text selection | Store only Selection.toString() (loses position) | Store Range with page, char_start, char_end, actual text snippet |
+| react-hook-form useFieldArray | Passing database objects with `id` field directly to `append()` | Rename database ID field to `database_id` or `criterion_id` before appending |
+| UMLS MCP grounding | Sending entity text only, no context | Include criterion text, protocol summary, and semantic type hints in grounding request |
+| PDF.js highlighting | Using `page.getTextContent()` raw output for search | Normalize whitespace, lowercase, and use fuzzy match with 90% threshold |
+| JSONB field updates | Directly replacing entire JSONB column on edit | Read existing JSONB, merge changes, preserve unknown fields for forward compatibility |
+| Audit log queries | Filtering by `target_id` without indexes | Add composite index `(target_type, target_id, created_at)` before launching |
+| Structured editor initialization | Using hardcoded `DEFAULT_FIELD_VALUES` as fallback | Call `buildInitialValues(criterion)` to populate from AI extraction before defaulting to empty |
+
+---
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| No UMLS query caching | Same term searched 50x in one session, network latency every time | TanStack Query with staleTime: 5min, gcTime: 30min | 10+ reviews in one session |
-| Render all field mapping rows | Edit mode slow to open with 10+ mappings per criterion | Virtualize list with react-window if >5 mappings | >5 field mappings per criterion |
-| No optimistic updates | Every Save button click waits 500ms for server | Optimistic update: update UI immediately, rollback on error | Users notice 500ms lag |
-| PDF re-renders on every scroll | Scrolling to evidence position re-renders entire PDF | Memoize PDF component, only re-render on page change | PDFs >20 pages |
-| No form state memoization | Every keystroke in value field re-renders entire card | Memoize field components, update only changed fields | Forms with >10 fields |
+| N+1 queries loading entities for each criterion | Review page load time >5s, database connection pool exhaustion | Batch-load all entities for batch in single query, build `entities_by_criteria` map | 20+ criteria per batch (typical is 40-60) |
+| PDF.js loading full document for single-page highlight | PDF viewer initialization delay >10s for large protocols | Use PDF.js range requests with `Range` header to load target page only | Protocols >100 pages (common for phase 3 trials) |
+| Audit log full table scan | `/reviews/audit-log` timeout, database CPU spike | Add composite indexes on `(target_type, target_id)`, `(actor_id, created_at)` | 5,000+ audit entries (reached after ~100 protocols reviewed) |
+| Rendering 100+ field mappings in structured editor | UI freezes, React DevTools shows >5s reconciliation | Virtualize field array with `react-window`, limit visible fields to 20 at once | >50 field mappings per criterion (rare but possible for complex multi-condition criteria) |
+| useFieldArray re-renders on every keystroke | Input lag, typing feels sluggish | Debounce controlled inputs, use `shouldUnregister: false` to preserve values on unmount | >10 mappings in array (noticeable lag at 20+) |
 
-## Security Mistakes
-
-| Mistake | Risk | Prevention |
-|---------|------|------------|
-| Store rationale in localStorage without encryption | PHI exposure if device stolen (clinical trial data is protected) | Don't cache rationale; if offline mode required, use encrypted IndexedDB |
-| No CSRF protection on review mutations | Attacker tricks reviewer into approving malicious edits | Backend requires CSRF token + SameSite cookies |
-| Evidence pointers expose full protocol text in API | User downloads protocol they shouldn't have access to | API returns only highlighted snippet, not full page text |
-| No rate limiting on UMLS autocomplete | Attacker scrapes entire UMLS database via autocomplete API | Rate limit: 20 requests/minute per user |
-| Client-side validation only | User bypasses UI, sends invalid field_mappings to API | Backend validates relation + value shape matches schema |
+---
 
 ## UX Pitfalls
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| Hide rationale textarea until user clicks "Add rationale" | 60% of users forget rationale, submit without it | Always visible, marked required with red border |
-| No confirmation on Cancel when form has unsaved changes | User loses 5 minutes of careful field mapping work | "You have unsaved changes. Discard?" confirmation dialog |
-| Autocomplete results show CUI codes only | User sees "C0011849" instead of "diabetes mellitus", can't recognize correct term | Show preferred term first, CUI in smaller grey text |
-| No loading state during UMLS search | User types, nothing happens for 2 seconds, thinks it's broken | Spinner + "Searching..." text immediately on typing |
-| Progressive disclosure hides all steps until previous completes | User can't see overview of what they need to fill | Show all steps, but disable/grey out future steps until previous completes |
-| Evidence highlight disappears on scroll | User scrolls PDF to verify, highlight gone, can't find context again | Persistent highlight with "Jump to evidence" button |
-| No "undo" for field mapping changes | User accidentally deletes mapping, has to re-enter entire triplet | Undo/redo stack with Cmd+Z/Cmd+Shift+Z |
+| No visual feedback when PDF highlight fails | User clicks criterion, page changes, but no highlight appears. User confused: "Where is it?" | Show toast notification: "Text not found on page, showing approximate location" |
+| Mode switch without save warning | User loses 5 minutes of edits, has to re-enter data | Modal confirmation: "Unsaved changes will be lost. Continue?" with "Save and Switch" option |
+| Structured fields pre-populated from AI appear editable before correction | User assumes fields are human-verified, doesn't review carefully, approves with errors | Add visual indicator: "AI-extracted fields (unverified)" banner until first human edit |
+| No indication which criteria need dual review for IAA | Reviewers waste time on criteria already reviewed twice | Show badge: "Needs 2nd opinion" on criteria selected for IAA sampling |
+| PDF viewer reloads from page 1 on every criterion click | User has to scroll through 80-page PDF repeatedly | Cache PDF scroll position per criterion, restore on re-visit |
+| Corpus export has no progress indicator | User waits 10 minutes not knowing if script is frozen or running | Stream progress: "Processing criterion 45/120... Exported 38 to corpus" |
+
+---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **UMLS Autocomplete:** Often missing debounce, request cancellation, cache — verify no race conditions in Network tab, test rapid typing
-- [ ] **PDF Scroll-to-Source:** Often missing page coordinate transform — verify with multi-page PDFs, zoomed viewer, multi-column layouts
-- [ ] **Field Mapping State:** Often missing relation → value cleanup — verify changing relation from "range" to "=" clears min/max fields
-- [ ] **Rationale Capture:** Often missing Cancel cleanup — verify Cancel after typing rationale clears textarea on next edit
-- [ ] **Evidence Linking:** Often missing content hash — verify evidence pointers break gracefully when protocol updated
-- [ ] **Backwards Compatibility:** Often missing version marker — verify old reviews (pre-feature) still display correctly
-- [ ] **Optimistic Updates:** Often missing rollback — verify network error during Save restores previous state
-- [ ] **Form Validation:** Often missing server-side validation — verify can't submit invalid relation+value combinations via API
+- [ ] **Form Pre-loading:** Often missing `values` prop usage — verify form populates when navigating directly to edit page (not just from list)
+- [ ] **Field Array Initialization:** Often missing database ID separation — verify updating record doesn't create duplicate or update wrong record
+- [ ] **JSONB Schema Handling:** Often missing version check — verify old criteria (pre-structured-fields) load without errors
+- [ ] **Re-extraction Protection:** Often missing `is_locked` flag — verify re-running extraction doesn't overwrite reviewed criteria
+- [ ] **PDF Highlighting:** Often missing fuzzy match — verify highlighting works on criteria with special characters (≥, μ, line breaks)
+- [ ] **Entity Context:** Often missing protocol context in grounding — verify "AD" in dermatology protocol doesn't map to Alzheimer's
+- [ ] **Audit Log Performance:** Often missing composite indexes — verify `/reviews/audit-log?target_id=X` returns in <500ms with 10k+ log entries
+- [ ] **Read Mode Fallback:** Often missing null checks on `field_mappings` — verify criteria created before structured feature still render
+- [ ] **State Persistence:** Often missing mode-switch warning — verify unsaved changes don't vanish when toggling text/structured edit
+- [ ] **Corpus Versioning:** Often missing `schema_version` in exports — verify corpus JSON includes version metadata for all records
+
+---
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Form state explosion (useState instead of useReducer) | MEDIUM | Refactor: create reducer, move all state to single object, add action creators — 4 hours |
-| PDF scroll coordinate mismatch | LOW | Add page_number to extraction schema, update scroll logic — 2 hours |
-| UMLS autocomplete network waterfall | LOW | Add useDebounce hook, AbortController, TanStack Query cache — 2 hours |
-| Backwards compatibility explosion | HIGH | Add schema version, dual-write pattern, migration script, display layer versioning — 8 hours |
-| Progressive disclosure state leak | MEDIUM | Refactor: use discriminated unions, add state transitions, step cleanup — 4 hours |
-| Rationale orphaned from action | LOW | Move rationale to reducer state, add Cancel confirmation — 1 hour |
-| Evidence linking without stability | HIGH | Add content hash, fuzzy matching, re-capture UI — 6 hours |
-| No offline fallback | MEDIUM | Add localStorage cache, manual entry fields, offline indicator — 3 hours |
+| Database IDs overwritten by useFieldArray | HIGH | 1. Restore database from backup before corruption. 2. Implement ID separation (rename to `database_id`). 3. Add integration test: create criterion, edit, verify same ID. 4. Re-review all criteria submitted during corruption window. |
+| Re-extraction overwrote reviewed criteria | HIGH | 1. Query audit log for all `review_status != NULL` criteria modified by extraction job. 2. Flag protocols needing re-review. 3. Implement `is_locked` flag and constraint. 4. Re-run reviews for affected criteria (estimate: 10 criteria × 10 min = 100 min per protocol). |
+| JSONB schema mismatch breaks old criteria | MEDIUM | 1. Write migration script: `UPDATE criteria SET conditions = jsonb_set(conditions, '{schema_version}', '"v1"') WHERE conditions IS NOT NULL`. 2. Add read-time adapter in `buildInitialValues()`. 3. Test against pre-migration backup data. Deploy adapter first, then run migration. |
+| PDF highlights never work | LOW | 1. Implement fuzzy text matching with Levenshtein distance (library: `fuzzysort`). 2. Add normalization: `text.toLowerCase().replace(/\s+/g, ' ')`. 3. Add fallback: search ±1 page if exact page fails. 4. No data recovery needed, purely code fix. |
+| Corpus has low IAA, unreliable metrics | HIGH | 1. Sample 20 criteria, assign to 2nd reviewer. 2. Calculate IAA (Cohen's Kappa). If <0.7, increase to 50 criteria dual review. 3. Adjudicate disagreements, document rules. 4. Re-review entire corpus with updated guidelines (expensive: 50 protocols × 50 criteria × 10 min = 416 hours). |
+| Audit log queries timeout | LOW | 1. Add indexes: `CREATE INDEX idx_audit_target ON audit_log(target_type, target_id);`. 2. Reindex existing data (`REINDEX TABLE audit_log`). 3. Add pagination with cursor-based API. No data recovery needed. |
+| Mode switch lost unsaved changes | LOW | 1. Add localStorage persistence: save draft on mode switch, restore on mount. 2. Add warning modal with "Save and Switch" option. 3. No data recovery (changes were never persisted). Notify affected users to re-enter if recent. |
+
+---
 
 ## Pitfall-to-Phase Mapping
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Form state explosion | Phase defining field mapping editor architecture | Review component has single useReducer, not 10+ useState |
-| PDF scroll coordinate mismatch | Phase adding extraction schema for evidence | Extraction stores page_number + coordinates, test scroll on multi-page PDF |
-| UMLS autocomplete waterfall | Phase implementing UMLS integration | Network tab shows <3 requests per search, no overlapping requests |
-| Backwards compatibility explosion | Phase defining review data migration strategy | Old reviews display correctly, audit log readable, no null pointer crashes |
-| Progressive disclosure state leak | Phase implementing 3-step editor | Changing relation from "range" to "=" clears min/max fields |
-| Rationale orphaned from action | Phase implementing rationale capture | Cancel after typing rationale clears textarea on next edit |
-| Evidence linking instability | Phase implementing evidence capture | Evidence has content hash, shows warning when protocol updated |
-| No offline fallback | Phase implementing UMLS autocomplete | Works offline with cached results, manual entry available |
+| Database ID conflicts (useFieldArray) | Phase 28-04 | Integration test: create criterion with 3 mappings, edit entity text, verify same database record updated (no duplicate created) |
+| Async data with defaultValues | Phase 28-04 | Unit test: mock API response delayed 500ms, verify form fields populate after delay (not blank) |
+| JSONB schema evolution | Phase 28-05 & 29-02 | Migration test: load pre-v1.5 criterion, verify no errors, verify all fields present after edit-save cycle |
+| Re-extraction overwrites reviews | Phase 29-01 | E2E test: review criterion, re-run extraction, verify original criterion unchanged and new batch created |
+| PDF highlight fuzzy matching | Phase 28-02 | Manual test: 10 criteria with special chars (≥, μ), multiline, verify all highlight on correct page |
+| Read mode assumes structured | Phase 28-03 | Unit test: render criterion with `conditions = null`, verify no crash, shows fallback display |
+| IAA tracking missing | Phase 29-03 | Corpus export includes `reviewer_count` field, script to calculate Kappa on dual-reviewed subset |
+| Entity context missing | Phase 28-07 | Integration test: mock UMLS MCP, verify grounding request includes criterion text and protocol summary |
+| Audit log slow queries | Phase 29-05 | Load test: insert 10k audit entries, query by `target_id`, verify <500ms response time |
+| Mode switch loses state | Phase 28-06 | E2E test: enter text edit, switch to structured without saving, verify unsaved changes warning modal appears |
+
+---
 
 ## Sources
 
-### React State Management
-- [Managing State – React](https://react.dev/learn/managing-state)
-- [Complex State Management in React - Telerik](https://www.telerik.com/blogs/complex-state-management-react)
-- [Managing Complex State in React with useReducer - Aleksandr Hovhannisyan](https://www.aleksandrhovhannisyan.com/blog/managing-complex-state-react-usereducer/)
-- [State Management in 2026 - Nucamp](https://www.nucamp.co/blog/state-management-in-2026-redux-context-api-and-modern-patterns)
+### HITL and Corpus Building
+- [Human-in-the-Loop AI in Document Workflows - Best Practices & Common Pitfalls](https://parseur.com/blog/hitl-best-practices)
+- [Human-in-the-Loop AI (HITL) - Complete Guide to Benefits, Best Practices & Trends for 2026](https://parseur.com/blog/human-in-the-loop-ai)
+- [Building and Evaluating Annotated Corpora for Medical NLP Systems - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC1839264/)
+- [Building Gold Standard Corpora for Medical Natural Language Processing Tasks - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3540456/)
 
-### PDF Viewer Integration
-- [react-pdf-highlighter-extended - GitHub](https://github.com/DanielArnould/react-pdf-highlighter-extended)
-- [React PDF Viewer scrollToPage - KendoReact](https://www.telerik.com/kendo-react-ui/components/pdfviewer/api/scrolltopage)
-- [Programmatically scroll/change page - react-pdf-viewer Issue #491](https://github.com/react-pdf-viewer/react-pdf-viewer/issues/491)
+### React Hook Form and Form Pre-loading
+- [useFieldArray | React Hook Form - Simple React forms validation](https://www.react-hook-form.com/api/usefieldarray/)
+- [How do I implement useFieldArray() with prefilled/fetched data? · React Hook Form Discussion #4144](https://github.com/orgs/react-hook-form/discussions/4144)
+- [React Hook Form Best Practices #1: Loading Async Data with values (Not defaultValues)](https://medium.com/@seifelmejri/react-hook-form-best-practices-1-loading-async-data-with-values-not-defaultvalues-300ed851f227)
 
-### Autocomplete & Debouncing
-- [Debounce Your Search - Atomic Object](https://spin.atomicobject.com/automplete-timing-debouncing/)
-- [Autocomplete Pattern - GreatFrontEnd](https://www.greatfrontend.com/questions/system-design/autocomplete)
-- [How to debounce in React - Developer Way](https://www.developerway.com/posts/debouncing-in-react)
+### JSONB and Database Schema Evolution
+- [On migrations, JSONB and databases in general](https://www.amberbit.com/blog/2016/2/28/on-migrations-jsonb-and-databases-in-general/)
+- [JSONB: PostgreSQL's Secret Weapon for Flexible Data Modeling](https://medium.com/@richardhightower/jsonb-postgresqls-secret-weapon-for-flexible-data-modeling-cf2f5087168f)
+- [PostgreSQL JSONB - Powerful Storage for Semi-Structured Data](https://www.architecture-weekly.com/p/postgresql-jsonb-powerful-storage)
 
-### Database Migrations
-- [Backward Compatible Database Changes - PlanetScale](https://planetscale.com/blog/backward-compatible-databases-changes)
-- [Database Design Patterns for Backward Compatibility - PingCAP](https://www.pingcap.com/article/database-design-patterns-for-ensuring-backward-compatibility/)
-- [Backward-Compatible Schema Migrations - With a Twist](https://withatwist.dev/backward-compatible-database-migrations.html)
+### Clinical NLP and Entity Grounding
+- [Improving broad-coverage medical entity linking with semantic type prediction and large-scale datasets - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC8952339/)
+- [UMLS Content Views Appropriate for NLP Processing of the Biomedical Literature vs. Clinical Text - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC2890296/)
+- [A Comprehensive Evaluation of Biomedical Entity Linking Models - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC11097978/)
 
-### HITL Systems
-- [Human-in-the-Loop AI - Best Practices & Pitfalls - Parseur](https://parseur.com/blog/hitl-best-practices)
-- [Human in the Loop UX - Enterprise AI Design - aufait UX](https://www.aufaitux.com/blog/human-in-the-loop-ux/)
+### Clinical Trials and Corpus Quality
+- [The reporting standards of randomised controlled trials in leading medical journals between 2019 and 2020](https://link.springer.com/article/10.1007/s11845-022-02955-6)
+- [Building gold standard corpora for medical natural language processing tasks - PubMed](https://pubmed.ncbi.nlm.nih.gov/23304283/)
 
-### Progressive Disclosure
-- [Progressive Disclosure - Nielsen Norman Group](https://www.nngroup.com/articles/progressive-disclosure/)
-- [Progressive Disclosure in UX Design - LogRocket](https://blog.logrocket.com/ux-design/progressive-disclosure-ux-types-use-cases/)
+### PDF Annotation and Evidence Linking
+- [Analysis of Errors in Dictated Clinical Documents Assisted by Speech Recognition Software - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC6203313/)
+- [HOW TO SECURELY REDACT PDF DOCUMENTS IN 2026: MISTAKES TO AVOID](https://www.nymiz.com/how-to-securely-redact-pdf-documents-in-2026/)
 
-### UMLS Integration
-- [Terminology Service Updates in Medplum v5](https://www.medplum.com/blog/v5-terminology)
-- [UMLS Terminology Services - NLM](https://uts.nlm.nih.gov/)
-
-### Optimistic Updates
-- [Optimistic Updates - TanStack Query](https://tanstack.com/query/v4/docs/framework/react/guides/optimistic-updates)
-- [Concurrent Optimistic Updates - TkDodo](https://tkdodo.eu/blog/concurrent-optimistic-updates-in-react-query)
-
-### Audit Trails
-- [Audit Trail Requirements - HybridForms](https://www.hybridforms.net/en/audit-trail/)
-- [Audit Trail Complete Guide 2025 - Mysa](https://www.mysa.io/glossary/audit-trail)
+### Codebase-Specific Context
+- Current implementation: `/Users/noahdolevelixir/Code/medgemma-hackathon/apps/hitl-ui/src/components/CriterionCard.tsx` (lines 186-302: buildInitialValues function showing priority handling)
+- Current implementation: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/reviews.py` (lines 314-331: schema versioning strategy)
+- Current implementation: `/Users/noahdolevelixir/Code/medgemma-hackathon/.planning/codebase/CONCERNS.md` (existing known issues and tech debt)
 
 ---
-*Pitfalls research for: Adding structured field mapping editor to existing HITL review system*
+
+*Pitfalls research for: Clinical NLP HITL System - Corpus Building and Editor Polish*
 *Researched: 2026-02-13*
+*Confidence: HIGH - Based on official documentation, peer-reviewed research, and codebase analysis*

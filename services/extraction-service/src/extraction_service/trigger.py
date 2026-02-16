@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from typing import Any
 
 from api_service.storage import engine
@@ -19,6 +20,24 @@ from shared.models import Protocol
 from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_mlflow() -> bool:
+    """Ensure MLflow tracking is configured in the current thread.
+
+    Returns True if MLflow tracing is available and configured.
+    """
+    try:
+        import mlflow
+
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+        if tracking_uri:
+            mlflow.set_tracking_uri(tracking_uri)
+            mlflow.set_experiment("protocol-processing")
+            return True
+    except ImportError:
+        pass
+    return False
 
 
 def _categorize_extraction_error(e: Exception) -> str:
@@ -83,7 +102,33 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
         from extraction_service.graph import get_graph
 
         graph = get_graph()
-        asyncio.run(graph.ainvoke(initial_state))
+
+        # Create an MLflow trace wrapping the entire extraction workflow.
+        # _ensure_mlflow() re-sets tracking URI in this background thread.
+        if _ensure_mlflow():
+            import mlflow
+
+            with mlflow.start_span(
+                name="extraction_workflow",
+                span_type="CHAIN",
+            ) as span:
+                span.set_inputs(
+                    {
+                        "protocol_id": protocol_id,
+                        "title": payload.get("title", ""),
+                        "file_uri": payload.get("file_uri", ""),
+                    }
+                )
+                result = asyncio.run(graph.ainvoke(initial_state))
+                criteria_count = len(result.get("raw_criteria", []))
+                span.set_outputs(
+                    {
+                        "criteria_count": criteria_count,
+                        "error": result.get("error"),
+                    }
+                )
+        else:
+            asyncio.run(graph.ainvoke(initial_state))
 
         logger.info(
             "Extraction workflow completed for protocol %s",

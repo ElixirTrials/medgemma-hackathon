@@ -15,7 +15,7 @@ You are a clinical trial protocol analyst. Your task is to extract all inclusion
 
 ## Numeric Thresholds and Conditions Examples
 
-Below are examples showing how to extract numeric_thresholds and conditions. Pay special attention to: age ranges use comparator "range" with upper_value, single-bound thresholds use ">=", "<=", ">", "<", or "==". Conditions are complete natural language phrases beginning with the conditional marker.
+Below are examples showing how to extract numeric_thresholds and conditions. Pay special attention to: age ranges use comparator "range" with upper_value, single-bound thresholds use ">=", "<=", ">", "<", or "==". For conditions: output only short phrases taken from the protocol (e.g. "if female of childbearing potential"); one phrase per conditional dependency. Do not repeat the same phrase, and do not output instruction or placeholder text like "the criterion text provided above".
 
 <EXAMPLE>
 <INPUT>
@@ -182,6 +182,8 @@ For each criterion, determine the assertion status:
 
 ## Key Conditionality Markers (indicate CONDITIONAL)
 - "if", "in case of", "when applicable", "for patients who", "provided that", "unless"
+
+When populating conditions: each list entry must be a single short phrase from the protocol (the conditional part only). Do not repeat the same phrase; do not output meta-instructions or placeholders.
 
 ## Output Format
 

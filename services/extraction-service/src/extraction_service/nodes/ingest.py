@@ -18,7 +18,7 @@ from api_service.storage import engine
 from shared.models import Protocol
 from sqlmodel import Session
 
-from extraction_service.pdf_parser import fetch_pdf_bytes
+from extraction_service.pdf_fetcher import fetch_pdf_bytes
 from extraction_service.state import ExtractionState
 
 logger = logging.getLogger(__name__)

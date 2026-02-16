@@ -18,6 +18,11 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
         headers,
     });
 
+    if (response.status === 401) {
+        useAuthStore.getState().logout();
+        throw new Error('Session expired');
+    }
+
     if (!response.ok) {
         throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
