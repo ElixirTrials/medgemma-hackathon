@@ -11,18 +11,18 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 29 of 34 (Backend Bug Fixes)
-Plan: 3 of 3 in current phase
-Status: In progress
-Last activity: 2026-02-16 — Completed Plan 29-03 (Gemini structured output for grounding)
+Plan: Completed all 4 plans
+Status: Complete
+Last activity: 2026-02-16 — Completed Plan 29-04 (medical entity filtering), Phase 29 complete
 
-Progress: [████████████████████████░░░░░░░░░░] 82% (28/34 phases complete)
+Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 59 (through Phase 28)
-- Average duration: ~15 min
-- Total execution time: ~14.8 hours (across v1.0, v1.3, v1.4, v1.5)
+- Total plans completed: 63 (through Phase 29)
+- Average duration: ~13 min
+- Total execution time: ~15.6 hours (across v1.0, v1.3, v1.4, v1.5, v2.0)
 
 **By Milestone:**
 
@@ -33,15 +33,15 @@ Progress: [███████████████████████
 | v1.3 | 16 | 1 | ~7 min | Shipped 2026-02-12 |
 | v1.4 | 17-21 | 7 | ~2 hours | Shipped 2026-02-13 |
 | v1.5 | 22-28 | 11 | ~8 hours | Shipped 2026-02-13 |
-| v2.0 | 29-34 | 1/TBD | ~9 min | In progress |
+| v2.0 | 29-34 | 4/TBD | ~52 min | In progress |
 
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 29    | 04   | 4 min    | 2026-02-16 | Medical entity filtering for high CUI rate                  |
 | 29    | 03   | 15 min   | 2026-02-16 | Gemini structured output for MedGemma grounding             |
 | 29    | 02   | 8 min    | 2026-02-16 | Audit trail and pending count bug fixes                     |
 | 29    | 01   | 9 min    | 2026-02-16 | Grounding confidence bug fix with diagnostic logging        |
-| 28    | 02   | 8 min    | 2026-02-13 | Evidence linking UI with click-to-scroll                    |
 
 *Metrics from MILESTONES.md and previous roadmaps*
 
@@ -58,7 +58,11 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
 
-**Phase 29 Bug Fixes (2026-02-16):**
+**Phase 29 Bug Fixes (2026-02-16) - COMPLETE:**
+- Three-pronged entity filtering: prompt + code + evaluate for high CUI rate (29-04)
+- Removed Demographic entity type (no UMLS CUIs for demographics) (29-04)
+- Post-extraction filter with 3 rules: Demographics, non-medical keywords, age thresholds (29-04)
+- Confidence scoring guidelines in evaluate prompt (0.9-1.0 exact, 0.7-0.8 synonym) (29-04)
 - Two-model architecture: MedGemma for medical reasoning, Gemini for JSON structuring (29-03)
 - Zero JSON parse errors via Gemini with_structured_output (29-03)
 - Batch status auto-transition: `in_progress → reviewed/approved/rejected` when all criteria reviewed (29-02)
@@ -97,6 +101,7 @@ None.
 - ~~**BUGF-01**: Grounding confidence 0% for all entities — blocks regulatory compliance~~ **FIXED in 29-01 (diagnostic logging), 29-03 (Gemini structured output)**
 - ~~**BUGF-02**: Audit trail entries invisible on UI — violates 21 CFR Part 11~~ **FIXED in 29-02**
 - ~~**BUGF-03**: Dashboard pending count semantic confusion — users miss work~~ **FIXED in 29-02**
+- ~~**BUGF-04**: Low CUI rate (7.7%) due to non-medical entity extraction~~ **FIXED in 29-04 (three-pronged filtering)**
 
 **Pipeline Consolidation Risks:**
 - Phases 31-32 are HIGH complexity (from research SUMMARY.md)
@@ -118,10 +123,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Completed Phase 29 Plan 03 (Gemini structured output for grounding)
+Stopped at: Completed Phase 29 Plan 04 (Medical entity filtering) - Phase 29 complete
 Resume file: None
-Next action: Phase 29 complete - proceed to Phase 30 or v2.0 planning
+Next action: Phase 29 complete (all 4 bug fixes shipped) - proceed to Phase 30 or v2.0 planning
 
 ---
 
-*Last updated: 2026-02-16 after completing Phase 29 Plan 03*
+*Last updated: 2026-02-16 after completing Phase 29 Plan 04 (Phase 29 complete)*
