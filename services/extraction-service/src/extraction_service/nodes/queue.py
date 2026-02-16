@@ -45,7 +45,7 @@ async def queue_node(state: ExtractionState) -> dict[str, Any]:
         return {}
 
     try:
-        extraction_model = os.getenv("GEMINI_MODEL_NAME", "gemini-3-flash-preview")
+        extraction_model = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
         with Session(engine) as session:
             # Create CriteriaBatch

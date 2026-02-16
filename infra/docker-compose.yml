@@ -50,10 +50,15 @@ services:
       retries: 5
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.16.2
+    image: ghcr.io/mlflow/mlflow:v3.9.0
     ports:
       - "${MLFLOW_PORT:-5001}:5000"
-    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri /mlflow
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
     volumes:
       - mlflow_data:/mlflow
     healthcheck:

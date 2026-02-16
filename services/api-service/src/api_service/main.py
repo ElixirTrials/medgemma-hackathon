@@ -6,7 +6,7 @@ from typing import Set
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 from events_py.outbox import OutboxProcessor  # noqa: E402
 from extraction_service.trigger import handle_protocol_uploaded  # noqa: E402
@@ -53,8 +53,12 @@ async def lifespan(app: FastAPI):
         if tracking_uri:
             mlflow.set_tracking_uri(tracking_uri)
             mlflow.set_experiment("protocol-processing")
-            # NOTE: mlflow.langchain.autolog() disabled — causes ContextVar
-            # warnings with async code. Use manual mlflow logging instead.
+            # Enable LangChain autolog for extraction/grounding agent traces
+            try:
+                mlflow.langchain.autolog(log_models=False)
+                logger.info("MLflow LangChain autolog enabled")
+            except Exception:
+                logger.debug("MLflow LangChain autolog failed", exc_info=True)
             logger.info(
                 "MLflow initialized: tracking_uri=%s, experiment=protocol-processing",
                 tracking_uri,

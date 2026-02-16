@@ -7,7 +7,7 @@
 - 🚧 **v1.2 GCP Cloud Run Deployment** - Phases 13-15 (paused)
 - ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
 - ✅ **v1.4 Structured Entity Display & Grounding Fixes** — Phases 17-21 (shipped 2026-02-13)
-- 🚀 **v1.5 Structured Criteria Editor** — Phases 22-28
+- ✅ **v1.5 Structured Criteria Editor** — Phases 22-28 (shipped 2026-02-13)
 
 ## Phases
 
@@ -744,10 +744,10 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 19. Extraction Structured Output | v1.4 | 1/1 | Complete | 2026-02-12 |
 | 20. MedGemma Agentic Grounding | v1.4 | 2/2 | Complete | 2026-02-12 |
 | 21. Gemini 3 Flash Upgrade | v1.4 | 1/1 | Complete | 2026-02-13 |
-| 22. Backend Data Model + API Extension | v1.5 | 0/1 | Planned | - |
-| 23. Core Structured Editor Component | v1.5 | 0/1 | Planned | - |
-| 24. CriterionCard Integration + Review Workflow | v1.5 | 0/1 | Planned | - |
-| 25. UMLS Concept Search Autocomplete | v1.5 | 0/2 | Planned | - |
-| 26. Rationale Capture | v1.5 | 0/1 | Planned | - |
-| 27. Multi-Mapping Support | v1.5 | 0/1 | Planned | - |
-| 28. PDF Scroll-to-Source (Evidence Linking) | v1.5 | 0/2 | Planned | - |
+| 22. Backend Data Model + API Extension | v1.5 | 1/1 | Complete | 2026-02-13 |
+| 23. Core Structured Editor Component | v1.5 | 1/1 | Complete | 2026-02-13 |
+| 24. CriterionCard Integration + Review Workflow | v1.5 | 1/1 | Complete | 2026-02-13 |
+| 25. UMLS Concept Search Autocomplete | v1.5 | 2/2 | Complete | 2026-02-13 |
+| 26. Rationale Capture | v1.5 | 1/1 | Complete | 2026-02-13 |
+| 27. Multi-Mapping Support | v1.5 | 1/1 | Complete | 2026-02-13 |
+| 28. PDF Scroll-to-Source (Evidence Linking) | v1.5 | 2/2 | Complete | 2026-02-13 |

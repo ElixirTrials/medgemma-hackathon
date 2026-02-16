@@ -9,9 +9,14 @@ ChatVertexAI (per research pitfall #3).
 """
 
 from enum import Enum
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
+
+# Max lengths to prevent model repetition/runaway output and keep errors readable
+MAX_CRITERION_TEXT_LEN = 12_000
+MAX_CONDITION_PHRASE_LEN = 400
+MAX_PROTOCOL_SUMMARY_LEN = 2_000
 
 
 class AssertionStatus(str, Enum):
@@ -99,7 +104,11 @@ class ExtractedCriterion(BaseModel):
     """
 
     text: str = Field(
-        description="The original criterion text as written in the protocol",
+        max_length=MAX_CRITERION_TEXT_LEN,
+        description=(
+            "The original criterion text as written in the protocol. "
+            "Copy from the document; do not repeat or paraphrase instructions."
+        ),
     )
     criteria_type: Literal["inclusion", "exclusion"] = Field(
         description="Whether this is an inclusion or exclusion criterion",
@@ -115,17 +124,18 @@ class ExtractedCriterion(BaseModel):
         default=None,
         description="Any temporal constraint on this criterion, if applicable",
     )
-    conditions: list[str] = Field(
-        default_factory=list,
-        description=(
-            "Conditional dependencies extracted as complete natural language phrases. "
-            "Look for markers: 'if', 'for patients who/with', 'when', "
-            "'in case of', 'provided that', 'unless'. "
-            "Extract the full conditional clause, not just the keyword. "
-            "Examples: 'if female of childbearing potential', "
-            "'for patients with diabetes'. "
-            "Leave empty [] if the criterion has no conditional dependency."
-        ),
+    conditions: list[Annotated[str, Field(max_length=MAX_CONDITION_PHRASE_LEN)]] = (
+        Field(
+            default_factory=list,
+            description=(
+                "Zero or more conditional phrases from the protocol only. "
+                "Look for markers: 'if', 'for patients who/with', 'when', "
+                "'in case of', 'provided that', 'unless'. "
+                "Each entry is ONE short phrase from the protocol. "
+                "Do not repeat; no instruction or placeholder text. "
+                "Leave empty [] if the criterion has no conditional dependency."
+            ),
+        )
     )
     numeric_thresholds: list[NumericThreshold] = Field(
         default_factory=list,
@@ -180,6 +190,7 @@ class ExtractionResult(BaseModel):
         description="All extracted inclusion and exclusion criteria",
     )
     protocol_summary: str = Field(
+        max_length=MAX_PROTOCOL_SUMMARY_LEN,
         description=(
             "Brief 1-2 sentence summary of the clinical trial's purpose "
             "and target population"

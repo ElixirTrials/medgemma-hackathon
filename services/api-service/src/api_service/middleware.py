@@ -1,15 +1,16 @@
 """MLflow request tracing middleware for FastAPI.
 
-Traces every API request with method, path, status code, latency,
-and user info. Skips health/ready endpoints to avoid noise.
+Uses a pure ASGI middleware instead of Starlette's BaseHTTPMiddleware to
+preserve contextvars propagation (required for MLflow tracing).
+BaseHTTPMiddleware runs call_next in a thread pool, which breaks
+contextvars and produces malformed trace spans.
 """
 
 import logging
 import os
 import time
 
-from fastapi import Request, Response
-from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
@@ -17,58 +18,72 @@ logger = logging.getLogger(__name__)
 _SKIP_PATHS = {"/health", "/ready", "/"}
 
 
-class MLflowRequestMiddleware(BaseHTTPMiddleware):
-    """Middleware that creates MLflow traces for API requests."""
+class MLflowRequestMiddleware:
+    """Pure ASGI middleware that creates MLflow traces for API requests."""
 
-    async def dispatch(
-        self, request: Request, call_next: RequestResponseEndpoint
-    ) -> Response:
-        """Trace the request to MLflow if configured."""
-        if request.url.path in _SKIP_PATHS:
-            return await call_next(request)
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
-        start = time.perf_counter()
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        if path in _SKIP_PATHS:
+            await self.app(scope, receive, send)
+            return
+
+        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+        if not tracking_uri:
+            await self.app(scope, receive, send)
+            return
 
         try:
             import mlflow
+        except ImportError:
+            await self.app(scope, receive, send)
+            return
 
-            tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-            if not tracking_uri:
-                # MLflow not configured, skip tracing
-                return await call_next(request)
+        method = scope.get("method", "?")
+        start = time.perf_counter()
+        status_code = 500  # default until we see the actual response
 
+        # Capture status code from response headers
+        async def send_wrapper(message: Message) -> None:
+            nonlocal status_code
+            if message["type"] == "http.response.start":
+                status_code = message.get("status", 500)
+            await send(message)
+
+        app_called = False
+        try:
             with mlflow.start_span(
-                name=f"{request.method} {request.url.path}",
+                name=f"{method} {path}",
                 span_type="HTTP",
             ) as span:
                 span.set_inputs(
                     {
-                        "method": request.method,
-                        "path": request.url.path,
-                        "query": str(request.query_params),
+                        "method": method,
+                        "path": path,
+                        "query": scope.get("query_string", b"").decode("utf-8", errors="replace"),
                     }
                 )
 
-                response = await call_next(request)
+                app_called = True
+                await self.app(scope, receive, send_wrapper)
                 latency_ms = (time.perf_counter() - start) * 1000
 
                 span.set_outputs(
                     {
-                        "status_code": response.status_code,
+                        "status_code": status_code,
                         "latency_ms": round(latency_ms, 2),
                     }
                 )
-
-                return response
-
-        except ImportError:
-            logger.debug("mlflow not installed, skipping request tracing")
-            return await call_next(request)
         except Exception:
-            # Never let tracing failure break the request
             logger.debug(
                 "MLflow tracing failed, continuing without trace",
                 exc_info=True,
             )
-            response = await call_next(request)
-            return response
+            if not app_called:
+                await self.app(scope, receive, send)

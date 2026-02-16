@@ -18,6 +18,11 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
         headers,
     });
 
+    if (response.status === 401) {
+        useAuthStore.getState().logout();
+        throw new Error('Session expired');
+    }
+
     if (!response.ok) {
         throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
@@ -54,6 +59,16 @@ export interface FieldMapping {
     value: unknown;
 }
 
+export interface CriterionEntity {
+    id: string;
+    entity_type: string;
+    text: string;
+    umls_cui: string | null;
+    snomed_code: string | null;
+    preferred_term: string | null;
+    grounding_confidence: number | null;
+}
+
 export interface Criterion {
     id: string;
     batch_id: string;
@@ -68,6 +83,7 @@ export interface Criterion {
     source_section: string | null;
     page_number: number | null;
     review_status: string | null;
+    entities: CriterionEntity[];
     created_at: string;
     updated_at: string;
 }

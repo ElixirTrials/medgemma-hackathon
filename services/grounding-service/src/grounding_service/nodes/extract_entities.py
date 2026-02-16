@@ -76,7 +76,7 @@ def _get_model_name() -> str:
     model_choice = os.getenv("ENTITY_EXTRACTION_MODEL", "gemini")
     if model_choice == "medgemma":
         return os.getenv("MEDGEMMA_ENDPOINT", "medgemma-1.5-4b-it")
-    return "gemini-3-flash-preview"
+    return "gemini-2.5-flash"
 
 
 def _validate_span(entity: ExtractedEntity, criterion_text: str) -> tuple[int, int]:

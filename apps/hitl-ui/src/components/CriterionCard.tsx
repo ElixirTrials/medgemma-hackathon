@@ -3,7 +3,15 @@ import { useEffect, useState } from 'react';
 
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
+import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
 import { StructuredFieldEditor } from './structured-editor/StructuredFieldEditor';
+import type {
+    FieldMapping,
+    FieldValue,
+    RelationOperator,
+    StructuredFieldFormValues,
+    TemporalUnit,
+} from './structured-editor/types';
 import { Button } from './ui/Button';
 
 interface CriterionCardProps {
@@ -139,6 +147,158 @@ function extractThresholdsList(
     }
 
     return [];
+}
+
+/** Map extraction comparator strings to RelationOperator. */
+function mapComparator(comparator: string): RelationOperator | '' {
+    const map: Record<string, RelationOperator> = {
+        '>=': '>=',
+        '<=': '<=',
+        '>': '>',
+        '<': '<',
+        '==': '=',
+        '=': '=',
+        'range': 'within',
+    };
+    return map[comparator] ?? '';
+}
+
+/** Parse a duration string like "6 months" into {value, unit}. */
+function parseDuration(duration: string): { value: string; unit: TemporalUnit } {
+    const match = duration.match(/^(\d+)\s*(days?|weeks?|months?|years?)$/i);
+    if (match) {
+        const raw = match[2].toLowerCase().replace(/s$/, '');
+        const unitMap: Record<string, TemporalUnit> = {
+            day: 'days',
+            week: 'weeks',
+            month: 'months',
+            year: 'years',
+        };
+        return { value: match[1], unit: unitMap[raw] ?? 'days' };
+    }
+    return { value: duration, unit: 'days' };
+}
+
+/**
+ * Build initial form values for the structured editor from a criterion's
+ * AI-extracted data (numeric_thresholds, temporal_constraint, conditions).
+ */
+function buildInitialValues(criterion: Criterion): StructuredFieldFormValues {
+    // Priority 1: existing field_mappings from a previous structured edit
+    const cond = criterion.conditions as Record<string, unknown> | null;
+    if (cond && 'field_mappings' in cond && Array.isArray(cond.field_mappings)) {
+        const fms = cond.field_mappings as Array<Record<string, unknown>>;
+        const mappings: FieldMapping[] = fms.map((fm) => {
+            const rel = (fm.relation as string) ?? '';
+            const rawVal = fm.value as Record<string, unknown> | undefined;
+            let value: FieldValue = { type: 'standard', value: '', unit: '' };
+            if (rawVal && rawVal.type === 'range') {
+                value = {
+                    type: 'range',
+                    min: String(rawVal.min ?? ''),
+                    max: String(rawVal.max ?? ''),
+                    unit: String(rawVal.unit ?? ''),
+                };
+            } else if (rawVal && rawVal.type === 'temporal') {
+                value = {
+                    type: 'temporal',
+                    duration: String(rawVal.duration ?? ''),
+                    unit: (rawVal.unit as TemporalUnit) ?? 'days',
+                };
+            } else if (rawVal && rawVal.type === 'standard') {
+                value = {
+                    type: 'standard',
+                    value: String(rawVal.value ?? ''),
+                    unit: String(rawVal.unit ?? ''),
+                };
+            }
+            return {
+                entity: String(fm.entity ?? ''),
+                relation: (rel as RelationOperator) || '',
+                value,
+            };
+        });
+        if (mappings.length > 0) return { mappings };
+    }
+
+    // Priority 2: infer from AI-extracted data (entities + thresholds + temporal)
+    const mappings: FieldMapping[] = [];
+
+    // Grounded entities provide the "what" (entity name + UMLS/SNOMED IDs)
+    // Thresholds provide the "how" (comparator + value + unit)
+    // Match them: Lab_Value/Biomarker entities → numeric thresholds,
+    // Demographic entities → age-related thresholds, etc.
+    const entities = criterion.entities ?? [];
+    const thresholds = extractThresholdsList(criterion.numeric_thresholds);
+
+    // Build entity label: prefer UMLS preferred_term, fallback to extracted text
+    const entityLabel = (e: { preferred_term: string | null; text: string }) =>
+        e.preferred_term || e.text;
+
+    // Simple matching: pair thresholds with relevant entities by type
+    const measurableEntities = entities.filter(
+        (e) => e.entity_type === 'Lab_Value' || e.entity_type === 'Biomarker' || e.entity_type === 'Demographic'
+    );
+
+    for (let i = 0; i < thresholds.length; i++) {
+        const t = thresholds[i];
+        const comparator = (t.comparator as string) ?? '';
+        const val = t.value as number | null;
+        const unit = (t.unit as string) ?? '';
+        const upperVal = t.upper_value as number | null;
+
+        if (val === null || val === undefined) continue;
+
+        // Use matching entity if available (positional pairing)
+        const matchedEntity = measurableEntities[i];
+        const entity = matchedEntity ? entityLabel(matchedEntity) : '';
+
+        if (comparator === 'range' && upperVal != null) {
+            mappings.push({
+                entity,
+                relation: 'within' as RelationOperator,
+                value: { type: 'range', min: String(val), max: String(upperVal), unit },
+            });
+        } else {
+            const relation = mapComparator(comparator);
+            mappings.push({
+                entity,
+                relation,
+                value: { type: 'standard', value: String(val), unit },
+            });
+        }
+    }
+
+    // Entities without a matching threshold get their own mapping (entity only)
+    const unmatchedEntities = entities.filter(
+        (e) => e.entity_type === 'Condition' || e.entity_type === 'Medication' || e.entity_type === 'Procedure'
+    );
+    for (const e of unmatchedEntities) {
+        mappings.push({
+            entity: entityLabel(e),
+            relation: '',
+            value: { type: 'standard', value: '', unit: '' },
+        });
+    }
+
+    // From temporal constraint
+    if (criterion.temporal_constraint) {
+        const tc = criterion.temporal_constraint;
+        const duration = tc.duration as string | undefined;
+        const referencePoint = tc.reference_point as string | undefined;
+
+        if (duration) {
+            const parsed = parseDuration(duration);
+            mappings.push({
+                entity: referencePoint ?? '',
+                relation: 'not_in_last' as RelationOperator,
+                value: { type: 'temporal', duration: parsed.value, unit: parsed.unit },
+            });
+        }
+    }
+
+    if (mappings.length === 0) return DEFAULT_FIELD_VALUES;
+    return { mappings };
 }
 
 type EditMode = 'none' | 'text' | 'structured';
@@ -320,6 +480,7 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
                 <div className="mb-3">
                     <StructuredFieldEditor
                         criterionId={criterion.id}
+                        initialValues={buildInitialValues(criterion)}
                         onSave={handleStructuredSave}
                         onCancel={() => setEditMode('none')}
                         isSubmitting={isSubmitting}

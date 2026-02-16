@@ -4,6 +4,7 @@ SHELL := /bin/bash
 .PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-api run-ui
 
 run-dev:
+	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-dev"; exit 1; }
 	@echo "Starting infrastructure + API + UI..."
 	@echo "1. Activating gcloud profile..."
 	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env | cut -d= -f2); \
@@ -16,15 +17,20 @@ run-dev:
 	docker compose -f infra/docker-compose.yml up -d db mlflow
 	@echo "3. Waiting for Postgres..."
 	@until docker compose -f infra/docker-compose.yml exec db pg_isready -U postgres 2>/dev/null; do sleep 1; done
-	@echo "4. Starting API (port 8000) and UI (port 5173)..."
+	@echo "4. Finding available ports and starting API + UI..."
 	@set -a && source .env && set +a && \
+	API_PORT=8000; \
+	while lsof -i :$$API_PORT >/dev/null 2>&1; do API_PORT=$$((API_PORT+1)); done; \
+	echo "  API on port $$API_PORT (UI will use VITE_API_URL=http://localhost:$$API_PORT)"; \
+	export VITE_API_URL="http://localhost:$$API_PORT"; \
 	trap 'kill 0' EXIT; \
-	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port 8000 --app-dir services/api-service/src & \
+	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src & \
 	cd apps/hitl-ui && npm run dev & \
 	wait
 
 run-infra:
 	@echo "Starting infrastructure services (DB, MLflow)..."
+	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-infra"; exit 1; }
 	docker compose -f infra/docker-compose.yml up -d db mlflow
 
 run-api:
@@ -32,10 +38,12 @@ run-api:
 	if [ -n "$$GCLOUD_PROFILE" ]; then \
 		echo "Activating gcloud profile $$GCLOUD_PROFILE..."; \
 		gcloud config configurations activate $$GCLOUD_PROFILE; \
-	fi
-	@echo "Starting API service on port 8000..."
-	@set -a && source .env && set +a && \
-	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port 8000 --app-dir services/api-service/src
+	fi; \
+	API_PORT=8000; \
+	while lsof -i :$$API_PORT >/dev/null 2>&1; do API_PORT=$$((API_PORT+1)); done; \
+	echo "Starting API service on port $$API_PORT..."; \
+	set -a && source .env && set +a && \
+	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src
 
 run-ui:
 	@echo "Starting UI dev server..."
@@ -87,6 +95,14 @@ db-revision:
 db-migrate:
 	@echo "Applying database migrations..."
 	uv run alembic upgrade head
+
+db-clear-protocols:
+	@echo "Clearing all protocols, criteria, and related data from the database..."
+	@set -a && . ./.env && set +a && uv run --project services/api-service python services/api-service/scripts/clear_protocols_and_criteria.py
+
+mlflow-clear:
+	@echo "Deleting all MLflow runs/traces..."
+	@set -a && . ./.env && set +a && uv run --group dev python scripts/clear_mlflow_traces.py
 
 clean:
 	@echo "Cleaning build artifacts..."
@@ -143,7 +159,7 @@ help:
 	@echo "  make run-dev   - Start infra + API + UI (all-in-one)"
 	@echo "  make run-infra - Start DB, MLflow only"
 	@echo "  make run-api   - Start API service (port 8000)"
-	@echo "  make run-ui    - Start UI dev server (port 5173)"
+	@echo "  make run-ui    - Start UI dev server (port 3000)"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make check           - Run linters, type checkers, and tests"
@@ -159,5 +175,9 @@ help:
 	@echo "  make docs-serve - Serve documentation locally"
 	@echo ""
 	@echo "Database:"
-	@echo "  make db-migrate        - Apply database migrations"
-	@echo "  make db-revision msg=X - Create new migration"
+	@echo "  make db-migrate          - Apply database migrations"
+	@echo "  make db-revision msg=X   - Create new migration"
+	@echo "  make db-clear-protocols  - Remove all protocols, criteria, and related data"
+	@echo ""
+	@echo "MLflow:"
+	@echo "  make mlflow-clear - Delete all MLflow runs/traces"
