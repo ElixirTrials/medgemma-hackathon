@@ -64,18 +64,38 @@ def _render_template(template_name: str, **kwargs: Any) -> str:
 
 
 def _parse_json_response(text: str) -> dict[str, Any]:
-    """Parse JSON from MedGemma response, handling markdown fences."""
+    """Parse JSON from MedGemma response, handling markdown fences and extra text."""
     text = text.strip()
+
     # Strip markdown code fences if present
     if text.startswith("```"):
-        # Remove opening fence (```json or ```)
+        # Remove opening fence (```json, ```JSON, or ```)
         first_newline = text.find("\n")
         if first_newline >= 0:
             text = text[first_newline + 1 :]
         # Remove closing fence
         if text.rstrip().endswith("```"):
             text = text.rstrip()[:-3].rstrip()
-    return json.loads(text)
+
+    # Try direct JSON parse first
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        # Fallback: try to extract JSON object using regex
+        # Look for {...} pattern (handles leading/trailing explanatory text)
+        import re
+        json_match = re.search(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', text, re.DOTALL)
+        if json_match:
+            try:
+                return json.loads(json_match.group(0))
+            except json.JSONDecodeError:
+                pass
+
+        # If all else fails, raise the original error with helpful context
+        raise json.JSONDecodeError(
+            f"Could not parse JSON from response. Text preview: {text[:200]}...",
+            text, 0
+        )
 
 
 def _load_criteria_texts(criteria_ids: list[str]) -> list[dict[str, Any]]:
