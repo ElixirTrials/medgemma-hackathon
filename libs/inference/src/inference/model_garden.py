@@ -58,43 +58,19 @@ def _build_gemma_prompt(messages: list[Any]) -> str:
 
 
 def _strip_model_garden_artifacts(text: str, full_prompt: str) -> str:
-    """Strip echoed prompts, thinking tokens, and prefixes from response."""
-    import re
+    """Strip echoed prompts and end-of-turn markers from response.
 
-    # Strip echoed prompt — endpoint may prepend "Prompt:\n" before echo
+    Note: This is now minimal because Gemini handles JSON structuring.
+    MedGemma's output goes to Gemini, so thinking tokens and other artifacts
+    are handled by Gemini's structured output parser.
+    """
+    # Strip echoed prompt if present
     if text.startswith(full_prompt):
         text = text[len(full_prompt) :].strip()
-    elif text.startswith("Prompt:\n"):
-        after_prefix = text[len("Prompt:\n") :]
-        if after_prefix.startswith(full_prompt):
-            text = after_prefix[len(full_prompt) :].strip()
-        elif "<start_of_turn>model\n" in after_prefix:
-            marker = "<start_of_turn>model\n"
-            idx = after_prefix.rfind(marker)
-            text = after_prefix[idx + len(marker) :].strip()
-    elif "<start_of_turn>model\n" in text:
-        marker = "<start_of_turn>model\n"
-        idx = text.rfind(marker)
-        text = text[idx + len(marker) :].strip()
 
     # Strip trailing end-of-turn marker
     if text.endswith("<end_of_turn>"):
         text = text[: -len("<end_of_turn>")].strip()
-
-    # Strip "Output:" prefix (common Model Garden echo artifact)
-    if text.startswith("Output:"):
-        text = text[len("Output:") :].strip()
-
-    # Strip MedGemma chain-of-thought tokens
-    if "<unused95>" in text:
-        text = text.split("<unused95>", 1)[1].strip()
-    elif "<unused94>" in text:
-        text = re.sub(
-            r"<unused94>thought.*?(?=```|\{|\[)",
-            "",
-            text,
-            flags=re.DOTALL,
-        ).strip()
 
     return text
 

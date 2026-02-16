@@ -101,7 +101,11 @@ def _structure_with_gemini(raw_text: str, schema: type[T]) -> T:
     )
 
     result = structured_llm.invoke(prompt)
-    return result
+    # with_structured_output can return dict or BaseModel depending on version
+    # Ensure we return the expected Pydantic model instance
+    if isinstance(result, dict):
+        return schema.model_validate(result)
+    return result  # type: ignore[return-value]
 
 
 def _get_medgemma_model() -> ModelGardenChatModel:
@@ -119,54 +123,6 @@ def _render_template(template_name: str, **kwargs: Any) -> str:
     env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR)))
     template = env.get_template(template_name)
     return template.render(**kwargs)
-
-
-def _parse_json_response(text: str) -> dict[str, Any] | list[Any]:
-    """Parse JSON from MedGemma response, handling markdown fences and extra text.
-
-    Returns a dict or list depending on what MedGemma returned.
-    """
-    import re
-
-    text = text.strip()
-
-    # Strip markdown code fences if present
-    if text.startswith("```"):
-        # Remove opening fence (```json, ```JSON, or ```)
-        first_newline = text.find("\n")
-        if first_newline >= 0:
-            text = text[first_newline + 1 :]
-        # Remove closing fence
-        if text.rstrip().endswith("```"):
-            text = text.rstrip()[:-3].rstrip()
-
-    # Try direct JSON parse first
-    try:
-        return json.loads(text)
-    except json.JSONDecodeError:
-        pass
-
-    # Fallback: try to extract JSON array [...] (MedGemma often returns bare arrays)
-    array_match = re.search(r'\[[\s\S]*\]', text)
-    if array_match:
-        try:
-            return json.loads(array_match.group(0))
-        except json.JSONDecodeError:
-            pass
-
-    # Fallback: try to extract JSON object {...}
-    obj_match = re.search(r'\{[\s\S]*\}', text)
-    if obj_match:
-        try:
-            return json.loads(obj_match.group(0))
-        except json.JSONDecodeError:
-            pass
-
-    # If all else fails, raise with helpful context
-    raise json.JSONDecodeError(
-        f"Could not parse JSON from response. Text preview: {text[:200]}...",
-        text, 0
-    )
 
 
 def _load_criteria_texts(criteria_ids: list[str]) -> list[dict[str, Any]]:
