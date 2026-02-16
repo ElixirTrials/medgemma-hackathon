@@ -215,12 +215,46 @@ async def _search_umls_for_entities(
     if concept_search_tool is None:
         raise RuntimeError("concept_search tool not found on MCP server")
 
-    for entity in entities:
+    logger.info(
+        "GROUNDING DEBUG: Starting UMLS search for %d entities",
+        len(entities)
+    )
+
+    for idx, entity in enumerate(entities, 1):
+        logger.info(
+            "GROUNDING DEBUG: Entity %d/%d - text='%s', type=%s, "
+            "search_term='%s'",
+            idx, len(entities), entity.text[:50],
+            entity.entity_type, entity.search_term
+        )
         try:
             raw_result = await concept_search_tool.ainvoke(
                 {"term": entity.search_term, "max_results": 5}
             )
             candidates = _normalize_search_results(raw_result)
+
+            logger.info(
+                "GROUNDING DEBUG: Entity %d/%d - UMLS returned %d candidates",
+                idx, len(entities), len(candidates)
+            )
+
+            if candidates:
+                top = candidates[0]
+                logger.debug(
+                    "GROUNDING DEBUG: Top candidate - CUI=%s, SNOMED=%s, "
+                    "display='%s', conf=%.2f",
+                    top.get("cui", "N/A"),
+                    top.get("snomed_code", "N/A"),
+                    top.get("display", "")[:40],
+                    top.get("confidence", 0.0)
+                )
+            else:
+                logger.warning(
+                    "GROUNDING DEBUG: ZERO candidates for entity '%s' "
+                    "(search_term='%s')",
+                    entity.text[:50], entity.search_term
+                )
+
             search_results.append(
                 {
                     "entity_text": entity.text,
@@ -230,7 +264,10 @@ async def _search_umls_for_entities(
                 }
             )
         except Exception as e:
-            logger.warning("UMLS search failed for '%s': %s", entity.search_term, e)
+            logger.error(
+                "GROUNDING DEBUG: UMLS search failed for '%s' - %s",
+                entity.search_term, e, exc_info=True
+            )
             search_results.append(
                 {
                     "entity_text": entity.text,
@@ -314,6 +351,11 @@ def _fallback_entities_for_criteria(
     criteria_texts: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Build expert_review fallback entities when extraction fails."""
+    logger.warning(
+        "GROUNDING DEBUG: FALLBACK PATH 1 - "
+        "_fallback_entities_for_criteria triggered for %d criteria",
+        len(criteria_texts)
+    )
     fallback: list[dict[str, Any]] = []
     for ct in criteria_texts:
         fallback.append(
@@ -338,6 +380,11 @@ def _fallback_from_entities(
     entities: list[ExtractedEntityAction],
 ) -> list[dict[str, Any]]:
     """Build expert_review fallback from extracted entities."""
+    logger.warning(
+        "GROUNDING DEBUG: FALLBACK PATH 2 - "
+        "_fallback_from_entities triggered for %d entities",
+        len(entities)
+    )
     return [
         {
             "criteria_id": e.criterion_id,
@@ -369,7 +416,21 @@ async def _run_evaluate_loop(
     current_entities = entities
 
     for iteration in range(MAX_ITERATIONS):
+        logger.info(
+            "GROUNDING DEBUG: Evaluate loop iteration %d/%d with %d entities",
+            iteration + 1, MAX_ITERATIONS, len(current_entities)
+        )
+
         search_results = await _search_umls_for_entities(current_entities)
+
+        # Log zero-candidate summary
+        zero_cand_count = sum(1 for sr in search_results if not sr["candidates"])
+        if zero_cand_count > 0:
+            logger.warning(
+                "GROUNDING DEBUG: Iteration %d - %d/%d entities have "
+                "ZERO candidates",
+                iteration + 1, zero_cand_count, len(search_results)
+            )
 
         evaluate_prompt = _render_template(
             "agentic_evaluate.jinja2",
@@ -378,16 +439,37 @@ async def _run_evaluate_loop(
             max_iterations=MAX_ITERATIONS,
         )
 
+        logger.debug(
+            "GROUNDING DEBUG: Evaluate prompt length: %d chars",
+            len(evaluate_prompt)
+        )
+
         raw_response = await _invoke_medgemma(model, system_prompt, evaluate_prompt)
+
+        logger.info(
+            "GROUNDING DEBUG: MedGemma evaluate response (first 300 chars): %s",
+            raw_response[:300]
+        )
 
         try:
             parsed = _parse_json_response(raw_response)
             action = AgenticAction.model_validate(parsed)
+
+            logger.info(
+                "GROUNDING DEBUG: Iteration %d - action_type='%s', "
+                "selections=%d, entities=%d",
+                iteration + 1, action.action_type,
+                len(action.selections), len(action.entities)
+            )
         except (json.JSONDecodeError, Exception) as e:
-            logger.warning(
-                "Failed to parse evaluate response (iter %d): %s",
-                iteration,
-                e,
+            logger.error(
+                "GROUNDING DEBUG: PARSE FAILURE in evaluate phase "
+                "(iteration %d): %s",
+                iteration + 1, e, exc_info=True
+            )
+            logger.error(
+                "GROUNDING DEBUG: Full raw response that failed parsing:\n%s",
+                raw_response
             )
             iteration_history.append({"iteration": iteration + 1, "error": str(e)})
             break
@@ -402,14 +484,32 @@ async def _run_evaluate_loop(
         )
 
         if action.action_type == "evaluate":
+            logger.info(
+                "GROUNDING DEBUG: Evaluate loop SUCCESS on iteration %d "
+                "with %d selections",
+                iteration + 1, len(action.selections)
+            )
             return _build_grounded_entities(current_entities, action.selections)
 
         if action.action_type == "refine" and iteration < MAX_ITERATIONS - 1:
+            logger.info(
+                "GROUNDING DEBUG: Refining with %d new entities "
+                "for next iteration",
+                len(action.entities)
+            )
             current_entities = action.entities
             continue
 
+        logger.warning(
+            "GROUNDING DEBUG: Evaluate loop exhausted - action_type='%s' "
+            "on final iteration %d",
+            action.action_type, iteration + 1
+        )
         break
 
+    logger.warning(
+        "GROUNDING DEBUG: Evaluate loop completed without 'evaluate' action"
+    )
     return []
 
 
@@ -430,14 +530,25 @@ async def medgemma_ground_node(
     Returns:
         Dict with criteria_texts and grounded_entities.
     """
+    batch_id = state.get("batch_id", "unknown")
+    logger.info("=== GROUNDING DEBUG START: batch_id=%s ===", batch_id)
+
     if state.get("error"):
+        logger.warning(
+            "GROUNDING DEBUG: Skipping due to pre-existing error in state"
+        )
         return {}
 
     try:
         criteria_texts = _load_criteria_texts(state["criteria_ids"])
 
+        logger.info(
+            "GROUNDING DEBUG: Loaded %d criteria for grounding",
+            len(criteria_texts)
+        )
+
         if not criteria_texts:
-            logger.warning("No criteria found for batch %s", state.get("batch_id"))
+            logger.warning("No criteria found for batch %s", batch_id)
             return {"criteria_texts": [], "grounded_entities": []}
 
         model = _get_medgemma_model()
@@ -448,13 +559,46 @@ async def medgemma_ground_node(
         extract_prompt = _render_template(
             "agentic_extract.jinja2", criteria=criteria_texts
         )
+
+        logger.debug(
+            "GROUNDING DEBUG: Extract prompt length: %d chars for %d criteria",
+            len(extract_prompt), len(criteria_texts)
+        )
+
         raw_response = await _invoke_medgemma(model, system_prompt, extract_prompt)
+
+        logger.info(
+            "GROUNDING DEBUG: MedGemma extract response (first 300 chars): %s",
+            raw_response[:300]
+        )
 
         try:
             parsed = _parse_json_response(raw_response)
             action = AgenticAction.model_validate(parsed)
+
+            logger.info(
+                "GROUNDING DEBUG: Extracted %d entities (action_type='%s')",
+                len(action.entities), action.action_type
+            )
+
+            # Log each extracted entity
+            for idx, entity in enumerate(action.entities, 1):
+                logger.debug(
+                    "GROUNDING DEBUG: Extracted entity %d: text='%s', "
+                    "type=%s, search_term='%s', criterion_id=%s",
+                    idx, entity.text[:50], entity.entity_type,
+                    entity.search_term, entity.criterion_id
+                )
         except (json.JSONDecodeError, Exception) as e:
-            logger.warning("Failed to parse MedGemma extract response: %s", e)
+            logger.error(
+                "GROUNDING DEBUG: PARSE FAILURE in extract phase: %s",
+                e, exc_info=True
+            )
+            logger.error(
+                "GROUNDING DEBUG: Full MedGemma extract response that "
+                "failed parsing:\n%s",
+                raw_response
+            )
             return {
                 "criteria_texts": criteria_texts,
                 "grounded_entities": _fallback_entities_for_criteria(criteria_texts),
@@ -476,12 +620,47 @@ async def medgemma_ground_node(
 
         # Fallback if loop completed without evaluate
         if not all_grounded:
+            logger.warning(
+                "GROUNDING DEBUG: FALLBACK PATH 3 - Empty grounded_entities "
+                "after evaluate loop"
+            )
             all_grounded = _fallback_from_entities(action.entities)
+
+        # Final results summary
+        zero_conf_count = sum(
+            1 for ge in all_grounded
+            if ge.get("grounding_confidence", 0.0) == 0.0
+        )
+        zero_conf_pct = (
+            (100.0 * zero_conf_count / len(all_grounded))
+            if all_grounded else 0.0
+        )
+
+        logger.info(
+            "=== GROUNDING DEBUG END: %d entities produced for batch %s ===",
+            len(all_grounded), batch_id
+        )
+        logger.warning(
+            "GROUNDING DEBUG: %d/%d entities (%.1f%%) have 0%% confidence",
+            zero_conf_count, len(all_grounded), zero_conf_pct
+        )
+
+        # Log detailed breakdown of final results
+        for ge in all_grounded:
+            cui = ge.get("umls_cui") or "NONE"
+            snomed = ge.get("snomed_code") or "NONE"
+            conf = ge.get("grounding_confidence", 0.0)
+            method = ge.get("grounding_method", "unknown")
+            logger.info(
+                "GROUNDING DEBUG FINAL: text='%s', cui=%s, snomed=%s, "
+                "conf=%.1f%%, method=%s",
+                ge["text"][:50], cui, snomed, conf * 100, method
+            )
 
         logger.info(
             "Agentic grounding produced %d entities for batch %s (%d iterations)",
             len(all_grounded),
-            state.get("batch_id"),
+            batch_id,
             len(iteration_history),
         )
 
@@ -494,7 +673,7 @@ async def medgemma_ground_node(
     except Exception as e:
         logger.exception(
             "Agentic grounding failed for batch %s: %s",
-            state.get("batch_id", "unknown"),
+            batch_id,
             e,
         )
         return {"error": f"Agentic grounding failed: {e}"}
