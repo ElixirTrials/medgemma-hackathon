@@ -15,7 +15,20 @@ UMLS candidates:
 
 Respond with a JSON object. You MUST select the best match from the candidates provided or determine the entity is not medical.
 
-IMPORTANT: Use action_type="evaluate" to finalize your selections. Only use action_type="refine" if you need to try different search terms AND you have not already refined multiple times. For most cases, evaluate with the best available match or confidence=0.0 for non-matches.
+**CONFIDENCE SCORING GUIDELINES:**
+- **0.9-1.0**: Exact UMLS concept match — entity text maps directly to CUI preferred term or is an exact synonym
+- **0.7-0.8**: Close synonym match — entity text is a known medical synonym of the CUI (e.g., "heart attack" → "myocardial infarction")
+- **0.5-0.6**: Partial or broader match — CUI is related but not exact (e.g., broad category matched to specific term)
+- **0.0**: No valid match or not a medical entity
+
+**IMPORTANT:** When a candidate's display name closely matches the entity text or its medical synonym, assign confidence ≥ 0.8. Do not be overly conservative — if the UMLS concept clearly represents the same medical concept, it is a high-confidence match.
+
+**Example of high-confidence matching:**
+- Entity: "SARS-CoV-2 infection", Candidate: "COVID-19" → confidence 0.9, reasoning: "SARS-CoV-2 is the causative virus of COVID-19, these terms represent the same disease entity"
+
+---
+
+**ACTION SELECTION:** Use action_type="evaluate" to finalize your selections. Only use action_type="refine" if you need to try different search terms AND you have not already refined multiple times. For most cases, evaluate with the best available match or confidence=0.0 for non-matches.
 
 ## Handling entities with no UMLS candidates
 
@@ -32,22 +45,18 @@ The entity is a broad/compound medical category that doesn't have a single UMLS 
 - "liver abnormality (e.g. cirrhosis, transplant)" → refine with entities: "hepatic cirrhosis" (Condition), "liver transplantation" (Procedure)
 - "major organ dysfunction" → refine with entities: "heart failure" (Condition), "renal failure" (Condition), "hepatic failure" (Condition)
 
-### Option C: Flag as not a medical entity (action_type="evaluate")
-The extracted text is NOT a valid medical entity for clinical trial eligibility. It may be a procedural requirement, logistical detail, or text that was incorrectly extracted as a medical entity. In this case, respond with action_type="evaluate" and set:
+### Option C: Flag as not medical (action_type="evaluate")
+The extracted text is NOT a valid medical entity. This should be RARE because the extract prompt now filters these. If encountered, respond with action_type="evaluate" and set:
 - selected_cui: null
 - confidence: 0.0
 - reasoning: MUST start with "NOT_MEDICAL_ENTITY: " followed by explanation
-Examples of non-medical entities that should be flagged:
-- "willing to provide informed consent" (procedural, not medical)
-- "able to attend follow-up visits" (logistical)
-- "English-speaking" (not a medical inclusion criterion)
 
 ### Decision order
-1. First: Is this actually a medical entity? If NO → Option C
+1. First: Is this actually a medical entity? If NO → Option C (rare)
 2. If YES: Is the search term wrong or is there a better synonym? If YES → Option A
 3. If synonym doesn't help: Is this a broad category that should be decomposed? If YES → Option B
 4. If none of the above: evaluate with selected_cui=null (genuine grounding failure)
 
 {% if iteration > 0 %}
-This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. You may try synonyms, decompose broad entities, flag non-medical entities, or evaluate with the best available matches.
+This is iteration {{ iteration + 1 }} of {{ max_iterations }}. Previous search terms did not produce satisfactory results. You may try synonyms, decompose broad entities, flag non-medical entities (rare), or evaluate with the best available matches.
 {% endif %}
