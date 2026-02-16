@@ -412,22 +412,22 @@ def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse
     pending_criteria_stmt = (
         select(func.count())
         .select_from(Criteria)
-        .join(CriteriaBatch, Criteria.batch_id == CriteriaBatch.id)
+        .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
         .where(
             col(Criteria.review_status).is_(None),
-            CriteriaBatch.status.in_(["pending_review", "in_progress"]),
+            col(CriteriaBatch.status).in_(["pending_review", "in_progress"]),
         )
     )
     pending_criteria = db.exec(pending_criteria_stmt).one()
 
     # Count distinct batches that have at least one unreviewed criterion
     pending_batches_stmt = (
-        select(func.count(func.distinct(CriteriaBatch.id)))
+        select(func.count(func.distinct(col(CriteriaBatch.id))))
         .select_from(Criteria)
-        .join(CriteriaBatch, Criteria.batch_id == CriteriaBatch.id)
+        .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
         .where(
             col(Criteria.review_status).is_(None),
-            CriteriaBatch.status.in_(["pending_review", "in_progress"]),
+            col(CriteriaBatch.status).in_(["pending_review", "in_progress"]),
         )
     )
     pending_batches = db.exec(pending_batches_stmt).one()
@@ -466,10 +466,10 @@ def list_audit_log(
         # Join AuditLog → Criteria to filter by batch_id
         count_stmt = (
             count_stmt
-            .join(Criteria, AuditLog.target_id == Criteria.id)
+            .join(Criteria, col(AuditLog.target_id) == col(Criteria.id))
             .where(
-                AuditLog.target_type == "criteria",
-                Criteria.batch_id == batch_id
+                col(AuditLog.target_type) == "criteria",
+                col(Criteria.batch_id) == batch_id
             )
         )
     else:
@@ -487,10 +487,10 @@ def list_audit_log(
     if batch_id:
         data_stmt = (
             data_stmt
-            .join(Criteria, AuditLog.target_id == Criteria.id)
+            .join(Criteria, col(AuditLog.target_id) == col(Criteria.id))
             .where(
-                AuditLog.target_type == "criteria",
-                Criteria.batch_id == batch_id
+                col(AuditLog.target_type) == "criteria",
+                col(Criteria.batch_id) == batch_id
             )
         )
     else:
