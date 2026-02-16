@@ -4,95 +4,83 @@
 
 See: .planning/PROJECT.md (updated 2026-02-16)
 
-**Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** v2.0 Pipeline Consolidation & E2E Quality — Architecture refactor, ToolUniverse grounding, critical bug fixes, editor polish, corpus building
+**Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
+
+**Current focus:** Phase 29 - Backend Bug Fixes
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-02-16 — Milestone v2.0 started
+Phase: 29 of 34 (Backend Bug Fixes)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-16 — Completed Plan 29-02 (audit trail and pending count fixes)
+
+Progress: [████████████████████████░░░░░░░░░░] 82% (28/34 phases complete)
 
 ## Performance Metrics
 
 **Overall Velocity:**
-- Total plans completed: 45
-- Average duration: 6.6 min
-- Total execution time: 5.33 hours
+- Total plans completed: 59 (through Phase 28)
+- Average duration: ~15 min
+- Total execution time: ~14.8 hours (across v1.0, v1.3, v1.4, v1.5)
+
+**By Milestone:**
+
+| Milestone | Phases | Plans | Total Time | Status |
+|-----------|--------|-------|------------|--------|
+| v1.0 | 1-7 | 24 | ~3.6 hours | Shipped 2026-02-12 |
+| v1.1 | 8-10 | 6 | ~45 min | Paused |
+| v1.3 | 16 | 1 | ~7 min | Shipped 2026-02-12 |
+| v1.4 | 17-21 | 7 | ~2 hours | Shipped 2026-02-13 |
+| v1.5 | 22-28 | 11 | ~8 hours | Shipped 2026-02-13 |
+| v2.0 | 29-34 | 1/TBD | ~4 min | In progress |
 
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                           |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------- |
+| 29    | 02   | 4 min    | 2026-02-16 | Audit trail visibility and pending count fixes  |
 | 28    | 02   | 8 min    | 2026-02-13 | Evidence linking UI with click-to-scroll        |
 | 27    | 01   | 6 min    | 2026-02-13 | Multi-mapping support for structured criteria   |
 | 28    | 01   | 4 min    | 2026-02-13 | Page number data pipeline                       |
-| 26    | 01   | 3 min    | 2026-02-13 | Rationale capture for review actions            |
+
+*Metrics from MILESTONES.md and previous roadmaps*
 
 ## Accumulated Context
 
 ### Decisions
 
-- v1.0: Google OAuth for authentication (fits GCP ecosystem)
-- v1.0: Docker Compose infrastructure with PostgreSQL, MLflow, PubSub emulator
-- v1.2: Terraform for GCP Cloud Run deployment (paused, phases 13-15)
-- v1.3: Direct PDF multimodal extraction replaces pymupdf4llm markdown conversion
-- v1.3: Base64 PDF data URIs for Gemini multimodal input
-- v1.4: Investigation found 4 problems — grounding 100% failed, thresholds never populated, temporal constraints not displayed, no threshold UI
-- v1.4: Display-only for temporal constraints and thresholds (no inline editing in CriterionCard)
-- v1.4: MedGemma as agentic reasoner — drives grounding via iterative UMLS MCP calls
-- v1.4: Grounding graph simplified from 4 nodes to 2 (medgemma_ground -> validate_confidence)
-- v1.5: Cauldron-style field mapping editor as reference implementation for HITL editing
-- v1.5: Keep side-by-side view, add scroll-to-source on criterion click
-- v1.5: Three editable structured components: entity (SNOMED/UMLS), relation (comparator), value
-- [Phase 22-01]: Use optional modified_structured_fields field for backward compatibility
-- [Phase 22-01]: Add schema_version to AuditLog details for versioned audit trail
-- [Phase 22-01]: Support dual-write pattern (text + structured in same request)
-- [Phase 23-01]: Discriminated union types for relation categories (standard/range/temporal)
-- [Phase 23-01]: State cleanup via useEffect prevents value leak between relation categories
-- [Phase 23-01]: Co-located sub-components in ValueInput.tsx for simplicity
-- [Phase 24]: 3-mode editMode state (none/text/structured) prevents impossible states like both modes active simultaneously
-- [Phase 24]: useEffect to sync local edit state when criterion prop changes ensures text fields reflect latest data after mutation
-- [Phase 25-01]: UMLS search proxy uses "Clinical Finding" as semantic_type default (search API doesn't return semantic types)
-- [Phase 25-01]: Error mapping: 502 for UMLS API errors, 503 for missing UMLS_API_KEY configuration
-- [Phase 25-02]: useState + useEffect + setTimeout for debouncing (simpler than external library)
-- [Phase 25-02]: 300ms debounce with 3-character minimum for UMLS autocomplete
-- [Phase 25-02]: UmlsCombobox as primary input, CUI/SNOMED as secondary editable fields (visual hierarchy)
-- [Phase 26-01]: Reuse existing comment field for rationale (backward compatibility, no schema changes)
-- [Phase 26-01]: Map comment to rationale key in AuditLog.details (semantic clarity in audit trail)
-- [Phase 26-01]: Optional rationale textarea with (optional) label and placeholder text pattern
-- [Phase 27-01]: useFieldArray for dynamic mapping management (robust array handling with minimal re-renders)
-- [Phase 27-01]: Store field_mappings in conditions JSONB column (general-purpose field, separate from legacy temporal/threshold)
-- [Phase 27-01]: Minimum 1 mapping enforcement via disabled remove button (UI constraint clearer than validation error)
-- [Phase 27-01]: v1.5-multi schema_version for audit logs (enables filtering multi-mapping edits)
-- [Phase 28-01]: page_number as optional int | None for backward compatibility
-- [Phase 28-02]: Use first 40 chars of criterion text for highlight matching (full criteria text can be very long)
-- [Phase 28-02]: Toggle selection pattern (clicking same criterion deselects it)
-- [Phase 28-02]: Only show click affordance when page_number exists (graceful degradation)
+Decisions are logged in PROJECT.md Key Decisions table.
 
-### Cauldron Reference (v1.5)
+**v2.0 Architecture (2026-02-16):**
+- ToolUniverse Python API with selective loading (not MCP subprocess)
+- Flat 5-node LangGraph pipeline (ingest→extract→parse→ground→persist)
+- UMLS retained via direct Python import (not MCP subprocess)
+- Store errors in state, use Command for routing
+- Remove criteria_extracted outbox, retain protocol_uploaded
 
-Key patterns from Cauldron's CriteriaEditPanel:
-- Field mapping triplets: targetField → relation → targetValue (with unit, min, max)
-- 3-step progressive disclosure: select field → select relation → enter value
-- Adaptive value input: standard (single), range (min/max), temporal (number + unit)
-- 10 relations: =, !=, >, >=, <, <=, within, not_in_last, contains, not_contains
-- AI suggestion engine pre-fills fields based on selected text patterns
-- Rationale textarea required for all edits (audit trail)
-- Interactive text selection from source document for evidence linking
+**Phase 29 Bug Fixes (2026-02-16):**
+- Batch status auto-transition: `in_progress → reviewed/approved/rejected` when all criteria reviewed
+- Criteria-level pending count query (not batch status) for dashboard accuracy
+- Per-criterion audit history (collapsed by default, Radix Collapsible)
+- Audit log batch_id filter via `AuditLog → Criteria` join query
 
-### Current System Gaps (v1.5 scope)
+**v1.5 Editor Patterns (2026-02-13):**
+- Cauldron-style field mapping editor with entity/relation/value triplets
+- Three-mode editMode state (none/text/structured) prevents impossible states
+- useFieldArray for dynamic mapping management
+- Field_mappings stored in conditions JSONB column
+- Optional rationale textarea (reuse existing comment field)
+- Page number data pipeline for scroll-to-source
+- UMLS autocomplete with 300ms debounce, 3-char minimum
 
-- ~~CriterionCard: text/type/category editable, but NOT relation/value/threshold~~ ✅ Done (24-01 - structured editor toggle added)
-- ~~EntityCard: UMLS CUI/SNOMED/preferred_term editable (modify mode exists)~~ ✅ Done (25-02 - UMLS autocomplete integrated)
-- ~~No API endpoint for modified_numeric_thresholds or modified_temporal_constraint~~ ✅ Done (22-01)
-- ~~No UMLS autocomplete in entity field~~ ✅ Done (25-02 - autocomplete with debounced search)
-- ~~No rationale capture for edits~~ ✅ Done (26-01 - optional rationale textarea in modify mode)
-- ~~No page_number data pipeline~~ ✅ Done (28-01 - page_number flows from extraction to API)
-- ~~No multi-mapping per criterion~~ ✅ Done (27-01 - useFieldArray with add/remove buttons, field_mappings array storage)
-- ~~No PDF viewer with scroll-to-source~~ ✅ Done (28-02 - click-to-scroll with text highlighting)
-- No display of field_mappings in non-edit mode (saved mappings not shown as badges)
-- No initialValues population from saved field_mappings (editor always starts with 1 empty mapping)
+**v1.4 Grounding (2026-02-13):**
+- MedGemma as agentic reasoner driving iterative UMLS MCP calls
+- Grounding graph simplified from 4 nodes to 2 (medgemma_ground → validate_confidence)
+- Display-only for temporal constraints and numeric thresholds
+
+**v1.3 Extraction (2026-02-12):**
+- Direct PDF multimodal extraction replaces pymupdf4llm
+- Base64 PDF data URIs for Gemini input (later: File API in quick-3)
 
 ### Pending Todos
 
@@ -100,18 +88,35 @@ None.
 
 ### Blockers/Concerns
 
-None.
+**Known Critical Issues (from research and E2E testing):**
+- **BUGF-01**: Grounding confidence 0% for all entities — blocks regulatory compliance
+- ~~**BUGF-02**: Audit trail entries invisible on UI — violates 21 CFR Part 11~~ **FIXED in 29-02**
+- ~~**BUGF-03**: Dashboard pending count semantic confusion — users miss work~~ **FIXED in 29-02**
 
-### Quick Tasks Completed
+**Pipeline Consolidation Risks:**
+- Phases 31-32 are HIGH complexity (from research SUMMARY.md)
+- Outbox removal creates data loss window (Pitfall 1 from PITFALLS.md)
+- Entity type mismatch between extraction and tool routing (Pitfall 3)
+- Pipeline state schema merge causes type safety regression (Pitfall 10)
 
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 2 | Fix MedGemma entity extraction to split compound criteria into individual UMLS/SNOMED concepts | 2026-02-13 | 8f0ee8b | [2-fix-medgemma-entity-extraction-to-split-](./quick/2-fix-medgemma-entity-extraction-to-split-/) |
-| 3 | Switch PDF extraction to Gemini File API (google.genai.Client, removes 20MB base64 limit) | 2026-02-13 | d65042f | [3-switch-pdf-extraction-to-gemini-file-api](./quick/3-switch-pdf-extraction-to-gemini-file-api/) |
+**Research Flags:**
+- Phase 31: API response format verification needed via test calls
+- Phase 32: Research spike required (Gemini vs MedGemma for entity extraction)
+
+### Current System Gaps (v2.0 scope)
+
+- No display of field_mappings in non-edit mode (badges for saved mappings)
+- No initialValues population from saved field_mappings (editor always starts empty)
+- No re-extraction tooling (script to re-run extraction/grounding on existing protocols)
+- No corpus comparison (view/export AI vs human corrected data)
 
 ## Session Continuity
 
 Last session: 2026-02-16
-Stopped at: Starting v2.0 milestone — defining requirements
-Resume file: —
-Next action: Research → Requirements → Roadmap for v2.0
+Stopped at: Completed Phase 29 Plan 02 (audit trail and pending count fixes)
+Resume file: None
+Next action: Execute Phase 29 Plan 01 (grounding confidence bug fix)
+
+---
+
+*Last updated: 2026-02-16 after completing Phase 29 Plan 02*
