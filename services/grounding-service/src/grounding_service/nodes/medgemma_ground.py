@@ -637,7 +637,12 @@ async def _ground_single_criterion(
     criteria_texts: list[dict[str, Any]],
     iteration_history: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
-    """Extract and ground entities for a single criterion batch."""
+    """Extract and ground entities for a single criterion batch.
+
+    Uses two-model architecture:
+    1. MedGemma extracts entities (free-form medical reasoning)
+    2. Gemini structures the output (with_structured_output)
+    """
     extract_prompt = _render_template(
         "agentic_extract.jinja2", criteria=criteria_texts
     )
@@ -655,39 +660,28 @@ async def _ground_single_criterion(
     )
 
     try:
-        parsed = _parse_json_response(raw_response)
-
-        # Handle bare entity list: MedGemma sometimes returns [{...}, ...]
-        if isinstance(parsed, list):
-            logger.info(
-                "GROUNDING DEBUG: MedGemma returned bare entity list "
-                "(%d items), wrapping as AgenticAction",
-                len(parsed),
-            )
-            parsed = {"action_type": "extract", "entities": parsed}
-
-        action = AgenticAction.model_validate(parsed)
+        # Two-model approach: MedGemma reasons, Gemini structures
+        extract_result = _structure_with_gemini(raw_response, ExtractResult)
 
         logger.info(
-            "GROUNDING DEBUG: Extracted %d entities (action_type='%s')",
-            len(action.entities), action.action_type
+            "GROUNDING DEBUG: Gemini structured %d entities from MedGemma output",
+            len(extract_result.entities)
         )
 
-        for idx, entity in enumerate(action.entities, 1):
+        for idx, entity in enumerate(extract_result.entities, 1):
             logger.debug(
                 "GROUNDING DEBUG: Extracted entity %d: text='%s', "
                 "type=%s, search_term='%s', criterion_id=%s",
                 idx, entity.text[:50], entity.entity_type,
                 entity.search_term, entity.criterion_id
             )
-    except (json.JSONDecodeError, Exception) as e:
+    except Exception as e:
         logger.error(
-            "GROUNDING DEBUG: PARSE FAILURE in extract phase: %s",
+            "GROUNDING DEBUG: Gemini structuring FAILURE in extract phase: %s",
             e, exc_info=True
         )
         logger.error(
-            "GROUNDING DEBUG: Full MedGemma extract response that "
-            "failed parsing:\n%s",
+            "GROUNDING DEBUG: Full MedGemma extract response that failed:\n%s",
             raw_response
         )
         return _fallback_entities_for_criteria(criteria_texts)
@@ -695,14 +689,14 @@ async def _ground_single_criterion(
     iteration_history.append(
         {
             "iteration": 0,
-            "action_type": action.action_type,
-            "entity_count": len(action.entities),
+            "action_type": "extract",
+            "entity_count": len(extract_result.entities),
         }
     )
 
     # UMLS search + evaluate loop
     grounded = await _run_evaluate_loop(
-        model, system_prompt, action.entities, iteration_history
+        model, system_prompt, extract_result.entities, iteration_history
     )
 
     if not grounded:
@@ -710,7 +704,7 @@ async def _ground_single_criterion(
             "GROUNDING DEBUG: FALLBACK PATH 3 - Empty grounded_entities "
             "after evaluate loop"
         )
-        grounded = _fallback_from_entities(action.entities)
+        grounded = _fallback_from_entities(extract_result.entities)
 
     return grounded
 
