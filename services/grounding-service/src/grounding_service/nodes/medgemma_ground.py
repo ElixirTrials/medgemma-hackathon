@@ -327,6 +327,78 @@ async def _search_umls_for_entities(
     return search_results
 
 
+def _filter_medical_entities(
+    entities: list[ExtractedEntityAction],
+) -> tuple[list[ExtractedEntityAction], list[ExtractedEntityAction]]:
+    """Filter out non-medical entities before UMLS search.
+
+    Returns (medical_entities, filtered_out) tuple.
+    """
+    import re
+
+    medical: list[ExtractedEntityAction] = []
+    filtered: list[ExtractedEntityAction] = []
+
+    # Non-medical keywords to filter
+    non_medical_keywords = [
+        "consent",
+        "visit",
+        "randomization",
+        "screening",
+        "follow-up",
+        "compliance",
+        "willing",
+        "able to",
+        "legal age",
+        "jurisdiction",
+    ]
+
+    # Age/temporal pattern: pure numbers with time units
+    age_pattern = re.compile(r"^\d+\s*(years?|months?|days?|weeks?)$", re.IGNORECASE)
+
+    for entity in entities:
+        # Rule 1: Filter Demographic entity type
+        if entity.entity_type == "Demographic":
+            logger.info(
+                "FILTER: Removed Demographic entity '%s' (search_term='%s')",
+                entity.text[:50],
+                entity.search_term,
+            )
+            filtered.append(entity)
+            continue
+
+        # Rule 2: Filter non-medical keywords
+        search_term_lower = entity.search_term.lower()
+        if any(keyword in search_term_lower for keyword in non_medical_keywords):
+            logger.info(
+                "FILTER: Removed non-medical entity '%s' (contains keyword)",
+                entity.text[:50],
+            )
+            filtered.append(entity)
+            continue
+
+        # Rule 3: Filter pure age/temporal thresholds
+        if age_pattern.match(entity.search_term):
+            logger.info(
+                "FILTER: Removed age threshold '%s' (search_term='%s')",
+                entity.text[:50],
+                entity.search_term,
+            )
+            filtered.append(entity)
+            continue
+
+        # Passed all filters
+        medical.append(entity)
+
+    logger.info(
+        "FILTER SUMMARY: %d medical entities, %d filtered out",
+        len(medical),
+        len(filtered),
+    )
+
+    return medical, filtered
+
+
 def _build_grounded_entities(
     extracted: list[ExtractedEntityAction],
     selections: list[GroundingSelection],
@@ -618,9 +690,38 @@ async def _ground_single_criterion(
         }
     )
 
-    # UMLS search + evaluate loop
+    # Filter non-medical entities before UMLS search
+    medical_entities, filtered_entities = _filter_medical_entities(
+        extract_result.entities
+    )
+
+    logger.info(
+        "GROUNDING DEBUG: After filtering - %d medical entities, %d filtered",
+        len(medical_entities),
+        len(filtered_entities),
+    )
+
+    # Create grounded entries for filtered entities (skip UMLS search)
+    filtered_grounded: list[dict[str, Any]] = [
+        {
+            "criteria_id": entity.criterion_id,
+            "text": entity.text,
+            "entity_type": entity.entity_type,
+            "span_start": entity.span_start,
+            "span_end": entity.span_end,
+            "context_window": entity.context_window,
+            "umls_cui": None,
+            "preferred_term": None,
+            "snomed_code": None,
+            "grounding_confidence": 0.0,
+            "grounding_method": "not_medical_entity",
+        }
+        for entity in filtered_entities
+    ]
+
+    # UMLS search + evaluate loop for medical entities only
     grounded = await _run_evaluate_loop(
-        model, system_prompt, extract_result.entities, iteration_history
+        model, system_prompt, medical_entities, iteration_history
     )
 
     if not grounded:
@@ -628,9 +729,10 @@ async def _ground_single_criterion(
             "GROUNDING DEBUG: FALLBACK PATH 3 - Empty grounded_entities "
             "after evaluate loop"
         )
-        grounded = _fallback_from_entities(extract_result.entities)
+        grounded = _fallback_from_entities(medical_entities)
 
-    return grounded
+    # Combine medical + filtered entities
+    return grounded + filtered_grounded
 
 
 async def medgemma_ground_node(
