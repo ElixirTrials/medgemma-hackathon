@@ -59,7 +59,7 @@ def fetch_pdf_bytes(file_uri: str) -> bytes:
         ValueError: If URI scheme is not recognized.
     """
     if file_uri.startswith("local://"):
-        blob_path = file_uri[len("local://"):]
+        blob_path = file_uri[len("local://") :]
         upload_dir = os.environ.get("LOCAL_UPLOAD_DIR", "./uploads")
         local_path = Path(upload_dir) / blob_path
         if not local_path.exists():
@@ -72,7 +72,7 @@ def fetch_pdf_bytes(file_uri: str) -> bytes:
         return local_path.read_bytes()
 
     if file_uri.startswith("gs://"):
-        path_without_scheme = file_uri[len("gs://"):]
+        path_without_scheme = file_uri[len("gs://") :]
         bucket_name, _, blob_name = path_without_scheme.partition("/")
         logger.info(
             "Downloading PDF from GCS: bucket=%s, blob=%s",

@@ -73,9 +73,7 @@ async def test_mcp_concept_linking_returns_cui() -> None:
 
     mcp_client = MultiServerMCPClient(mcp_config)  # type: ignore[arg-type]
     tools = await mcp_client.get_tools()
-    concept_linking_tool = next(
-        (t for t in tools if t.name == "concept_linking"), None
-    )
+    concept_linking_tool = next((t for t in tools if t.name == "concept_linking"), None)
     assert concept_linking_tool is not None, "concept_linking tool not found"
 
     raw_result = await concept_linking_tool.ainvoke(
@@ -105,18 +103,14 @@ async def test_mcp_concept_linking_multiple_terms() -> None:
 
     mcp_client = MultiServerMCPClient(mcp_config)  # type: ignore[arg-type]
     tools = await mcp_client.get_tools()
-    concept_linking_tool = next(
-        (t for t in tools if t.name == "concept_linking"), None
-    )
+    concept_linking_tool = next((t for t in tools if t.name == "concept_linking"), None)
     assert concept_linking_tool is not None
 
     terms = ["osteoarthritis", "Heparin", "diabetes mellitus", "hypertension"]
     successes = 0
 
     for term in terms:
-        raw_result = await concept_linking_tool.ainvoke(
-            {"term": term, "context": ""}
-        )
+        raw_result = await concept_linking_tool.ainvoke({"term": term, "context": ""})
         parsed = _normalize_tool_result(raw_result)
         if parsed.get("cui") is not None:
             successes += 1
@@ -172,9 +166,7 @@ async def test_snomed_lookup_for_known_cui() -> None:
 
     mcp_client = MultiServerMCPClient(mcp_config)  # type: ignore[arg-type]
     tools = await mcp_client.get_tools()
-    concept_linking_tool = next(
-        (t for t in tools if t.name == "concept_linking"), None
-    )
+    concept_linking_tool = next((t for t in tools if t.name == "concept_linking"), None)
     assert concept_linking_tool is not None
 
     raw_result = await concept_linking_tool.ainvoke(
@@ -186,6 +178,4 @@ async def test_snomed_lookup_for_known_cui() -> None:
 
     # Now test SNOMED lookup
     snomed_code = await get_snomed_code_for_cui(cui)
-    assert snomed_code is not None, (
-        f"Expected SNOMED code for CUI {cui}, got None"
-    )
+    assert snomed_code is not None, f"Expected SNOMED code for CUI {cui}, got None"

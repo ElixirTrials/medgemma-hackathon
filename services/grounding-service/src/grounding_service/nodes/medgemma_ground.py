@@ -230,9 +230,7 @@ async def _search_umls_for_entities(
                 }
             )
         except Exception as e:
-            logger.warning(
-                "UMLS search failed for '%s': %s", entity.search_term, e
-            )
+            logger.warning("UMLS search failed for '%s': %s", entity.search_term, e)
             search_results.append(
                 {
                     "entity_text": entity.text,
@@ -302,9 +300,7 @@ def _build_grounded_entities(
 
 
 @vertex_ai_breaker
-async def _invoke_medgemma(
-    model: Any, system_prompt: str, user_prompt: str
-) -> str:
+async def _invoke_medgemma(model: Any, system_prompt: str, user_prompt: str) -> str:
     """Invoke MedGemma and return raw text response."""
     messages = [
         SystemMessage(content=system_prompt),
@@ -382,9 +378,7 @@ async def _run_evaluate_loop(
             max_iterations=MAX_ITERATIONS,
         )
 
-        raw_response = await _invoke_medgemma(
-            model, system_prompt, evaluate_prompt
-        )
+        raw_response = await _invoke_medgemma(model, system_prompt, evaluate_prompt)
 
         try:
             parsed = _parse_json_response(raw_response)
@@ -395,9 +389,7 @@ async def _run_evaluate_loop(
                 iteration,
                 e,
             )
-            iteration_history.append(
-                {"iteration": iteration + 1, "error": str(e)}
-            )
+            iteration_history.append({"iteration": iteration + 1, "error": str(e)})
             break
 
         iteration_history.append(
@@ -410,14 +402,9 @@ async def _run_evaluate_loop(
         )
 
         if action.action_type == "evaluate":
-            return _build_grounded_entities(
-                current_entities, action.selections
-            )
+            return _build_grounded_entities(current_entities, action.selections)
 
-        if (
-            action.action_type == "refine"
-            and iteration < MAX_ITERATIONS - 1
-        ):
+        if action.action_type == "refine" and iteration < MAX_ITERATIONS - 1:
             current_entities = action.entities
             continue
 
@@ -450,9 +437,7 @@ async def medgemma_ground_node(
         criteria_texts = _load_criteria_texts(state["criteria_ids"])
 
         if not criteria_texts:
-            logger.warning(
-                "No criteria found for batch %s", state.get("batch_id")
-            )
+            logger.warning("No criteria found for batch %s", state.get("batch_id"))
             return {"criteria_texts": [], "grounded_entities": []}
 
         model = _get_medgemma_model()
@@ -463,25 +448,17 @@ async def medgemma_ground_node(
         extract_prompt = _render_template(
             "agentic_extract.jinja2", criteria=criteria_texts
         )
-        raw_response = await _invoke_medgemma(
-            model, system_prompt, extract_prompt
-        )
+        raw_response = await _invoke_medgemma(model, system_prompt, extract_prompt)
 
         try:
             parsed = _parse_json_response(raw_response)
             action = AgenticAction.model_validate(parsed)
         except (json.JSONDecodeError, Exception) as e:
-            logger.warning(
-                "Failed to parse MedGemma extract response: %s", e
-            )
+            logger.warning("Failed to parse MedGemma extract response: %s", e)
             return {
                 "criteria_texts": criteria_texts,
-                "grounded_entities": _fallback_entities_for_criteria(
-                    criteria_texts
-                ),
-                "iteration_history": [
-                    {"iteration": 0, "error": str(e)}
-                ],
+                "grounded_entities": _fallback_entities_for_criteria(criteria_texts),
+                "iteration_history": [{"iteration": 0, "error": str(e)}],
             }
 
         iteration_history.append(
@@ -502,8 +479,7 @@ async def medgemma_ground_node(
             all_grounded = _fallback_from_entities(action.entities)
 
         logger.info(
-            "Agentic grounding produced %d entities for batch %s "
-            "(%d iterations)",
+            "Agentic grounding produced %d entities for batch %s (%d iterations)",
             len(all_grounded),
             state.get("batch_id"),
             len(iteration_history),

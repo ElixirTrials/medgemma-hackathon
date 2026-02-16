@@ -22,9 +22,11 @@ class MLflowRequestMiddleware:
     """Pure ASGI middleware that creates MLflow traces for API requests."""
 
     def __init__(self, app: ASGIApp) -> None:
+        """Store the ASGI app to call."""
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Handle request and optionally wrap it in an MLflow span."""
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -62,13 +64,8 @@ class MLflowRequestMiddleware:
                 name=f"{method} {path}",
                 span_type="HTTP",
             ) as span:
-                span.set_inputs(
-                    {
-                        "method": method,
-                        "path": path,
-                        "query": scope.get("query_string", b"").decode("utf-8", errors="replace"),
-                    }
-                )
+                query = scope.get("query_string", b"").decode("utf-8", errors="replace")
+                span.set_inputs({"method": method, "path": path, "query": query})
 
                 app_called = True
                 await self.app(scope, receive, send_wrapper)

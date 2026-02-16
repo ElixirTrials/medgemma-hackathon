@@ -11,7 +11,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from google import genai
 from google.genai import types
@@ -91,7 +91,7 @@ async def _invoke_gemini(
     """
     response = await client.aio.models.generate_content(
         model=model,
-        contents=[uploaded_file, user_prompt],
+        contents=cast(Any, [uploaded_file, user_prompt]),
         config=types.GenerateContentConfig(
             system_instruction=system_prompt,
             response_mime_type="application/json",
@@ -101,10 +101,11 @@ async def _invoke_gemini(
 
     # Return parsed Pydantic model directly
     if response.parsed is not None:
-        return response.parsed
+        return cast(ExtractionResult, response.parsed)
 
     # Fallback to parsing response.text if parsed is None
-    return ExtractionResult.model_validate_json(response.text)
+    text = response.text or ""
+    return ExtractionResult.model_validate_json(text)
 
 
 async def extract_node(state: ExtractionState) -> dict[str, Any]:
@@ -178,11 +179,17 @@ async def extract_node(state: ExtractionState) -> dict[str, Any]:
             try:
                 os.unlink(tmp_path)
             except Exception as cleanup_err:
-                logger.warning("Failed to delete temp file %s: %s", tmp_path, cleanup_err)
+                logger.warning(
+                    "Failed to delete temp file %s: %s", tmp_path, cleanup_err
+                )
 
         # Clean up uploaded file
-        if uploaded_file and client:
+        if uploaded_file and client and uploaded_file.name:
             try:
                 client.files.delete(name=uploaded_file.name)
             except Exception as cleanup_err:
-                logger.warning("Failed to delete uploaded file %s: %s", uploaded_file.name, cleanup_err)
+                logger.warning(
+                    "Failed to delete uploaded file %s: %s",
+                    uploaded_file.name,
+                    cleanup_err,
+                )
