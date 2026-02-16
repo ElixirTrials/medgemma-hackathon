@@ -124,6 +124,12 @@ export interface AuditLogListResponse {
     pages: number;
 }
 
+export interface PendingSummary {
+    pending_batches: number;
+    pending_criteria: number;
+    message: string;
+}
+
 // --- Hooks ---
 
 export function useBatchList(page: number, pageSize: number, status?: string) {
@@ -201,7 +207,8 @@ export function useAuditLog(
     page: number,
     pageSize: number,
     targetType?: string,
-    targetId?: string
+    targetId?: string,
+    batchId?: string
 ) {
     const params = new URLSearchParams({
         page: String(page),
@@ -213,9 +220,20 @@ export function useAuditLog(
     if (targetId) {
         params.set('target_id', targetId);
     }
+    if (batchId) {
+        params.set('batch_id', batchId);
+    }
 
     return useQuery({
-        queryKey: ['audit-log', page, pageSize, targetType, targetId],
+        queryKey: ['audit-log', page, pageSize, targetType, targetId, batchId],
         queryFn: () => fetchApi<AuditLogListResponse>(`/reviews/audit-log?${params.toString()}`),
+    });
+}
+
+export function usePendingSummary() {
+    return useQuery({
+        queryKey: ['pending-summary'],
+        queryFn: () => fetchApi<PendingSummary>('/reviews/pending-summary'),
+        staleTime: 30 * 1000,
     });
 }

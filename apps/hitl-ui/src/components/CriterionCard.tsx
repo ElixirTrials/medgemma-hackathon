@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
+import { CriterionAuditHistory } from './CriterionAuditHistory';
 import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
 import { StructuredFieldEditor } from './structured-editor/StructuredFieldEditor';
 import type {
@@ -594,6 +595,9 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
                     </Button>
                 </div>
             )}
+
+            {/* Audit history section */}
+            <CriterionAuditHistory criterionId={criterion.id} />
         </div>
     );
 }
