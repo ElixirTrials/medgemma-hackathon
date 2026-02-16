@@ -266,8 +266,7 @@ def list_batch_criteria(
             entities_by_criteria[entity.criteria_id].append(entity)
 
     return [
-        _criterion_to_response(c, entities_by_criteria.get(c.id, []))
-        for c in criteria
+        _criterion_to_response(c, entities_by_criteria.get(c.id, [])) for c in criteria
     ]
 
 

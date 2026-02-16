@@ -215,14 +215,15 @@ class TestAgentBValidateCui:
 
         mock_client = MagicMock()
         mock_client.get_concept.return_value = {"result": {"ui": "C0011849"}}
-        mock_client.close = MagicMock()
+        cm = MagicMock()
+        cm.__enter__.return_value = mock_client
+        cm.__exit__.return_value = False
         with patch(
             "grounding_service.umls_client.get_umls_client",
-            return_value=mock_client,
+            return_value=cm,
         ):
             result = await validate_cui("C0011849")
         assert result is True
-        mock_client.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_returns_false_when_cui_not_found(self, monkeypatch) -> None:
@@ -231,14 +232,15 @@ class TestAgentBValidateCui:
 
         mock_client = MagicMock()
         mock_client.get_concept.return_value = None
-        mock_client.close = MagicMock()
+        cm = MagicMock()
+        cm.__enter__.return_value = mock_client
+        cm.__exit__.return_value = False
         with patch(
             "grounding_service.umls_client.get_umls_client",
-            return_value=mock_client,
+            return_value=cm,
         ):
             result = await validate_cui("INVALID")
         assert result is False
-        mock_client.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_empty_cui_returns_false_without_api_call(self, monkeypatch) -> None:
@@ -267,14 +269,15 @@ class TestAgentBGetSnomedCodeForCui:
 
         mock_client = MagicMock()
         mock_client.get_snomed_code.return_value = "73211009"
-        mock_client.close = MagicMock()
+        cm = MagicMock()
+        cm.__enter__.return_value = mock_client
+        cm.__exit__.return_value = False
         with patch(
             "grounding_service.umls_client.get_umls_client",
-            return_value=mock_client,
+            return_value=cm,
         ):
             code = await get_snomed_code_for_cui("C0011849")
         assert code == "73211009"
-        mock_client.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_empty_cui_returns_none(self, monkeypatch) -> None:

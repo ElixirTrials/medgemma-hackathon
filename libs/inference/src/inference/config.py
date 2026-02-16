@@ -66,12 +66,8 @@ class AgentConfig:
             max_new_tokens=max_tokens,
             gcp_project_id=os.getenv("GCP_PROJECT_ID", cls.gcp_project_id),
             gcp_region=os.getenv("GCP_REGION", cls.gcp_region),
-            vertex_endpoint_id=os.getenv(
-                "VERTEX_ENDPOINT_ID", cls.vertex_endpoint_id
-            ),
-            vertex_model_name=os.getenv(
-                "VERTEX_MODEL_NAME", cls.vertex_model_name
-            ),
+            vertex_endpoint_id=os.getenv("VERTEX_ENDPOINT_ID", cls.vertex_endpoint_id),
+            vertex_model_name=os.getenv("VERTEX_MODEL_NAME", cls.vertex_model_name),
             vertex_endpoint_url=os.getenv(
                 "VERTEX_ENDPOINT_URL", cls.vertex_endpoint_url
             ),

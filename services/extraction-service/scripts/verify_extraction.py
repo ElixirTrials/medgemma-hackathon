@@ -1,4 +1,5 @@
-"""One-off script to verify extraction with updated prompts produces numeric_thresholds."""
+"""Verify extraction with updated prompts produces numeric_thresholds."""
+
 import asyncio
 import json
 import os
@@ -6,6 +7,7 @@ import re
 import sys
 import tempfile
 from pathlib import Path
+from typing import Any, cast
 
 # Set DATABASE_URL before any imports that might need it
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
@@ -19,7 +21,8 @@ load_dotenv(Path(__file__).parent.parent.parent.parent / ".env")
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
-async def main():
+async def main() -> None:  # noqa: C901
+    """Find a protocol PDF, run extraction, and print threshold/condition stats."""
     # Find a real protocol PDF (skip test-protocol.pdf which is 0 KB)
     uploads_dir = Path(__file__).parent.parent.parent.parent / "uploads" / "protocols"
     pdf_path = None
@@ -68,7 +71,9 @@ async def main():
         uploaded_file = client.files.upload(file=tmp_path)
 
         # Render prompts directly using Jinja2
-        prompts_dir = Path(__file__).parent.parent / "src" / "extraction_service" / "prompts"
+        prompts_dir = (
+            Path(__file__).parent.parent / "src" / "extraction_service" / "prompts"
+        )
         env = Environment(loader=FileSystemLoader(str(prompts_dir)))
         system_prompt = env.get_template("system.jinja2").render()
         user_prompt = env.get_template("user.jinja2").render(title=pdf_path.stem)
@@ -76,7 +81,7 @@ async def main():
         print(f"Calling Gemini ({model_name})...")
         response = await client.aio.models.generate_content(
             model=model_name,
-            contents=[uploaded_file, user_prompt],
+            contents=cast(Any, [uploaded_file, user_prompt]),
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 response_mime_type="application/json",
@@ -86,53 +91,66 @@ async def main():
 
         # Parse result
         if response.parsed is not None:
-            result = response.parsed
+            result = cast(ExtractionResult, response.parsed)
         else:
-            result = ExtractionResult.model_validate_json(response.text)
+            text = response.text or ""
+            result = ExtractionResult.model_validate_json(text)
 
         # Analyze results
         total = len(result.criteria)
         numeric_pattern = re.compile(
-            r'\d+\.?\d*\s*(year|mg|%|kg|score|mL|mmol|unit|day|week|month|hour|mcg|g/dL|mm)',
+            r"\d+\.?\d*\s*(year|mg|%|kg|score|mL|mmol|unit|day|week|month|hour|mcg|g/dL|mm)",
             re.IGNORECASE,
         )
-        with_numeric_content = [c for c in result.criteria if numeric_pattern.search(c.text)]
+        with_numeric_content = [
+            c for c in result.criteria if numeric_pattern.search(c.text)
+        ]
         with_thresholds = [c for c in result.criteria if c.numeric_thresholds]
         with_temporal = [c for c in result.criteria if c.temporal_constraint]
-        conditional = [c for c in result.criteria if c.assertion_status == "CONDITIONAL"]
+        conditional = [
+            c for c in result.criteria if c.assertion_status == "CONDITIONAL"
+        ]
         with_conditions = [c for c in result.criteria if c.conditions]
 
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print("EXTRACTION RESULTS")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
         print(f"Total criteria extracted:              {total}")
         print(f"Criteria with numeric content:         {len(with_numeric_content)}")
         print(f"Criteria with populated thresholds:    {len(with_thresholds)}")
         if with_numeric_content:
             rate = len(with_thresholds) / len(with_numeric_content) * 100
-            print(f"Threshold population rate:             {rate:.0f}% (of criteria with numeric content)")
+            print(
+                f"Threshold population rate:             {rate:.0f}% "
+                "(of criteria with numeric content)"
+            )
         print(f"Criteria with temporal_constraint:     {len(with_temporal)}")
         print(f"Criteria with CONDITIONAL status:      {len(conditional)}")
         print(f"Criteria with populated conditions:    {len(with_conditions)}")
         if conditional:
             cond_rate = len(with_conditions) / len(conditional) * 100
-            print(f"Conditions population rate:            {cond_rate:.0f}% (of CONDITIONAL criteria)")
+            print(
+                f"Conditions population rate:            {cond_rate:.0f}% "
+                "(of CONDITIONAL criteria)"
+            )
 
         # Show first 5 criteria with thresholds
         if with_thresholds:
-            print(f"\n{'='*60}")
+            print(f"\n{'=' * 60}")
             print("SAMPLE CRITERIA WITH THRESHOLDS (first 5)")
-            print(f"{'='*60}")
+            print(f"{'=' * 60}")
             for c in with_thresholds[:5]:
                 text = c.text[:120] + ("..." if len(c.text) > 120 else "")
                 print(f"\nText: {text}")
-                print(f"  Thresholds: {json.dumps([t.model_dump() for t in c.numeric_thresholds])}")
+                thresh = [t.model_dump() for t in c.numeric_thresholds]
+                print(f"  Thresholds: {json.dumps(thresh)}")
         else:
             print("\nWARNING: No criteria have populated numeric_thresholds!")
 
     except Exception as e:
         print(f"Error: {type(e).__name__}: {e}")
         import traceback
+
         traceback.print_exc()
     finally:
         # Clean up temp file
@@ -143,11 +161,14 @@ async def main():
                 print(f"Warning: Failed to delete temp file {tmp_path}: {cleanup_err}")
 
         # Clean up uploaded file
-        if uploaded_file and client:
+        if uploaded_file and client and uploaded_file.name:
             try:
                 client.files.delete(name=uploaded_file.name)
             except Exception as cleanup_err:
-                print(f"Warning: Failed to delete uploaded file {uploaded_file.name}: {cleanup_err}")
+                print(
+                    f"Warning: Failed to delete uploaded file "
+                    f"{uploaded_file.name}: {cleanup_err}"
+                )
 
 
 if __name__ == "__main__":

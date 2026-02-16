@@ -47,9 +47,7 @@ class GroundingSelection(BaseModel):
     entity_text: str = Field(description="Original entity text")
     entity_type: str = Field(description="Entity type classification")
     selected_cui: str | None = Field(default=None, description="Selected UMLS CUI")
-    preferred_term: str | None = Field(
-        default=None, description="UMLS preferred term"
-    )
+    preferred_term: str | None = Field(default=None, description="UMLS preferred term")
     snomed_code: str | None = Field(default=None, description="SNOMED CT code")
     confidence: float = Field(default=0.0, description="Confidence score 0.0-1.0")
     reasoning: str = Field(default="", description="Why this match was selected")

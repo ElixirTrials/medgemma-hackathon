@@ -2,17 +2,17 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-13)
+See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow -- replacing manual extraction that takes hours per protocol.
-**Current focus:** v1.6 Correction Workflow & Corpus Building — Editor polish + gold-standard corpus for prompt iteration
+**Current focus:** v2.0 Pipeline Consolidation & E2E Quality — Architecture refactor, ToolUniverse grounding, critical bug fixes, editor polish, corpus building
 
 ## Current Position
 
-Phase: 28 (complete)
+Phase: Not started (defining requirements)
 Plan: —
-Status: Phase 28 complete, all v1.5 plans done
-Last activity: 2026-02-13 — Completed quick task 3: Switch PDF extraction to Gemini File API
+Status: Defining requirements
+Last activity: 2026-02-16 — Milestone v2.0 started
 
 ## Performance Metrics
 
@@ -111,7 +111,7 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-13
-Stopped at: Completed quick task 3: Switch PDF extraction to Gemini File API
-Resume file: .planning/quick/3-switch-pdf-extraction-to-gemini-file-api/3-SUMMARY.md
-Next action: Ready for v1.6 planning or next quick task.
+Last session: 2026-02-16
+Stopped at: Starting v2.0 milestone — defining requirements
+Resume file: —
+Next action: Research → Requirements → Roadmap for v2.0
