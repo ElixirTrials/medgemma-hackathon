@@ -34,7 +34,6 @@ from tenacity import (
 )
 
 from grounding_service.schemas.agentic_actions import (
-    AgenticAction,
     ExtractedEntityAction,
     GroundingSelection,
 )
@@ -503,6 +502,10 @@ async def _run_evaluate_loop(
 ) -> list[dict[str, Any]]:
     """Run the UMLS search + MedGemma evaluate loop.
 
+    Uses two-model architecture:
+    1. MedGemma evaluates UMLS candidates (medical reasoning)
+    2. Gemini structures the selections (with_structured_output)
+
     Returns grounded entities list (empty if loop exhausts iterations).
     """
     current_entities = entities
@@ -544,49 +547,21 @@ async def _run_evaluate_loop(
         )
 
         try:
-            parsed = _parse_json_response(raw_response)
-
-            # Handle bare list: MedGemma may return selections as a list
-            if isinstance(parsed, list):
-                parsed = {
-                    "action_type": "evaluate",
-                    "selections": parsed,
-                }
-
-            # Handle misplaced selections in entities array:
-            # MedGemma sometimes puts selection data in "entities" key
-            if isinstance(parsed, dict):
-                entities_data = parsed.get("entities", [])
-                if (
-                    entities_data
-                    and isinstance(entities_data[0], dict)
-                    and "entity_text" in entities_data[0]
-                ):
-                    logger.info(
-                        "GROUNDING DEBUG: Remapping selections from "
-                        "'entities' to 'selections' key"
-                    )
-                    parsed["selections"] = entities_data
-                    parsed["entities"] = []
-                    if parsed.get("action_type") != "evaluate":
-                        parsed["action_type"] = "evaluate"
-
-            action = AgenticAction.model_validate(parsed)
+            # Two-model approach: MedGemma reasons, Gemini structures
+            evaluate_result = _structure_with_gemini(raw_response, EvaluateResult)
 
             logger.info(
-                "GROUNDING DEBUG: Iteration %d - action_type='%s', "
-                "selections=%d, entities=%d",
-                iteration + 1, action.action_type,
-                len(action.selections), len(action.entities)
+                "GROUNDING DEBUG: Iteration %d - Gemini structured %d selections",
+                iteration + 1, len(evaluate_result.selections)
             )
-        except (json.JSONDecodeError, Exception) as e:
+        except Exception as e:
             logger.error(
-                "GROUNDING DEBUG: PARSE FAILURE in evaluate phase "
+                "GROUNDING DEBUG: Gemini structuring FAILURE in evaluate phase "
                 "(iteration %d): %s",
                 iteration + 1, e, exc_info=True
             )
             logger.error(
-                "GROUNDING DEBUG: Full raw response that failed parsing:\n%s",
+                "GROUNDING DEBUG: Full MedGemma evaluate response that failed:\n%s",
                 raw_response
             )
             iteration_history.append({"iteration": iteration + 1, "error": str(e)})
@@ -595,38 +570,31 @@ async def _run_evaluate_loop(
         iteration_history.append(
             {
                 "iteration": iteration + 1,
-                "action_type": action.action_type,
-                "selection_count": len(action.selections),
-                "entity_count": len(action.entities),
+                "selection_count": len(evaluate_result.selections),
             }
         )
 
-        if action.action_type == "evaluate":
+        # If we got selections, we're done
+        if evaluate_result.selections:
             logger.info(
                 "GROUNDING DEBUG: Evaluate loop SUCCESS on iteration %d "
                 "with %d selections",
-                iteration + 1, len(action.selections)
+                iteration + 1, len(evaluate_result.selections)
             )
-            return _build_grounded_entities(current_entities, action.selections)
-
-        if action.action_type == "refine" and iteration < MAX_ITERATIONS - 1:
-            logger.info(
-                "GROUNDING DEBUG: Refining with %d new entities "
-                "for next iteration",
-                len(action.entities)
+            grounded = _build_grounded_entities(
+                current_entities, evaluate_result.selections
             )
-            current_entities = action.entities
-            continue
+            return grounded
 
+        # Empty selections means retry (MedGemma can refine internally via prompt)
         logger.warning(
-            "GROUNDING DEBUG: Evaluate loop exhausted - action_type='%s' "
-            "on final iteration %d",
-            action.action_type, iteration + 1
+            "GROUNDING DEBUG: Iteration %d returned empty selections, "
+            "will retry if iterations remain",
+            iteration + 1
         )
-        break
 
     logger.warning(
-        "GROUNDING DEBUG: Evaluate loop completed without 'evaluate' action"
+        "GROUNDING DEBUG: Evaluate loop completed without valid selections"
     )
     return []
 
