@@ -9,7 +9,12 @@ Extract all medical entities from the following clinical trial eligibility crite
 Respond with a JSON object with action_type="extract" and populate the entities array. For each entity, provide:
 - text: the exact text from the criterion
 - entity_type: one of Condition, Medication, Procedure, Lab_Value, Demographic, Biomarker
-- search_term: the standard medical term to search UMLS (e.g., "acetaminophen" not "Tylenol")
+- search_term: the standard medical term to search UMLS using these guidelines:
+  * Use canonical medical terminology (e.g., "diabetes mellitus type 2" not "patients with diabetes")
+  * Use generic drug names (e.g., "acetaminophen" not "Tylenol 500mg")
+  * Keep search terms to 1-3 words when possible for better matching
+  * Remove qualifiers like "history of", "diagnosed with", "requiring"
+  * Examples: "osteoarthritis" not "OA", "myocardial infarction" not "heart attack", "hepatic cirrhosis" not "liver problems"
 - criterion_id: the id attribute from the criterion XML tag above
 - span_start: character offset where entity starts in the criterion text
 - span_end: character offset where entity ends

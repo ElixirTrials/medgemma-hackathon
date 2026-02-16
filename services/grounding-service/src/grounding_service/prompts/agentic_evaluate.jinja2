@@ -13,8 +13,9 @@ UMLS candidates:
 
 {% endfor %}
 
-Respond with a JSON object. For each entity, select the best matching CUI and SNOMED code.
-If no good match exists, set selected_cui to null and confidence to 0.0.
+Respond with a JSON object. You MUST select the best match from the candidates provided or determine the entity is not medical.
+
+IMPORTANT: Use action_type="evaluate" to finalize your selections. Only use action_type="refine" if you need to try different search terms AND you have not already refined multiple times. For most cases, evaluate with the best available match or confidence=0.0 for non-matches.
 
 ## Handling entities with no UMLS candidates
 
