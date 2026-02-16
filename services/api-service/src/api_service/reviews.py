@@ -130,6 +130,14 @@ class AuditLogListResponse(BaseModel):
     pages: int
 
 
+class PendingSummaryResponse(BaseModel):
+    """Summary of pending review work."""
+
+    pending_batches: int
+    pending_criteria: int
+    message: str
+
+
 # --- Endpoints ---
 
 
@@ -393,32 +401,104 @@ def get_pdf_url(
     return PdfUrlResponse(url=url, expires_in_minutes=60)
 
 
+@router.get("/pending-summary", response_model=PendingSummaryResponse)
+def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse:
+    """Get summary of pending review work.
+
+    Returns counts of batches and criteria needing review.
+    Pending = batches with at least one unreviewed criterion.
+    """
+    # Count criteria where review_status IS NULL in active batches
+    pending_criteria_stmt = (
+        select(func.count())
+        .select_from(Criteria)
+        .join(CriteriaBatch, Criteria.batch_id == CriteriaBatch.id)
+        .where(
+            col(Criteria.review_status).is_(None),
+            CriteriaBatch.status.in_(["pending_review", "in_progress"]),
+        )
+    )
+    pending_criteria = db.exec(pending_criteria_stmt).one()
+
+    # Count distinct batches that have at least one unreviewed criterion
+    pending_batches_stmt = (
+        select(func.count(func.distinct(CriteriaBatch.id)))
+        .select_from(Criteria)
+        .join(CriteriaBatch, Criteria.batch_id == CriteriaBatch.id)
+        .where(
+            col(Criteria.review_status).is_(None),
+            CriteriaBatch.status.in_(["pending_review", "in_progress"]),
+        )
+    )
+    pending_batches = db.exec(pending_batches_stmt).one()
+
+    message = (
+        f"{pending_batches} batch{'es' if pending_batches != 1 else ''} "
+        f"({pending_criteria} criteria) pending review"
+    )
+
+    return PendingSummaryResponse(
+        pending_batches=pending_batches,
+        pending_criteria=pending_criteria,
+        message=message,
+    )
+
+
 @router.get("/audit-log", response_model=AuditLogListResponse)
 def list_audit_log(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     target_type: str | None = Query(default=None),
     target_id: str | None = Query(default=None),
+    batch_id: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> AuditLogListResponse:
     """List audit log entries with pagination and optional filters.
 
-    Supports filtering by target_type and target_id for scoped views.
+    Supports filtering by target_type, target_id, and batch_id.
+    When batch_id is provided, returns audit entries for all criteria
+    in that batch (joins through Criteria table).
     """
     # Build count query
     count_stmt = select(func.count()).select_from(AuditLog)
-    if target_type:
-        count_stmt = count_stmt.where(AuditLog.target_type == target_type)
-    if target_id:
-        count_stmt = count_stmt.where(AuditLog.target_id == target_id)
+
+    if batch_id:
+        # Join AuditLog → Criteria to filter by batch_id
+        count_stmt = (
+            count_stmt
+            .join(Criteria, AuditLog.target_id == Criteria.id)
+            .where(
+                AuditLog.target_type == "criteria",
+                Criteria.batch_id == batch_id
+            )
+        )
+    else:
+        # Existing filters (unchanged for backward compatibility)
+        if target_type:
+            count_stmt = count_stmt.where(AuditLog.target_type == target_type)
+        if target_id:
+            count_stmt = count_stmt.where(AuditLog.target_id == target_id)
+
     total = db.exec(count_stmt).one()
 
-    # Build data query
+    # Build data query (same join logic)
     data_stmt = select(AuditLog)
-    if target_type:
-        data_stmt = data_stmt.where(AuditLog.target_type == target_type)
-    if target_id:
-        data_stmt = data_stmt.where(AuditLog.target_id == target_id)
+
+    if batch_id:
+        data_stmt = (
+            data_stmt
+            .join(Criteria, AuditLog.target_id == Criteria.id)
+            .where(
+                AuditLog.target_type == "criteria",
+                Criteria.batch_id == batch_id
+            )
+        )
+    else:
+        if target_type:
+            data_stmt = data_stmt.where(AuditLog.target_type == target_type)
+        if target_id:
+            data_stmt = data_stmt.where(AuditLog.target_id == target_id)
+
     data_stmt = (
         data_stmt.offset((page - 1) * page_size)
         .limit(page_size)
@@ -509,7 +589,11 @@ def _apply_review_action(  # noqa: C901
 def _update_batch_status(db: Session, batch_id: str) -> None:
     """Update a batch's status based on its criteria review progress.
 
-    Transitions: pending_review -> in_progress -> approved/rejected
+    Transitions:
+    - pending_review -> in_progress (first review submitted)
+    - in_progress -> approved (all criteria reviewed, none rejected)
+    - in_progress -> rejected (all criteria reviewed, any rejected)
+    - in_progress -> reviewed (all criteria reviewed, mixed results)
     """
     batch = db.get(CriteriaBatch, batch_id)
     if not batch:
@@ -528,9 +612,11 @@ def _update_batch_status(db: Session, batch_id: str) -> None:
         )
     ).one()
 
+    # First review submitted: pending_review -> in_progress
     if batch.status == "pending_review" and reviewed_count >= 1:
         batch.status = "in_progress"
 
+    # All criteria reviewed: determine final status
     if reviewed_count == total_count and total_count > 0:
         rejected_count = db.exec(
             select(func.count())
@@ -540,7 +626,23 @@ def _update_batch_status(db: Session, batch_id: str) -> None:
                 Criteria.review_status == "rejected",
             )
         ).one()
-        batch.status = "rejected" if rejected_count > 0 else "approved"
+
+        approved_count = db.exec(
+            select(func.count())
+            .select_from(Criteria)
+            .where(
+                Criteria.batch_id == batch.id,
+                Criteria.review_status == "approved",
+            )
+        ).one()
+
+        # Terminal state transitions
+        if rejected_count > 0:
+            batch.status = "rejected"  # Any rejected = batch rejected
+        elif approved_count == total_count:
+            batch.status = "approved"  # All approved = batch approved
+        else:
+            batch.status = "reviewed"  # Mixed or modified = batch reviewed
 
     db.add(batch)
 
