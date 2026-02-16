@@ -57,6 +57,48 @@ def _build_gemma_prompt(messages: list[Any]) -> str:
     return "\n".join(prompt_parts) + "\n<start_of_turn>model\n"
 
 
+def _strip_model_garden_artifacts(text: str, full_prompt: str) -> str:
+    """Strip echoed prompts, thinking tokens, and prefixes from response."""
+    import re
+
+    # Strip echoed prompt — endpoint may prepend "Prompt:\n" before echo
+    if text.startswith(full_prompt):
+        text = text[len(full_prompt) :].strip()
+    elif text.startswith("Prompt:\n"):
+        after_prefix = text[len("Prompt:\n") :]
+        if after_prefix.startswith(full_prompt):
+            text = after_prefix[len(full_prompt) :].strip()
+        elif "<start_of_turn>model\n" in after_prefix:
+            marker = "<start_of_turn>model\n"
+            idx = after_prefix.rfind(marker)
+            text = after_prefix[idx + len(marker) :].strip()
+    elif "<start_of_turn>model\n" in text:
+        marker = "<start_of_turn>model\n"
+        idx = text.rfind(marker)
+        text = text[idx + len(marker) :].strip()
+
+    # Strip trailing end-of-turn marker
+    if text.endswith("<end_of_turn>"):
+        text = text[: -len("<end_of_turn>")].strip()
+
+    # Strip "Output:" prefix (common Model Garden echo artifact)
+    if text.startswith("Output:"):
+        text = text[len("Output:") :].strip()
+
+    # Strip MedGemma chain-of-thought tokens
+    if "<unused95>" in text:
+        text = text.split("<unused95>", 1)[1].strip()
+    elif "<unused94>" in text:
+        text = re.sub(
+            r"<unused94>thought.*?(?=```|\{|\[)",
+            "",
+            text,
+            flags=re.DOTALL,
+        ).strip()
+
+    return text
+
+
 def _is_retryable_error(exception: BaseException) -> bool:
     """Check if an exception is retryable (transient error).
 
@@ -145,7 +187,7 @@ class ModelGardenChatModel(BaseChatModel):
     endpoint_resource_name: str
     project: str
     location: str
-    max_output_tokens: int = Field(default=512)
+    max_output_tokens: int = Field(default=8192)
 
     def _generate(
         self,
@@ -208,8 +250,7 @@ class ModelGardenChatModel(BaseChatModel):
             raise
 
         text = response.predictions[0]
-        if text.startswith(full_prompt):
-            text = text[len(full_prompt) :].strip()
+        text = _strip_model_garden_artifacts(text, full_prompt)
 
         message = AIMessage(content=text)
         generation = ChatGeneration(message=message)

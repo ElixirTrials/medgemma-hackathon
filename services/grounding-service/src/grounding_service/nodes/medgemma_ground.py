@@ -63,8 +63,13 @@ def _render_template(template_name: str, **kwargs: Any) -> str:
     return template.render(**kwargs)
 
 
-def _parse_json_response(text: str) -> dict[str, Any]:
-    """Parse JSON from MedGemma response, handling markdown fences and extra text."""
+def _parse_json_response(text: str) -> dict[str, Any] | list[Any]:
+    """Parse JSON from MedGemma response, handling markdown fences and extra text.
+
+    Returns a dict or list depending on what MedGemma returned.
+    """
+    import re
+
     text = text.strip()
 
     # Strip markdown code fences if present
@@ -81,21 +86,29 @@ def _parse_json_response(text: str) -> dict[str, Any]:
     try:
         return json.loads(text)
     except json.JSONDecodeError:
-        # Fallback: try to extract JSON object using regex
-        # Look for {...} pattern (handles leading/trailing explanatory text)
-        import re
-        json_match = re.search(r'\{(?:[^{}]|(?:\{[^{}]*\}))*\}', text, re.DOTALL)
-        if json_match:
-            try:
-                return json.loads(json_match.group(0))
-            except json.JSONDecodeError:
-                pass
+        pass
 
-        # If all else fails, raise the original error with helpful context
-        raise json.JSONDecodeError(
-            f"Could not parse JSON from response. Text preview: {text[:200]}...",
-            text, 0
-        )
+    # Fallback: try to extract JSON array [...] (MedGemma often returns bare arrays)
+    array_match = re.search(r'\[[\s\S]*\]', text)
+    if array_match:
+        try:
+            return json.loads(array_match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    # Fallback: try to extract JSON object {...}
+    obj_match = re.search(r'\{[\s\S]*\}', text)
+    if obj_match:
+        try:
+            return json.loads(obj_match.group(0))
+        except json.JSONDecodeError:
+            pass
+
+    # If all else fails, raise with helpful context
+    raise json.JSONDecodeError(
+        f"Could not parse JSON from response. Text preview: {text[:200]}...",
+        text, 0
+    )
 
 
 def _load_criteria_texts(criteria_ids: list[str]) -> list[dict[str, Any]]:
@@ -473,6 +486,32 @@ async def _run_evaluate_loop(
 
         try:
             parsed = _parse_json_response(raw_response)
+
+            # Handle bare list: MedGemma may return selections as a list
+            if isinstance(parsed, list):
+                parsed = {
+                    "action_type": "evaluate",
+                    "selections": parsed,
+                }
+
+            # Handle misplaced selections in entities array:
+            # MedGemma sometimes puts selection data in "entities" key
+            if isinstance(parsed, dict):
+                entities_data = parsed.get("entities", [])
+                if (
+                    entities_data
+                    and isinstance(entities_data[0], dict)
+                    and "entity_text" in entities_data[0]
+                ):
+                    logger.info(
+                        "GROUNDING DEBUG: Remapping selections from "
+                        "'entities' to 'selections' key"
+                    )
+                    parsed["selections"] = entities_data
+                    parsed["entities"] = []
+                    if parsed.get("action_type") != "evaluate":
+                        parsed["action_type"] = "evaluate"
+
             action = AgenticAction.model_validate(parsed)
 
             logger.info(
@@ -533,6 +572,90 @@ async def _run_evaluate_loop(
     return []
 
 
+async def _ground_single_criterion(
+    model: Any,
+    system_prompt: str,
+    criteria_texts: list[dict[str, Any]],
+    iteration_history: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Extract and ground entities for a single criterion batch."""
+    extract_prompt = _render_template(
+        "agentic_extract.jinja2", criteria=criteria_texts
+    )
+
+    logger.debug(
+        "GROUNDING DEBUG: Extract prompt length: %d chars for %d criteria",
+        len(extract_prompt), len(criteria_texts)
+    )
+
+    raw_response = await _invoke_medgemma(model, system_prompt, extract_prompt)
+
+    logger.info(
+        "GROUNDING DEBUG: MedGemma extract response (first 300 chars): %s",
+        raw_response[:300]
+    )
+
+    try:
+        parsed = _parse_json_response(raw_response)
+
+        # Handle bare entity list: MedGemma sometimes returns [{...}, ...]
+        if isinstance(parsed, list):
+            logger.info(
+                "GROUNDING DEBUG: MedGemma returned bare entity list "
+                "(%d items), wrapping as AgenticAction",
+                len(parsed),
+            )
+            parsed = {"action_type": "extract", "entities": parsed}
+
+        action = AgenticAction.model_validate(parsed)
+
+        logger.info(
+            "GROUNDING DEBUG: Extracted %d entities (action_type='%s')",
+            len(action.entities), action.action_type
+        )
+
+        for idx, entity in enumerate(action.entities, 1):
+            logger.debug(
+                "GROUNDING DEBUG: Extracted entity %d: text='%s', "
+                "type=%s, search_term='%s', criterion_id=%s",
+                idx, entity.text[:50], entity.entity_type,
+                entity.search_term, entity.criterion_id
+            )
+    except (json.JSONDecodeError, Exception) as e:
+        logger.error(
+            "GROUNDING DEBUG: PARSE FAILURE in extract phase: %s",
+            e, exc_info=True
+        )
+        logger.error(
+            "GROUNDING DEBUG: Full MedGemma extract response that "
+            "failed parsing:\n%s",
+            raw_response
+        )
+        return _fallback_entities_for_criteria(criteria_texts)
+
+    iteration_history.append(
+        {
+            "iteration": 0,
+            "action_type": action.action_type,
+            "entity_count": len(action.entities),
+        }
+    )
+
+    # UMLS search + evaluate loop
+    grounded = await _run_evaluate_loop(
+        model, system_prompt, action.entities, iteration_history
+    )
+
+    if not grounded:
+        logger.warning(
+            "GROUNDING DEBUG: FALLBACK PATH 3 - Empty grounded_entities "
+            "after evaluate loop"
+        )
+        grounded = _fallback_from_entities(action.entities)
+
+    return grounded
+
+
 async def medgemma_ground_node(
     state: GroundingState,
 ) -> dict[str, Any]:
@@ -575,76 +698,29 @@ async def medgemma_ground_node(
         system_prompt = _render_template("agentic_system.jinja2")
         iteration_history: list[dict[str, Any]] = []
 
-        # Step 1: Extract entities
-        extract_prompt = _render_template(
-            "agentic_extract.jinja2", criteria=criteria_texts
-        )
+        # Process criteria individually to avoid output truncation.
+        # MedGemma's chain-of-thought consumes most of max_output_tokens,
+        # so batching multiple criteria leads to truncated JSON.
+        all_grounded: list[dict[str, Any]] = []
 
-        logger.debug(
-            "GROUNDING DEBUG: Extract prompt length: %d chars for %d criteria",
-            len(extract_prompt), len(criteria_texts)
-        )
-
-        raw_response = await _invoke_medgemma(model, system_prompt, extract_prompt)
-
-        logger.info(
-            "GROUNDING DEBUG: MedGemma extract response (first 300 chars): %s",
-            raw_response[:300]
-        )
-
-        try:
-            parsed = _parse_json_response(raw_response)
-            action = AgenticAction.model_validate(parsed)
-
+        for ci, ct in enumerate(criteria_texts):
             logger.info(
-                "GROUNDING DEBUG: Extracted %d entities (action_type='%s')",
-                len(action.entities), action.action_type
+                "GROUNDING DEBUG: Processing criterion %d/%d (id=%s)",
+                ci + 1, len(criteria_texts), ct["id"][:12]
             )
 
-            # Log each extracted entity
-            for idx, entity in enumerate(action.entities, 1):
-                logger.debug(
-                    "GROUNDING DEBUG: Extracted entity %d: text='%s', "
-                    "type=%s, search_term='%s', criterion_id=%s",
-                    idx, entity.text[:50], entity.entity_type,
-                    entity.search_term, entity.criterion_id
-                )
-        except (json.JSONDecodeError, Exception) as e:
-            logger.error(
-                "GROUNDING DEBUG: PARSE FAILURE in extract phase: %s",
-                e, exc_info=True
+            grounded = await _ground_single_criterion(
+                model, system_prompt, [ct], iteration_history
             )
-            logger.error(
-                "GROUNDING DEBUG: Full MedGemma extract response that "
-                "failed parsing:\n%s",
-                raw_response
-            )
-            return {
-                "criteria_texts": criteria_texts,
-                "grounded_entities": _fallback_entities_for_criteria(criteria_texts),
-                "iteration_history": [{"iteration": 0, "error": str(e)}],
-            }
+            all_grounded.extend(grounded)
 
-        iteration_history.append(
-            {
-                "iteration": 0,
-                "action_type": action.action_type,
-                "entity_count": len(action.entities),
-            }
-        )
-
-        # Step 2-3: UMLS search + evaluate loop
-        all_grounded = await _run_evaluate_loop(
-            model, system_prompt, action.entities, iteration_history
-        )
-
-        # Fallback if loop completed without evaluate
+        # Fallback: if no criteria produced any grounded entities
         if not all_grounded:
             logger.warning(
-                "GROUNDING DEBUG: FALLBACK PATH 3 - Empty grounded_entities "
-                "after evaluate loop"
+                "GROUNDING DEBUG: No entities grounded for any criterion, "
+                "falling back to expert_review for all criteria"
             )
-            all_grounded = _fallback_from_entities(action.entities)
+            all_grounded = _fallback_entities_for_criteria(criteria_texts)
 
         # Final results summary
         zero_conf_count = sum(
