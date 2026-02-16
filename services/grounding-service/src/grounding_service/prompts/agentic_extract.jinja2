@@ -18,6 +18,9 @@ You are a medical reasoning system that extracts ONLY genuinely medical entities
 - Negation frames without medical content: "no history of" (extract the condition being negated, not the frame)
 - Pure temporal expressions: "within 30 days", "prior to randomization", "<72 hours"
 - General capability statements: "able to provide", "willing to participate", "capable of understanding"
+- Clinical statuses/dispositions: "hospitalized", "discharged", "admitted", "outpatient" (these describe care settings, not medical concepts)
+- Test result qualifiers: "PCR positive", "test positive", "seropositive" (extract the TEST itself like "polymerase chain reaction", not the result qualifier)
+- Treatment modifiers without specific therapy: "requiring supplemental oxygen" → extract "oxygen therapy" instead; "on mechanical ventilation" → extract "mechanical ventilation"
 
 **QUALITY DIRECTIVE:** If in doubt whether something is a medical entity that maps to UMLS, DO NOT extract it. Fewer high-quality medical entities are better than many low-quality non-medical extractions.
 
@@ -45,12 +48,15 @@ Provide your medical analysis and reasoning. Identify ONLY genuinely medical ent
 For each entity, include:
 - text: the exact text from the criterion
 - entity_type: one of Condition, Medication, Procedure, Lab_Value, Biomarker
-- search_term: the standard medical term to search UMLS using these guidelines:
-  * Use canonical medical terminology (e.g., "diabetes mellitus type 2" not "patients with diabetes")
-  * Use generic drug names (e.g., "acetaminophen" not "Tylenol 500mg")
-  * Keep search terms to 1-3 words when possible for better matching
-  * Remove qualifiers like "history of", "diagnosed with", "requiring"
-  * Examples: "osteoarthritis" not "OA", "myocardial infarction" not "heart attack", "hepatic cirrhosis" not "liver problems"
+- search_term: the UMLS-optimized search term. This is CRITICAL for grounding success:
+  * Use the EXACT canonical medical term that UMLS would use as a preferred term
+  * Keep to 1-3 words — shorter terms match better in UMLS
+  * Use generic drug names: "acetaminophen" not "Tylenol 500mg"
+  * Remove ALL qualifiers: "history of", "diagnosed with", "requiring", "positive for"
+  * Convert device/equipment names to the UMLS procedure: "high-flow oxygen device" → "high-flow nasal cannula", "ventilator" → "mechanical ventilation"
+  * Convert test results to the test itself: "PCR positive" → "polymerase chain reaction"
+  * Use MeSH-style terms when possible: "COVID-19" or "SARS-CoV-2 infection", "oxygen therapy", "noninvasive ventilation"
+  * Examples: "osteoarthritis" not "OA", "myocardial infarction" not "heart attack", "hepatic cirrhosis" not "liver problems", "oxygen therapy" not "requiring supplemental oxygen", "hospitalization" not "hospitalized"
 - criterion_id: the id attribute from the criterion XML tag above
 - span_start: character offset where entity starts in the criterion text
 - span_end: character offset where entity ends

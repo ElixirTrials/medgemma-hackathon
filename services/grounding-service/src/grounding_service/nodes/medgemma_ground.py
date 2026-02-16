@@ -351,6 +351,15 @@ def _filter_medical_entities(
         "able to",
         "legal age",
         "jurisdiction",
+        "hospitalized",
+        "hospitalization",
+        "admitted",
+        "discharged",
+        "outpatient",
+        "positive",
+        "negative",
+        "seropositive",
+        "seronegative",
     ]
 
     # Age/temporal pattern: pure numbers with time units
@@ -367,9 +376,14 @@ def _filter_medical_entities(
             filtered.append(entity)
             continue
 
-        # Rule 2: Filter non-medical keywords
+        # Rule 2: Filter non-medical keywords (check both text and search_term)
         search_term_lower = entity.search_term.lower()
-        if any(keyword in search_term_lower for keyword in non_medical_keywords):
+        text_lower = entity.text.lower().strip()
+        has_keyword = any(
+            keyword in search_term_lower or keyword == text_lower
+            for keyword in non_medical_keywords
+        )
+        if has_keyword:
             logger.info(
                 "FILTER: Removed non-medical entity '%s' (contains keyword)",
                 entity.text[:50],
