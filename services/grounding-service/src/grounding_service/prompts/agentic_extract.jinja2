@@ -6,7 +6,9 @@ Extract all medical entities from the following clinical trial eligibility crite
 </criterion>
 {% endfor %}
 
-Respond with a JSON object with action_type="extract" and populate the entities array. For each entity, provide:
+Provide your medical analysis and reasoning. Identify entities and suggest UMLS search terms. The output will be structured by a separate model into JSON format.
+
+For each entity, include:
 - text: the exact text from the criterion
 - entity_type: one of Condition, Medication, Procedure, Lab_Value, Demographic, Biomarker
 - search_term: the standard medical term to search UMLS using these guidelines:
