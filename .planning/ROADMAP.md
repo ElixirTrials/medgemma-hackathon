@@ -8,6 +8,7 @@
 - ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
 - ✅ **v1.4 Structured Entity Display & Grounding Fixes** — Phases 17-21 (shipped 2026-02-13)
 - ✅ **v1.5 Structured Criteria Editor** — Phases 22-28 (shipped 2026-02-13)
+- 🚧 **v2.0 Pipeline Consolidation & E2E Quality** — Phases 29-34 (in progress)
 
 ## Phases
 
@@ -254,11 +255,27 @@ Plans:
 
 </details>
 
-## 🚀 v1.4 Structured Entity Display & Grounding Fixes (Current)
+<details>
+<summary>✅ v1.3 Multimodal PDF Extraction (Phase 16) — SHIPPED 2026-02-12</summary>
 
-**Milestone Goal:** Fix the broken UMLS/SNOMED grounding pipeline, make the extraction LLM populate numeric thresholds, and display all structured data (temporal constraints, thresholds, SNOMED/UMLS mappings) in the HITL UI.
+### Phase 16: Multimodal PDF Extraction
+**Goal**: Replace lossy PDF → markdown → Gemini text pipeline with direct PDF → Gemini multimodal input for better extraction quality
+**Depends on**: Nothing (independent optimization)
+**Requirements**: EXT-01, EXT-02, EXT-03, EXT-04, EXT-05, EXT-06
+**Success Criteria** (what must be TRUE):
+  1. Raw PDF bytes sent directly to Gemini as multimodal input (base64 data URI)
+  2. pymupdf4llm markdown conversion removed from extraction pipeline
+  3. Extraction prompt references attached PDF document (no embedded markdown)
+  4. ExtractionResult schema unchanged, downstream components unmodified
+**Plans**: 1 plan
 
-**Investigation (2026-02-12):** Ran 3 protocols (103 criteria, 266 entities). Found: grounding 100% failed (all entities have null CUI/SNOMED), numeric_thresholds never populated (0/103), temporal_constraints exist but not displayed (47/103 have data).
+Plans:
+- [x] 16-01: Replace pymupdf4llm with native Gemini multimodal PDF input
+
+</details>
+
+<details>
+<summary>✅ v1.4 Structured Entity Display & Grounding Fixes (Phases 17-21) — SHIPPED 2026-02-13</summary>
 
 ### Phase 17: Frontend Structured Data Display
 **Goal**: Display temporal constraints, numeric thresholds, and SNOMED/UMLS data that already exists (or will exist after backend fixes) in the HITL review UI
@@ -271,7 +288,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 17-01-PLAN.md — Temporal constraint display, numeric threshold badges, EntityCard SNOMED/UMLS verification
+- [x] 17-01: Temporal constraint display, numeric threshold badges, EntityCard SNOMED/UMLS verification
 
 ### Phase 18: Grounding Pipeline Debug & Fix
 **Goal**: Diagnose and fix the UMLS/SNOMED grounding pipeline so entities get real CUI and SNOMED codes instead of 100% expert_review fallback
@@ -285,7 +302,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 18-01-PLAN.md — Fix MCP tool result parsing, error handling, and SNOMED lookup with integration tests
+- [x] 18-01: Fix MCP tool result parsing, error handling, and SNOMED lookup with integration tests
 
 ### Phase 19: Extraction Structured Output Improvement
 **Goal**: Make Gemini populate numeric_thresholds and conditions fields for criteria that contain numeric values or conditional dependencies
@@ -298,29 +315,27 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 19-01-PLAN.md — Few-shot examples for numeric_thresholds and conditions, enhanced Field descriptions, extraction verification
+- [x] 19-01: Few-shot examples for numeric_thresholds and conditions, enhanced Field descriptions, extraction verification
 
 ### Phase 20: MedGemma Agentic Grounding
 **Goal**: Replace Gemini-based entity extraction + separate UMLS pipeline with MedGemma as an agentic reasoner that iteratively uses UMLS MCP tools to extract, ground, and map entities to UMLS CUI and SNOMED codes
 **Depends on**: Phase 18 (UMLS MCP fixes must be in place)
 **Requirements**: MGR-01, MGR-02, MGR-03, MGR-04
-**Gap Closure**: Closes gaps from v1.4 audit — MedGemma endpoint not wired, entity extraction uses Gemini instead of MedGemma, no iterative refinement
 **Success Criteria** (what must be TRUE):
   1. `ModelGardenChatModel` and `AgentConfig.from_env()` ported from gemma-hackathon to `libs/inference/`, using `VERTEX_ENDPOINT_ID` from `.env` for MedGemma endpoint
   2. Agentic grounding node implements iterative loop: MedGemma extracts entities + suggests UMLS search terms → UMLS MCP `concept_search` returns CUI+SNOMED → MedGemma evaluates results and refines if needed → max 3 iterations
   3. Grounding graph simplified from 4 nodes to 2: `medgemma_ground` (agentic loop) → `validate_confidence`
   4. Common medical terms (acetaminophen, osteoarthritis, Heparin) grounded with CUI + SNOMED via the agentic loop
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [x] 20-01-PLAN.md — Port ModelGardenChatModel and AgentConfig from gemma-hackathon to libs/inference/
-- [x] 20-02-PLAN.md — Agentic grounding node, prompts, schemas, and simplified 2-node graph
+- [x] 20-01: Port ModelGardenChatModel and AgentConfig from gemma-hackathon to libs/inference/
+- [x] 20-02: Agentic grounding node, prompts, schemas, and simplified 2-node graph
 
 ### Phase 21: Upgrade to Gemini 3 Flash
 **Goal**: Upgrade criteria extraction model from gemini-2.5-flash to gemini-3-flash-preview for improved extraction quality
 **Depends on**: Nothing (independent config change)
 **Requirements**: G3F-01, G3F-02
-**Gap Closure**: Closes gap — extraction uses outdated model
 **Success Criteria** (what must be TRUE):
   1. `.env` GEMINI_MODEL_NAME and all hardcoded defaults in `extract.py`, `queue.py` updated to `gemini-3-flash-preview`
   2. Extraction verified working on existing protocol PDF with new model
@@ -329,11 +344,10 @@ Plans:
 Plans:
 - [x] 21-01: Update all gemini-2.5-flash references to gemini-3-flash-preview
 
----
+</details>
 
-## 🚀 v1.5 Structured Criteria Editor (Current)
-
-**Milestone Goal:** Replace display-only structured data with a full Cauldron-style field mapping editor where reviewers can modify entity (SNOMED/UMLS), relation (comparator/operator), and value for each criterion — with UMLS autocomplete, multi-mapping, rationale capture, and evidence linking that scrolls to the source protocol location.
+<details>
+<summary>✅ v1.5 Structured Criteria Editor (Phases 22-28) — SHIPPED 2026-02-13</summary>
 
 ### Phase 22: Backend Data Model + API Extension
 **Goal**: Extend the review action API to accept and persist structured field edits (entity/relation/value) while maintaining backward compatibility with existing text-only reviews
@@ -347,7 +361,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 22-01-PLAN.md — Extend ReviewActionRequest with structured fields, update _apply_review_action, add audit schema_version, integration tests
+- [x] 22-01: Extend ReviewActionRequest with structured fields, update _apply_review_action, add audit schema_version, integration tests
 
 ### Phase 23: Core Structured Editor Component
 **Goal**: Build the StructuredFieldEditor component with entity/relation/value triplet fields, adaptive value input, and form validation — testable in isolation before integration
@@ -361,7 +375,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 23-01-PLAN.md — Types, constants, Radix Select relation dropdown, adaptive ValueInput, and StructuredFieldEditor with react-hook-form state management
+- [x] 23-01: Types, constants, Radix Select relation dropdown, adaptive ValueInput, and StructuredFieldEditor with react-hook-form state management
 
 ### Phase 24: CriterionCard Integration + Review Workflow
 **Goal**: Wire the structured editor into the existing CriterionCard review workflow so reviewers can toggle between text and structured edit modes and save structured edits end-to-end
@@ -375,7 +389,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 24-01-PLAN.md — Toggle UI, StructuredFieldEditor integration, structured save callback, TypeScript type updates
+- [x] 24-01: Toggle UI, StructuredFieldEditor integration, structured save callback, TypeScript type updates
 
 ### Phase 25: UMLS Concept Search Autocomplete
 **Goal**: Replace the plain text entity field with a UMLS/SNOMED autocomplete search that populates CUI, SNOMED code, and preferred term from the existing UMLS MCP server
@@ -387,11 +401,11 @@ Plans:
   3. Search debounced (300ms minimum) with loading indicator, minimum 3 characters
   4. Selecting a UMLS concept populates entity fields (CUI, SNOMED code, preferred term)
   5. UMLS search proxy endpoint available for frontend autocomplete
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 25-01-PLAN.md — Backend UMLS search proxy endpoint (GET /api/umls/search)
-- [ ] 25-02-PLAN.md — Frontend useUmlsSearch hook, UmlsCombobox component, EntityCard integration
+- [x] 25-01: Backend UMLS search proxy endpoint (GET /api/umls/search)
+- [x] 25-02: Frontend useUmlsSearch hook, UmlsCombobox component, EntityCard integration
 
 ### Phase 26: Rationale Capture
 **Goal**: Add optional rationale text capture to the structured editor so modify actions include reviewer reasoning for audit trail compliance
@@ -404,7 +418,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 26-01-PLAN.md — Rationale textarea in modify mode, audit log persistence, cancel state cleanup
+- [x] 26-01: Rationale textarea in modify mode, audit log persistence, cancel state cleanup
 
 ### Phase 27: Multi-Mapping Support
 **Goal**: Enable reviewers to add multiple field mappings to a single criterion for complex criteria with multiple constraints (e.g., "18-65 years AND BMI <30")
@@ -418,7 +432,7 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 27-01-PLAN.md — Multi-mapping useFieldArray UI + backend field_mappings array storage
+- [x] 27-01: Multi-mapping useFieldArray UI + backend field_mappings array storage
 
 ### Phase 28: PDF Scroll-to-Source (Evidence Linking)
 **Goal**: Clicking a criterion scrolls the PDF viewer to the source page and highlights the relevant text, enabling rapid evidence verification during review
@@ -429,11 +443,117 @@ Plans:
   2. Source text highlighted or visually indicated in PDF viewer
   3. Extraction service captures page number for each extracted criterion
   4. Evidence linking degrades gracefully when page data is unavailable
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 28-01-PLAN.md — Backend: page_number in extraction schema, DB model, prompt, queue node, and API response
-- [ ] 28-02-PLAN.md — Frontend: PdfViewer scroll-to-page, CriterionCard click handler, ReviewPage wiring, text highlighting
+- [x] 28-01: Backend: page_number in extraction schema, DB model, prompt, queue node, and API response
+- [x] 28-02: Frontend: PdfViewer scroll-to-page, CriterionCard click handler, ReviewPage wiring, text highlighting
+
+</details>
+
+## 🚧 v2.0 Pipeline Consolidation & E2E Quality (Current)
+
+**Milestone Goal:** Consolidate the extraction and grounding pipeline into a unified architecture, replace UMLS MCP with ToolUniverse scoped grounding, fix all critical E2E bugs (audit trail, grounding confidence, dashboard), improve extraction determinism, and complete the editor polish for real-world corpus building.
+
+**Parallel Execution:** Phases 30 and 31 run in parallel after Phase 29 completes (UI track ‖ Pipeline track).
+
+### Phase 29: Backend Bug Fixes
+**Goal**: Fix critical bugs blocking regulatory compliance and user trust — grounding confidence >0%, visible audit trail, accurate dashboard pending count
+**Depends on**: Nothing (first phase of v2.0, bug fixes before architectural changes)
+**Requirements**: BUGF-01, BUGF-02, BUGF-03
+**Success Criteria** (what must be TRUE):
+  1. Grounding produces real UMLS/SNOMED codes with >0% confidence for at least 50% of extracted entities (debug current 0% confidence issue)
+  2. Audit trail entries are visible on the Review page after approve/reject/modify actions (add batch_id filter to API query)
+  3. Dashboard pending count includes batches with any unreviewed criteria, not just status='pending_review' (criteria-level query)
+**Plans**: 2 plans
+
+Plans:
+- [ ] 29-01-PLAN.md — Fix grounding confidence 0% (BUGF-01): diagnostic logging + root cause fix in MedGemma agentic loop
+- [ ] 29-02-PLAN.md — Audit trail visibility (BUGF-02) + pending count fix (BUGF-03): batch_id filter, inline audit history UI, criteria-level pending count
+
+### Phase 30: UX Polish & Editor Pre-Loading ‖ PARALLEL with Phase 31
+**Goal**: Essential UX improvements for review workflow plus editor pre-loading and read-mode badges — frontend-only work that runs in parallel with backend pipeline consolidation
+**Depends on**: Phase 29 (bug fixes complete; runs parallel with Phase 31)
+**Requirements**: UX-01, UX-02, UX-03, UX-04, EDIT-01, EDIT-02
+**Success Criteria** (what must be TRUE):
+  1. Reviewed criteria have visual distinction from pending criteria via left border color (green for reviewed, yellow for pending)
+  2. Reviewer can provide optional rationale when rejecting or approving criteria (extend existing modify rationale to all actions)
+  3. Reviewer can search/filter criteria by text on the Review page (debounced search input with backend query)
+  4. Criteria sections are sorted with headers (Inclusion first, then Exclusion)
+  5. Saved field_mappings pre-populate the structured editor when entering modify mode (fix buildInitialValues() priority)
+  6. Saved field_mappings are displayed as badges/chips in read mode (outside edit mode) showing entity/relation/value triplets
+**Plans**: TBD
+
+Plans:
+- [ ] 30-01: TBD
+
+### Phase 31: TerminologyRouter & Pipeline Consolidation ‖ PARALLEL with Phase 30
+**Goal**: Build entity-type-aware terminology routing with ToolUniverse API and consolidate extraction+grounding into a unified 5-node LangGraph pipeline — backend work that runs in parallel with frontend UX polish
+**Depends on**: Phase 29 (bug fixes complete; runs parallel with Phase 30)
+**Requirements**: GRND-01, GRND-02, GRND-04, GRND-06, PIPE-01, PIPE-02, PIPE-03
+**Success Criteria** (what must be TRUE):
+  1. TerminologyRouter routes entities to terminology APIs based on entity type (Medication→RxNorm, Condition→ICD-10+SNOMED, Lab→LOINC, Phenotype→HPO)
+  2. UMLS/SNOMED grounding is retained via direct Python import (not MCP subprocess) for unroutable entity types
+  3. ToolUniverse Python API used with selective tool loading (RxNorm, ICD-10, LOINC, HPO, UMLS REST) — not MCP subprocess
+  4. Unroutable entity types (Demographic, Procedure, Biomarker) are explicitly skipped with logging, not silently dropped
+  5. Extraction and grounding run in a flat 5-node LangGraph (ingest→extract→parse→ground→persist) with no outbox hop
+  6. PipelineState TypedDict carries all data through pipeline (PDF bytes, extraction results, entities, grounding results) with no redundant DB reads
+  7. criteria_extracted outbox event is removed; protocol_uploaded outbox is retained for async pipeline trigger
+  8. Ground node delegates to helper functions for entity extraction and terminology routing (not inline logic)
+  9. Pipeline compiles and runs end-to-end on test protocol with mock grounding (verifies state flow before real grounding integration)
+**Plans**: TBD
+
+Plans:
+- [ ] 31-01: TBD
+
+### Phase 32: Entity Model, Ground Node & Multi-Code Display
+**Goal**: Extend Entity model to store multi-system codes, implement ground node with real terminology routing, add pipeline error handling, and display multi-terminology codes in the UI
+**Depends on**: Phase 31 (pipeline skeleton and terminology clients must exist)
+**Requirements**: GRND-03, GRND-05, PIPE-04, EDIT-03
+**Success Criteria** (what must be TRUE):
+  1. Entity model stores multi-system codes (rxnorm_code, icd10_code, loinc_code, hpo_code alongside existing umls_cui and snomed_code)
+  2. Alembic migration adds new code columns with nullable defaults (existing entities unaffected)
+  3. Ground node uses Gemini structured output OR improved MedGemma prompting for entity extraction (research spike determines approach)
+  4. Ground node routes extracted entities to TerminologyRouter and stores results in Entity table with multi-code population
+  5. Pipeline failure at any stage leaves protocol in recoverable state (not stuck in "extracted" forever) via error state tracking
+  6. Failed protocols can be retried via API endpoint without re-upload
+  7. Multi-terminology codes (RxNorm, ICD-10, LOINC, HPO) are visible per entity in the UI as separate badges
+  8. Graceful fallback for missing codes and pre-v1.5 data
+**Plans**: TBD
+
+Plans:
+- [ ] 32-01: TBD
+
+### Phase 33: Re-Extraction Tooling & Review Protection
+**Goal**: Enable re-extraction on existing protocols without re-upload, with review protection to preserve human corrections and determinism improvements for reproducibility
+**Depends on**: Phase 32 (pipeline must be complete for re-extraction)
+**Requirements**: REXT-01, REXT-02, REXT-03, REXT-04
+**Success Criteria** (what must be TRUE):
+  1. Researcher can trigger re-extraction on an existing protocol without re-uploading the PDF (POST /protocols/{id}/reextract endpoint)
+  2. Re-extraction creates a new batch alongside existing batches, not replacing them (preserves history)
+  3. Batches with reviewed criteria are protected via is_locked flag (prevents overwrite, UI shows warning)
+  4. Extraction uses temperature=0 and prompt granularity instructions for improved determinism (seed parameter for best-effort reproducibility)
+  5. Re-extraction UI button in protocol detail page with confirmation modal explaining batch creation
+**Plans**: 2 plans
+
+Plans:
+- [ ] 33-01-PLAN.md — Backend re-extraction endpoint, batch archiving, fuzzy review inheritance, temperature=0
+- [ ] 33-02-PLAN.md — Frontend re-extraction button, confirmation modal, processing states
+
+### Phase 34: Corpus Comparison & Export
+**Goal**: Enable side-by-side diff of AI-extracted vs human-corrected criteria, export reviewed corpus for model evaluation, and display agreement metrics
+**Depends on**: Phase 33 (re-extraction creates multiple batches for comparison)
+**Requirements**: CORP-01, CORP-02, CORP-03
+**Success Criteria** (what must be TRUE):
+  1. Researcher can view side-by-side diff of AI-extracted vs human-corrected criteria (audit log based reconstruction)
+  2. Reviewed criteria can be exported as JSON/CSV corpus with columns: criterion_text, ai_entities (original), human_entities (after review), entity_type, terminology_codes
+  3. Metrics dashboard shows agreement rate and modification frequency by category/entity_type (computed from audit log)
+  4. Batch-level comparison available when multiple batches exist for same protocol (old batch vs new batch after re-extraction)
+  5. Corpus export includes extraction model version and prompt version for traceability
+**Plans**: TBD
+
+Plans:
+- [ ] 34-01: TBD
 
 ---
 
@@ -451,7 +571,6 @@ Plans:
   3. Artifact Registry repository for Docker images exists and accepts image pushes from authenticated clients
   4. Four IAM service accounts (api-service, extraction-service, grounding-service, hitl-ui) are created with predefined roles (cloudsql.client, secretmanager.secretAccessor) assigned
   5. Terraform uses region variable pattern (single source of truth for us-central1) preventing VPC connector region mismatches
-
 **Plans**: 1 plan
 
 Plans:
@@ -467,7 +586,6 @@ Plans:
   3. Secret Manager stores all sensitive configuration (DATABASE_URL, UMLS_API_KEY, Google OAuth client ID/secret) with service account IAM bindings for secretAccessor role
   4. Build script (`scripts/build-and-push.sh`) builds all 4 Docker images, pushes to Artifact Registry, and captures SHA256 digests for Terraform consumption
   5. Connection pool configuration is documented (pool_size=2, max_overflow=1) and max_connections on Cloud SQL set to 100
-
 **Plans**: 1 plan
 
 Plans:
@@ -483,230 +601,28 @@ Plans:
   3. Autoscaling is configured with max_instances=10 per service to prevent connection pool exhaustion (40 instances total vs 100 Cloud SQL connections with pool_size=2+max_overflow=1=3 per instance)
   4. `.env.example` documents every required variable with descriptions and example values, and `terraform.tfvars.example` provides template for all Terraform input variables including image digests
   5. `infra/terraform/README.md` provides complete deployment guide with prerequisites, step-by-step instructions, troubleshooting section, and verification checklist
-
 **Plans**: 1 plan
 
 Plans:
 - [ ] 15-01: TBD
 
-<details>
-<summary>✅ v1.3 Multimodal PDF Extraction (Phase 16) — SHIPPED 2026-02-12</summary>
-
-- [x] Phase 16: Multimodal PDF Extraction (1/1 plans) — completed 2026-02-12
-
-See `.planning/milestones/v1.3-ROADMAP.md` for full details.
-
-</details>
-
-## Requirement Coverage
-
-### v1.0 Requirements (22 total - all shipped)
-
-| Requirement | Phase | Description |
-|-------------|-------|-------------|
-| REQ-01.1 | Phase 1 | PostgreSQL Database with SQLModel ORM |
-| REQ-01.2 | Phase 1 | Event System with Transactional Outbox |
-| REQ-01.3 | Phase 1 | Docker Compose Local Development |
-| REQ-02.1 | Phase 2 | Protocol PDF Upload via GCS |
-| REQ-02.2 | Phase 2 | Protocol List & Detail Views |
-| REQ-02.3 | Phase 2 | PDF Quality Detection |
-| REQ-03.1 | Phase 3 | Gemini-Based Criteria Extraction |
-| REQ-03.2 | Phase 3 | PDF Parsing with pymupdf4llm |
-| REQ-03.3 | Phase 3 | Structured Criteria Schema |
-| REQ-03.4 | Phase 3 | Extraction Event Publishing |
-| REQ-04.1 | Phase 4 | Criteria Review UI |
-| REQ-04.2 | Phase 4 | Side-by-Side PDF Viewer |
-| REQ-04.3 | Phase 4 | Confidence Score Display |
-| REQ-04.4 | Phase 4 | Audit Logging |
-| REQ-05.1 | Phase 5 | MedGemma Entity Extraction |
-| REQ-05.2 | Phase 5 | UMLS/SNOMED Grounding via MCP |
-| REQ-05.3 | Phase 5 | Grounding Workflow as LangGraph |
-| REQ-05.4 | Phase 6 | Entity Approval UI |
-| REQ-06.1 | Phase 6 | Google OAuth Authentication |
-| REQ-07.1 | Phase 6 | Full-Text Search Over Criteria |
-| REQ-08.1 | Phase 7 | Retry Logic with Exponential Backoff |
-| REQ-08.2 | Phase 7 | Pipeline Success Rate Target |
-
-### v1.1 Requirements (17 total - 12 shipped, 5 paused)
-
-| Requirement | Phase | Description | Status |
-|-------------|-------|-------------|--------|
-| INFRA-01 | Phase 8 | MkDocs native Mermaid.js via superfences | Shipped |
-| INFRA-02 | Phase 8 | mkdocs.yml navigation with 6 sections | Shipped |
-| INFRA-03 | Phase 8 | Strict mode build with zero warnings | Shipped |
-| ARCH-01 | Phase 9 | C4 Container diagram | Shipped |
-| ARCH-02 | Phase 9 | Service communication wiring diagram | Shipped |
-| DATA-01 | Phase 9 | Database schema documentation | Shipped |
-| DATA-02 | Phase 9 | LangGraph state documentation | Shipped |
-| JOUR-01 | Phase 10 | Upload & Extraction narrative | Shipped |
-| JOUR-02 | Phase 10 | Grounding & HITL Review narrative | Shipped |
-| COMP-01 | Phase 11 | api-service component deep dive | Paused |
-| COMP-02 | Phase 11 | extraction-service component deep dive | Paused |
-| COMP-03 | Phase 11 | grounding-service component deep dive | Paused |
-| COMP-04 | Phase 11 | hitl-ui component deep dive | Paused |
-| STAT-01 | Phase 12 | Feature status table | Paused |
-| STAT-02 | Phase 12 | Test coverage analysis | Paused |
-| TOUR-01 | Phase 12 | Code tour with 5+ slides | Paused |
-| TOUR-02 | Phase 12 | Code tour slide structure | Paused |
-
-### v1.2 Requirements (15 total - all mapped)
-
-| Requirement | Phase | Description |
-|-------------|-------|-------------|
-| TF-01 | Phase 13 | Terraform init and apply from infra/terraform/ |
-| TF-02 | Phase 13 | GCS backend with state locking |
-| TF-03 | Phase 15 | Reusable Cloud Run service modules |
-| CR-01 | Phase 15 | Deploy 4 services to Cloud Run Gen 2 |
-| CR-02 | Phase 15 | Health check startup probes on /health |
-| CR-03 | Phase 15 | Autoscaling with max_instances limits |
-| DB-01 | Phase 14 | Cloud SQL PostgreSQL 16 private IP |
-| DB-02 | Phase 14 | VPC Serverless Connector for private access |
-| SEC-01 | Phase 14 | Secret Manager for credentials |
-| SEC-02 | Phase 13 | IAM service accounts with least privilege |
-| REG-01 | Phase 13 | Artifact Registry repository |
-| REG-02 | Phase 14 | Build and push script for container images |
-| CFG-01 | Phase 15 | .env.example with all variables documented |
-| CFG-02 | Phase 15 | terraform.tfvars.example template |
-| CFG-03 | Phase 15 | infra/terraform/README.md deployment guide |
-
-**Coverage: 15/15 v1.2 requirements mapped. No orphans.**
-
-### v1.3 Requirements (6 total - all shipped)
-
-| Requirement | Phase | Description | Status |
-|-------------|-------|-------------|--------|
-| EXT-01 | Phase 16 | Raw PDF bytes to Gemini as multimodal input | Shipped |
-| EXT-02 | Phase 16 | ingest_node fetches bytes without markdown conversion | Shipped |
-| EXT-03 | Phase 16 | extract_node sends PDF as multimodal content part | Shipped |
-| EXT-04 | Phase 16 | Prompt references attached PDF | Shipped |
-| EXT-05 | Phase 16 | ExtractionResult schema unchanged | Shipped |
-| EXT-06 | Phase 16 | Upload, dead letter, error handling preserved | Shipped |
-
-**Coverage: 6/6 v1.3 requirements shipped. No orphans.**
-
-### v1.4 Requirements (16 total - all mapped)
-
-| Requirement | Phase | Description |
-|-------------|-------|-------------|
-| FE-01 | Phase 17 | CriterionCard displays temporal_constraint |
-| FE-02 | Phase 17 | CriterionCard displays numeric_thresholds |
-| FE-03 | Phase 17 | EntityCard SNOMED/UMLS display verified |
-| GRD-01 | Phase 18 | Diagnose MCP concept_linking failure |
-| GRD-02 | Phase 18 | Fix ground_to_umls for common terms |
-| GRD-03 | Phase 18 | Fix map_to_snomed for entities with CUI |
-| GRD-04 | Phase 18 | >50% entities grounded after fix |
-| EXT-01 | Phase 19 | Few-shot examples for numeric_thresholds |
-| EXT-02 | Phase 19 | Populated numeric_thresholds on re-extraction |
-| EXT-03 | Phase 19 | Few-shot examples for conditions |
-| MGR-01 | Phase 20 | MedGemma Vertex endpoint via ModelGardenChatModel |
-| MGR-02 | Phase 20 | Agentic grounding loop with iterative UMLS MCP refinement |
-| MGR-03 | Phase 20 | concept_search for both CUI and SNOMED (replaces map_to_snomed) |
-| MGR-04 | Phase 20 | Simplified grounding graph (3 nodes → 1 agentic + validate) |
-| G3F-01 | Phase 21 | Criteria extraction uses gemini-3-flash-preview |
-| G3F-02 | Phase 21 | Extraction verified with new model |
-
-**Coverage: 16/16 v1.4 requirements mapped. No orphans.**
-
-### v1.5 Requirements (27 total - all mapped)
-
-| Requirement | Phase | Description |
-|-------------|-------|-------------|
-| API-01 | Phase 22 | ReviewActionRequest accepts modified_structured_fields |
-| API-02 | Phase 22 | _apply_review_action() handles structured field updates |
-| API-03 | Phase 22 | Audit log captures before/after for structured changes |
-| API-04 | Phase 25 | UMLS search proxy endpoint for frontend autocomplete |
-| EDIT-01 | Phase 24 | Toggle between text edit and structured edit modes |
-| EDIT-02 | Phase 23 | Structured editor displays entity/relation/value triplets |
-| EDIT-03 | Phase 23 | Relation dropdown with full operator set |
-| EDIT-04 | Phase 23 | Adaptive value input based on relation type |
-| EDIT-05 | Phase 24 | Save structured edits via existing modify workflow |
-| EDIT-06 | Phase 24 | Structured edits persist and display after refresh |
-| EDIT-07 | Phase 22 | Pre-v1.5 text-only reviews display correctly |
-| UMLS-01 | Phase 25 | Entity field autocomplete via UMLS MCP concept_search |
-| UMLS-02 | Phase 25 | Autocomplete shows preferred term + CUI + semantic type |
-| UMLS-03 | Phase 25 | Search debounced 300ms with loading indicator |
-| UMLS-04 | Phase 25 | Minimum 3 characters before search triggers |
-| UMLS-05 | Phase 25 | Selecting concept populates CUI, SNOMED, preferred term |
-| MULTI-01 | Phase 27 | Add multiple field mappings to a criterion |
-| MULTI-02 | Phase 27 | Remove individual field mappings |
-| MULTI-03 | Phase 27 | Each mapping has independent entity/relation/value |
-| MULTI-04 | Phase 27 | Backend stores array of field mappings per criterion |
-| RATL-01 | Phase 26 | Rationale text field for modify actions |
-| RATL-02 | Phase 26 | Rationale persisted in audit log |
-| RATL-03 | Phase 26 | Cancel clears rationale with form state |
-| EVID-01 | Phase 28 | Click criterion scrolls PDF to source page |
-| EVID-02 | Phase 28 | Source text highlighted in PDF viewer |
-| EVID-03 | Phase 28 | Extraction captures page number per criterion |
-| EVID-04 | Phase 28 | Evidence linking degrades gracefully without page data |
-
-**Coverage: 27/27 v1.5 requirements mapped. No orphans.**
+---
 
 ## Dependency Graph
 
-### v1.0 (Shipped)
+### v2.0 (Current)
 ```
-Phase 1 (Infrastructure)
-    |
-Phase 2 (Protocol Upload)
-    |
-Phase 3 (Extraction) --------+
-    |                         |
-Phase 4 (HITL Review)    Phase 5 (Grounding)*
-    |                         |
-    +-------+-----------------+
-            |
-    Phase 6 (Entity Approval + Auth + Search)
-            |
-    Phase 7 (Production Hardening)
+Phase 29 (Backend Bug Fixes)
+    ├── Phase 30 (UX Polish & Editor Pre-Loading)    ── PARALLEL
+    └── Phase 31 (TerminologyRouter & Pipeline)      ── PARALLEL
+                └── Phase 32 (Entity Model, Ground Node & Multi-Code Display)
+                        └── Phase 33 (Re-Extraction & Review Protection)
+                                └── Phase 34 (Corpus Comparison & Export)
 ```
 
-### v1.1 (Documentation Site - Paused)
-```
-Phase 8 (Documentation Foundation)
-    |
-Phase 9 (Architecture & Data Models)
-    |
-Phase 10 (User Journey Narratives)
-    |
-Phase 11 (Component Deep Dives) [PAUSED]
-    |
-Phase 12 (Implementation Status & Code Tour) [PAUSED]
-```
+Waves: 29 → [30 ‖ 31] → 32 → 33 → 34
 
-### v1.4 (Structured Entity Display & Grounding Fixes - Current)
-```
-Phase 17 (Frontend Structured Data Display)
-Phase 18 (Grounding Pipeline Debug & Fix) ---+
-Phase 19 (Extraction Structured Output)      |
-                                              |
-Phase 20 (MedGemma Agentic Grounding) -------+ (depends on 18)
-Phase 21 (Gemini 3 Flash Upgrade)
-```
-(17, 18, 19, 21 are independent; 20 depends on 18)
-
-### v1.5 (Structured Criteria Editor - Current)
-```
-Phase 22 (Backend API Extension)
-    |
-Phase 23 (Core Structured Editor) --------+
-    |                                      |
-Phase 24 (CriterionCard Integration) Phase 25 (UMLS Autocomplete)
-    |         |
-    |    Phase 26 (Rationale)
-    |    Phase 27 (Multi-Mapping)
-    |
-Phase 28 (Evidence Linking)
-```
-(22 → 23 → 24 sequential; 25 parallel with 24; 26, 27, 28 depend on 24)
-
-### v1.2 (GCP Cloud Run Deployment - Paused)
-```
-Phase 13 (Terraform Foundation)
-    |
-Phase 14 (Cloud SQL, Networking & Container Registry)
-    |
-Phase 15 (Cloud Run Deployment & Documentation)
-```
+---
 
 ## Progress
 
@@ -717,6 +633,7 @@ Phase 15 (Cloud Run Deployment & Documentation)
 - v1.3: 16
 - v1.4: 17 + 18 + 19 (parallel) → 20 (after 18) + 21 (independent)
 - v1.5: 22 → 23 → 24 + 25 (parallel) → 26 + 27 + 28 (after 24)
+- v2.0: 29 → [30 ‖ 31] → 32 → 33 → 34
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -751,3 +668,9 @@ Phase 15 (Cloud Run Deployment & Documentation)
 | 26. Rationale Capture | v1.5 | 1/1 | Complete | 2026-02-13 |
 | 27. Multi-Mapping Support | v1.5 | 1/1 | Complete | 2026-02-13 |
 | 28. PDF Scroll-to-Source (Evidence Linking) | v1.5 | 2/2 | Complete | 2026-02-13 |
+| 29. Backend Bug Fixes | v2.0 | 0/TBD | Not started | - |
+| 30. UX Polish & Editor Pre-Loading | v2.0 | 0/TBD | Not started | - |
+| 31. TerminologyRouter & Pipeline Consolidation | v2.0 | 0/TBD | Not started | - |
+| 32. Entity Model, Ground Node & Multi-Code Display | v2.0 | 0/TBD | Not started | - |
+| 33. Re-Extraction Tooling & Review Protection | v2.0 | 0/TBD | Not started | - |
+| 34. Corpus Comparison & Export | v2.0 | 0/TBD | Not started | - |
