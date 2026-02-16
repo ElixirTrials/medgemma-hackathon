@@ -1,370 +1,351 @@
 # Project Research Summary
 
-**Project:** v1.5 Structured Criteria Editor with Evidence Linking
-**Domain:** Clinical trial HITL review system enhancement
-**Researched:** 2026-02-13
+**Project:** Clinical Trial Criteria Extraction Pipeline - v2.0 Consolidation & Multi-Terminology Grounding
+**Domain:** Clinical trial criteria extraction with human-in-the-loop review
+**Researched:** 2026-02-16
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The v1.5 milestone extends the existing HITL review system with structured field mapping capabilities inspired by Cauldron's progressive disclosure pattern. This is a form complexity upgrade: moving from simple text editing to entity-relation-value triplets with UMLS grounding, adaptive value inputs (single/range/temporal), and PDF evidence linking. The existing stack (React 18 + Vite, Tailwind, Radix UI, TanStack Query, react-hook-form, react-pdf) requires ZERO new dependencies—all capabilities are achievable with current packages.
+This system extracts structured eligibility criteria from clinical trial protocol PDFs using Gemini for extraction and MedGemma for entity grounding, then routes them through a human review interface. Current architecture splits extraction and grounding into two separate LangGraph services connected via outbox events, adding 2-5s latency and complexity with zero operational benefit (both run in the same process). Research confirms that **consolidation into a single 5-node pipeline** (ingest → extract → parse → ground → persist) eliminates the false microservice boundary while preserving all functionality.
 
-The recommended approach follows existing architecture patterns: extend ReviewActionRequest with `modified_structured_fields`, replace CriterionCard's simple textarea with a StructuredFieldEditor component using React Hook Form's useReducer + useFieldArray pattern, and add imperative scroll methods to PdfViewer using react-pdf's text layer APIs. This is NOT a greenfield feature—it's an inline enhancement to the existing review workflow, maintaining backward compatibility with v1.4 text-only reviews.
+The current UMLS-only grounding (SNOMED search via MCP subprocess) produces 0% confidence for all entities due to subprocess lifecycle failures and MedGemma 4b-it JSON parsing issues. Research identifies **entity-type-aware routing via direct API clients** (RxNorm for medications, ICD-10 for conditions, LOINC for lab tests, HPO for phenotypes) as the proven pattern used by commercial systems. ToolUniverse wraps these APIs but adds unnecessary complexity; building thin HTTP clients (50-100 lines each) provides better control and eliminates subprocess overhead. The hybrid approach (ToolUniverse tools for 60-70% of entities, UMLS for the rest) offers immediate improvements while maintaining coverage.
 
-The primary risk is form state explosion (10+ fields with nested structures) leading to synchronization bugs. Mitigation: use useReducer with discriminated action types rather than multiple useState hooks, implement proper state cleanup when relation changes (range → equals should clear min/max fields), and validate form state at each step. Secondary risks include PDF scroll coordinate mismatches (mitigated by storing page_number + coordinates during extraction), UMLS autocomplete network waterfalls (mitigated by 300ms debouncing + AbortController), and backwards compatibility issues (mitigated by dual-write pattern with schema versioning).
+Key risks center on data integrity during consolidation: removing the outbox without replacing its retry mechanism creates a data loss window, and re-extraction without review protection destroys human corrections. The research identifies 10 critical pitfalls with proven mitigation strategies, including transactional pipeline execution, per-entity grounding (not batch-level fallback), and JSONB schema versioning to prevent frontend crashes on old data.
 
 ## Key Findings
 
 ### Recommended Stack
 
-**ZERO new npm packages required.** The existing stack fully supports all v1.5 capabilities. Three new features need implementation strategies using current dependencies:
+**Core insight:** The existing stack is sound. All required packages (google-genai, langgraph, pydantic) are already installed. The consolidation requires ZERO new major dependencies—just thin HTTP clients for terminology APIs.
 
-**Core technologies (already installed):**
-- **react-hook-form 7.55.0**: Form state management with useFieldArray for dynamic threshold arrays — handles nested structures with validation
-- **cmdk 1.1.1 + @radix-ui/react-popover 1.1.6**: UMLS autocomplete UI — cmdk provides command palette functionality, Radix Popover positions dropdown
-- **react-pdf 10.3.0**: PDF scroll-to-source via imperative refs — text layer already rendered, use `scrollIntoView()` + `customTextRenderer` for highlights
-- **@radix-ui/react-select 2.1.6**: Relation/comparator dropdowns — accessible, keyboard navigable, already integrated with react-hook-form Controller pattern
-- **lucide-react 0.487.0**: Icons for UI affordances (CheckCircle, Clock, Hash, etc.)
+**Core technologies:**
+- **google-genai (>=1.55.0)** — Structured output for extraction AND entity extraction (move from MedGemma to Gemini for entity extraction to fix JSON parse failures)
+- **langgraph (>=1.0.6)** — Flat graph consolidation pattern; subgraphs add unnecessary state transformation overhead for this sequential pipeline
+- **RxNorm/LOINC/ICD-10/HPO direct API clients** — Entity-type-aware grounding; thin HTTP clients (not ToolUniverse MCP) eliminate subprocess overhead while accessing the same NLM APIs
+- **Existing UMLS client (direct import, not MCP)** — Keep for Procedure/Biomarker grounding where ToolUniverse lacks coverage
 
-**Implementation patterns:**
-- PDF scroll-to-source: DOM refs + `document.querySelector('[data-page-number="${page}"]')` + native `scrollIntoView()` API
-- UMLS autocomplete: TanStack Query hook `useUmlsSearch(query)` calling existing UMLS MCP + cmdk Command.Input with debounced onValueChange
-- Adaptive forms: react-hook-form `useWatch` to subscribe to relation field changes, conditional rendering of value inputs
+**Critical recommendation:** Use Gemini with structured output for entity extraction (not MedGemma). MedGemma 4b-it lacks structured output support, causing the JSON parse failures that produce 0% confidence. Entity extraction is structured information extraction (identify spans, classify types), not medical reasoning—Gemini handles this well with proper prompts.
+
+**What NOT to add:**
+- ToolUniverse as runtime dependency (research toolkit with 211+ tools, not production-ready)
+- MCP subprocess for grounding (5-15s startup overhead per batch)
+- New LLM libraries (existing models cover all needs)
 
 ### Expected Features
 
-**Must have (table stakes) — v1.5 launch:**
-- Entity → Relation → Value triplet editing — Standard EAV pattern expected in clinical data capture systems
-- UMLS/SNOMED concept search with autocomplete — Medical terminology editors require semantic search (SNOMED CT saves 18% keystrokes)
-- Adaptive value input (single/range/temporal) — Relation type dictates input structure; prevents data entry errors
-- Rationale text field for audit trail — 21 CFR Part 11 compliance requires timestamp + user + reason for all changes
-- Multi-mapping support (add/remove) — Complex criteria often have multiple constraints (e.g., "18-65 years AND BMI <30")
-- Read-only display of existing structured fields — Already implemented (temporal_constraint, numeric_thresholds badges in CriterionCard)
+Research categorizes features across 10 target areas. Priorities derived from user expectations, regulatory requirements (21 CFR Part 11), and corpus-building workflows.
 
-**Should have (competitive advantage) — v1.6:**
-- Evidence linking: click criterion → scroll PDF to source — Regulatory audit requirement; competitors require manual navigation
-- AI-assisted field pre-population from selected text — AI coding platforms show 30-70% FTE reduction
-- Inline UMLS validation feedback — Real-time validation against UMLS API prevents invalid codes in database
-- Visual confidence indicators on AI suggestions — Explainable AI standard for 2026 medical coding compliance
+**Must have (table stakes):**
+- Fix grounding confidence (currently 0% for all entities) — regulatory blocker
+- Dashboard pending count includes in-progress batches — users miss work
+- Audit trail visibility — regulatory requirement
+- Re-extraction preserves reviewed criteria — corpus quality depends on this
+- Entity-type-aware terminology routing — medications to RxNorm, conditions to ICD-10, labs to LOINC
+- Rationale prompt on reject actions — regulatory requirement
+
+**Should have (competitive differentiators):**
+- Merged extraction+grounding graph — eliminates 2-5s latency, simplifies debugging
+- Multi-code resolution per entity — RxNorm + SNOMED + ICD-10 for interoperability
+- Corpus export with AI vs human diff view — core value proposition for model evaluation
+- Editor pre-loading from saved field_mappings — prevents data loss during editing
+- Extraction determinism (temperature=0 + seed) — reproducibility for evaluation
 
 **Defer (v2+):**
-- Interactive SNOMED hierarchy browser — UMLS MCP doesn't provide hierarchy; autocomplete sufficient for v1
-- Undo/redo for edit sessions — Nice to have but not blocking (add if user testing shows frequent mistakes)
-- Batch operations with audit trail — Complex coordination; validate single-item workflow first
+- Inter-annotator agreement tracking — needs dual-review workflow
+- Selective per-criterion re-extraction — complex; batch-level sufficient for MVP
+- HPO phenotype grounding — valuable for oncology but only ~10% of entities
+- Pipeline consolidation into one Python package — keep packages separate, share graph
+
+**Anti-features identified:**
+- Fully merging extraction-service and grounding-service Python packages (destroys separation of concerns)
+- Real-time streaming extraction progress (Gemini structured output isn't streamable)
+- Auto-save structured edits on blur (pollutes audit trail)
+- Required rationale for approve actions (kills throughput)
 
 ### Architecture Approach
 
-The structured field mapping editor integrates as an inline enhancement to the existing ReviewPage → CriterionCard → review action flow. No new API endpoints or database tables required—extend ReviewActionRequest with `modified_structured_fields` (optional JSON field), update `_apply_review_action()` to handle structured updates, and use existing JSONB columns (temporal_constraint, numeric_thresholds, conditions) for storage. Frontend state management uses React Hook Form for complex nested forms, TanStack Query for server sync (no new Zustand store needed), and prop-driven PDF highlighting (no global state).
+**Decision: Single protocol-processor-service with flat 5-node graph.** The current two-service split provides zero decoupling value—both import the same DB engine, run in the same process, and the outbox between them is an intra-process message that adds 1-3 seconds and failure modes.
+
+**Consolidated graph structure:**
+```
+START → ingest → extract → parse → ground → persist → END
+```
 
 **Major components:**
-1. **StructuredFieldEditor** — Replaces simple textarea in CriterionCard edit mode; uses useReducer + useFieldArray for threshold arrays; renders sub-components (TemporalConstraintFields, NumericThresholdsFields, ConditionsFields)
-2. **CriterionCard (extended)** — Adds edit mode toggle (text vs structured); handles structured save callback; passes criterion data to editor
-3. **PdfViewer (enhanced)** — Adds imperative `scrollToText(page, startChar, endChar)` method using DOM refs; highlights text via customTextRenderer prop
-4. **UMLS autocomplete integration** — TanStack Query hook `useUmlsSearch()` proxies to existing UMLS MCP; UI uses cmdk + Radix Popover for dropdown
+1. **ingest/extract/parse nodes** — Move unchanged from extraction-service; Gemini File API structured extraction
+2. **ground node** — NEW; merges queue persistence + entity extraction + terminology routing; replaces both queue_node and medgemma_ground_node
+3. **persist node** — Adapted from validate_confidence_node; Entity validation/persistence, batch status updates
+4. **TerminologyRouter** — Entity-type-aware dispatch to RxNorm/LOINC/ICD-10/HPO/UMLS; thin HTTP clients (50-100 lines each)
+5. **Unified PipelineState** — Single TypedDict with extraction + grounding fields; eliminates state duplication and redundant DB reads
+
+**Critical architectural insight:** The ground node must persist criteria BEFORE entity extraction because criteria IDs are needed for entity-criteria linkage. Current architecture handles this via outbox (queue_node persists, outbox fires, grounding loads). Consolidated architecture handles it within a single node.
+
+**Outbox pattern fate:**
+- KEEP protocol_uploaded outbox (bridges user HTTP upload to async pipeline)
+- REMOVE criteria_extracted outbox (no longer needed; grounding is in-graph)
+- KEEP entities_grounded outbox (optional; for future downstream consumers)
+
+**Integration strategy for ToolUniverse:**
+Complement UMLS, don't replace. Build entity-type routing layer:
+- Medication → RxNorm API (primary) + UMLS SNOMED (secondary)
+- Condition → UMLS SNOMED (primary) + ICD-10 (secondary)
+- Lab_Value → LOINC API (primary) + UMLS SNOMED (secondary)
+- Procedure → UMLS SNOMED only (ToolUniverse lacks procedure tool)
+- Demographic → ICD-10 for age/gender codes
+- Biomarker → UMLS SNOMED (primary) + HPO (secondary)
+
+**Data flow changes:**
+- Current: 3 outbox events (protocol_uploaded, criteria_extracted, entities_grounded), redundant DB read (grounding re-loads criteria), 2-3s latency overhead
+- Proposed: 1 required outbox event (protocol_uploaded), 1 optional (entities_grounded), zero redundant reads, ~0s overhead
 
 ### Critical Pitfalls
 
-1. **Form State Explosion** — Multiple useState hooks for nested field mappings (entity/relation/value/unit/min/max) lead to synchronization bugs (relation changes from "=" to "range" but min/max fields don't initialize). Prevention: Use useReducer with discriminated action types; single state shape for all mappings; explicit state transitions (EDIT_RELATION clears value fields).
+Research identified 10 critical pitfalls with proven mitigation strategies. Top 5 for roadmap planning:
 
-2. **PDF Scroll Coordinate Mismatch** — Click criterion → PDF scrolls to wrong page/location because extraction stores text spans without page numbers, and developers use HTML scrollTop instead of PDF page-level coordinates. Prevention: Store page_number + page_coordinates during extraction; use react-pdf's page-aware scroll APIs; test with multi-page PDFs, zoom, multi-column layouts.
+1. **Outbox removal creates silent data loss window** — Removing the criteria_extracted outbox without replacing its atomicity guarantee creates a window where criteria persist but grounding never runs. **Mitigation:** Wrap entire pipeline (extract + ground + persist) in single transaction that only commits when ALL steps succeed, OR keep lightweight "grounding_needed" recovery mechanism.
 
-3. **UMLS Autocomplete Network Waterfall** — User types "acet..." → 6 sequential API calls (one per keystroke) → results arrive out-of-order → UI shows stale results. Prevention: Debounce 300ms + AbortController for in-flight requests + TanStack Query cache (staleTime: 5min) + no search for queries <3 chars.
+2. **ToolUniverse MCP subprocess lifecycle causes grounding timeouts** — Each grounding call spawning new subprocess adds 5-15s startup overhead and creates zombie processes (same failure mode producing current 0% confidence). **Mitigation:** Use direct Python API clients (not MCP subprocess), OR run ToolUniverse as long-lived sidecar in docker-compose.
 
-4. **Backwards Compatibility Explosion** — Existing reviews have modified_text/modified_type/modified_category; new system adds modified_field_mappings; old reviews crash in new UI expecting field_mappings but finding null. Prevention: Dual-write pattern (write both formats); add review_format_version field; UI checks version to decide which editor to show; audit logs include schema_version.
+3. **Entity type mismatch between extraction and tool routing** — Extraction outputs `Condition`, `Medication`, `Lab_Value`, but ToolUniverse expects `DISEASE`, `MEDICATION`, `LAB_TEST`. Unmapped types silently dropped. **Mitigation:** Define canonical entity type mapping upfront; add explicit "unroutable" handling with logging.
 
-5. **Progressive Disclosure State Leak** — User selects "age" entity → "range" relation → enters min=18/max=65 → changes relation to ">=" → step 3 still shows min/max fields instead of single value field → saves invalid data. Prevention: Reducer with state transitions; discriminated unions (StandardValue vs RangeValue vs TemporalValue); relation change action explicitly clears value-related fields.
+4. **Dashboard pending count semantic confusion** — Dashboard shows "0 Pending" when batches exist with unreviewed criteria because it only counts `status='pending_review'` (transitions to `in_progress` after first review). **Mitigation:** Query batches with ANY unreviewed criteria (criteria-level check, not batch-level).
+
+5. **Re-extraction without review protection destroys gold-standard data** — Running re-extraction creates new CriteriaBatch without checking if existing batch has reviews; human corrections become invisible. **Mitigation:** Add `is_locked` flag to batches with reviews; implement "diff view" showing old (reviewed) vs new (re-extracted) criteria side-by-side.
+
+**Other critical pitfalls:**
+- Audit trail entries created but invisible due to query scope mismatch (missing batch_id filter)
+- Gemini extraction non-determinism undermines corpus comparison (add granularity instructions to prompt)
+- JSONB schema evolution breaks old criteria on UI load (add schema_version field, run migration)
+- ToolUniverse rate limits cascade across tools (per-tool rate limiting required)
+- Pipeline state schema merge causes type safety regression (use minimal shared state, run mypy --strict)
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure for v1.5 milestone:
+Based on combined research, the recommended phase structure prioritizes **bug fixes first** (grounding, audit, dashboard), then **consolidation with new grounding**, then **corpus tooling**. Pipeline consolidation is deferred to Phase 2 because it requires grounding to work first.
 
-### Phase 1: Backend Data Model + API Extension
-**Rationale:** Foundation must be in place before frontend can submit structured updates. This is low-risk (backward compatible) and unblocks all frontend work.
+### Phase 1: Critical Bug Fixes & UX Polish
+**Rationale:** Fix what's broken before adding complexity. Three critical bugs block regulatory compliance and user trust: 0% grounding confidence, empty audit trail, misleading dashboard pending count. These are LOW-complexity, HIGH-impact fixes.
 
 **Delivers:**
-- ReviewActionRequest extended with optional `modified_structured_fields: Dict[str, Any]` field
-- `_apply_review_action()` updated to handle temporal_constraint, numeric_thresholds, conditions updates
-- Integration tests for structured modify actions
-- Backend deployed (backward compatible—field is optional)
+- Grounding confidence >0% (debug MedGemma JSON parsing, UMLS MCP tool errors)
+- Audit trail visible in Review page (add batch_id filter to API query)
+- Dashboard pending count includes in-progress batches (criteria-level query)
+- Visual distinction for reviewed vs pending criteria (left border colors)
+- Rationale prompt on reject actions (required field in modal)
 
-**Addresses:**
-- Table stakes requirement: ability to persist structured field edits
-- Pitfall 4 (backwards compatibility): Establishes dual-write pattern early
+**Addresses features from FEATURES.md:**
+- Bug fixes: Grounding confidence, audit trail, dashboard pending count
+- UX improvements: Visual distinction, criteria search, sortable columns
+- Rationale: Required for regulatory compliance
 
-**Avoids:**
-- Creating separate endpoint (anti-pattern identified in ARCHITECTURE.md)
-- Breaking existing text-only modify flow
+**Avoids pitfalls:**
+- Dashboard pending count semantic confusion (Pitfall 4)
+- Audit trail entries invisible (Pitfall 5)
 
-**Research flags:** SKIP — Straightforward Pydantic model extension + SQLModel JSONB updates, no complex integration
+**Complexity:** LOW (query changes, UI tweaks, MedGemma debugging)
+**Duration:** 3-5 days
+**Needs research-phase:** NO (all patterns established)
 
 ---
 
-### Phase 2: Core Structured Editor Component
-**Rationale:** Builds the foundational form component with all field types before integrating into review workflow. Allows isolated testing of form state management patterns.
+### Phase 2: Entity-Type-Aware Grounding & Pipeline Consolidation
+**Rationale:** Grounding must work before consolidation makes sense. This phase merges the two biggest architectural changes: direct API grounding (replaces UMLS MCP subprocess) and pipeline consolidation (removes outbox hop). Both address the 0% confidence root cause and eliminate latency.
 
 **Delivers:**
-- StructuredFieldEditor.tsx component with useForm + useFieldArray
-- Sub-components: TemporalConstraintFields, NumericThresholdsFields, ConditionsFields
-- Radix UI Select wrappers for relation/comparator dropdowns
-- Form validation with Zod schema
-- Storybook stories for all field types and states
+- TerminologyRouter with direct API clients (RxNorm, LOINC, ICD-10, HPO, UMLS)
+- Entity-type routing (Medication→RxNorm, Condition→ICD-10, Lab_Value→LOINC, etc.)
+- Consolidated 5-node graph (ingest → extract → parse → ground → persist)
+- Multi-code resolution (store rxnorm_code, icd10_code, loinc_code, hpo_code per entity)
+- Entity model extension with new code fields + Alembic migration
+- Gemini-based entity extraction (replaces MedGemma to fix JSON parse failures)
 
-**Uses:**
-- react-hook-form 7.55.0 (already in package.json)
-- @radix-ui/react-select 2.1.6 (already in package.json)
+**Uses stack elements from STACK.md:**
+- google-genai with structured output for entity extraction
+- langgraph flat graph consolidation
+- Direct HTTP clients for RxNorm/LOINC/ICD-10/HPO APIs
+- Existing UMLS client (direct import, not MCP)
 
-**Implements:**
-- ARCHITECTURE.md "Inline Structured Editor" pattern
-- State management via useReducer to avoid Pitfall 1 (form state explosion)
-- Discriminated unions to avoid Pitfall 5 (state leak between steps)
+**Implements architecture component:**
+- Consolidated PipelineState
+- TerminologyRouter with BaseTerminologyClient interface
+- Ground node combining persistence + grounding
+- Removal of criteria_extracted outbox event
 
-**Avoids:**
-- Using separate useState for each field (documented anti-pattern)
-- Modal/drawer pattern (keeps context visible per ARCHITECTURE.md)
+**Avoids pitfalls:**
+- Outbox removal data loss window (Pitfall 1) — wrap pipeline in single transaction
+- ToolUniverse subprocess lifecycle failures (Pitfall 2) — use direct API clients
+- Entity type mismatch (Pitfall 3) — define canonical mapping upfront
+- Pipeline state type safety regression (Pitfall 10) — minimal shared state, mypy --strict
 
-**Research flags:** SKIP — React Hook Form useFieldArray pattern is well-documented, Radix UI integration is standard
+**Complexity:** HIGH (most complex phase; combines two architectural changes)
+**Duration:** 10-14 days
+**Needs research-phase:** YES — verify RxNorm/LOINC/ICD-10/HPO API response formats via test calls
+
+**Sub-phase breakdown:**
+1. Create protocol-processor skeleton (4-node graph without grounding) — LOW RISK
+2. Build TerminologyRouter + direct API clients — MEDIUM RISK
+3. Implement ground node (persistence + entity extraction + routing) — HIGH RISK
+4. Implement persist node + Entity model migration — MEDIUM RISK
+5. Integration switchover (update api-service imports) — LOW RISK
+6. Cleanup (remove old services) — LOW RISK
 
 ---
 
-### Phase 3: CriterionCard Integration + Review Workflow
-**Rationale:** Wires structured editor into existing review flow with minimal disruption. Enables end-to-end testing of structured modify actions.
+### Phase 3: Editor Pre-Loading & Read-Mode Display
+**Rationale:** With grounding working and multi-system codes stored, surface them in the UI. Editor pre-loading prevents data loss when reviewers navigate away; read-mode display shows entity codes as badges.
 
 **Delivers:**
-- Edit mode toggle in CriterionCard (text vs structured)
-- Conditional rendering: simple textarea OR StructuredFieldEditor
-- handleStructuredSave callback wiring to existing onAction handler
-- TypeScript types updated in useReviews.ts (ReviewActionRequest interface)
-- End-to-end test: edit structured fields → save → verify persistence
+- Saved field_mappings pre-populate structured editor (fix buildInitialValues() priority)
+- Read-mode field_mappings display as badges/chips (entity/relation/value triplets)
+- Multi-terminology codes displayed per entity (RxNorm, ICD-10, LOINC badges)
+- Graceful fallback for unstructured criteria (pre-v1.5 data)
+- Visual distinction between AI-extracted and human-reviewed mappings (schema_version)
 
-**Addresses:**
-- Table stakes: users can edit and save structured fields
-- Extends existing approve/reject/modify workflow (no new actions)
+**Addresses features from FEATURES.md:**
+- Editor pre-loading (table stakes)
+- Read-mode display (table stakes)
+- Multi-code resolution display (differentiator)
 
-**Implements:**
-- ARCHITECTURE.md "Extend Existing Request Model" pattern
-- Integration with existing TanStack Query mutation (useReviewAction)
+**Avoids pitfalls:**
+- JSONB schema evolution breaks old criteria (Pitfall 8) — add schema_version, run migration
 
-**Avoids:**
-- Creating new Zustand store (form state is local per ARCHITECTURE.md)
-
-**Research flags:** SKIP — Follows established CriterionCard edit pattern (text/type/category already implemented)
+**Complexity:** MEDIUM (react-hook-form lifecycle, JSONB schema handling)
+**Duration:** 4-6 days
+**Needs research-phase:** NO (patterns established in CriterionCard.tsx)
 
 ---
 
-### Phase 4: UMLS Concept Search Autocomplete
-**Rationale:** Enhances entity field with semantic search. Dependent on Phase 3 (structured editor must exist). High user value but isolated feature (no dependencies from other phases).
+### Phase 4: Re-Extraction Tooling & Review Protection
+**Rationale:** With grounding stable and editor working, enable re-extraction for prompt iteration. Must implement review protection BEFORE allowing re-extraction on protocols with existing reviews.
 
 **Delivers:**
-- useUmlsSearch TanStack Query hook (debounced, cached)
-- UmlsCombobox component (cmdk + Radix Popover)
-- Entity field replaced with autocomplete in StructuredFieldEditor
-- AbortController for in-flight request cancellation
-- Loading states + error handling
+- POST /protocols/{id}/reextract endpoint (publishes ProtocolUploaded event for existing file_uri)
+- Review protection: is_locked flag on batches with reviewed criteria
+- Re-extraction creates new batch alongside old (not replacing)
+- UI button in protocol detail page with confirmation modal
+- Extraction determinism improvements (temperature=0 + seed + granularity instructions)
 
-**Uses:**
-- cmdk 1.1.1 (already in package.json)
-- @radix-ui/react-popover 1.1.6 (already in package.json)
-- Existing UMLS MCP integration (concept_search tool)
+**Addresses features from FEATURES.md:**
+- Re-extraction tooling (table stakes)
+- Deterministic extraction (table stakes)
+- Review protection (must-have)
 
-**Addresses:**
-- Table stakes: UMLS/SNOMED autocomplete (18% keystroke savings)
-- FEATURES.md differentiator: semantic search vs flat text input
+**Avoids pitfalls:**
+- Re-extraction destroys gold-standard data (Pitfall 7) — is_locked flag + diff view
+- Gemini non-determinism undermines corpus comparison (Pitfall 6) — prompt tightening
 
-**Avoids:**
-- Pitfall 3 (network waterfall): 300ms debounce + AbortController
-- Separate autocomplete library (cmdk already available per STACK.md)
-
-**Research flags:** SKIP — cmdk + Radix Popover pattern documented in shadcn/ui examples, debouncing is standard React pattern
+**Complexity:** MEDIUM (API endpoint + lock mechanism + UI integration)
+**Duration:** 4-6 days
+**Needs research-phase:** NO (patterns established)
 
 ---
 
-### Phase 5: Rationale Capture + Audit Trail Enhancement
-**Rationale:** Compliance requirement for 21 CFR Part 11. Must be tied to review actions but separate feature from field mapping logic.
+### Phase 5: Corpus Comparison & Export
+**Rationale:** With re-extraction working and multiple batches per protocol, build corpus comparison tools for AI evaluation. This is the payoff for all previous work—enabling systematic model improvement.
 
 **Delivers:**
-- Rationale textarea added to StructuredFieldEditor
-- Required validation: can't save modify action without rationale
-- Rationale included in ReviewActionRequest.comment field (or new rationale field)
-- Audit log displays rationale for structured field changes
-- Cancel confirmation dialog when rationale has content
+- Side-by-side diff view: AI extraction vs human correction (audit log based)
+- Batch-level comparison: old batch vs new batch after re-extraction
+- Export reviewed criteria as JSON/CSV corpus (criterion_text, ai_entities, human_entities)
+- Metrics dashboard: agreement rate, modification frequency by category/entity_type
+- Version-tagged corpus snapshots (extraction model version + prompt version)
 
-**Addresses:**
-- Table stakes: 21 CFR Part 11 audit trail requirement (timestamp + user + reason)
-- FEATURES.md compliance requirement
+**Addresses features from FEATURES.md:**
+- Corpus comparison (table stakes)
+- Corpus export (table stakes)
+- Metrics dashboard (differentiator)
 
-**Implements:**
-- Rationale as part of reducer state (not separate useState) to avoid Pitfall 6
+**Avoids pitfalls:**
+- None directly; builds on stable foundation from previous phases
 
-**Avoids:**
-- Rationale orphaned from review action (Pitfall 6)
-
-**Research flags:** SKIP — Simple form field + validation, standard audit trail pattern
-
----
-
-### Phase 6: Multi-Mapping Support (Add/Remove Mappings)
-**Rationale:** Complex criteria often require multiple structured fields (e.g., "18-65 years AND BMI <30"). Builds on Phase 2-5 (editor must work for single mapping first).
-
-**Delivers:**
-- useFieldArray for mappings array (not just thresholds within one mapping)
-- Add/Remove mapping buttons in StructuredFieldEditor
-- Backend handles array of field_mappings in modified_structured_fields
-- UI validation: can't add empty mapping, can't remove last mapping
-- Visual grouping: cards/borders around each mapping
-
-**Addresses:**
-- Table stakes: multi-threshold support for complex criteria
-- FEATURES.md differentiator: granular CDISC export via multiple mappings
-
-**Implements:**
-- react-hook-form useFieldArray at mapping level (nested array)
-
-**Avoids:**
-- Creating separate component for each mapping (use repeater pattern)
-
-**Research flags:** SKIP — useFieldArray is well-documented for nested arrays
-
----
-
-### Phase 7: PDF Scroll-to-Source (Evidence Linking)
-**Rationale:** High-value competitive feature but requires extraction schema updates (page_number, coordinates). Can be added after core editing workflow is validated.
-
-**Delivers:**
-- Extraction schema update: add page_number + source_coordinates to Criterion model
-- Extraction service stores page/coordinates during PDF parsing
-- PdfViewer enhanced with scrollToText(page, startChar, endChar) imperative method
-- CriterionCard criterion text click handler
-- ReviewPage wires highlight prop to PdfViewer
-- Text highlighting via customTextRenderer prop
-
-**Uses:**
-- react-pdf 10.3.0 customTextRenderer (already in package.json)
-- Native scrollIntoView() API
-
-**Addresses:**
-- FEATURES.md differentiator: click criterion → scroll PDF to source
-- Competitive advantage: regulatory audit acceleration
-
-**Avoids:**
-- Pitfall 2 (coordinate mismatch): Store page_number + page-level coordinates, not document offsets
-- react-pdf-highlighter library (heavy dependency per STACK.md anti-patterns)
-
-**Research flags:** REQUIRES RESEARCH — Extraction service needs investigation for how to capture page numbers and bounding boxes during multimodal extraction; coordinate transform logic for react-pdf text layer may need experimentation
-
----
-
-### Phase 8: AI-Assisted Field Suggestions (v1.6 feature, optional)
-**Rationale:** Deferred to v1.6—validates manual workflow first before adding AI assistance. High complexity (MedGemma integration, text selection handling).
-
-**Delivers:**
-- Text selection handler in PdfViewer
-- POST /api/suggest-fields endpoint (MedGemma entity extraction + UMLS MCP)
-- "Suggest Fields" button in StructuredFieldEditor
-- AI suggestion cards with confidence indicators
-- Accept/Modify/Reject actions for suggestions
-
-**Addresses:**
-- FEATURES.md differentiator: AI-assisted field population (30-70% FTE reduction)
-- v1.6 competitive advantage
-
-**Deferred rationale:**
-- Not blocking for v1.5 launch (manual editing is table stakes)
-- Requires text selection UX design
-- MedGemma prompt engineering for entity extraction
-
-**Research flags:** REQUIRES RESEARCH — MedGemma entity extraction prompt design, confidence calibration for medical coding domain
+**Complexity:** MEDIUM-HIGH (audit log diff computation, fuzzy matching for re-extraction comparison)
+**Duration:** 6-8 days
+**Needs research-phase:** NO (corpus export formats are standard JSON/CSV)
 
 ---
 
 ### Phase Ordering Rationale
 
-- **Phase 1 before all**: Backend must accept structured data before frontend can submit it
-- **Phase 2 before 3**: Isolated component development before integration reduces debugging complexity
-- **Phase 3 before 4-6**: Core workflow must work before enhancing with autocomplete, rationale, multi-mapping
-- **Phase 4-6 parallel-friendly**: UMLS autocomplete, rationale, multi-mapping are independent features (can be built simultaneously if resourced)
-- **Phase 7 after 3**: Evidence linking requires extraction schema changes (higher risk); core editing must be validated first
-- **Phase 8 deferred to v1.6**: AI assistance not blocking; manual workflow proven before automating
+**Why bug fixes first:** Grounding confidence 0% is a regulatory blocker. Audit trail empty violates 21 CFR Part 11. Dashboard pending count misleads users. These must be fixed before adding new features.
 
-**Dependency graph:**
-```
-Phase 1 (Backend)
-    ↓
-Phase 2 (Component)
-    ↓
-Phase 3 (Integration) ← MINIMUM VIABLE
-    ↓
-Phase 4, 5, 6 (Enhancements — parallel)
-    ↓
-Phase 7 (Evidence Linking — requires extraction changes)
-    ↓
-Phase 8 (AI Assist — v1.6)
-```
+**Why consolidation in Phase 2 (not Phase 1):** Consolidation requires grounding to work. The current 0% confidence issue must be debugged first to understand whether it's a MedGemma problem, UMLS MCP problem, or both. Once root cause is clear, consolidation can proceed with confidence.
+
+**Why grounding + consolidation together:** Both address the same root cause (subprocess lifecycle failures causing 0% confidence). Fixing grounding with direct API clients naturally eliminates the MCP subprocess, which is 80% of what consolidation does. Doing them separately would mean refactoring the MCP code twice.
+
+**Why editor pre-loading after grounding:** Multi-terminology codes must be stored (Phase 2) before they can be displayed (Phase 3). Editor pre-loading depends on having stable multi-code data to load.
+
+**Why re-extraction after editor:** Re-extraction testing requires a working editor to verify that human corrections are preserved. Can't test review protection without reviews to protect.
+
+**Why corpus comparison last:** Requires multiple extraction batches (re-extraction tooling from Phase 4), audit trail (Phase 1), and working editor (Phase 3). This is the "payoff" phase that depends on everything before it.
 
 ### Research Flags
 
 **Phases needing deeper research during planning:**
-- **Phase 7 (PDF Scroll-to-Source):** Extraction service investigation required—how to capture page numbers and bounding boxes during multimodal extraction? Current extraction returns structured data without coordinates. May need new graph node or modify extract node.
-- **Phase 8 (AI Suggestions):** MedGemma prompt engineering for entity extraction from selected text; confidence calibration for medical coding domain; text selection UX patterns.
+- **Phase 2 (grounding):** Entity-type routing implementation needs test calls to RxNorm/LOINC/ICD-10/HPO APIs to verify response formats. Research confirmed APIs exist and are free, but exact request/response schemas need verification before building clients.
+- **Phase 5 (corpus comparison):** Fuzzy matching algorithm for re-extraction comparison (Levenshtein distance? Embeddings-based similarity?) needs spike to determine best approach.
 
 **Phases with standard patterns (skip research-phase):**
-- **Phase 1:** Pydantic model extension + SQLModel JSONB updates are well-documented
-- **Phase 2:** React Hook Form useFieldArray + Radix UI integration are established patterns with extensive documentation
-- **Phase 3:** Follows existing CriterionCard edit mode pattern (text/type/category already implemented)
-- **Phase 4:** cmdk + Radix Popover autocomplete pattern documented in shadcn/ui examples; UMLS MCP already integrated
-- **Phase 5:** Simple form validation + audit trail enhancement (standard pattern)
-- **Phase 6:** useFieldArray for nested arrays is well-documented in React Hook Form docs
+- **Phase 1 (bug fixes):** Query changes, UI tweaks, MedGemma debugging—all established patterns
+- **Phase 3 (editor):** React-hook-form lifecycle, JSONB schema handling—patterns exist in CriterionCard.tsx
+- **Phase 4 (re-extraction):** API endpoint + outbox event—same pattern as protocol upload
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | All capabilities achievable with existing package.json (verified line-by-line); zero new dependencies required |
-| Features | MEDIUM | WebSearch verification of clinical trial standards, UMLS autocomplete patterns, audit trail requirements; no Context7 or official Cauldron documentation (reference implementation from project context) |
-| Architecture | HIGH | Based on verified existing codebase patterns (CriterionCard edit mode, TanStack Query mutations, react-pdf setup); mature library documentation (React Hook Form, Radix UI) |
-| Pitfalls | HIGH | Derived from React state management best practices, PDF viewer integration gotchas, autocomplete patterns, database migration patterns—all well-documented in community sources |
+| Stack | HIGH | Existing stack is sound; consolidation requires zero new major dependencies; RxNorm/LOINC/ICD-10 APIs verified via official NLM documentation |
+| Features | HIGH | Feature priorities derived from codebase analysis (Dashboard.tsx, reviews.py, CriterionCard.tsx), E2E test report, and regulatory requirements (21 CFR Part 11) |
+| Architecture | HIGH | Consolidation approach verified via codebase analysis (exact file references), LangGraph official docs for flat graph pattern, and transactional outbox pattern literature |
+| Pitfalls | HIGH | All 10 pitfalls derived from codebase analysis (exact line references), E2E test report documenting actual failures, and recovery strategies based on outbox pattern literature |
 
 **Overall confidence:** HIGH
 
+Research based on complete codebase analysis (120+ file references), official documentation (Google GenAI SDK, LangGraph, NLM APIs), E2E test report (13 issues documented 2026-02-13), and established patterns (transactional outbox, JSONB schema evolution).
+
 ### Gaps to Address
 
-- **Extraction schema for evidence linking:** Current multimodal extraction (extraction-service) returns structured data but not page numbers or bounding boxes. Phase 7 planning needs investigation: Can we extract page metadata from LangGraph extraction context? Or add separate PDF text layer parsing step?
+**Gap 1: ToolUniverse tool quality**
+- **Issue:** ToolUniverse documentation confirms RxNorm/ICD-10/LOINC/HPO tools exist, but tool quality/reliability for clinical entity resolution not independently verified.
+- **Resolution:** Build direct API clients instead of depending on ToolUniverse. The underlying NLM APIs are stable and production-ready. ToolUniverse is a research toolkit wrapper.
+- **Phase:** Phase 2 (terminology router); verify API responses during implementation via test calls.
 
-- **UMLS MCP response format:** Assumed UMLS MCP `concept_search` returns `{cui, preferred_term, semantic_types}` but not verified against actual MCP implementation. Phase 4 planning should verify response schema or add mapping layer.
+**Gap 2: Gemini determinism**
+- **Issue:** Gemini does not guarantee deterministic output even with temperature=0 and seed. This is a known limitation (GitHub issue #745).
+- **Resolution:** Accept approximate determinism; design corpus comparison to use fuzzy text matching (80%+ similarity threshold) rather than exact equality.
+- **Phase:** Phase 4 (extraction determinism); add prompt granularity instructions + seed parameter as best-effort mitigation.
 
-- **Backward compatibility strategy validation:** Proposed dual-write pattern (write both modified_text and modified_structured_fields) needs validation with product team—is maintaining text representation of structured fields acceptable? Or should structured edits only write structured data?
+**Gap 3: HPO and LOINC coverage**
+- **Issue:** ToolUniverse documentation confirms HPO tool exists, but no dedicated LOINC tool found (LOINC coverage via NLM Clinical Tables API). HPO tool may only cover phenotype names, not context-aware mapping.
+- **Resolution:** Use NLM Clinical Tables API directly for LOINC (clinicaltables.nlm.nih.gov/api/loinc/v3/search). For HPO, use HPO/Monarch API or fall back to UMLS SNOMED for biomarker entities.
+- **Phase:** Phase 2 (terminology router); verify HPO API response format during implementation.
 
-- **Rationale field location:** Unclear if rationale should use existing ReviewActionRequest.comment field (currently for review-level comments) or new dedicated rationale field. Phase 5 planning should decide based on audit trail requirements.
+**Gap 4: MedGemma vs Gemini for entity extraction**
+- **Issue:** Current system uses MedGemma 4b-it for entity extraction, which lacks structured output support and causes JSON parse failures. Research recommends Gemini for entity extraction, but this changes the model entirely.
+- **Resolution:** Spike during Phase 2: Test Gemini entity extraction with few-shot examples on 3 protocols. Compare entity quality vs MedGemma. If quality is acceptable (>80% entity recall), proceed with Gemini. If not, consider MedGemma 27b (if available on Model Garden) or improve MedGemma 4b-it prompt engineering.
+- **Phase:** Phase 2 (ground node implementation); early spike before committing to Gemini-only approach.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-**From STACK-STRUCTURED-EDITOR.md:**
-- [react-pdf documentation](https://github.com/wojtekmaj/react-pdf) — customTextRenderer for text layer manipulation
-- [cmdk - Fast, unstyled command menu](https://github.com/dip/cmdk) — Command palette library for autocomplete
-- [Radix UI documentation](https://www.radix-ui.com/) — Popover, Select components
-- [React Hook Form documentation](https://react-hook-form.com/) — useFieldArray, useWatch, Controller patterns
-- [shadcn/ui Combobox component](https://ui.shadcn.com/docs/components/radix/combobox) — Reference implementation for cmdk + Radix Popover
-
-**From ARCHITECTURE.md:**
-- [React Hook Form useFieldArray](https://react-hook-form.com/docs/usefieldarray) — Dynamic array management
-- [TanStack Query Documentation](https://tanstack.com/query/latest) — Server state patterns
-- [react-pdf-highlighter-extended GitHub](https://github.com/DanielArnould/react-pdf-highlighter-extended) — PDF highlighting library
-
-**From PITFALLS.md:**
-- [Managing Complex State in React with useReducer](https://www.aleksandrhovhannisyan.com/blog/managing-complex-state-react-usereducer/) — Form state patterns
-- [Debounce Your Search - Atomic Object](https://spin.atomicobject.com/automplete-timing-debouncing/) — Autocomplete best practices
-- [Backward Compatible Database Changes - PlanetScale](https://planetscale.com/blog/backward-compatible-databases-changes) — Migration patterns
+- **Codebase analysis** — 120+ file references verified across services (extraction-service, grounding-service, api-service, hitl-ui) with exact line numbers
+- **E2E test report** — `.planning/research/E2E-REPORT.md` documenting 13 issues from 2026-02-13 testing
+- **Official API documentation** — Google GenAI SDK (structured output, Pydantic integration), NLM RxNorm API, NLM LOINC API, UMLS REST API
+- **LangGraph documentation** — Flat graph pattern, state management, subgraph composition patterns
+- **Regulatory standards** — 21 CFR Part 11 (audit trail requirements for clinical systems)
 
 ### Secondary (MEDIUM confidence)
+- **ToolUniverse documentation** — Harvard Zitnik Lab (zitniklab.hms.harvard.edu/ToolUniverse/), tool categories verified but tool quality not independently tested
+- **ToolUniverse GitHub** — mims-harvard/ToolUniverse repository, RxNorm tool source code verified, HPO/LOINC tool existence confirmed but not tested
+- **Clinical terminology standards** — PMC6115234 (SNOMED/LOINC/RxNorm integration), SNOMED to ICD-10 mapping documentation
+- **Transactional outbox pattern** — microservices.io pattern documentation, AWS prescriptive guidance
 
-**From FEATURES.md:**
-- [CDISC Data Standards](https://www.allucent.com/resources/blog/what-cdisc-and-what-are-cdisc-data-standards) — Clinical trial data standards
-- [21 CFR Part 11 Audit Trail Requirements](https://www.remdavis.com/news/21-cfr-part-11-audit-trail-requirements) — Regulatory compliance
-- [SNOMED CT Saves Keystrokes](https://pmc.ncbi.nlm.nih.gov/articles/PMC3041304/) — Semantic autocompletion benefits
-- [OHDSI ATLAS cohort editor](https://www.nature.com/articles/s41598-023-49560-w) — Reference implementation patterns
-- [Progressive Disclosure - Nielsen Norman Group](https://www.nngroup.com/articles/progressive-disclosure/) — UX pattern
+### Tertiary (LOW confidence)
+- **Gemini non-determinism** — GitHub issue #745 (deprecated-generative-ai-python), community forum discussions; Google does not guarantee determinism
+- **ToolUniverse production readiness** — Research toolkit from Harvard, not production-hardened; dependency footprint analysis shows 211+ tools when only 5-6 needed
 
 ---
-*Research completed: 2026-02-13*
+
+*Research completed: 2026-02-16*
 *Ready for roadmap: YES*
+*Consolidated files: STACK-pipeline-consolidation.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md*

@@ -1,268 +1,284 @@
 # Pitfalls Research
 
-**Domain:** Clinical NLP HITL System - Corpus Building and Editor Polish
-**Researched:** 2026-02-13
-**Confidence:** HIGH
+**Domain:** Clinical Trial Criteria Extraction -- Pipeline Consolidation, ToolUniverse Grounding, and E2E Quality Fixes
+**Researched:** 2026-02-16
+**Confidence:** HIGH (based on codebase analysis, E2E test report, official documentation, and multiple verified sources)
+
+---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Form Pre-loading with react-hook-form useFieldArray - Database ID Conflicts
+### Pitfall 1: Outbox Removal Creates Silent Data Loss Window During Pipeline Consolidation
 
 **What goes wrong:**
-The `useFieldArray` hook generates its own UUID as `id` for each field, which overwrites database IDs when pre-populating from saved data. This breaks the connection between UI state and persisted records, causing update/delete operations to target the wrong records or fail silently.
+Removing the transactional outbox pattern between extraction and grounding (to eliminate 5-15s latency) without replacing its atomicity guarantee creates a window where criteria are persisted but grounding never runs. If the grounding step fails after extraction commits, the protocol lands in "extracted" status permanently -- no outbox event to retry, no mechanism to trigger grounding again.
 
 **Why it happens:**
-Developers assume they can pass database objects directly to `append()` or set as `defaultValues`, but `useFieldArray` mandates using its generated `field.id` (not index) as the React key. When database records have an `id` field, it gets replaced, severing the link to the backend.
+The outbox pattern exists to solve the dual-write problem: extraction writes criteria to the database AND publishes a `CriteriaExtracted` event atomically. Developers see the outbox as "unnecessary complexity for a sequential pipeline" and replace it with a direct function call (`ground_entities()` called after `persist_criteria()`). But if grounding fails after the extraction commit, there is no retry queue. The current outbox processor retries failed events up to 3 times and moves them to dead_letter, giving operators visibility. A direct call just throws an exception that gets caught in the outer handler, and the protocol status may or may not get updated correctly.
 
 **How to avoid:**
-- Store database IDs in a separate field (e.g., `database_id`, `criterion_id`) in the form state, never as `id`
-- Use `field.id` from `useFieldArray` exclusively for React keys
-- Create a mapping layer that translates between `field.id` (UI) and `database_id` (persistence) when submitting
-- When pre-populating, restructure data: `{ database_id: record.id, entity: record.entity, ... }` not `{ id: record.id, ... }`
+- If consolidating to a single graph, wrap the entire pipeline (extract + ground + persist) in a single database transaction that only commits when ALL steps succeed. If grounding fails, the criteria rows roll back too.
+- Alternatively, keep a lightweight event mechanism: after extraction persists and commits, insert a "grounding_needed" row that a background task picks up. This preserves retry semantics without the full outbox machinery.
+- Add a "stuck protocol" detector: query for protocols in "extracted" status for >5 minutes with no corresponding grounding batch, and alert or auto-retry.
+- Never commit extraction results in one transaction and call grounding in a separate transaction without a recovery mechanism between them.
 
 **Warning signs:**
-- Criteria or entities update but appear to create new records instead
-- Delete operations fail with "record not found" errors
-- Form state contains UUIDs that don't match database primary keys
-- Multiple form submissions create duplicate records with different IDs
+- Protocols stuck in "extracted" status indefinitely (never transition to "grounding" or "pending_review")
+- Grounding errors logged but no retry occurs
+- Manual intervention needed to "re-run grounding" on protocols that extracted successfully
+- No dead_letter entries for failed grounding (because the retry mechanism was removed)
 
 **Phase to address:**
-Phase 28-03 (Read Mode Display) and Phase 28-04 (Form Pre-loading from Database)
+Pipeline consolidation phase (first phase of v2.0). Must be resolved BEFORE removing outbox.
 
 ---
 
-### Pitfall 2: Async Data Pre-loading with defaultValues Instead of values
+### Pitfall 2: ToolUniverse MCP Subprocess Lifecycle Management Causes Grounding Timeouts
 
 **What goes wrong:**
-Using `defaultValues` in `useForm()` to populate data fetched asynchronously (from API) only initializes the form on first render. When data arrives after mount, form fields remain empty or stale. Subsequent data changes don't update the form, breaking edit-existing-record workflows.
+ToolUniverse runs as an MCP server via `uvx tooluniverse` subprocess (similar to the current UMLS MCP pattern). Each grounding call spawns a new subprocess, which must bootstrap the entire ToolUniverse runtime (load tool configs, authenticate APIs). This adds 5-15s startup overhead per batch. Worse, if the subprocess crashes or hangs mid-batch, the parent process (LangGraph node) waits until timeout, then falls back to `expert_review` for ALL entities in the batch -- the exact failure mode currently producing 0% confidence.
 
 **Why it happens:**
-`defaultValues` is a one-time initialization prop evaluated at mount. Developers expect it to update when the query resolves, but React Hook Form explicitly ignores later changes to `defaultValues` for performance. The correct pattern (`values` prop or `reset()` method) is less documented and non-obvious.
+The current `medgemma_ground.py` already shows this pattern: `MultiServerMCPClient` creates a new `StdioConnection(command="uv", args=["run", "python", "-m", "umls_mcp_server.server"])` per invocation. Each invocation starts a fresh subprocess. ToolUniverse has even more initialization overhead because it loads 211+ tool configs. Developers assume MCP subprocess management is handled by the framework, but `langchain-mcp-adapters` does not pool or reuse subprocess connections.
 
 **How to avoid:**
-- Use the `values` prop in `useForm()` for data that changes: `useForm({ values: fetchedData })`
-- Alternatively, call `reset(fetchedData)` in a `useEffect` when data loads
-- Never set `defaultValues` to undefined/empty object and expect it to update later
-- Pattern: `useForm({ values: criterion ?? DEFAULT_FIELD_VALUES })`
+- Use ToolUniverse's Python SDK directly (`from tooluniverse import RxNormTool, ICD10Tool`) instead of spawning an MCP subprocess. The MCP layer adds subprocess overhead without benefit when running in the same process.
+- If MCP is required (e.g., for isolation), keep the ToolUniverse MCP server as a long-running sidecar process (like a database), not a per-request subprocess. Configure it in `docker-compose.yml` as a separate service.
+- Implement connection pooling: start the MCP subprocess once in the application lifespan, reuse the connection for all grounding calls.
+- Add explicit timeout handling: if ToolUniverse doesn't respond within 30s, kill the subprocess and retry with a fresh one (max 2 retries before fallback).
+- Never fall back to `expert_review` for the entire batch when only one tool call fails. Ground entities individually so partial success is possible.
 
 **Warning signs:**
-- Form fields are blank when editing existing records
-- Console shows data loaded but form doesn't populate
-- Form only works when creating new records, not editing
-- Refreshing page works, but navigating to edit page doesn't
+- All entities in a batch have 0% confidence and `expert_review` method (current state, inherited from subprocess failures)
+- Grounding latency >30s per batch (subprocess startup dominating)
+- Log messages: "Agentic grounding failed for batch" or "UMLS search failed for" appearing for ALL entities, not just individual failures
+- ToolUniverse MCP subprocess appearing in `ps aux` as zombie/orphan processes
 
 **Phase to address:**
-Phase 28-04 (Form Pre-loading from Database)
+ToolUniverse integration phase. Must be resolved as part of the grounding replacement, not as a follow-up.
 
 ---
 
-### Pitfall 3: JSONB Schema Evolution Without Versioning Strategy
+### Pitfall 3: Entity Type Classification Mismatch Between Extraction and ToolUniverse Routing
 
 **What goes wrong:**
-Field mappings stored in `conditions` JSONB column evolve schema over time (e.g., adding `upper_value` for ranges, adding `field_mappings` array). Old records with schema v1 break when code expects v2 structure, causing runtime errors, data loss on edit, or silent field drops.
+ToolUniverse's scoped routing maps entity types to specific tools (MEDICATION->RxNorm, DISEASE->ICD-10, LAB_TEST->LOINC, PHENOTYPE->HPO). But the extraction pipeline currently classifies entities with a different taxonomy: `Condition`, `Medication`, `Procedure`, `Lab_Value`, `Demographic`, `Biomarker`. If the mapping between extraction entity types and ToolUniverse entity types is wrong or incomplete, entities get routed to the wrong tool or no tool at all. "Biomarker" has no ToolUniverse mapping. "Demographic" (age, sex) doesn't need grounding but might get routed to ICD-10 incorrectly.
 
 **Why it happens:**
-JSONB's schema-less flexibility encourages "just add the field" thinking. Developers update write path with new structure but forget to migrate existing records or add read-time schema adapters. Code assumes latest schema, crashes on old data.
+The extraction entity taxonomy was designed for the UMLS MCP approach (which uses a single concept_search for all entity types). ToolUniverse requires entity-type-aware routing to select the correct tool. Developers port the ToolUniverse integration without updating the extraction schema to match, creating a translation layer that silently drops unmapped types.
 
 **How to avoid:**
-- Add `schema_version` field to every JSONB document: `{ schema_version: "v1.5-multi", field_mappings: [...] }`
-- Write migration scripts when schema changes: convert v1 → v2 in database
-- Add read-time adapter layer that normalizes all versions to latest schema for UI
-- Document schema changes in audit logs so corpus evaluation can account for version differences
-- Never assume field presence; use optional chaining and defaults: `conditions?.field_mappings ?? []`
+- Define a canonical entity type mapping upfront and document it:
+  - `Condition` -> `DISEASE` (ICD10Tool)
+  - `Medication` -> `MEDICATION` (RxNormTool)
+  - `Lab_Value` -> `LAB_TEST` (LOINCTool)
+  - `Biomarker` -> `PHENOTYPE` (HPOTool) or `LAB_TEST` (LOINCTool) depending on context
+  - `Procedure` -> not groundable via ToolUniverse (use SNOMED procedure codes via UMLS fallback or skip)
+  - `Demographic` -> skip grounding (age, sex don't need terminology codes)
+- Add explicit "unroutable" handling: log and tag entities that don't map to any ToolUniverse tool, with `grounding_method: "no_tool_available"` (not `expert_review`, which implies the entity needs human review)
+- Update the extraction schema's `entity_type` enum to align with ToolUniverse categories or add a `tool_route` field
+- Write unit tests: for each entity type in the extraction schema, assert that a ToolUniverse tool mapping exists or the entity is explicitly skipped
 
 **Warning signs:**
-- TypeError: "Cannot read property X of undefined" when loading old criteria
-- Some criteria load correctly, others throw errors (indicates mixed schema versions)
-- Edit-then-save drops fields that were present in original record
-- Corpus evaluation metrics change dramatically after code deployment (schema mismatch)
+- Entity types appearing in the database that have no grounding codes (not because grounding failed, but because no tool was called)
+- High % of entities routed to fallback when they should have been groundable
+- "Procedure" entities always showing `expert_review` even though they are valid medical concepts
+- Logs showing "No mapping for entity type: Biomarker" or similar
 
 **Phase to address:**
-Phase 28-05 (JSONB Migration Strategy) and Phase 29-02 (Corpus Versioning)
+ToolUniverse integration phase. Entity type mapping must be defined BEFORE implementing tool routing.
 
 ---
 
-### Pitfall 4: Re-extraction Overwrites Human Corrections Without Corpus Capture
+### Pitfall 4: Dashboard Pending Count Semantic Confusion Causes Missed Reviews
 
 **What goes wrong:**
-Running extraction on same protocol again (to test prompt improvements) overwrites criteria records that have human corrections, destroying gold-standard data. Corpus building fails because corrected versions are lost before being flagged for corpus inclusion.
+The dashboard shows "0 Pending Reviews" when batches exist with unreviewed criteria. Users stop checking the review queue because the dashboard says there's nothing to review. In reality, 40+ criteria may be waiting. The current code queries for batches with `status === 'pending_review'`, but this status transitions to `in_progress` after the FIRST criterion is reviewed. A batch with 1/41 criteria reviewed shows as "in progress," not "pending."
 
 **Why it happens:**
-Re-extraction logic uses `protocol_id` to find existing batches and replaces criteria in-place to avoid duplicates. But it doesn't distinguish between "AI-only" and "human-reviewed" records. Developers assume re-extraction is safe since "we can always re-review," forgetting that reviews *are the corpus*.
+The batch status state machine has three states relevant to pending work:
+- `pending_review`: no criteria reviewed yet
+- `in_progress`: at least one criterion reviewed, but not all
+- `approved`/`rejected`: all criteria reviewed
+
+The dashboard only counts `pending_review`, so batches with partial reviews are invisible. The `_update_batch_status()` function in `reviews.py` transitions to `in_progress` on the first review, which is correct for batch tracking but wrong for "how many batches need attention."
 
 **How to avoid:**
-- Add `is_locked` flag to criteria that have human reviews (`review_status IS NOT NULL`)
-- Re-extraction creates new batch, never updates criteria with `is_locked = true`
-- Implement "export to corpus" step that copies reviewed criteria to separate `gold_corpus` table before allowing re-extraction
-- Add database constraint: prevent DELETE/UPDATE on criteria if `review_status IS NOT NULL` without explicit `override_lock` flag
-- UI shows clear warning: "5 criteria have reviews. Re-extraction will create new batch, not overwrite."
+- Change dashboard semantics to count batches with ANY unreviewed criteria: query batches where at least one criterion has `review_status IS NULL`
+- Add a dedicated API endpoint: `GET /reviews/pending-count` that returns `{ batches_needing_review: N, total_unreviewed_criteria: M }` using a subquery on criteria
+- Keep the batch status state machine for detailed tracking, but use a separate derived metric for the dashboard
+- Do NOT change batch status semantics (they are correct for their purpose) -- add a new query for the dashboard's purpose
 
 **Warning signs:**
-- Corpus size decreases instead of growing over time
-- Reviewers report "I already corrected this but it's back to the AI version"
-- Audit log shows DELETE followed by INSERT for same criterion text
-- Evaluation metrics can't reproduce because gold data was overwritten
+- Dashboard shows "0 Pending Reviews" when the Review Queue page shows batches with partial progress
+- Users report: "I thought there was nothing to review" when criteria are waiting
+- Batch status is `in_progress` but dashboard counts it as "done"
 
 **Phase to address:**
-Phase 29-01 (Re-extraction Strategy) and Phase 29-02 (Corpus Versioning)
+E2E quality fixes phase. This is a query-only change, no schema migration needed.
 
 ---
 
-### Pitfall 5: PDF Scroll-to-Source Without Fuzzy Text Matching
+### Pitfall 5: Audit Trail Entries Created But Not Visible Due to Query Scope Mismatch
 
 **What goes wrong:**
-`highlightText` prop uses exact string match to find criterion text in PDF. OCR artifacts (extra spaces, line breaks, encoding issues) cause match failures. PDF displays correct page but no highlight, confusing reviewers about evidence location.
+The audit trail shows "No audit entries" after performing review actions. The entries exist in the database (confirmed by `Review` and `AuditLog` records being created in `submit_review_action()`), but the UI query returns empty results. The Review page calls `useAuditLog(1, 20, 'criteria')` which hits `GET /reviews/audit-log?page=1&page_size=20&target_type=criteria`. This query is correct syntactically but may return empty results if the entries are not committed before the query runs, or if there is a filtering mismatch.
 
 **Why it happens:**
-PDFs contain unpredictable whitespace and formatting. Criterion text extracted from `page_number` metadata might say "Age >= 18 years" but PDF has "Age  ≥ 18\nyears" (double space, Unicode ≥, line break). Exact match fails silently.
+Two possible root causes identified from code analysis:
+
+1. **No batch scope**: The audit trail shows ALL entries for `target_type=criteria`, not scoped to the current batch. If the total count is 0 or the entries for this specific batch are buried in pagination, they appear missing. The API has no `batch_id` filter.
+
+2. **Race condition**: The `submit_review_action()` function calls `db.commit()` AFTER `_update_batch_status()` but the audit log query is triggered by the TanStack Query cache invalidation from `onSuccess`. If the invalidation fires before the commit completes, the subsequent GET returns stale data.
 
 **How to avoid:**
-- Normalize both criterion text and PDF text: lowercase, collapse whitespace, normalize Unicode
-- Use fuzzy matching with Levenshtein distance threshold (90% similarity)
-- Fallback strategy: if exact match fails, search ±1 page with fuzzy match
-- Store extraction metadata: `{ text, normalized_text, page_number, bbox }` where `bbox` gives coordinates
-- If using PDF coordinates, prefer bounding box over text search entirely
+- Add `batch_id` query parameter to the audit log API. When provided, filter to audit entries whose `target_id` is in the set of criteria IDs for that batch. The Review page should pass the current `batchId`.
+- Ensure the `onSuccess` callback in `useReviewAction()` triggers cache invalidation after the mutation response is received (which means the server has committed). TanStack Query's `onSuccess` fires after the mutation promise resolves, so the commit should be done. Add a test to verify this.
+- Add an integration test: submit an approve action, then immediately query the audit log for that `target_id`, and assert the entry exists.
 
 **Warning signs:**
-- "Click to view source" navigates to correct page but nothing highlights
-- Works for some criteria, fails for others with similar text (indicates inconsistent formatting)
-- Criteria with special characters (≥, ≤, μ) never highlight
-- Multiline criteria don't highlight but single-line ones do
+- "No audit entries yet" displayed on the Review page after performing actions
+- Audit log API returns entries when queried without filters but returns empty when filtered by `target_type`
+- The `total` count in `AuditLogListResponse` is 0 despite actions being taken
 
 **Phase to address:**
-Phase 28-02 (Evidence Linking - PDF Scroll and Highlight)
+E2E quality fixes phase (Tier 1 critical fix per OPERATIONAL_REVISION_PLAN.md).
 
 ---
 
-### Pitfall 6: Read Mode Display Assumes Structured Fields Exist
+### Pitfall 6: Gemini Extraction Non-Determinism Undermines Corpus Comparison
 
 **What goes wrong:**
-Code renders "read mode" display of field mappings without checking if data is structured. Criteria extracted before structured editing feature was added have `conditions = null` or `conditions = ["if patient is diabetic"]` (string array, not field mappings). Renderer crashes or shows "undefined" everywhere.
+The same protocol PDF produces 35 criteria in one run and 41 in the next. This makes it impossible to compare before/after extraction quality, because the "before" and "after" sets have different cardinalities and different criteria boundaries. Re-extraction tooling (running the pipeline again on the same protocol) cannot produce meaningful diffs when the criteria count itself is unstable.
 
 **Why it happens:**
-Incremental feature development means data has multiple shapes. Old criteria have text-only, new ones have structured fields. Developers test against recent data, miss edge cases of legacy data.
+Gemini's structured output is non-deterministic even at temperature=0. This is a [known issue](https://github.com/google-gemini/deprecated-generative-ai-python/issues/745) -- Gemini 2.5/3 models do not guarantee deterministic output even with fixed seed and temperature=0. The extraction prompt has ambiguous granularity instructions: the model decides whether to split "Participants must not be taking Warfarin, Sulphasalazine, or CYP 3A4 inducers" into 1 criterion or 3. Different runs make different splitting decisions.
 
 **How to avoid:**
-- Always check data shape before rendering: `if (Array.isArray(conditions?.field_mappings))`
-- Add TypeScript type guards: `function isFieldMappings(data): data is { field_mappings: FieldMapping[] }`
-- Fallback to text-only display for unstructured criteria: "Entity: [not structured]"
-- Add "Migrate to Structured" button for old criteria instead of crashing
-- Document data shapes with examples in code comments
+- Add explicit granularity instructions to the extraction prompt: "Each criterion should be one complete eligibility requirement as written in the protocol. Do not split compound criteria that appear as a single numbered item in the source document."
+- Set temperature=0 AND add a seed parameter for reproducibility (acknowledging it is best-effort, not guaranteed)
+- For corpus comparison, use text similarity matching (not strict equality) to pair criteria across runs: compute Levenshtein distance between criteria texts and match pairs above 80% similarity
+- Add a "criteria hash" based on normalized text content to detect when criteria are semantically identical but have different IDs
+- Accept that exact determinism is impossible with current Gemini models and design the corpus comparison workflow to be tolerant of minor variations
 
 **Warning signs:**
-- TypeError when loading old criteria: "Cannot read property 'map' of undefined"
-- Some criteria show structured view, others show blank cards
-- Criteria created before date X always fail to render
-- Console shows data but UI is empty (rendering failed silently)
+- Criteria count varies between runs (>10% difference = prompt ambiguity problem)
+- Corpus comparison script reports "12 unmatched criteria" between runs
+- Re-extraction creates duplicate criteria that are slight rewordings of existing ones
+- Reviewers report: "This criterion was different last time I reviewed it"
 
 **Phase to address:**
-Phase 28-03 (Read Mode Display)
+Extraction determinism phase. Prompt tightening should happen BEFORE re-extraction tooling, because re-extraction tooling relies on stable output.
 
 ---
 
-### Pitfall 7: Corpus Evaluation Without Inter-Annotator Agreement Tracking
+### Pitfall 7: Re-extraction Without Review Protection Destroys Gold-Standard Data
 
 **What goes wrong:**
-Building corpus from single reviewer per criterion produces unreliable gold standard. Evaluation metrics appear good but don't generalize because "gold" data reflects one reviewer's interpretation, which may be inconsistent or idiosyncratic.
+Running re-extraction on an existing protocol creates a new `CriteriaBatch` (the current `queue_node` always creates a new batch), but doesn't check whether the existing batch has human reviews. If the system later deduplicates batches or the UI only shows the latest batch, reviewed criteria from the previous batch become invisible. The human corrections are preserved in the database but are operationally lost.
 
 **Why it happens:**
-Corpus building treats any human review as gold truth. Research shows inter-annotator agreement (IAA) is critical for clinical NLP but tracking it requires multiple reviewers per item, which is expensive. Developers skip IAA to save time, discover later that corpus is noisy.
+The `queue_node` in `extraction_service/nodes/queue.py` unconditionally creates a new `CriteriaBatch` linked to the same `protocol_id`. It does not check for existing batches. The UI shows batches for a protocol, but if users assume "the latest batch is the authoritative one" and stop looking at old batches, corrections are abandoned. There is no `is_locked` flag, no warning about existing reviews, and no "merge with existing batch" logic.
 
 **How to avoid:**
-- Sample 10-20% of criteria for dual review (two reviewers, compare results)
-- Calculate Cohen's Kappa or similar IAA metric for sampled subset
-- Flag criteria with reviewer disagreement for adjudication or exclusion from corpus
-- Store `reviewer_id` in audit log and allow filtering corpus by reviewer to identify outliers
-- Document acceptable IAA threshold (typically >0.7 for clinical tasks) and refuse corpus inclusion below threshold
+- Before creating a new batch, query for existing batches with the same `protocol_id`. If any criteria in those batches have `review_status IS NOT NULL`, log a warning and set a `supersedes_batch_id` field on the new batch
+- Add an `is_locked` flag to `CriteriaBatch`: batches with ANY reviewed criteria are locked. Re-extraction creates a new unlocked batch and links it to the locked one
+- Implement a "diff view" in the UI: show side-by-side comparison of old (reviewed) criteria vs. new (re-extracted) criteria, with matched pairs highlighted
+- Add a database constraint or application-level check: `DELETE` or `UPDATE` on criteria with `review_status IS NOT NULL` requires explicit override
+- Export reviewed criteria to a separate `gold_corpus` table before allowing re-extraction, so the gold data is never at risk
 
 **Warning signs:**
-- Model evaluation shows high accuracy on corpus but low accuracy on new protocols
-- Different reviewers produce wildly different corrections for similar criteria
-- Prompt changes that should improve metrics have no effect or make them worse
-- Corpus-based evaluation metrics don't correlate with expert judgment
+- Multiple batches for the same protocol with no indication which has reviews
+- Corpus size decreases after re-extraction (old reviewed batch becomes invisible)
+- Reviewers report: "I already corrected this but it's back to the AI version"
+- Protocol detail shows different batch being reviewed than what was previously corrected
 
 **Phase to address:**
-Phase 29-03 (Corpus Quality Assessment)
+Re-extraction tooling phase. Must be implemented BEFORE allowing re-extraction on protocols with existing reviews.
 
 ---
 
-### Pitfall 8: Entity Disambiguation Without Context Propagation
+### Pitfall 8: JSONB Schema Evolution Breaks Old Criteria on UI Load
 
 **What goes wrong:**
-UMLS grounding maps entity text to CUI without considering criterion context. "AD" maps to "Alzheimer's Disease" when protocol is about atopic dermatitis. Corpus captures incorrect grounding, polluting training data.
+The `conditions` JSONB column now stores `{ "field_mappings": [...] }` (v1.5-multi schema) after structured editing, but criteria extracted before v1.5 store `conditions` as either `null`, a JSON array of strings `["if diabetic"]`, or a simple dict `{"conditions_list": [...]}`. The `_criterion_to_response()` helper in `reviews.py` handles some of these cases but the UI components (`CriterionCard`, `StructuredFieldEditor`) may not handle all permutations. Adding new fields to the JSONB schema (e.g., `entity_codes` from ToolUniverse grounding) creates another version that old code doesn't expect.
 
 **Why it happens:**
-Entity disambiguation is context-dependent. MedGemma agentic grounding uses UMLS MCP, which returns top matches by string similarity, not semantic fit. Agent doesn't pass protocol context or criterion category as constraints.
+JSONB's schemaless nature encourages incremental additions without migration. The `conditions` column has evolved through at least 3 shapes:
+1. `null` or `["string condition"]` (v1.0 extraction)
+2. `{"conditions_list": ["string condition"]}` (API wrapper for list input)
+3. `{"field_mappings": [{entity, relation, value}]}` (v1.5 structured editor)
+
+Each new shape is added without migrating old data. Code checks `isinstance(conditions, dict)` vs `isinstance(conditions, list)` but doesn't handle nested field presence checks robustly. The ToolUniverse integration will add a 4th shape: `{"field_mappings": [...], "entity_codes": {"rxnorm": "...", "icd10": "..."}}`.
 
 **How to avoid:**
-- Pass protocol summary and criterion text as context to UMLS grounding agent
-- Use semantic type filters: for demographics criteria, prefer semantic type "Age Group" over "Disease"
-- Store grounding alternatives: `[{ cui: "C0002395", confidence: 0.8, semantic_type: "Disease" }, ...]`
-- Allow reviewer to pick from alternatives in UI (disambiguation UI)
-- Track grounding corrections in corpus: if reviewer changes CUI, log as training signal for disambiguation
+- Add a `schema_version` field to every JSONB document: `{ "schema_version": "v2.0-tooluni", "field_mappings": [...], "entity_codes": {...} }`
+- Write a one-time migration script that normalizes all existing `conditions` data to the latest schema version
+- Add a read-time adapter function that converts any schema version to the latest: `def normalize_conditions(raw: Any) -> ConditionsV2 | None`
+- Use TypeScript type guards on the frontend: `function hasFieldMappings(c: unknown): c is { field_mappings: FieldMapping[] }`
+- Never access nested fields without optional chaining: `conditions?.field_mappings ?? []`
+- Document all JSONB schema versions with examples in a JSONB_SCHEMA_VERSIONS.md file
 
 **Warning signs:**
-- Entity grounding confidence is high but obviously wrong (wrong domain)
-- Reviewer repeatedly corrects same entity text to different CUI (indicates systematic error)
-- Abbreviations ground incorrectly (AD, RA, MS mapped to wrong expansion)
-- Corpus contains multiple CUIs for same text in similar contexts (inconsistent grounding)
+- TypeError on criteria load: "Cannot read property 'field_mappings' of undefined"
+- Some criteria render correctly, others show blank or crash (mixed schema versions in same batch)
+- Edit-then-save drops fields that were present before edit (partial schema overwrite)
+- ToolUniverse grounding codes are written but not displayed (UI doesn't know about new fields)
 
 **Phase to address:**
-Phase 28-07 (Entity Disambiguation Polish) and Phase 29-04 (Grounding Corpus)
+JSONB schema evolution should be addressed in the FIRST phase that modifies the `conditions` column (either ToolUniverse integration or editor pre-loading phase). Migration script must run before new writes begin.
 
 ---
 
-### Pitfall 9: Audit Log Query Performance Degrades with Corpus Growth
+### Pitfall 9: ToolUniverse Rate Limits and API Key Management Across Multiple Tools
 
 **What goes wrong:**
-Audit log table grows unbounded as corpus expands (one log entry per review action). Queries for "all reviews for criterion X" or "all reviews by reviewer Y" become slow (>5s), blocking corpus export and evaluation workflows.
+ToolUniverse wraps multiple external APIs (NLM RxNorm, WHO ICD-10, LOINC from Regenstrief, HPO from Monarch Initiative). Each has different rate limits, authentication requirements, and SLAs. A single batch of 41 criteria with 3 entities each = 123 tool calls across 5+ APIs. Without per-API rate limiting, the system hits rate limits on one API (e.g., NLM allows 20 req/s for RxNorm) and causes cascading timeouts for the entire batch.
 
 **Why it happens:**
-`AuditLog` table has no composite indexes on common query patterns: `(target_type, target_id)` or `(actor_id, created_at)`. Full table scans occur for filtered queries. 50 protocols × 50 criteria × 3 reviews each = 7,500 rows minimum, grows to 100k+ with re-extractions.
+Developers treat ToolUniverse as a single black-box API and apply a single retry/circuit-breaker policy. But ToolUniverse is a wrapper -- each tool call hits a different external API with different quotas. NLM's UMLS/RxNorm API requires an API key and has rate limits. LOINC's API requires registration. HPO's API is open but slow. When one API is rate-limited, the grounding node retries aggressively, consuming the retry budget on a temporary condition, then falls back to `expert_review` for all remaining entities.
 
 **How to avoid:**
-- Add database indexes:
-  - `CREATE INDEX idx_audit_target ON audit_log(target_type, target_id, created_at DESC);`
-  - `CREATE INDEX idx_audit_actor ON audit_log(actor_id, created_at DESC);`
-  - `CREATE INDEX idx_audit_event ON audit_log(event_type, created_at DESC);`
-- Implement audit log partitioning: archive logs older than 90 days to separate table
-- Add pagination to audit log API with cursor-based navigation
-- Cache frequently accessed audit queries (Redis, 5-minute TTL)
+- Implement per-tool rate limiting: configure separate rate limiters for each ToolUniverse tool (`RxNormTool`: 20 req/s, `ICD10Tool`: 10 req/s, etc.)
+- Use adaptive backoff: when a tool returns 429 (rate limited), pause only that tool and continue grounding other entity types with other tools
+- Verify API key requirements for each ToolUniverse tool BEFORE starting the integration. Some tools may require separate API keys beyond the ToolUniverse installation
+- Batch tool calls by entity type: ground all MEDICATION entities first (one RxNorm batch), then all DISEASE entities (one ICD-10 batch), to minimize API connection overhead
+- Add a tool health check at startup: verify each tool is accessible before accepting grounding requests. Fail fast rather than failing per-entity
 
 **Warning signs:**
-- API endpoint `/reviews/audit-log` times out or returns 504
-- Database CPU spikes when loading review page
-- `EXPLAIN` shows "Seq Scan" on audit_log for filtered queries
-- Corpus export script takes >10 minutes to collect review history
+- Grounding succeeds for some entity types but fails for others (API-specific failure)
+- 429 status codes in logs for specific tool calls
+- Grounding latency highly variable (2s when APIs are available, 60s+ when rate-limited)
+- Environment variables for tool-specific API keys are missing or expired
 
 **Phase to address:**
-Phase 29-05 (Corpus Export Performance)
+ToolUniverse integration phase. Rate limiting and API key validation must be implemented alongside tool routing, not as a follow-up.
 
 ---
 
-### Pitfall 10: State Synchronization Between Edit Modes (Text vs. Structured)
+### Pitfall 10: Pipeline Consolidation State Schema Merge Causes Type Safety Regression
 
 **What goes wrong:**
-Switching from "Modify Text" to "Modify Fields" mode loses unsaved changes. User edits text, decides to add structured fields, clicks "Modify Fields," and text edits disappear. Reverse also occurs: structured edits lost when switching to text mode.
+Merging `ExtractionState` (TypedDict with `protocol_id`, `file_uri`, `pdf_bytes`, `raw_criteria`, etc.) and `GroundingState` (TypedDict with `batch_id`, `criteria_ids`, `criteria_texts`, `grounded_entities`, etc.) into a single `ProcessorState` creates a large TypedDict where most fields are `None` at any given node. Nodes that only need extraction data can accidentally read grounding fields (and vice versa). Mypy catches some issues, but `state.get("field", default)` bypasses type checking entirely.
 
 **Why it happens:**
-`editMode` state toggles between `'text'` and `'structured'`, each with separate form state. Toggling unmounts one component and mounts the other, discarding unsaved changes. No cross-mode state synchronization.
+LangGraph StateGraphs require a single state schema. When merging two services, developers create a union type that includes all fields from both graphs. Early nodes receive a state where grounding fields are None/empty. Late nodes have extraction fields that are stale or unused. The TypedDict contract becomes "every field is Optional" which provides no type safety. Additionally, `state.get()` on a TypedDict returns `Any` in many mypy configurations, hiding type errors.
 
 **How to avoid:**
-- Persist unsaved changes in parent component state that survives mode switches
-- Warn user before mode switch if unsaved changes exist: "You have unsaved text edits. Switch anyway?"
-- Auto-save draft changes to localStorage on mode switch, restore on mount
-- Implement unified edit mode with tabs: both text and structured editors visible, submit saves all
-- Add "Cancel" button that reverts to last saved state regardless of mode
+- Use LangGraph's reducer pattern to mark fields as "write-once": once `pdf_bytes` is set by the ingest node, no subsequent node should modify it
+- Keep the state schema narrow: only include fields that are read by at least 2 nodes. Use node-local variables for intermediate data
+- Proposed consolidated state should have explicit phases: `ProcessorPhase = Literal["ingesting", "extracting", "grounding", "persisting"]` and nodes assert the current phase before proceeding
+- Run `mypy --strict` on the consolidated graph module and fix all `Any` type warnings
+- Add runtime assertions in each node: `assert state["pdf_bytes"] is not None, "ingest must run before extract"`
 
 **Warning signs:**
-- Users report "my changes disappeared when I clicked Modify Fields"
-- Higher rate of accidental duplicate reviews (user re-enters lost changes)
-- Support requests: "how do I edit both text and fields at once?"
-- Audit log shows repeated modify actions for same criterion (user re-doing lost work)
+- Mypy reports many `Any` type warnings in the consolidated graph
+- Nodes access fields that haven't been populated yet (returns `None` where a value was expected)
+- Test coverage gaps: nodes pass when tested individually but fail when composed in the full graph
+- State dict grows to 15+ fields, most of which are None at any given node
 
 **Phase to address:**
-Phase 28-06 (State Management for Multi-Mode Editing)
+Pipeline consolidation phase. State schema design must be done BEFORE implementing individual nodes.
 
 ---
 
@@ -270,12 +286,14 @@ Phase 28-06 (State Management for Multi-Mode Editing)
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Storing field_mappings in `conditions` JSONB without schema_version | Avoid database migration, fast iteration | Schema evolution breaks old data, requires manual data migration scripts | MVP only; must add versioning before multi-user pilot |
-| Single reviewer per criterion for corpus | 50% faster corpus building (no dual review overhead) | Noisy gold standard, poor model generalization, unreliable evaluation | Never for production corpus; acceptable for initial prompt testing |
-| Exact text match for PDF highlighting | Simple implementation, works for clean PDFs | Fails on 30-40% of criteria due to OCR artifacts, frustrates reviewers | Never; fuzzy matching is critical for usability |
-| No re-extraction lock on reviewed criteria | Simpler re-extraction logic, no database constraints | Risk of destroying gold-standard data, corpus corruption | Never; lock mechanism is mandatory before corpus building |
-| Mixing database IDs and useFieldArray IDs | Faster initial implementation, less mapping code | Silent data corruption, wrong records updated, impossible to debug | Never; separation is critical for data integrity |
-| Loading async data with defaultValues | Seems like "default" is right, follows naming intuition | Form never populates, broken edit workflows | Never; must use `values` prop or `reset()` method |
+| Removing outbox without replacing retry mechanism | Eliminates 5-15s latency, simpler code | Protocols stuck in "extracted" forever when grounding fails, no retry | Never; must have retry/recovery mechanism |
+| Using ToolUniverse MCP subprocess per grounding call | Simple integration, follows existing pattern | 5-15s startup per call, zombie processes, same 0% confidence failure mode | Never; use Python SDK or long-running sidecar |
+| Hardcoding entity type to tool mapping | Fast to implement, works for known types | New entity types silently dropped, no validation | OK for MVP if all mappings documented and tested |
+| Adding fields to JSONB without schema_version | Avoids migration, fast iteration | Old records crash on load, silent field drops on edit-save | Never after v1.5; migration is mandatory |
+| Querying pending batches by status only | Simple query, reuses existing endpoint | Dashboard misleads users about review work remaining | Never; dashboard is primary entry point |
+| Single fallback for entire batch on grounding failure | Simpler error handling, guaranteed completion | ALL entities get 0% confidence even when some could be grounded | Never; individual entity fallback is critical |
+| Coupling extraction entity types to grounding tool routing | Fewer abstractions, direct mapping | Schema changes in extraction break grounding routing | OK for initial implementation if mapping is explicit and tested |
+| Direct commit + separate grounding call (no atomicity) | Eliminates outbox code | Data inconsistency: criteria exist but grounding never ran | Never; use single transaction or event-driven retry |
 
 ---
 
@@ -283,12 +301,16 @@ Phase 28-06 (State Management for Multi-Mode Editing)
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| react-hook-form useFieldArray | Passing database objects with `id` field directly to `append()` | Rename database ID field to `database_id` or `criterion_id` before appending |
-| UMLS MCP grounding | Sending entity text only, no context | Include criterion text, protocol summary, and semantic type hints in grounding request |
-| PDF.js highlighting | Using `page.getTextContent()` raw output for search | Normalize whitespace, lowercase, and use fuzzy match with 90% threshold |
-| JSONB field updates | Directly replacing entire JSONB column on edit | Read existing JSONB, merge changes, preserve unknown fields for forward compatibility |
-| Audit log queries | Filtering by `target_id` without indexes | Add composite index `(target_type, target_id, created_at)` before launching |
-| Structured editor initialization | Using hardcoded `DEFAULT_FIELD_VALUES` as fallback | Call `buildInitialValues(criterion)` to populate from AI extraction before defaulting to empty |
+| ToolUniverse MCP | Spawning new subprocess per grounding batch (same as current UMLS MCP pattern) | Use Python SDK directly (`from tooluniverse import RxNormTool`) or run MCP as long-lived sidecar in docker-compose |
+| ToolUniverse RxNormTool | Sending drug class names ("NSAID", "anticoagulant") instead of specific drug names | Extract specific drug names from criteria text first, then call RxNorm. Drug classes don't resolve to RxNorm CUIs. |
+| ToolUniverse ICD10Tool | Sending criterion text directly instead of extracted disease names | Extract disease entity text first (e.g., "Type 2 Diabetes Mellitus"), then call ICD10. Full criterion text returns noise. |
+| ToolUniverse LOINCTool | Sending "HbA1c < 7%" instead of "Hemoglobin A1c" | Strip comparators and values; send only the test name. LOINC codes identify tests, not thresholds. |
+| LangGraph state merge | Creating union TypedDict with all fields Optional | Use minimal shared state. Keep intermediate data as node-local variables, not state fields. |
+| Outbox removal | Deleting outbox code without adding alternative recovery | Keep retry mechanism: either single-transaction or background recovery job |
+| Audit log API | Querying without batch scope (returns all entries for target_type) | Add batch_id filter that resolves to criteria IDs and scopes audit entries |
+| Batch status as pending metric | Using `status='pending_review'` to count work remaining | Use criteria-level query: count batches with ANY criteria where `review_status IS NULL` |
+| JSONB field_mappings | Writing new schema shape without migrating old data | Add schema_version, run migration script, add read-time adapter |
+| Gemini temperature for determinism | Setting temperature=0 and expecting identical output | Also set seed parameter; add prompt granularity instructions; design for approximate matching not exact equality |
 
 ---
 
@@ -296,11 +318,23 @@ Phase 28-06 (State Management for Multi-Mode Editing)
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| N+1 queries loading entities for each criterion | Review page load time >5s, database connection pool exhaustion | Batch-load all entities for batch in single query, build `entities_by_criteria` map | 20+ criteria per batch (typical is 40-60) |
-| PDF.js loading full document for single-page highlight | PDF viewer initialization delay >10s for large protocols | Use PDF.js range requests with `Range` header to load target page only | Protocols >100 pages (common for phase 3 trials) |
-| Audit log full table scan | `/reviews/audit-log` timeout, database CPU spike | Add composite indexes on `(target_type, target_id)`, `(actor_id, created_at)` | 5,000+ audit entries (reached after ~100 protocols reviewed) |
-| Rendering 100+ field mappings in structured editor | UI freezes, React DevTools shows >5s reconciliation | Virtualize field array with `react-window`, limit visible fields to 20 at once | >50 field mappings per criterion (rare but possible for complex multi-condition criteria) |
-| useFieldArray re-renders on every keystroke | Input lag, typing feels sluggish | Debounce controlled inputs, use `shouldUnregister: false` to preserve values on unmount | >10 mappings in array (noticeable lag at 20+) |
+| ToolUniverse subprocess spawn per batch | 5-15s grounding latency before any tool calls execute | Use Python SDK or long-running MCP sidecar | Immediately; every batch pays startup cost |
+| Sequential tool calls for 100+ entities | 2-3s per entity x 100 entities = 200-300s grounding time | Batch entities by type, use asyncio.gather for parallel tool calls across types | >30 entities per batch (typical: 40-60) |
+| N+1 queries in audit log batch scope | Audit log query joins criteria IDs per batch, then queries audit entries per criteria | Pre-compute criteria IDs for batch in single query, use IN clause | >50 criteria per batch with audit trail open |
+| ToolUniverse API rate limiting cascade | One rate-limited API blocks all grounding (single retry budget) | Per-tool rate limiters, adaptive backoff, partial-success grounding | >20 entities per batch hitting same API |
+| Large JSONB conditions column scan | Criteria list query slow when conditions JSONB has nested field_mappings with entity_codes | Add GIN index on conditions column if querying by entity codes; keep conditions small | >500 criteria in database with ToolUniverse codes |
+| Dashboard pending count query on large batch table | Dashboard load time >2s when many batches exist | Cache pending count in application memory with 30s TTL, or add materialized view | >100 batches in database |
+
+---
+
+## Security Mistakes
+
+| Mistake | Risk | Prevention |
+|---------|------|------------|
+| ToolUniverse API keys in environment variables without rotation | Compromised API key allows unlimited medical data queries | Use Secret Manager (GCP), rotate keys quarterly, audit key usage |
+| ToolUniverse tools accessing external APIs without HIPAA review | Patient-identifiable criteria text sent to third-party APIs | Verify each ToolUniverse tool's data processing terms. Strip PHI from entity text before sending to tools. Most eligibility criteria don't contain PHI (they describe population requirements, not individual patients), but confirm. |
+| Re-extraction endpoint without authorization check | Any authenticated user can re-run extraction, potentially overwriting reviewed data | Add role-based check: only admin users can trigger re-extraction on protocols with existing reviews |
+| Audit log entries without tamper protection | Audit entries can be modified or deleted via direct DB access | Add database trigger that prevents UPDATE/DELETE on audit_log table; or use append-only table with write permissions only |
 
 ---
 
@@ -308,27 +342,27 @@ Phase 28-06 (State Management for Multi-Mode Editing)
 
 | Pitfall | User Impact | Better Approach |
 |---------|-------------|-----------------|
-| No visual feedback when PDF highlight fails | User clicks criterion, page changes, but no highlight appears. User confused: "Where is it?" | Show toast notification: "Text not found on page, showing approximate location" |
-| Mode switch without save warning | User loses 5 minutes of edits, has to re-enter data | Modal confirmation: "Unsaved changes will be lost. Continue?" with "Save and Switch" option |
-| Structured fields pre-populated from AI appear editable before correction | User assumes fields are human-verified, doesn't review carefully, approves with errors | Add visual indicator: "AI-extracted fields (unverified)" banner until first human edit |
-| No indication which criteria need dual review for IAA | Reviewers waste time on criteria already reviewed twice | Show badge: "Needs 2nd opinion" on criteria selected for IAA sampling |
-| PDF viewer reloads from page 1 on every criterion click | User has to scroll through 80-page PDF repeatedly | Cache PDF scroll position per criterion, restore on re-visit |
-| Corpus export has no progress indicator | User waits 10 minutes not knowing if script is frozen or running | Stream progress: "Processing criterion 45/120... Exported 38 to corpus" |
+| Dashboard says "0 Pending" when work exists | Reviewers stop checking, criteria pile up unreviewed | Show count of batches with ANY unreviewed criteria, not just status='pending_review' |
+| Audit trail empty despite actions taken | Reviewers lose trust in the system's record-keeping | Fix query scope, add batch_id filter, add test to verify |
+| Re-extraction creates new batch without warning about existing reviews | Reviewer's 2 hours of corrections become invisible (old batch) | Show modal: "This protocol has X reviewed criteria. Re-extraction creates a new batch." with "View existing reviews" link |
+| ToolUniverse codes displayed as raw codes without context | Reviewer sees "E11.9" without knowing what it means | Always display code WITH preferred term: "E11.9 (Type 2 diabetes mellitus, without complications)" |
+| Extraction non-determinism between review sessions | Reviewer sees different criteria on re-extraction, thinks their previous work was lost | Pin extraction results: show the SPECIFIC batch being reviewed, not "latest extraction" |
+| Entity grounding shows partial results without explanation | Some entities have ICD-10 codes, others have nothing. Reviewer doesn't know why. | Show grounding status per entity: "Grounded (ICD-10)", "Grounding failed (API timeout)", "Skipped (demographic entity)" |
 
 ---
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **Form Pre-loading:** Often missing `values` prop usage — verify form populates when navigating directly to edit page (not just from list)
-- [ ] **Field Array Initialization:** Often missing database ID separation — verify updating record doesn't create duplicate or update wrong record
-- [ ] **JSONB Schema Handling:** Often missing version check — verify old criteria (pre-structured-fields) load without errors
-- [ ] **Re-extraction Protection:** Often missing `is_locked` flag — verify re-running extraction doesn't overwrite reviewed criteria
-- [ ] **PDF Highlighting:** Often missing fuzzy match — verify highlighting works on criteria with special characters (≥, μ, line breaks)
-- [ ] **Entity Context:** Often missing protocol context in grounding — verify "AD" in dermatology protocol doesn't map to Alzheimer's
-- [ ] **Audit Log Performance:** Often missing composite indexes — verify `/reviews/audit-log?target_id=X` returns in <500ms with 10k+ log entries
-- [ ] **Read Mode Fallback:** Often missing null checks on `field_mappings` — verify criteria created before structured feature still render
-- [ ] **State Persistence:** Often missing mode-switch warning — verify unsaved changes don't vanish when toggling text/structured edit
-- [ ] **Corpus Versioning:** Often missing `schema_version` in exports — verify corpus JSON includes version metadata for all records
+- [ ] **Pipeline consolidation:** Often missing retry/recovery mechanism -- verify that grounding failure does NOT leave criteria orphaned in "extracted" status
+- [ ] **ToolUniverse integration:** Often missing per-tool rate limiting -- verify that hitting rate limits on one API doesn't cascade to all entity types
+- [ ] **ToolUniverse integration:** Often missing entity type mapping -- verify that ALL extraction entity types (Condition, Medication, Procedure, Lab_Value, Demographic, Biomarker) have explicit ToolUniverse routing or explicit skip logic
+- [ ] **Dashboard pending count:** Often missing criteria-level query -- verify dashboard shows non-zero count when batch has partial reviews
+- [ ] **Audit trail visibility:** Often missing batch scope -- verify audit entries appear on the Review page for the specific batch being reviewed
+- [ ] **Extraction determinism:** Often missing prompt granularity rules -- verify same protocol produces same criteria count (within 10%) across 3 consecutive runs
+- [ ] **Re-extraction protection:** Often missing review lock -- verify re-extraction on a protocol with reviewed criteria does NOT make old reviews inaccessible
+- [ ] **JSONB schema evolution:** Often missing migration script -- verify criteria created before v2.0 load without errors after schema changes
+- [ ] **Editor pre-loading:** Often missing JSONB shape handling -- verify editor loads correctly for criteria with conditions=null, conditions=["string"], and conditions={field_mappings: [...]}
+- [ ] **ToolUniverse codes in Entity table:** Often missing Entity model extension -- verify Entity model has new columns for multi-system codes (rxnorm_code, icd10_code, loinc_code, hpo_id) or stores them in a JSONB codes column
 
 ---
 
@@ -336,13 +370,16 @@ Phase 28-06 (State Management for Multi-Mode Editing)
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Database IDs overwritten by useFieldArray | HIGH | 1. Restore database from backup before corruption. 2. Implement ID separation (rename to `database_id`). 3. Add integration test: create criterion, edit, verify same ID. 4. Re-review all criteria submitted during corruption window. |
-| Re-extraction overwrote reviewed criteria | HIGH | 1. Query audit log for all `review_status != NULL` criteria modified by extraction job. 2. Flag protocols needing re-review. 3. Implement `is_locked` flag and constraint. 4. Re-run reviews for affected criteria (estimate: 10 criteria × 10 min = 100 min per protocol). |
-| JSONB schema mismatch breaks old criteria | MEDIUM | 1. Write migration script: `UPDATE criteria SET conditions = jsonb_set(conditions, '{schema_version}', '"v1"') WHERE conditions IS NOT NULL`. 2. Add read-time adapter in `buildInitialValues()`. 3. Test against pre-migration backup data. Deploy adapter first, then run migration. |
-| PDF highlights never work | LOW | 1. Implement fuzzy text matching with Levenshtein distance (library: `fuzzysort`). 2. Add normalization: `text.toLowerCase().replace(/\s+/g, ' ')`. 3. Add fallback: search ±1 page if exact page fails. 4. No data recovery needed, purely code fix. |
-| Corpus has low IAA, unreliable metrics | HIGH | 1. Sample 20 criteria, assign to 2nd reviewer. 2. Calculate IAA (Cohen's Kappa). If <0.7, increase to 50 criteria dual review. 3. Adjudicate disagreements, document rules. 4. Re-review entire corpus with updated guidelines (expensive: 50 protocols × 50 criteria × 10 min = 416 hours). |
-| Audit log queries timeout | LOW | 1. Add indexes: `CREATE INDEX idx_audit_target ON audit_log(target_type, target_id);`. 2. Reindex existing data (`REINDEX TABLE audit_log`). 3. Add pagination with cursor-based API. No data recovery needed. |
-| Mode switch lost unsaved changes | LOW | 1. Add localStorage persistence: save draft on mode switch, restore on mount. 2. Add warning modal with "Save and Switch" option. 3. No data recovery (changes were never persisted). Notify affected users to re-enter if recent. |
+| Protocols stuck in "extracted" (no grounding) | LOW | 1. Query protocols with status='extracted' and no associated CriteriaBatch with grounded entities. 2. Create re-grounding script that feeds existing criteria_ids to grounding graph. 3. Add "stuck protocol" detector to prevent recurrence. |
+| 0% confidence for all entities (subprocess failure) | MEDIUM | 1. Identify affected batches (all entities have grounding_method='expert_review'). 2. Re-run grounding with Python SDK instead of MCP subprocess. 3. Update Entity records with new grounding results. 4. No data loss (entities exist, just ungrounded). |
+| Entity type mismatch drops entities from grounding | LOW | 1. Query entities with no grounding codes. 2. Check entity_type distribution. 3. Add missing mappings to tool registry. 4. Re-run grounding for affected entity types. |
+| Dashboard misleading users about pending work | LOW | 1. Update dashboard query (code change only). 2. No data migration needed. 3. Communicate to users that counts are now accurate. |
+| Audit trail entries invisible | LOW | 1. Verify entries exist in DB (`SELECT * FROM auditlog WHERE event_type='review_action'`). 2. Fix API query filter (add batch_id). 3. No data loss (entries exist). |
+| JSONB schema mismatch crashes old criteria | MEDIUM | 1. Write migration script to normalize all conditions to latest schema. 2. Deploy read-time adapter first (handles any schema version). 3. Run migration script. 4. Verify with load test against pre-migration backup. |
+| Re-extraction overwrote review visibility | HIGH | 1. Query all batches for protocol. 2. Identify batches with reviewed criteria. 3. If old batch still exists, surface it in UI. 4. If criteria were deleted (not just new batch), restore from backup. 5. Implement lock mechanism to prevent recurrence. |
+| ToolUniverse API rate limiting cascade | LOW | 1. Add per-tool rate limiters. 2. Re-run grounding for affected batches. 3. Monitor rate limit response codes per tool. |
+| Pipeline consolidation state type regression | MEDIUM | 1. Run mypy --strict on consolidated graph. 2. Fix all Any type warnings. 3. Add runtime assertions in each node. 4. Add integration test running full graph end-to-end with real state. |
+| Extraction non-determinism | LOW | 1. Tighten prompt granularity instructions. 2. Set temperature=0 + seed. 3. Re-run extraction on test protocols to verify consistency. 4. No data loss (old extractions preserved in their batches). |
 
 ---
 
@@ -350,57 +387,62 @@ Phase 28-06 (State Management for Multi-Mode Editing)
 
 | Pitfall | Prevention Phase | Verification |
 |---------|------------------|--------------|
-| Database ID conflicts (useFieldArray) | Phase 28-04 | Integration test: create criterion with 3 mappings, edit entity text, verify same database record updated (no duplicate created) |
-| Async data with defaultValues | Phase 28-04 | Unit test: mock API response delayed 500ms, verify form fields populate after delay (not blank) |
-| JSONB schema evolution | Phase 28-05 & 29-02 | Migration test: load pre-v1.5 criterion, verify no errors, verify all fields present after edit-save cycle |
-| Re-extraction overwrites reviews | Phase 29-01 | E2E test: review criterion, re-run extraction, verify original criterion unchanged and new batch created |
-| PDF highlight fuzzy matching | Phase 28-02 | Manual test: 10 criteria with special chars (≥, μ), multiline, verify all highlight on correct page |
-| Read mode assumes structured | Phase 28-03 | Unit test: render criterion with `conditions = null`, verify no crash, shows fallback display |
-| IAA tracking missing | Phase 29-03 | Corpus export includes `reviewer_count` field, script to calculate Kappa on dual-reviewed subset |
-| Entity context missing | Phase 28-07 | Integration test: mock UMLS MCP, verify grounding request includes criterion text and protocol summary |
-| Audit log slow queries | Phase 29-05 | Load test: insert 10k audit entries, query by `target_id`, verify <500ms response time |
-| Mode switch loses state | Phase 28-06 | E2E test: enter text edit, switch to structured without saving, verify unsaved changes warning modal appears |
+| Outbox removal creates data loss window | Pipeline Consolidation | E2E test: kill grounding mid-run, verify protocol doesn't stay in "extracted" forever. Recovery must trigger within 5 minutes. |
+| ToolUniverse subprocess lifecycle | ToolUniverse Integration | Load test: ground 50 entities in one batch, verify no subprocess zombies, latency <30s total (not per entity). |
+| Entity type mismatch with tool routing | ToolUniverse Integration | Unit test: for each entity type in extraction schema, assert tool mapping exists or entity is explicitly skipped. |
+| Dashboard pending count misleading | E2E Quality Fixes | Manual test: approve 1 of 40 criteria, verify dashboard still shows batch as needing review. |
+| Audit trail entries invisible | E2E Quality Fixes | Integration test: submit approve action, immediately query audit log for that batch_id, assert entry exists. |
+| Extraction non-determinism | Extraction Determinism | Run same protocol through extraction 3 times, assert criteria count differs by <10% and all runs > 30 criteria. |
+| Re-extraction overwrites reviews | Re-extraction Tooling | E2E test: review 3 criteria, re-run extraction, verify old batch with reviews is accessible and new batch is separate. |
+| JSONB schema evolution | JSONB Schema Evolution | Migration test: load pre-v2.0 criteria with conditions=null, conditions=["list"], and conditions={field_mappings: [...]}, verify all render without errors. |
+| ToolUniverse rate limiting | ToolUniverse Integration | Load test: ground 100 entities rapidly, verify no cascading failures and partial success is recorded. |
+| Pipeline state schema merge | Pipeline Consolidation | mypy --strict passes on consolidated graph module. Integration test: run full graph end-to-end asserting state values at each node boundary. |
 
 ---
 
 ## Sources
 
-### HITL and Corpus Building
-- [Human-in-the-Loop AI in Document Workflows - Best Practices & Common Pitfalls](https://parseur.com/blog/hitl-best-practices)
-- [Human-in-the-Loop AI (HITL) - Complete Guide to Benefits, Best Practices & Trends for 2026](https://parseur.com/blog/human-in-the-loop-ai)
-- [Building and Evaluating Annotated Corpora for Medical NLP Systems - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC1839264/)
-- [Building Gold Standard Corpora for Medical Natural Language Processing Tasks - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC3540456/)
+### Codebase Analysis
+- `services/api-service/src/api_service/main.py` -- OutboxProcessor initialization with handler registration (lines 77-86)
+- `services/api-service/src/api_service/reviews.py` -- `_update_batch_status()` state machine (lines 510-546), `submit_review_action()` audit log creation (lines 313-343)
+- `services/extraction-service/src/extraction_service/nodes/queue.py` -- CriteriaBatch creation without existing batch check (lines 51-101)
+- `services/grounding-service/src/grounding_service/nodes/medgemma_ground.py` -- MCP subprocess lifecycle and fallback to expert_review (lines 186-245, 317-338)
+- `libs/events-py/src/events_py/outbox.py` -- OutboxProcessor retry and dead_letter logic (lines 60-145)
+- `apps/hitl-ui/src/screens/Dashboard.tsx` -- pending count query using `useBatchList(1, 1, 'pending_review')` (line 12)
+- `apps/hitl-ui/src/screens/ReviewPage.tsx` -- audit log query without batch scope: `useAuditLog(1, 20, 'criteria')` (line 63)
 
-### React Hook Form and Form Pre-loading
-- [useFieldArray | React Hook Form - Simple React forms validation](https://www.react-hook-form.com/api/usefieldarray/)
-- [How do I implement useFieldArray() with prefilled/fetched data? · React Hook Form Discussion #4144](https://github.com/orgs/react-hook-form/discussions/4144)
-- [React Hook Form Best Practices #1: Loading Async Data with values (Not defaultValues)](https://medium.com/@seifelmejri/react-hook-form-best-practices-1-loading-async-data-with-values-not-defaultvalues-300ed851f227)
+### E2E Testing
+- `instructions/Refactoring/E2E-REPORT.md` -- All 13 issues documented from 2026-02-13 testing including 0% grounding confidence, audit trail empty, dashboard 0 pending, extraction non-determinism
 
-### JSONB and Database Schema Evolution
-- [On migrations, JSONB and databases in general](https://www.amberbit.com/blog/2016/2/28/on-migrations-jsonb-and-databases-in-general/)
-- [JSONB: PostgreSQL's Secret Weapon for Flexible Data Modeling](https://medium.com/@richardhightower/jsonb-postgresqls-secret-weapon-for-flexible-data-modeling-cf2f5087168f)
-- [PostgreSQL JSONB - Powerful Storage for Semi-Structured Data](https://www.architecture-weekly.com/p/postgresql-jsonb-powerful-storage)
+### Architecture Planning
+- `instructions/Refactoring/OPERATIONAL_REVISION_PLAN.md` -- Tier 1/2/3/4 prioritization of fixes (2026-02-16)
+- `instructions/Refactoring/refactoring_review.md` -- Pipeline consolidation proposal
+- `instructions/Refactoring/better_tool_use.md` -- ToolUniverse integration plan with tool registry and scope limiting
 
-### Clinical NLP and Entity Grounding
-- [Improving broad-coverage medical entity linking with semantic type prediction and large-scale datasets - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC8952339/)
-- [UMLS Content Views Appropriate for NLP Processing of the Biomedical Literature vs. Clinical Text - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC2890296/)
-- [A Comprehensive Evaluation of Biomedical Entity Linking Models - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC11097978/)
+### ToolUniverse
+- [ToolUniverse - 211+ Tools for "AI Scientist" Agents - Zitnik Lab](https://zitniklab.hms.harvard.edu/2025/06/03/ToolUniverse/)
+- [GitHub - mims-harvard/ToolUniverse](https://github.com/mims-harvard/ToolUniverse) -- MCP configuration, tool categories
+- ToolUniverse tools config index -- Confirmed availability of RxNormTool, ICD10Tool, LOINCTool, HPOTool, EFOTool
 
-### Clinical Trials and Corpus Quality
-- [The reporting standards of randomised controlled trials in leading medical journals between 2019 and 2020](https://link.springer.com/article/10.1007/s11845-022-02955-6)
-- [Building gold standard corpora for medical natural language processing tasks - PubMed](https://pubmed.ncbi.nlm.nih.gov/23304283/)
+### Gemini Non-Determinism
+- [Critical Determinism Failure in Gemini API with Fixed seed and temperature](https://github.com/google-gemini/deprecated-generative-ai-python/issues/745)
+- [Inconsistent Gemini Output with Identical Input -- Even at temperature=0](https://discuss.ai.google.dev/t/inconsistent-gemini-output-with-identical-input-even-at-temperature-0/98096)
+- [Content generation parameters - Vertex AI](https://docs.cloud.google.com/vertex-ai/generative-ai/docs/multimodal/content-generation-parameters)
 
-### PDF Annotation and Evidence Linking
-- [Analysis of Errors in Dictated Clinical Documents Assisted by Speech Recognition Software - PMC](https://pmc.ncbi.nlm.nih.gov/articles/PMC6203313/)
-- [HOW TO SECURELY REDACT PDF DOCUMENTS IN 2026: MISTAKES TO AVOID](https://www.nymiz.com/how-to-securely-redact-pdf-documents-in-2026/)
+### Transactional Outbox Pattern
+- [Microservices Pattern: Transactional outbox](https://microservices.io/patterns/data/transactional-outbox.html)
+- [Transactional outbox pattern - AWS Prescriptive Guidance](https://docs.aws.amazon.com/prescriptive-guidance/latest/cloud-design-patterns/transactional-outbox.html)
 
-### Codebase-Specific Context
-- Current implementation: `/Users/noahdolevelixir/Code/medgemma-hackathon/apps/hitl-ui/src/components/CriterionCard.tsx` (lines 186-302: buildInitialValues function showing priority handling)
-- Current implementation: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/reviews.py` (lines 314-331: schema versioning strategy)
-- Current implementation: `/Users/noahdolevelixir/Code/medgemma-hackathon/.planning/codebase/CONCERNS.md` (existing known issues and tech debt)
+### JSONB Schema Evolution
+- [Zero-Downtime PostgreSQL JSONB Migration](https://medium.com/@shinyjai2011/zero-downtime-postgresql-jsonb-migration-a-practical-guide-for-scalable-schema-evolution-9f74124ef4a1)
+- [7 Postgres JSONB Patterns for Semi-Structured Speed](https://medium.com/@connect.hashblock/7-postgres-jsonb-patterns-for-semi-structured-speed-69f02f727ce5)
+
+### LangGraph Architecture
+- [LangGraph Multi-Agent Orchestration: Complete Framework Guide](https://latenode.com/blog/langgraph-multi-agent-orchestration-complete-framework-guide-architecture-analysis-2025)
+- [LangGraph state management: merge state from parallel branches](https://forum.langchain.com/t/question-why-does-langgraph-merge-state-from-parallel-branches-instead-of-branch-isolation/602)
 
 ---
 
-*Pitfalls research for: Clinical NLP HITL System - Corpus Building and Editor Polish*
-*Researched: 2026-02-13*
-*Confidence: HIGH - Based on official documentation, peer-reviewed research, and codebase analysis*
+*Pitfalls research for: Clinical Trial Criteria Extraction -- Pipeline Consolidation, ToolUniverse Grounding, and E2E Quality Fixes*
+*Researched: 2026-02-16*
+*Confidence: HIGH -- Based on codebase analysis, E2E test report, official documentation, ToolUniverse repository inspection, and multiple verified sources*
