@@ -15,12 +15,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
-from typing import Any
+from typing import Any, TypeVar
 
 from inference.config import AgentConfig
 from inference.model_garden import ModelGardenChatModel, create_model_loader
 from langchain_core.messages import HumanMessage, SystemMessage
+from langchain_google_genai import ChatGoogleGenerativeAI
+from pydantic import BaseModel, Field
 from shared.resilience import umls_breaker, vertex_ai_breaker
 from tenacity import (
     before_sleep_log,
@@ -37,6 +40,8 @@ from grounding_service.schemas.agentic_actions import (
 )
 from grounding_service.state import GroundingState
 
+T = TypeVar("T", bound=BaseModel)
+
 logger = logging.getLogger(__name__)
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
@@ -44,6 +49,60 @@ MAX_ITERATIONS = 3
 
 # Cache the model loader across invocations
 _model_loader = None
+
+
+# Simplified schemas for two-model architecture
+class ExtractResult(BaseModel):
+    """Result of MedGemma extraction phase, structured by Gemini."""
+
+    entities: list[ExtractedEntityAction] = Field(
+        description="Entities extracted from the criteria text"
+    )
+
+
+class EvaluateResult(BaseModel):
+    """Result of MedGemma evaluation phase, structured by Gemini."""
+
+    selections: list[GroundingSelection] = Field(
+        description="Grounding selections for entities"
+    )
+
+
+def _structure_with_gemini(raw_text: str, schema: type[T]) -> T:
+    """Structure raw MedGemma output using Gemini with_structured_output.
+
+    Args:
+        raw_text: Raw text from MedGemma (free-form medical reasoning).
+        schema: Pydantic model class to structure into.
+
+    Returns:
+        Validated Pydantic model instance.
+
+    Raises:
+        Exception: If Gemini structuring fails.
+    """
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable is required")
+
+    gemini = ChatGoogleGenerativeAI(
+        model=gemini_model_name,
+        google_api_key=google_api_key,
+    )
+
+    structured_llm = gemini.with_structured_output(schema)
+
+    prompt = (
+        "Extract the structured data from this medical analysis output. "
+        "Return ONLY the structured fields, preserving all medical "
+        "terminology exactly as written.\n\n"
+        f"{raw_text}"
+    )
+
+    result = structured_llm.invoke(prompt)
+    return result
 
 
 def _get_medgemma_model() -> ModelGardenChatModel:
