@@ -1,7 +1,7 @@
 # Documentation Makefile for monorepo
 SHELL := /bin/bash
 
-.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-api run-ui
+.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-api run-ui setup-adc verify-gemini quality-eval quality-eval-fresh
 
 run-dev:
 	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-dev"; exit 1; }
@@ -48,6 +48,16 @@ run-api:
 run-ui:
 	@echo "Starting UI dev server..."
 	cd apps/hitl-ui && npm run dev
+
+# Set Application Default Credentials quota project from .env (GCP_PROJECT_ID or GOOGLE_CLOUD_QUOTA_PROJECT).
+# Run once after gcloud auth application-default login. Required for Vertex AI and GCS when using user ADC.
+setup-adc:
+	@chmod +x scripts/setup-gcloud-adc.sh 2>/dev/null || true
+	@./scripts/setup-gcloud-adc.sh
+
+# Verify Gemini API access (GOOGLE_API_KEY in .env). Uses same client as extraction service.
+verify-gemini:
+	uv run python scripts/verify_gemini_access.py
 
 create-component:
 	@read -p "Enter component name: " COMPONENT_NAME; \
@@ -152,6 +162,13 @@ test:
 		cd apps/hitl-ui && npm test -- --run; \
 	fi
 
+# Quality Evaluation
+quality-eval:  ## Run quality evaluation on sample PDFs (requires Docker Compose stack)
+	uv run python scripts/quality_eval.py
+
+quality-eval-fresh:  ## Run quality evaluation with fresh pipeline runs
+	uv run python scripts/quality_eval.py --fresh
+
 help:
 	@echo "ElixirTrials  - Makefile Commands"
 	@echo ""
@@ -181,3 +198,7 @@ help:
 	@echo ""
 	@echo "MLflow:"
 	@echo "  make mlflow-clear - Delete all MLflow runs/traces"
+	@echo ""
+	@echo "Quality Evaluation:"
+	@echo "  make quality-eval       - Run quality evaluation on sample PDFs"
+	@echo "  make quality-eval-fresh - Re-upload PDFs and run fresh evaluation"
