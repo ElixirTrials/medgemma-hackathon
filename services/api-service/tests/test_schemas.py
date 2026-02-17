@@ -12,7 +12,6 @@ from protocol_processor.schemas.grounding import (
 )
 from pydantic import ValidationError
 
-
 # ---------------------------------------------------------------------------
 # GroundingCandidate schema tests
 # ---------------------------------------------------------------------------

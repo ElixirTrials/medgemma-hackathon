@@ -10,7 +10,6 @@ from unittest.mock import patch
 import pytest
 from protocol_processor.schemas.grounding import GroundingCandidate
 
-
 # ---------------------------------------------------------------------------
 # Helper: mock candidates
 # ---------------------------------------------------------------------------
@@ -226,7 +225,9 @@ class TestTerminologySearchEndpoint:
         assert response.status_code == 502
         assert "failed" in response.json()["detail"].lower()
 
-    @pytest.mark.parametrize("system", ["rxnorm", "icd10", "loinc", "hpo", "umls", "snomed"])
+    @pytest.mark.parametrize(
+        "system", ["rxnorm", "icd10", "loinc", "hpo", "umls", "snomed"]
+    )
     def test_all_valid_systems_accepted(self, test_client, system: str) -> None:
         with patch(
             "api_service.terminology_search.tu_search",

@@ -162,7 +162,7 @@ def _call_tool(
         return {}
 
 
-def _parse_result(
+def _parse_result(  # noqa: C901
     system: str,
     tool_name: str,
     query: str,
