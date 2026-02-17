@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 32    | 01   | 4 min    | 2026-02-17 | Real NLM API terminology lookups (RxNorm/ICD-10/LOINC/HPO), terminology search proxy endpoints |
 | 32    | 02   | 4 min    | 2026-02-17 | PostgreSQL checkpointing, retry-from-checkpoint, async retry endpoint |
 | 31    | 03   | 8 min    | 2026-02-17 | Ground node, persist node, 5-node graph, unified trigger, PIPE-03 |
 | 31    | 02   | 20 min   | 2026-02-17 | Extraction tools (pdf_parser, gemini_extractor), ingest/extract/parse nodes |
@@ -50,6 +51,7 @@ Progress: [███████████████████████
 
 *Metrics from MILESTONES.md and previous roadmaps*
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
+| Phase 32 P01 | 4 | 2 tasks | 6 files |
 | Phase 32 P02 | 4 | 2 tasks | 4 files |
 | Phase 31 P03 | 8 | 2 tasks | 13 files |
 
@@ -65,6 +67,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - UMLS retained via direct Python import (not MCP subprocess)
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
+
+**Phase 32 Terminology API (2026-02-17) - Plan 01:**
+- NLM direct API over ToolUniverse: ToolUniverse medical tool availability unconfirmed; NLM REST APIs (RxNav, Clinical Tables, JAX HPO) are free, no-auth, well-documented (32-01)
+- routing.yaml source: tooluniverse → source: direct_api for rxnorm/icd10/loinc/hpo (32-01)
+- diskcache optional: if not installed, caching silently disabled (graceful degradation) (32-01)
+- SNOMED /api/terminology/snomed/search delegates to get_umls_client().search_snomed() — same existing working path (32-01)
+- Frontend /api/terminology/{system}/search available for all 6 systems: rxnorm, icd10, loinc, hpo, umls, snomed (32-01)
 
 **Phase 32 Checkpointing (2026-02-17) - Plan 02:**
 - PostgresSaver singleton (not per-invocation) to avoid connection pool exhaustion (32-02)
@@ -170,10 +179,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 32 Plan 02 (PostgreSQL checkpointing, retry-from-checkpoint)
+Stopped at: Completed Phase 32 Plan 01 (real NLM API terminology lookups + frontend proxy endpoints)
 Resume file: None
 Next action: Phase 32 Plan 03 (next plan per ROADMAP)
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 32 Plan 02*
+*Last updated: 2026-02-17 after completing Phase 32 Plan 01*
