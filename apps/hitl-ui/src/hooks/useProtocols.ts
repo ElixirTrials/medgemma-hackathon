@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
 
 import { useAuthStore } from '../stores/authStore';
 
@@ -85,11 +85,15 @@ export function useProtocolList(page: number, pageSize: number, status?: string)
     });
 }
 
-export function useProtocol(id: string) {
+export function useProtocol(
+    id: string,
+    options?: Partial<UseQueryOptions<Protocol, Error>>
+) {
     return useQuery({
         queryKey: ['protocols', id],
         queryFn: () => fetchApi<Protocol>(`/protocols/${id}`),
         enabled: Boolean(id),
+        ...options,
     });
 }
 
