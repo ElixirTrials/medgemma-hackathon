@@ -311,8 +311,6 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
     const [editCategory, setEditCategory] = useState(criterion.category ?? '');
     const [rationale, setRationale] = useState('');
 
-    const isLowConfidence = criterion.confidence < 0.7;
-
     // Sync local edit state when criterion prop changes (after mutation response)
     useEffect(() => {
         setEditText(criterion.text);
@@ -371,8 +369,11 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
     return (
         <div
             className={cn(
-                'rounded-lg border bg-card p-4 shadow-sm',
-                isLowConfidence && 'border-l-4 border-l-red-300'
+                'rounded-lg border bg-card p-4 shadow-sm border-l-4',
+                criterion.review_status === 'approved' && 'border-l-green-500',
+                criterion.review_status === 'rejected' && 'border-l-red-500',
+                criterion.review_status === 'modified' && 'border-l-blue-500',
+                !criterion.review_status && 'border-l-yellow-400',
             )}
         >
             {/* Header row */}
