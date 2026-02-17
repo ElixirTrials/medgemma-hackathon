@@ -7,6 +7,8 @@ services:
       dockerfile: services/api-service/Dockerfile
     ports:
       - "${API_PORT:-8000}:8000"
+    env_file:
+      - ../.env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
@@ -82,34 +84,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  extraction:
-    build:
-      context: ..
-      dockerfile: services/extraction-service/Dockerfile
-    ports:
-      - "8001:8001"
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
-    depends_on:
-      db:
-        condition: service_healthy
-    profiles:
-      - agents
-
-  grounding:
-    build:
-      context: ..
-      dockerfile: services/grounding-service/Dockerfile
-    ports:
-      - "8002:8002"
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
-    depends_on:
-      db:
-        condition: service_healthy
-    profiles:
-      - agents
 
 volumes:
   postgres_data:

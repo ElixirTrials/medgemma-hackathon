@@ -7,7 +7,10 @@ dependencies = [
     "shared",
     "events-py",
     "inference",
-    "umls-mcp-server",
+    "tooluniverse>=1.0.18",
+    "cachetools>=5.0",
+    "langchain-core>=0.3.0",
+    "langchain-google-genai>=4.2.0",
     "langgraph>=1.0.6",
     "langgraph-checkpoint-postgres>=2.0",
     "psycopg[binary]>=3.1",
@@ -55,8 +58,6 @@ mypy_path = [
     "../shared/src",
     "../inference/src",
     "../../libs/events-py/src",
-    "../umls-mcp-server/src",
-    "../grounding-service/src",
 ]
 
 [tool.pytest.ini_options]
@@ -66,8 +67,6 @@ pythonpath = [
     "../shared/src",
     "../inference/src",
     "../../libs/events-py/src",
-    "../umls-mcp-server/src",
-    "../grounding-service/src",
 ]
 testpaths = ["tests"]
 asyncio_mode = "auto"
@@ -76,4 +75,3 @@ asyncio_mode = "auto"
 shared = { workspace = true }
 events-py = { workspace = true }
 inference = { workspace = true }
-umls-mcp-server = { workspace = true }

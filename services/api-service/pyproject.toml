@@ -8,11 +8,11 @@ dependencies = [
     "shared",
     "inference",
     "events-py",
-    "extraction-service",
-    "grounding-service",
+    "protocol-processor-service",
     "fastapi>=0.110.0",
     "uvicorn>=0.27.0",
     "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",
     "sqlmodel>=0.0.16",
     "alembic>=1.13.0",
     "python-multipart>=0.0.9",
@@ -61,8 +61,7 @@ pythonpath = [
     "../shared/src",
     "../inference/src",
     "../../libs/events-py/src",
-    "../extraction-service/src",
-    "../grounding-service/src",
+    "../protocol-processor-service/src",
 ]
 testpaths = ["tests"]
 # Coverage is optional - use `pytest --cov=api_service` to enable
@@ -81,5 +80,4 @@ filterwarnings = [
 shared = { workspace = true }
 inference = { workspace = true }
 events-py = { workspace = true }
-extraction-service = { workspace = true }
-grounding-service = { workspace = true }
+protocol-processor-service = { workspace = true }

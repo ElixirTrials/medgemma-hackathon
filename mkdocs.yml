@@ -143,3 +143,4 @@ nav:
 
   - Guides:
       - Testing Guide: testing-guide.md
+      - Gemini & Vertex auth: development/gemini-vertex-auth.md
