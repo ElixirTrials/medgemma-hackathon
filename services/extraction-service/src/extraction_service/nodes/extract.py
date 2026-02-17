@@ -96,6 +96,7 @@ async def _invoke_gemini(
             system_instruction=system_prompt,
             response_mime_type="application/json",
             response_schema=ExtractionResult,
+            temperature=0.0,  # Deterministic greedy decoding for re-extraction
         ),
     )
 

@@ -14,16 +14,18 @@ import base64
 import logging
 from datetime import datetime, timedelta, timezone
 from math import ceil
+from typing import Any
 
 from events_py.models import DomainEventKind
 from events_py.outbox import persist_with_outbox
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from shared.models import Protocol
+from shared.models import Criteria, CriteriaBatch, Protocol, Review
 from shared.resilience import gemini_breaker
-from sqlmodel import Session, func, select
+from sqlmodel import Session, col, func, select
 
 from api_service.dependencies import get_db
+from api_service.fuzzy_matching import inherit_reviews_for_batch
 from api_service.gcs import (
     generate_upload_url,
     set_blob_metadata,
@@ -98,6 +100,14 @@ class RetryResponse(BaseModel):
 
     status: str
     protocol_id: str
+
+
+class ReExtractResponse(BaseModel):
+    """Response for re-extraction endpoint."""
+
+    status: str
+    protocol_id: str
+    archived_batches: int
 
 
 # --- Endpoints ---
@@ -289,6 +299,123 @@ async def retry_protocol(
     return RetryResponse(status="retry_started", protocol_id=protocol_id)
 
 
+@router.post("/{protocol_id}/re-extract", response_model=ReExtractResponse)
+def re_extract_protocol(
+    protocol_id: str,
+    db: Session = Depends(get_db),
+) -> ReExtractResponse:
+    """Trigger re-extraction on an existing protocol without re-uploading the PDF.
+
+    Archives all existing non-archived batches for this protocol (preserves them
+    in the database but hides them from the dashboard and review page). Collects
+    reviewed criteria from the archived batches to enable review inheritance.
+    Triggers the extraction pipeline via outbox event (same flow as initial upload).
+
+    The extraction pipeline will create a new batch. Review decisions from archived
+    criteria are auto-inherited for criteria with >90% fuzzy text match (same type).
+
+    Returns 404 if protocol not found.
+    Returns 409 if protocol is in a processing state (extracting, grounding) to
+    prevent race conditions — only terminal states are re-extractable.
+    """
+    protocol = db.get(Protocol, protocol_id)
+    if not protocol:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Protocol {protocol_id} not found",
+        )
+
+    # Only allow re-extraction from terminal states — prevent race conditions
+    # with an in-progress pipeline run (Pitfall 5 from RESEARCH.md)
+    terminal_states = {
+        "pending_review",
+        "complete",
+        "extraction_failed",
+        "grounding_failed",
+        "dead_letter",
+    }
+    if protocol.status not in terminal_states:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Protocol is not in a terminal state (current: {protocol.status}). "
+                "Re-extraction is only allowed for: "
+                + ", ".join(sorted(terminal_states))
+            ),
+        )
+
+    # Find all non-archived batches for this protocol
+    existing_batches = db.exec(
+        select(CriteriaBatch).where(
+            CriteriaBatch.protocol_id == protocol_id,
+            CriteriaBatch.is_archived == False,  # noqa: E712
+        )
+    ).all()
+
+    # Collect reviewed criteria from batches being archived (for inheritance)
+    archived_reviewed_criteria: list[dict[str, Any]] = []
+    for batch in existing_batches:
+        criteria = db.exec(
+            select(Criteria).where(
+                Criteria.batch_id == batch.id,
+                col(Criteria.review_status).isnot(None),
+            )
+        ).all()
+        for criterion in criteria:
+            archived_reviewed_criteria.append(
+                {
+                    "id": criterion.id,
+                    "text": criterion.text,
+                    "criteria_type": criterion.criteria_type,
+                    "review_status": criterion.review_status,
+                    "reviewed_by": None,  # Review reviewer_id tracked in Review table
+                }
+            )
+
+    # Archive all existing non-archived batches
+    archived_count = len(existing_batches)
+    for batch in existing_batches:
+        batch.is_archived = True
+        db.add(batch)
+
+    logger.info(
+        "Archiving %d batch(es) for protocol %s before re-extraction "
+        "(collected %d reviewed criteria for inheritance)",
+        archived_count,
+        protocol_id,
+        len(archived_reviewed_criteria),
+    )
+
+    # Update protocol status to extracting and trigger extraction pipeline
+    protocol.status = "extracting"
+    protocol.error_reason = None
+
+    # Trigger extraction via outbox event — reuses existing pipeline
+    # (same as initial upload flow). Include archived reviewed criteria in
+    # payload so the persist node can apply review inheritance after batch creation.
+    persist_with_outbox(
+        session=db,
+        entity=protocol,
+        event_type=DomainEventKind.PROTOCOL_UPLOADED,
+        aggregate_type="protocol",
+        aggregate_id=protocol.id,
+        payload={
+            "protocol_id": protocol.id,
+            "title": protocol.title,
+            "file_uri": protocol.file_uri,
+            "archived_reviewed_criteria": archived_reviewed_criteria,
+        },
+    )
+
+    db.commit()
+
+    return ReExtractResponse(
+        status="extracting",
+        protocol_id=protocol_id,
+        archived_batches=archived_count,
+    )
+
+
 @router.get("", response_model=ProtocolListResponse)
 def list_protocols(
     page: int = Query(default=1, ge=1),
@@ -397,3 +524,120 @@ def _check_dead_letter_archival(protocol: Protocol, session: Session) -> None:
         protocol.status = "archived"
         session.add(protocol)
         session.commit()
+
+
+def _apply_review_inheritance(
+    db: Session,
+    protocol_id: str,
+    archived_criteria: list[dict[str, Any]],
+) -> None:
+    """Auto-inherit review decisions from archived criteria to new batch criteria.
+
+    Finds the newest non-archived batch for the protocol, then uses fuzzy
+    matching to identify matching criteria from the archived set. For each
+    match above the 90% threshold (same criteria_type), copies the review
+    decision to the new criterion and creates a Review record.
+
+    Called from the extraction pipeline after new batch/criteria are persisted
+    (e.g., from persist_node in extraction-service when archived_reviewed_criteria
+    is present in the outbox payload).
+
+    Args:
+        db: Database session.
+        protocol_id: Protocol to apply inheritance for.
+        archived_criteria: List of criterion dicts from archived batches.
+            Must have: id, text, criteria_type, review_status.
+    """
+    if not archived_criteria:
+        return
+
+    # Find the newest non-archived batch for this protocol
+    newest_batch = db.exec(
+        select(CriteriaBatch)
+        .where(
+            CriteriaBatch.protocol_id == protocol_id,
+            CriteriaBatch.is_archived == False,  # noqa: E712
+        )
+        .order_by(col(CriteriaBatch.created_at).desc())
+        .limit(1)
+    ).first()
+
+    if not newest_batch:
+        logger.warning(
+            "No non-archived batch found for protocol %s — skipping inheritance",
+            protocol_id,
+        )
+        return
+
+    # Load new criteria from the newest batch
+    new_criteria_list = db.exec(
+        select(Criteria).where(Criteria.batch_id == newest_batch.id)
+    ).all()
+
+    if not new_criteria_list:
+        return
+
+    # Convert new criteria to dicts for fuzzy matching
+    new_criteria_dicts = [
+        {
+            "id": c.id,
+            "text": c.text,
+            "criteria_type": c.criteria_type,
+        }
+        for c in new_criteria_list
+    ]
+
+    # Run fuzzy matching to find inheritance candidates
+    matches = inherit_reviews_for_batch(
+        new_criteria=new_criteria_dicts,
+        archived_criteria=archived_criteria,
+    )
+
+    if not matches:
+        logger.info(
+            "No review decisions inherited for protocol %s (0 matches found)",
+            protocol_id,
+        )
+        return
+
+    # Build lookup for fast criterion access
+    criteria_by_id = {c.id: c for c in new_criteria_list}
+
+    # Apply inheritance: update criterion status and create Review records
+    inherited = 0
+    for match in matches:
+        criterion = criteria_by_id.get(match["new_criterion_id"])
+        if not criterion:
+            continue
+
+        criterion.review_status = match["review_status"]
+        db.add(criterion)
+
+        # Create Review record documenting the auto-inheritance
+        review = Review(
+            reviewer_id="system:re-extraction-inheritance",
+            target_type="criteria",
+            target_id=criterion.id,
+            action=match["review_status"],  # e.g., "approved", "rejected", "modified"
+            before_value={"review_status": None},
+            after_value={
+                "review_status": match["review_status"],
+                "inherited_from": match["old_criterion_id"],
+                "match_score": match["match_score"],
+            },
+            comment=(
+                f"Auto-inherited from archived criterion {match['old_criterion_id']} "
+                f"(fuzzy match score: {match['match_score']:.1f}%)"
+            ),
+        )
+        db.add(review)
+        inherited += 1
+
+    db.commit()
+
+    logger.info(
+        "Inherited %d/%d review decisions for protocol %s",
+        inherited,
+        len(new_criteria_list),
+        protocol_id,
+    )
