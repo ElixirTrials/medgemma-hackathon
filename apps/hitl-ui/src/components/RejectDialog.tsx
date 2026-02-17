@@ -74,10 +74,15 @@ export default function RejectDialog({ open, onOpenChange, onConfirm }: RejectDi
                                                     checked={field.value.includes(reason.value)}
                                                     onChange={(e) => {
                                                         if (e.target.checked) {
-                                                            field.onChange([...field.value, reason.value]);
+                                                            field.onChange([
+                                                                ...field.value,
+                                                                reason.value,
+                                                            ]);
                                                         } else {
                                                             field.onChange(
-                                                                field.value.filter((v) => v !== reason.value)
+                                                                field.value.filter(
+                                                                    (v) => v !== reason.value
+                                                                )
                                                             );
                                                         }
                                                     }}
@@ -115,14 +120,15 @@ export default function RejectDialog({ open, onOpenChange, onConfirm }: RejectDi
                         </div>
 
                         <div className="flex items-center justify-end gap-2">
-                            <Button type="button" size="sm" variant="outline" onClick={handleCancel}>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={handleCancel}
+                            >
                                 Cancel
                             </Button>
-                            <Button
-                                type="submit"
-                                size="sm"
-                                variant="destructive"
-                            >
+                            <Button type="submit" size="sm" variant="destructive">
                                 Reject
                             </Button>
                         </div>
