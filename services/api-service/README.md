@@ -34,14 +34,14 @@ The API Service is the central orchestrator for the application. It provides HTT
 
 ## calling Agents
 
-Do not import agent code directly if possible. Instead, use the factories in `inference` or clean interfaces in agent packages.
+The unified protocol processing pipeline lives in `protocol-processor-service`. Trigger it via the outbox pattern — the API service inserts an OutboxEvent and the OutboxProcessor calls the trigger handler automatically:
 
 ```python
-from extraction_service.graph import create_graph
+from protocol_processor.trigger import handle_protocol_uploaded
 
-async def run_agent_task(task_id: str):
-    graph = create_graph()
-    await graph.ainvoke(...)
+# This is called automatically by OutboxProcessor on protocol_uploaded events.
+# Direct invocation is for testing only.
+await handle_protocol_uploaded(event_payload)
 ```
 
 ## Best Practices

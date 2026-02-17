@@ -6,9 +6,8 @@ This page provides an overview of all microservices and shared libraries in this
 
 | Component | Description |
 | :--- | :--- |
-| **extraction-service** | Criteria extraction workflow using Gemini to extract structured inclusion/exclusion criteria from protocol PDFs. |
-| **grounding-service** | Entity grounding workflow using MedGemma and UMLS MCP to map medical entities to SNOMED codes. |
-| **api-service** | The API Service is the central orchestrator for the application. It provides HTTP endpoints for the frontend, manages database persistence, and triggers background extraction and grounding workflows. |
+| **protocol-processor-service** | Unified 5-node LangGraph pipeline (ingest → extract → parse → ground → persist) for protocol extraction and terminology grounding. Uses Gemini for extraction, MedGemma for entity reasoning, and ToolUniverse for grounding to UMLS, SNOMED, ICD-10, LOINC, RxNorm, and HPO. |
+| **api-service** | The API Service is the central orchestrator for the application. It provides HTTP endpoints for the frontend, manages database persistence, and triggers background protocol processing workflows. |
 | **data-pipeline** | This component handles data ingestion (ETL), normalization, and preparation for the API or training. |
 | **evaluation** | This component runs offline evaluation benchmarks against your agents. |
 | **events-py** | Shared event envelope shapes and helpers used by Python services that publish or consume events. |

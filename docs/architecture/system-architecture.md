@@ -1,6 +1,6 @@
 ---
 title: System Architecture
-date_verified: 2026-02-12
+date_verified: 2026-02-17
 status: current
 ---
 
@@ -21,27 +21,23 @@ C4Container
     System_Boundary(system, "Criteria Extraction System") {
         Container(ui, "HITL Review UI", "React, TypeScript, Vite", "Web interface for protocol upload and criteria review")
         Container(api, "API Service", "FastAPI, Python", "REST API orchestrating workflows and serving frontend")
-        Container(extract, "Extraction Service", "LangGraph, Python", "Agent extracting criteria from PDFs via Gemini")
-        Container(ground, "Grounding Service", "LangGraph, Python", "Agent grounding entities to UMLS/SNOMED via MCP")
+        Container(pp, "Protocol Processor Service", "LangGraph, Python", "Unified 5-node pipeline: ingest → extract → parse → ground → persist")
         ContainerDb(db, "Database", "PostgreSQL", "Stores protocols, criteria, entities, audit logs")
     }
 
     Container_Ext(gcs, "GCS Bucket", "Google Cloud Storage", "PDF storage")
-    Container_Ext(gemini, "Gemini API", "Google AI", "Criteria extraction LLM")
-    Container_Ext(medgemma, "MedGemma", "Vertex AI", "Medical entity extraction")
-    Container_Ext(umls_mcp, "UMLS MCP Server", "FastMCP, Python", "UMLS concept search and linking")
-    Container_Ext(umls_api, "UMLS REST API", "NIH NLM", "UMLS concept validation")
+    Container_Ext(gemini, "Gemini API", "Google AI", "Criteria extraction LLM and JSON structuring")
+    Container_Ext(medgemma, "MedGemma", "Vertex AI", "Medical entity reasoning and grounding decisions")
+    Container_Ext(tooluniverse, "ToolUniverse SDK", "Harvard MIMS", "Unified terminology lookup: UMLS, SNOMED, ICD-10, LOINC, RxNorm, HPO")
 
     Rel(researcher, ui, "Uses", "HTTPS")
     Rel(ui, api, "API calls", "REST/JSON")
     Rel(api, db, "Reads/writes", "SQLAlchemy")
-    Rel(api, extract, "Triggers via outbox events", "Transactional outbox")
-    Rel(api, ground, "Triggers via outbox events", "Transactional outbox")
+    Rel(api, pp, "Triggers via outbox events", "Transactional outbox")
     Rel(api, gcs, "Signed URLs", "GCS client")
-    Rel(extract, gemini, "LLM calls", "Google AI SDK")
-    Rel(ground, medgemma, "Entity extraction", "Vertex AI SDK")
-    Rel(ground, umls_mcp, "Tool calls", "MCP protocol")
-    Rel(umls_mcp, umls_api, "Validates concepts", "REST/JSON")
+    Rel(pp, gemini, "LLM calls for extraction and structuring", "Google AI SDK")
+    Rel(pp, medgemma, "Medical reasoning and grounding decisions", "Vertex AI SDK")
+    Rel(pp, tooluniverse, "Terminology lookup (all 6 systems)", "ToolUniverse Python SDK")
 ```
 
 ## Service Communication Patterns
@@ -64,14 +60,14 @@ This pattern is appropriate for user-facing operations where immediate feedback 
 
 ### Backend <-> Agents: Transactional Outbox Pattern
 
-The API Service triggers agent workflows (Extraction Service, Grounding Service) asynchronously via the **transactional outbox pattern** to ensure reliable event delivery without the dual-write problem.
+The API Service triggers the Protocol Processor Service asynchronously via the **transactional outbox pattern** to ensure reliable event delivery without the dual-write problem.
 
 **Pattern flow:**
 
 1. API Service commits database transaction (e.g., create Protocol record)
 2. Within the same transaction, insert OutboxEvent record with event type (e.g., `ProtocolUploaded`)
 3. OutboxProcessor polls pending events (every 5s)
-4. Processor invokes agent trigger handler (e.g., `handle_protocol_uploaded` in extraction-service)
+4. Processor invokes agent trigger handler (e.g., `handle_protocol_uploaded` in protocol-processor-service)
 5. On success, mark OutboxEvent as `published`; on failure, increment `retry_count` with exponential backoff
 
 **Benefits:**
@@ -84,9 +80,7 @@ The API Service triggers agent workflows (Extraction Service, Grounding Service)
 
 | Event Type | Trigger | Target Service | Outcome |
 |------------|---------|----------------|---------|
-| `ProtocolUploaded` | Protocol created | extraction-service | Extracts criteria from PDF |
-| `CriteriaExtracted` | CriteriaBatch created | grounding-service | Grounds entities to UMLS/SNOMED |
-| `EntitiesGrounded` | Entity linking complete | API Service | Updates protocol status to `pending_review` |
+| `ProtocolUploaded` | Protocol created | protocol-processor-service | Runs full 5-node pipeline: extract criteria, parse, ground entities, persist |
 | `ReviewCompleted` | Review approved | Future analytics | Triggers downstream analytics (future phase) |
 
 **Note:** This shows the happy path. See Production Hardening documentation for error handling, dead letter queues, and circuit breaker patterns.
@@ -95,15 +89,16 @@ The API Service triggers agent workflows (Extraction Service, Grounding Service)
 
 Agents communicate with external services via their respective SDKs:
 
-- **Gemini API:** `google.generativeai` SDK for LLM-based criteria extraction from protocol PDFs
-- **MedGemma (Vertex AI):** `vertexai` SDK for medical entity extraction from criteria text
-- **UMLS MCP Server:** `mcp` client protocol for concept search and linking tool calls
-- **UMLS REST API:** `httpx` for UMLS concept validation (called through MCP server)
+- **Gemini API:** `google-genai` SDK for LLM-based criteria extraction from protocol PDFs and JSON structuring of MedGemma output
+- **MedGemma (Vertex AI):** `vertexai` SDK for medical entity reasoning and grounding decision selection
+- **ToolUniverse SDK:** `tooluniverse` Python package for unified terminology lookup across UMLS, SNOMED, ICD-10, LOINC, RxNorm, and HPO (Harvard MIMS lab; replaces all previous direct NLM API calls)
 
 **Reliability characteristics:**
 
 - All external calls include 30-second timeout configuration
 - Exponential backoff retry logic (via `tenacity` library, max 3 retries)
-- Circuit breaker patterns to prevent cascading failures during extended outages
+- In-memory TTL cache (`cachetools.TTLCache`) for ToolUniverse results to reduce autocomplete latency
+- MedGemma agentic reasoning loop (3 questions) before each retry on failed grounding attempts
+- Max 3 grounding attempts per entity; after 3 failures, entity routes to `expert_review` queue
 
 **Note:** This shows happy path behavior. See Production Hardening for timeout handling, fallback strategies, and degraded mode operations.
