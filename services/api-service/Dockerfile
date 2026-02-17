@@ -14,8 +14,8 @@ COPY pyproject.toml uv.lock ./
 # Copy all libs (needed for workspace resolution)
 COPY libs/ libs/
 
-# Copy this service
-COPY services/api-service/ services/api-service/
+# Copy all services (needed for workspace resolution — api-service imports protocol_processor)
+COPY services/ services/
 
 # Copy alembic configuration
 COPY services/api-service/alembic.ini services/api-service/alembic.ini

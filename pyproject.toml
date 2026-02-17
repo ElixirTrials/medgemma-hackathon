@@ -67,10 +67,7 @@ dev = [
 [tool.uv.workspace]
 members = [
     "services/api-service",
-    "services/extraction-service",
-    "services/grounding-service",
     "services/protocol-processor-service",
-    "services/umls-mcp-server",
     "libs/data-pipeline",
     "libs/evaluation",
     "libs/events-py",
@@ -135,14 +132,8 @@ ignore_missing_imports = true
 module = [
     "data_pipeline",
     "data_pipeline.load_data",
-    "extraction_service",
-    "extraction_service.*",
-    "grounding_service",
-    "grounding_service.*",
     "protocol_processor",
     "protocol_processor.*",
-    "umls_mcp_server",
-    "umls_mcp_server.*",
     "shared",
     "shared.models",
 ]
@@ -191,10 +182,7 @@ filterwarnings = [
 ]
 pythonpath = [
     "services/api-service/src",
-    "services/extraction-service/src",
-    "services/grounding-service/src",
     "services/protocol-processor-service/src",
-    "services/umls-mcp-server/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
     "libs/events-py/src",
@@ -209,10 +197,7 @@ addopts = "-n auto"
 [tool.coverage.run]
 source = [
     "services/api-service/src",
-    "services/extraction-service/src",
-    "services/grounding-service/src",
     "services/protocol-processor-service/src",
-    "services/umls-mcp-server/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
     "libs/events-py/src",

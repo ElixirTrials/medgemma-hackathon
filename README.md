@@ -9,6 +9,7 @@ This is a comprehensive mono-repo template designed for building production-read
 - **Node.js 20+**
 - **uv** (Modern Python package manager)
 - **Docker & Docker Compose**
+- **Google Cloud:** For Gemini set `GOOGLE_API_KEY` in `.env`. For Vertex AI (MedGemma) and GCS, run `gcloud auth application-default login` once, then `make setup-adc`. See [Gemini & Vertex auth](docs/development/gemini-vertex-auth.md).
 
 ### Installation
 Clone the repository and sync dependencies:
