@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 29 - Backend Bug Fixes
+**Current focus:** Phase 30 - UX Polish, Editor Pre-loading
 
 ## Current Position
 
-Phase: 29 of 34 (Backend Bug Fixes)
-Plan: Completed all 4 plans
-Status: Complete
-Last activity: 2026-02-16 — Completed Plan 29-04 (medical entity filtering), Phase 29 complete
+Phase: 30 of 34 (UX Polish, Editor Pre-loading)
+Plan: Completed Plan 01
+Status: In Progress
+Last activity: 2026-02-17 — Completed Plan 30-01 (review status borders + sticky filter bar + section grouping)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 30    | 01   | 2 min    | 2026-02-17 | Review status borders + sticky filter bar + section grouping |
 | 29    | 04   | 4 min    | 2026-02-16 | Medical entity filtering for high CUI rate                  |
 | 29    | 03   | 15 min   | 2026-02-16 | Gemini structured output for MedGemma grounding             |
 | 29    | 02   | 8 min    | 2026-02-16 | Audit trail and pending count bug fixes                     |
@@ -57,6 +58,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - UMLS retained via direct Python import (not MCP subprocess)
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
+
+**Phase 30 UX Polish (2026-02-17) - Plan 01:**
+- Review status colored left borders on CriterionCard: green=approved, red=rejected, blue=modified, yellow=pending (30-01)
+- Status border supersedes low-confidence border — review_status is more actionable, ConfidenceBadge already shows confidence (30-01)
+- Client-side useMemo filtering with 300ms debounced text search and 3 dropdowns (status/type/confidence) (30-01)
+- Criteria grouped into Inclusion/Exclusion/To Be Sorted sections with pending-first sort and reviewed/total progress counts (30-01)
+- Fixed API sort (confidence asc), removed server sort controls UI — client-side grouping replaces it (30-01)
 
 **Phase 29 Bug Fixes (2026-02-16) - COMPLETE:**
 - Three-pronged entity filtering: prompt + code + evaluate for high CUI rate (29-04)
@@ -109,8 +117,16 @@ None.
 - Entity type mismatch between extraction and tool routing (Pitfall 3)
 - Pipeline state schema merge causes type safety regression (Pitfall 10)
 
+**Grounding Quality Notes (for Phase 31+):**
+- Gemini free tier rate limit (20 req/day for 2.5-flash) blocks E2E testing — upgrade to paid tier on consumer API (NOT Vertex AI — extraction service needs File API for PDF upload, which is consumer-API-only)
+- Prompt improvements confirmed working in raw MedGemma output: correctly excludes clinical statuses, uses canonical UMLS search terms
+- Remaining CUI rate unknowns: UMLS concept_search may not find some terms (e.g., "PCR test result" returned 0 candidates) — may need search term retry logic or UMLS API tuning
+- MCP subprocess startup is slow (~2s per entity per iteration) — direct Python import in Phase 31 will fix
+- Non-deterministic: MedGemma outputs vary between runs, so CUI rate will fluctuate
+
 **Research Flags:**
 - Phase 31: API response format verification needed via test calls
+- Phase 31: Must stay on consumer API (GOOGLE_API_KEY) — extraction service uses Google AI File API for PDF upload, which is not available on Vertex AI
 - Phase 32: Research spike required (Gemini vs MedGemma for entity extraction)
 
 ### Current System Gaps (v2.0 scope)
@@ -122,11 +138,11 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-16
-Stopped at: Completed Phase 29 Plan 04 (Medical entity filtering) - Phase 29 complete
+Last session: 2026-02-17
+Stopped at: Completed Phase 30 Plan 01 (review status borders, sticky filter bar, section grouping)
 Resume file: None
-Next action: Phase 29 complete (all 4 bug fixes shipped) - proceed to Phase 30 or v2.0 planning
+Next action: Continue Phase 30 plans if any remain, or proceed to Phase 31 pipeline consolidation
 
 ---
 
-*Last updated: 2026-02-16 after completing Phase 29 Plan 04 (Phase 29 complete)*
+*Last updated: 2026-02-17 after completing Phase 30 Plan 01*
