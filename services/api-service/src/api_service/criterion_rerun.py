@@ -14,7 +14,7 @@ from __future__ import annotations
 import json
 import logging
 import os
-from typing import Literal
+from typing import Any, Dict, Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
@@ -46,9 +46,9 @@ class SingleCriterionResult(BaseModel):
     criteria_type: Literal["inclusion", "exclusion"]
     category: str | None = None
     text: str
-    temporal_constraint: dict | None = None
+    temporal_constraint: Dict[str, Any] | None = None
     conditions: list[str] = []
-    numeric_thresholds: list[dict] = []
+    numeric_thresholds: list[Dict[str, Any]] = []
     assertion_status: str | None = None
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
 
@@ -62,8 +62,8 @@ class CriterionRerunRequest(BaseModel):
 class CriterionRerunResponse(BaseModel):
     """Response containing original and revised structured criterion fields."""
 
-    original_criterion: dict
-    revised_criterion: dict
+    original_criterion: Dict[str, Any]
+    revised_criterion: Dict[str, Any]
 
 
 # --- Endpoint ---
