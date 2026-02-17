@@ -5,6 +5,7 @@ Provides endpoints for:
 - POST /protocols/{id}/confirm-upload: Confirm and quality-check
 - GET /protocols: Paginated protocol list with optional status filter
 - GET /protocols/{protocol_id}: Protocol detail view with quality metadata
+- POST /protocols/{protocol_id}/retry: Resume failed protocol from LangGraph checkpoint
 """
 
 from __future__ import annotations
@@ -239,15 +240,20 @@ def confirm_upload(
 
 
 @router.post("/{protocol_id}/retry", response_model=RetryResponse)
-def retry_protocol(
+async def retry_protocol(
     protocol_id: str,
     db: Session = Depends(get_db),
 ) -> RetryResponse:
-    """Retry a failed protocol by resetting status and creating a new outbox event.
+    """Retry a failed protocol by resuming from the last LangGraph checkpoint.
 
     Accepts protocols in extraction_failed, grounding_failed, or dead_letter states.
-    Resets the protocol status to uploaded and creates a PROTOCOL_UPLOADED event
-    to re-trigger the processing pipeline.
+    Updates the protocol status to processing, then resumes the pipeline from the
+    last successful checkpoint (via LangGraph PostgresSaver) — skipping nodes
+    that already succeeded (ingest, extract, parse) and retrying from the failed node.
+
+    This does NOT create a new outbox event. The retry goes directly through
+    the graph using the saved checkpoint. Initial pipeline runs still use the
+    outbox trigger pattern (handle_protocol_uploaded).
     """
     protocol = db.get(Protocol, protocol_id)
     if not protocol:
@@ -256,7 +262,6 @@ def retry_protocol(
             detail=f"Protocol {protocol_id} not found",
         )
 
-    # Validate protocol is in a retryable state
     retryable_states = ["extraction_failed", "grounding_failed", "dead_letter"]
     if protocol.status not in retryable_states:
         raise HTTPException(
@@ -264,33 +269,24 @@ def retry_protocol(
             detail=f"Protocol is not in a retryable state (current: {protocol.status})",
         )
 
-    # Reset protocol status
-    protocol.status = "uploaded"
+    # Update status to processing
+    protocol.status = "processing"
     protocol.error_reason = None
-
-    # Clear error metadata if present
-    if "error" in protocol.metadata_:
-        metadata_copy = protocol.metadata_.copy()
-        del metadata_copy["error"]
-        protocol.metadata_ = metadata_copy
-
-    # Create new outbox event to re-trigger pipeline
-    persist_with_outbox(
-        session=db,
-        entity=protocol,
-        event_type=DomainEventKind.PROTOCOL_UPLOADED,
-        aggregate_type="protocol",
-        aggregate_id=protocol.id,
-        payload={
-            "protocol_id": protocol.id,
-            "title": protocol.title,
-            "file_uri": protocol.file_uri,
-        },
-    )
-
+    db.add(protocol)
     db.commit()
 
-    return RetryResponse(status="retry_queued", protocol_id=protocol_id)
+    # Resume from checkpoint — await directly (no asyncio.run inside async endpoints)
+    try:
+        from protocol_processor.trigger import retry_from_checkpoint
+
+        await retry_from_checkpoint(protocol_id)
+    except Exception as e:
+        protocol.error_reason = str(e)[:500]
+        db.add(protocol)
+        db.commit()
+        logger.error("Retry failed for protocol %s: %s", protocol_id, e)
+
+    return RetryResponse(status="retry_started", protocol_id=protocol_id)
 
 
 @router.get("", response_model=ProtocolListResponse)
