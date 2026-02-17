@@ -1,8 +1,11 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Loader2, RefreshCw } from 'lucide-react';
+import * as Collapsible from '@radix-ui/react-collapsible';
+import { AlertTriangle, ArrowLeft, BarChart3, Check, ChevronDown, ChevronRight, ClipboardList, Copy, History, Loader2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
+import { AgreementMetrics } from '../components/AgreementMetrics';
+import { BatchTimeline } from '../components/BatchTimeline';
 import { Button } from '../components/ui/Button';
 import { useProtocol, useReExtractProtocol, useRetryProtocol } from '../hooks/useProtocols';
 import { useBatchesByProtocol } from '../hooks/useReviews';
@@ -253,6 +256,11 @@ export default function ProtocolDetail() {
             : protocol.file_uri;
 
     const latestBatch = batchData?.items?.[0];
+    const [metricsOpen, setMetricsOpen] = useState(true);
+    const [timelineOpen, setTimelineOpen] = useState(false);
+
+    // Show metrics/timeline sections only when protocol has batch data
+    const hasBatch = !!latestBatch;
 
     return (
         <div className="container mx-auto p-6">
@@ -373,6 +381,56 @@ export default function ProtocolDetail() {
                     </InfoItem>
                 </dl>
             </div>
+
+            {/* Review Metrics section */}
+            {hasBatch && latestBatch && (
+                <div className="mt-6">
+                    <Collapsible.Root open={metricsOpen} onOpenChange={setMetricsOpen}>
+                        <Collapsible.Trigger asChild>
+                            <button
+                                type="button"
+                                className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2 hover:text-muted-foreground transition-colors"
+                            >
+                                <BarChart3 className="h-4 w-4" />
+                                Review Metrics
+                                {metricsOpen ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                )}
+                            </button>
+                        </Collapsible.Trigger>
+                        <Collapsible.Content>
+                            <AgreementMetrics batchId={latestBatch.id} />
+                        </Collapsible.Content>
+                    </Collapsible.Root>
+                </div>
+            )}
+
+            {/* Batch History section */}
+            {id && hasBatch && (
+                <div className="mt-4">
+                    <Collapsible.Root open={timelineOpen} onOpenChange={setTimelineOpen}>
+                        <Collapsible.Trigger asChild>
+                            <button
+                                type="button"
+                                className="flex items-center gap-2 text-sm font-semibold text-foreground mb-2 hover:text-muted-foreground transition-colors"
+                            >
+                                <History className="h-4 w-4" />
+                                Batch History
+                                {timelineOpen ? (
+                                    <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                    <ChevronRight className="h-4 w-4" />
+                                )}
+                            </button>
+                        </Collapsible.Trigger>
+                        <Collapsible.Content>
+                            <BatchTimeline protocolId={id} />
+                        </Collapsible.Content>
+                    </Collapsible.Root>
+                </div>
+            )}
 
             {/* Actions */}
             <div className="mt-6 flex items-center gap-3">
