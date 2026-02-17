@@ -70,6 +70,7 @@ Progress: [███████████████████████
 | Phase 31 P03 | 8 | 2 tasks | 13 files |
 | Phase 33 P01 | 6 | 2 tasks | 7 files |
 | Phase 33 P02 | 8 | 2 tasks | 2 files |
+| Phase 35 P01 | 3 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -190,6 +191,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 33]: batch_alter_table for Alembic migration: SQLite incompatibility with ALTER TABLE SET NOT NULL requires batch approach that works on both SQLite (dev) and PostgreSQL (prod) (33-01)
 - [Phase 33]: token_set_ratio criteria_type guard prevents false positives between inclusion/exclusion criteria (33-01)
 - [Phase 33]: archived_reviewed_criteria in outbox payload for race-condition-free review inheritance (33-01)
+- [Phase 35]: uuid4 thread_id per pipeline run to prevent checkpoint collision on re-extraction (35-01)
+- [Phase 35]: Review inheritance in persist_node is non-blocking (logged warning on failure) (35-01)
 
 ### Pending Todos
 
