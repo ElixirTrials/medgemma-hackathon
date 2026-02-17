@@ -219,6 +219,10 @@ export default function ProtocolDetail() {
     });
     const { data: batchData } = useBatchesByProtocol(id ?? '');
 
+    // All hooks must be called before any conditional returns
+    const [metricsOpen, setMetricsOpen] = useState(true);
+    const [timelineOpen, setTimelineOpen] = useState(false);
+
     if (isLoading) {
         return (
             <div className="container mx-auto p-6 flex items-center justify-center py-16">
@@ -256,8 +260,6 @@ export default function ProtocolDetail() {
             : protocol.file_uri;
 
     const latestBatch = batchData?.items?.[0];
-    const [metricsOpen, setMetricsOpen] = useState(true);
-    const [timelineOpen, setTimelineOpen] = useState(false);
 
     // Show metrics/timeline sections only when protocol has batch data
     const hasBatch = !!latestBatch;
