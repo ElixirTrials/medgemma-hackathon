@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
 import { CriterionAuditHistory } from './CriterionAuditHistory';
+import FieldMappingBadges from './FieldMappingBadges';
 import RejectDialog from './RejectDialog';
 import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
 import { StructuredFieldEditor } from './structured-editor/StructuredFieldEditor';
@@ -512,6 +513,14 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
                 >
                     {criterion.text}
                 </p>
+            )}
+
+            {/* Field mapping badges - shown in read mode only */}
+            {editMode === 'none' && (
+                <FieldMappingBadges
+                    criterion={criterion}
+                    onEditClick={() => setEditMode('structured')}
+                />
             )}
 
             {/* Assertion status tag */}
