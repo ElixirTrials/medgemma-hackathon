@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 31 of 34 (TerminologyRouter & Pipeline Consolidation)
-Plan: Completed Plan 02 of 3
+Plan: Completed Plan 03 of 3 (PHASE COMPLETE)
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 31-02 (extraction tools and pipeline nodes: ingest, extract, parse)
+Last activity: 2026-02-17 — Completed Plan 31-03 (ground node, persist node, 5-node graph, unified trigger, PIPE-03 complete)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 31    | 03   | 8 min    | 2026-02-17 | Ground node, persist node, 5-node graph, unified trigger, PIPE-03 |
 | 31    | 02   | 20 min   | 2026-02-17 | Extraction tools (pdf_parser, gemini_extractor), ingest/extract/parse nodes |
 | 31    | 01   | 6 min    | 2026-02-17 | Service skeleton, PipelineState, TerminologyRouter          |
 | 30    | 01   | 2 min    | 2026-02-17 | Review status borders + sticky filter bar + section grouping |
@@ -48,6 +49,7 @@ Progress: [███████████████████████
 
 *Metrics from MILESTONES.md and previous roadmaps*
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
+| Phase 31 P03 | 8 | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -115,6 +117,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 31]: parse_node clears pdf_bytes and does NOT publish CriteriaExtracted outbox (PIPE-03 complete)
 - [Phase 30]: RejectDialog uses predefined checkboxes (5 reason codes) for structured audit trail; Approve stays one-click per user decision (30-02)
 - [Phase 30]: FieldMappingBadges returns null when no field_mappings exist; AND connector is static in read mode, editable in structured editor (30-02)
+- [Phase 31]: ground_node delegates to tools (TerminologyRouter+MedGemma+field_mapper); error accumulation; AuditLog per entity
+- [Phase 31]: criteria_extracted outbox removed from api-service; protocol_processor.trigger.handle_protocol_uploaded is sole handler (PIPE-03)
 
 ### Pending Todos
 
@@ -156,9 +160,9 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 30 Plan 02 (RejectDialog, FieldMappingBadges, EDIT-01 verification)
+Stopped at: Completed Phase 31 Plan 03 (5-node pipeline complete: ground+persist+graph+trigger, PIPE-03)
 Resume file: None
-Next action: Continue Phase 31 Plan 03 (ground node, persist node, graph assembly)
+Next action: Phase 32 (next phase per ROADMAP)
 
 ---
 
