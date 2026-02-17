@@ -47,6 +47,7 @@ Progress: [███████████████████████
 | 29    | 01   | 9 min    | 2026-02-16 | Grounding confidence bug fix with diagnostic logging        |
 
 *Metrics from MILESTONES.md and previous roadmaps*
+| Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -68,12 +69,14 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Demographic entities explicitly logged at INFO level and skipped — not silently dropped (GRND-06 pattern) (31-01)
 - PipelineState uses str | None JSON fields (not nested dicts) for minimal LangGraph state serialization overhead (31-01)
 
-**Phase 30 UX Polish (2026-02-17) - Plan 01:**
+**Phase 30 UX Polish (2026-02-17) - COMPLETE:**
 - Review status colored left borders on CriterionCard: green=approved, red=rejected, blue=modified, yellow=pending (30-01)
 - Status border supersedes low-confidence border — review_status is more actionable, ConfidenceBadge already shows confidence (30-01)
 - Client-side useMemo filtering with 300ms debounced text search and 3 dropdowns (status/type/confidence) (30-01)
 - Criteria grouped into Inclusion/Exclusion/To Be Sorted sections with pending-first sort and reviewed/total progress counts (30-01)
 - Fixed API sort (confidence asc), removed server sort controls UI — client-side grouping replaces it (30-01)
+- RejectDialog uses predefined checkboxes (5 reason codes) for structured audit trail; Approve stays one-click per user decision (30-02)
+- FieldMappingBadges returns null when no field_mappings exist; AND connector is static in read mode, editable in structured editor (30-02)
 
 **Phase 29 Bug Fixes (2026-02-16) - COMPLETE:**
 - Three-pronged entity filtering: prompt + code + evaluate for high CUI rate (29-04)
@@ -110,6 +113,8 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 31]: Nodes as thin orchestration with business logic in tools (pdf_parser, gemini_extractor)
 - [Phase 31]: extraction_json and entities_json stored as JSON strings in PipelineState (not dicts) for minimal state size
 - [Phase 31]: parse_node clears pdf_bytes and does NOT publish CriteriaExtracted outbox (PIPE-03 complete)
+- [Phase 30]: RejectDialog uses predefined checkboxes (5 reason codes) for structured audit trail; Approve stays one-click per user decision (30-02)
+- [Phase 30]: FieldMappingBadges returns null when no field_mappings exist; AND connector is static in read mode, editable in structured editor (30-02)
 
 ### Pending Todos
 
@@ -143,18 +148,18 @@ None.
 
 ### Current System Gaps (v2.0 scope)
 
-- No display of field_mappings in non-edit mode (badges for saved mappings)
-- No initialValues population from saved field_mappings (editor always starts empty)
+- ~~No display of field_mappings in non-edit mode (badges for saved mappings)~~ **FIXED in 30-02 (FieldMappingBadges)**
+- ~~No initialValues population from saved field_mappings (editor always starts empty)~~ **VERIFIED WORKING in 30-02 (buildInitialValues Priority 1)**
 - No re-extraction tooling (script to re-run extraction/grounding on existing protocols)
 - No corpus comparison (view/export AI vs human corrected data)
 
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 31 Plan 01 (protocol-processor-service skeleton, PipelineState, TerminologyRouter)
+Stopped at: Completed Phase 30 Plan 02 (RejectDialog, FieldMappingBadges, EDIT-01 verification)
 Resume file: None
-Next action: Continue Phase 31 Plan 02 (extraction tools, ground node, persist node, or graph definition)
+Next action: Continue Phase 31 Plan 03 (ground node, persist node, graph assembly)
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 31 Plan 01*
+*Last updated: 2026-02-17 after completing Phase 30 Plan 02*
