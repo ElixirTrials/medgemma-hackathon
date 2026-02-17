@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 34 - Corpus Comparison and Export
+**Current focus:** Phase 35 - E2E Gap Closure
 
 ## Current Position
 
-Phase: 34 of 34 (Corpus Comparison and Export)
-Plan: Completed Plan 03 of 3
+Phase: 35 of 35 (E2E Gap Closure)
+Plan: 2 of 2 (complete)
 Status: Complete
-Last activity: 2026-02-17 — Completed Plan 34-03 (corpus frontend: useCorpus hooks, AgreementMetrics, BatchTimeline, BatchCompareView, CriterionRerunPanel, ProtocolDetail+CriterionCard wiring)
+Last activity: 2026-02-17 — Completed Phase 35 Plan 02 (housekeeping fixes)
 
-Progress: [█████████████████████████████████] 100% (34/34 phases complete)
+Progress: [█████████████████████████████████] 100% (35/35 phases complete)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 35    | 02   | 1 min    | 2026-02-17 | Fix criterion_rerun SDK import (google.genai), ProtocolDetail hooks ordering, Alembic stamp |
 | 34    | 03   | 3 min    | 2026-02-17 | Corpus frontend: useCorpus hooks, AgreementMetrics (3-layer), BatchTimeline, BatchCompareView, CriterionRerunPanel, ProtocolDetail+CriterionCard |
 | 34    | 02   | 5 min    | 2026-02-17 | Criterion AI re-run (Gemini proposal, no DB write), batch comparison (70%/90% thresholds), protocol batches timeline endpoint |
 | 34    | 01   | 4 min    | 2026-02-17 | Data integrity check endpoint (4 categories, protocol scoping, 6 CI tests), batch metrics endpoint (2-query, modification breakdown) |
@@ -56,6 +57,7 @@ Progress: [███████████████████████
 | 29    | 01   | 9 min    | 2026-02-16 | Grounding confidence bug fix with diagnostic logging        |
 
 *Metrics from MILESTONES.md and previous roadmaps*
+| Phase 35 P02 | 1 | 2 tasks | 2 files |
 | Phase 34 P03 | 3 | 2 tasks | 7 files |
 | Phase 34 P02 | 5 | 2 tasks | 4 files |
 | Phase 34 P01 | 4 | 2 tasks | 5 files |
@@ -229,10 +231,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 34 Plan 03 (corpus frontend: useCorpus hooks, AgreementMetrics, BatchTimeline, BatchCompareView, CriterionRerunPanel, ProtocolDetail+CriterionCard)
+Stopped at: Completed 35-02-PLAN.md (Phase 35 complete)
 Resume file: None
-Next action: Phase 34 complete — v2.0 corpus comparison and export workflow is done
+Next action: All phases complete. Project ready for production deployment.
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 34 Plan 03*
+*Last updated: 2026-02-17 after completing Phase 35 Plan 02*
