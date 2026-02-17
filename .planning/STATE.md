@@ -35,6 +35,7 @@ Progress: [███████████████████████
 | v1.5 | 22-28 | 11 | ~8 hours | Shipped 2026-02-13 |
 | v2.0 | 29-35 | 19 | ~2 hours | Shipped 2026-02-17 |
 | v2.1 | 36-39 | 5 | ~16 min | In progress |
+| Phase 39 P01 | 121s | 2 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -54,6 +55,7 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - uuid4 thread_id per pipeline run prevents checkpoint collision on re-extraction
 - NLM direct APIs (RxNorm/ICD-10/LOINC/HPO) over ToolUniverse — free, no-auth, well-documented
 - Read-only AI criterion re-run: Gemini proposes, reviewer commits via existing action endpoint
+- [Phase 39]: Bug Catalog placed after LLM Assessment; orphan detection skipped per plan constraints
 
 ### Pending Todos
 
