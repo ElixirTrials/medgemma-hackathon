@@ -1,9 +1,10 @@
-import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Loader2 } from 'lucide-react';
+import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { AlertTriangle, ArrowLeft, Check, ClipboardList, Copy, Loader2, RefreshCw } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
-import { useProtocol, useRetryProtocol } from '../hooks/useProtocols';
+import { useProtocol, useReExtractProtocol, useRetryProtocol } from '../hooks/useProtocols';
 import { useBatchesByProtocol } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
 
@@ -36,6 +37,15 @@ const STATUS_LABELS: Record<string, string> = {
     extracted: 'Extracted',
     reviewed: 'Reviewed',
 };
+
+// Statuses where re-extraction is allowed (not actively processing)
+const RE_EXTRACT_ALLOWED_STATUSES = new Set([
+    'pending_review',
+    'complete',
+    'extraction_failed',
+    'grounding_failed',
+    'dead_letter',
+]);
 
 function StatusBadge({ status }: { status: string }) {
     return (
@@ -73,6 +83,62 @@ function RetryButton({ protocolId }: { protocolId: string }) {
                 'Retry Processing'
             )}
         </Button>
+    );
+}
+
+interface ReExtractButtonProps {
+    protocolId: string;
+    protocolStatus: string;
+}
+
+function ReExtractButton({ protocolId, protocolStatus }: ReExtractButtonProps) {
+    const reExtractMutation = useReExtractProtocol();
+    const [error, setError] = useState<string | null>(null);
+
+    const isDisabled =
+        !RE_EXTRACT_ALLOWED_STATUSES.has(protocolStatus) || reExtractMutation.isPending;
+
+    const handleConfirm = () => {
+        setError(null);
+        reExtractMutation.mutate(protocolId, {
+            onError: (err) => {
+                setError(err instanceof Error ? err.message : 'Re-extraction failed');
+            },
+        });
+    };
+
+    return (
+        <div className="flex flex-col items-start gap-1">
+            <AlertDialog.Root>
+                <AlertDialog.Trigger asChild>
+                    <Button variant="outline" size="sm" disabled={isDisabled}>
+                        <RefreshCw className="h-4 w-4 mr-1.5" />
+                        Re-extract Criteria
+                    </Button>
+                </AlertDialog.Trigger>
+                <AlertDialog.Portal>
+                    <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+                    <AlertDialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-lg sm:rounded-lg">
+                        <AlertDialog.Title className="text-lg font-semibold">
+                            Re-extract criteria?
+                        </AlertDialog.Title>
+                        <AlertDialog.Description className="text-sm text-muted-foreground">
+                            Old batches will be saved but not available in the dashboard. Existing
+                            reviews will be preserved and automatically applied to matching criteria.
+                        </AlertDialog.Description>
+                        <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                            <AlertDialog.Cancel asChild>
+                                <Button variant="outline">Cancel</Button>
+                            </AlertDialog.Cancel>
+                            <AlertDialog.Action asChild>
+                                <Button onClick={handleConfirm}>Re-extract</Button>
+                            </AlertDialog.Action>
+                        </div>
+                    </AlertDialog.Content>
+                </AlertDialog.Portal>
+            </AlertDialog.Root>
+            {error && <p className="text-xs text-red-600">{error}</p>}
+        </div>
     );
 }
 
@@ -143,7 +209,11 @@ function QualityBar({ score }: { score: number }) {
 export default function ProtocolDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { data: protocol, isLoading, error } = useProtocol(id ?? '');
+
+    const { data: protocol, isLoading, error } = useProtocol(id ?? '', {
+        refetchInterval: 5000,
+        refetchIntervalInBackground: false,
+    });
     const { data: batchData } = useBatchesByProtocol(id ?? '');
 
     if (isLoading) {
@@ -182,6 +252,8 @@ export default function ProtocolDetail() {
             ? `${protocol.file_uri.slice(0, 25)}...${protocol.file_uri.slice(-22)}`
             : protocol.file_uri;
 
+    const latestBatch = batchData?.items?.[0];
+
     return (
         <div className="container mx-auto p-6">
             {/* Back link */}
@@ -199,6 +271,7 @@ export default function ProtocolDetail() {
                     <h1 className="text-3xl font-bold text-foreground mb-2">{protocol.title}</h1>
                     <StatusBadge status={protocol.status} />
                 </div>
+                <ReExtractButton protocolId={protocol.id} protocolStatus={protocol.status} />
             </div>
 
             {/* Error Information */}
@@ -230,8 +303,18 @@ export default function ProtocolDetail() {
                 </div>
             )}
 
-            {/* Processing in progress banner */}
-            {(protocol.status === 'uploaded' || protocol.status === 'extracting') && (
+            {/* Re-extraction in progress banner */}
+            {protocol.status === 'extracting' && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 mb-6 flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+                    <p className="text-sm text-blue-700">
+                        Re-extraction in progress. This typically takes 2-5 minutes.
+                    </p>
+                </div>
+            )}
+
+            {/* Generic processing in progress banner (uploaded/grounding) */}
+            {(protocol.status === 'uploaded' || protocol.status === 'grounding') && (
                 <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 mb-6">
                     <p className="text-sm text-blue-700">
                         Processing in progress. This typically takes 2-5 minutes.
@@ -296,12 +379,20 @@ export default function ProtocolDetail() {
                 <Button variant="outline" asChild>
                     <Link to="/protocols">Back to List</Link>
                 </Button>
-                {batchData?.items?.[0] && (
+                {latestBatch && protocol.status === 'pending_review' && (
                     <Button
-                        onClick={() => navigate(`/reviews/${batchData.items[0].id}`)}
+                        onClick={() => navigate(`/reviews/${latestBatch.id}`)}
                     >
                         <ClipboardList className="h-4 w-4 mr-2" />
-                        Review Criteria ({batchData.items[0].criteria_count})
+                        Review New Criteria ({latestBatch.criteria_count})
+                    </Button>
+                )}
+                {latestBatch && protocol.status !== 'pending_review' && (
+                    <Button
+                        onClick={() => navigate(`/reviews/${latestBatch.id}`)}
+                    >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Review Criteria ({latestBatch.criteria_count})
                     </Button>
                 )}
             </div>
