@@ -369,3 +369,6 @@ node_modules
 instructions/
 data/
 uploads/
+
+# Generated reports (keep directory via .gitkeep)
+reports/*.md
