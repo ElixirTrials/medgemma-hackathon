@@ -128,12 +128,12 @@ Return ONLY the corrected structured fields."""
 
     # Configure Gemini client (lazy import to avoid requiring package at test time)
     try:
-        import google.generativeai as genai  # noqa: PLC0415
-        from google.generativeai import types  # noqa: PLC0415
+        from google import genai  # noqa: PLC0415
+        from google.genai import types  # noqa: PLC0415
     except ImportError as exc:
         raise HTTPException(
             status_code=503,
-            detail="google-generativeai package not installed",
+            detail="google-genai package not installed",
         ) from exc
 
     api_key = os.getenv("GOOGLE_API_KEY")
