@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 31 - TerminologyRouter & Pipeline Consolidation
+**Current focus:** Phase 32 - Entity Model, Ground Node & Multi-Code Display
 
 ## Current Position
 
-Phase: 31 of 34 (TerminologyRouter & Pipeline Consolidation)
-Plan: Completed Plan 03 of 3 (PHASE COMPLETE)
+Phase: 32 of 34 (Entity Model, Ground Node & Multi-Code Display)
+Plan: Completed Plan 02 of TBD
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 31-03 (ground node, persist node, 5-node graph, unified trigger, PIPE-03 complete)
+Last activity: 2026-02-17 — Completed Plan 32-02 (PostgreSQL checkpointing, retry-from-checkpoint endpoint)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 32    | 02   | 4 min    | 2026-02-17 | PostgreSQL checkpointing, retry-from-checkpoint, async retry endpoint |
 | 31    | 03   | 8 min    | 2026-02-17 | Ground node, persist node, 5-node graph, unified trigger, PIPE-03 |
 | 31    | 02   | 20 min   | 2026-02-17 | Extraction tools (pdf_parser, gemini_extractor), ingest/extract/parse nodes |
 | 31    | 01   | 6 min    | 2026-02-17 | Service skeleton, PipelineState, TerminologyRouter          |
@@ -49,6 +50,7 @@ Progress: [███████████████████████
 
 *Metrics from MILESTONES.md and previous roadmaps*
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
+| Phase 32 P02 | 4 | 2 tasks | 4 files |
 | Phase 31 P03 | 8 | 2 tasks | 13 files |
 
 ## Accumulated Context
@@ -63,6 +65,14 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - UMLS retained via direct Python import (not MCP subprocess)
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
+
+**Phase 32 Checkpointing (2026-02-17) - Plan 02:**
+- PostgresSaver singleton (not per-invocation) to avoid connection pool exhaustion (32-02)
+- DATABASE_URL fallback: get_graph() compiles without checkpointer if DATABASE_URL not set — maintains testability (32-02)
+- retry_from_checkpoint raises exceptions for API to handle; endpoint stores error_reason[:500] and returns retry_started (32-02)
+- No outbox event on retry — retry bypasses outbox, goes directly to graph via checkpoint (32-02)
+- thread_id = protocol_id — deterministic checkpoint lookup without separate tracking (32-02)
+- pdf_bytes serialization concern resolved: parse_node clears pdf_bytes before ground runs (PIPE-03), so checkpoint saved after bytes are None (32-02)
 
 **Phase 31 Pipeline Consolidation (2026-02-17) - Plan 01:**
 - TerminologyRouter loads YAML config and returns correct API list per entity type (31-01)
@@ -160,10 +170,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 31 Plan 03 (5-node pipeline complete: ground+persist+graph+trigger, PIPE-03)
+Stopped at: Completed Phase 32 Plan 02 (PostgreSQL checkpointing, retry-from-checkpoint)
 Resume file: None
-Next action: Phase 32 (next phase per ROADMAP)
+Next action: Phase 32 Plan 03 (next plan per ROADMAP)
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 30 Plan 02*
+*Last updated: 2026-02-17 after completing Phase 32 Plan 02*
