@@ -111,13 +111,6 @@ class Entity(SQLModel, table=True):
     grounding_method: str | None = Field(default=None)
     review_status: str | None = Field(default=None)
     context_window: Dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
-    # Multi-terminology code columns (Phase 32)
-    rxnorm_code: str | None = Field(default=None, index=True)
-    icd10_code: str | None = Field(default=None, index=True)
-    loinc_code: str | None = Field(default=None, index=True)
-    hpo_code: str | None = Field(default=None, index=True)
-    grounding_system: str | None = Field(default=None)
-    grounding_error: str | None = Field(default=None)
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
 
