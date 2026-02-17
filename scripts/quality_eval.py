@@ -369,6 +369,166 @@ def compute_terminology_success(all_entities: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# Bug Catalog (identifies pipeline problems for triage)
+# ---------------------------------------------------------------------------
+
+_TERMINOLOGY_CODE_FIELDS = (
+    "snomed_code",
+    "rxnorm_code",
+    "icd10_code",
+    "loinc_code",
+    "hpo_code",
+)
+
+
+def _find_ungrounded_entities(
+    all_criteria_by_protocol: dict[str, list[dict]],
+) -> list[dict]:
+    """Find entities with no UMLS CUI and no terminology codes."""
+    issues: list[dict] = []
+    for protocol_id, criteria_list in all_criteria_by_protocol.items():
+        for criterion in criteria_list:
+            criterion_text = (criterion.get("criteria_text") or "")[:80]
+            for entity in criterion.get("entities", []):
+                has_cui = bool(entity.get("umls_cui"))
+                has_code = any(
+                    entity.get(field) for field in _TERMINOLOGY_CODE_FIELDS
+                )
+                if has_cui or has_code:
+                    continue
+
+                confidence = entity.get("grounding_confidence")
+                if confidence is not None and confidence >= 0.5:
+                    # Has some confidence but no codes — shouldn't happen often
+                    # but not flagged by the spec
+                    continue
+
+                if confidence is not None and 0 < confidence < 0.5:
+                    severity = "warning"
+                else:
+                    severity = "critical"
+
+                issues.append(
+                    {
+                        "type": "ungrounded_entities",
+                        "severity": severity,
+                        "entity_text": entity.get("entity_text", ""),
+                        "entity_type": entity.get("entity_type", "unknown"),
+                        "criterion_text": criterion_text,
+                        "protocol_id": protocol_id,
+                        "grounding_method": entity.get("grounding_method"),
+                        "grounding_confidence": confidence,
+                    }
+                )
+    return issues
+
+
+def _find_pipeline_errors(protocol_results: list[dict]) -> list[dict]:
+    """Find protocols with error statuses."""
+    error_statuses = {
+        "extraction_failed",
+        "grounding_failed",
+        "pipeline_failed",
+        "dead_letter",
+    }
+    issues: list[dict] = []
+    for result in protocol_results:
+        status = result.get("status", "")
+        if status in error_statuses:
+            issues.append(
+                {
+                    "type": "pipeline_errors",
+                    "severity": "critical",
+                    "protocol_id": result.get("protocol_id", ""),
+                    "title": result.get("title", "Unknown"),
+                    "status": status,
+                    "error": result.get("error", ""),
+                }
+            )
+    return issues
+
+
+def _find_structural_issues(
+    all_criteria_by_protocol: dict[str, list[dict]],
+) -> list[dict]:
+    """Find criteria with zero entities or unknown criteria types."""
+    issues: list[dict] = []
+    valid_types = {"inclusion", "exclusion"}
+
+    for protocol_id, criteria_list in all_criteria_by_protocol.items():
+        for criterion in criteria_list:
+            criterion_text = (criterion.get("criteria_text") or "")[:80]
+            criteria_type = criterion.get("criteria_type", "unknown")
+            entities = criterion.get("entities", [])
+
+            # Criteria with zero entities
+            if not entities:
+                issues.append(
+                    {
+                        "type": "structural_issues",
+                        "severity": "warning",
+                        "criterion_text": criterion_text,
+                        "criteria_type": criteria_type,
+                        "protocol_id": protocol_id,
+                        "issue": "no_entities",
+                    }
+                )
+
+            # Unknown criteria type
+            if criteria_type not in valid_types:
+                issues.append(
+                    {
+                        "type": "structural_issues",
+                        "severity": "info",
+                        "criterion_text": criterion_text,
+                        "criteria_type": criteria_type,
+                        "protocol_id": protocol_id,
+                        "issue": "unknown_criteria_type",
+                    }
+                )
+
+    return issues
+
+
+def catalog_bugs(
+    protocol_results: list[dict],
+    all_criteria_by_protocol: dict[str, list[dict]],
+) -> dict:
+    """Build a bug catalog from pipeline results and criteria data.
+
+    Returns a structured dict with keys: ungrounded_entities, pipeline_errors,
+    structural_issues, summary.
+    """
+    ungrounded = _find_ungrounded_entities(all_criteria_by_protocol)
+    pipeline_errors = _find_pipeline_errors(protocol_results)
+    structural = _find_structural_issues(all_criteria_by_protocol)
+
+    all_issues = ungrounded + pipeline_errors + structural
+
+    by_severity: dict[str, int] = {}
+    for issue in all_issues:
+        sev = issue["severity"]
+        by_severity[sev] = by_severity.get(sev, 0) + 1
+
+    by_type: dict[str, int] = {
+        "ungrounded_entities": len(ungrounded),
+        "pipeline_errors": len(pipeline_errors),
+        "structural_issues": len(structural),
+    }
+
+    return {
+        "ungrounded_entities": ungrounded,
+        "pipeline_errors": pipeline_errors,
+        "structural_issues": structural,
+        "summary": {
+            "total_issues": len(all_issues),
+            "by_severity": by_severity,
+            "by_type": by_type,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
 # LLM Heuristic Assessment (QUAL-07)
 # ---------------------------------------------------------------------------
 
