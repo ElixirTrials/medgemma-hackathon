@@ -69,6 +69,7 @@ class CriteriaBatch(SQLModel, table=True):
     extraction_model: str | None = Field(default=None)
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
+    is_archived: bool = Field(default=False, index=True)
 
 
 class Criteria(SQLModel, table=True):
