@@ -169,3 +169,24 @@ export function useRetryProtocol() {
         },
     });
 }
+
+export interface ReExtractResponse {
+    status: string;
+    protocol_id: string;
+    archived_batches: number;
+}
+
+export function useReExtractProtocol() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (protocolId: string) =>
+            fetchApi<ReExtractResponse>(`/protocols/${protocolId}/re-extract`, {
+                method: 'POST',
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['protocols'] });
+            queryClient.invalidateQueries({ queryKey: ['review-batches'] });
+        },
+    });
+}
