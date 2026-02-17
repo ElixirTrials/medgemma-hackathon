@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
 import { CriterionAuditHistory } from './CriterionAuditHistory';
+import RejectDialog from './RejectDialog';
 import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
 import { StructuredFieldEditor } from './structured-editor/StructuredFieldEditor';
 import type {
@@ -310,6 +311,7 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
     const [editType, setEditType] = useState(criterion.criteria_type);
     const [editCategory, setEditCategory] = useState(criterion.category ?? '');
     const [rationale, setRationale] = useState('');
+    const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
 
     // Sync local edit state when criterion prop changes (after mutation response)
     useEffect(() => {
@@ -326,9 +328,15 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
     }
 
     function handleReject() {
+        setRejectDialogOpen(true);
+    }
+
+    function handleRejectConfirm(data: { reasons: string[]; comment?: string }) {
         onAction(criterion.id, {
             action: 'reject',
             reviewer_id: 'current-user',
+            reject_reasons: data.reasons,
+            comment: data.comment,
         });
     }
 
@@ -599,6 +607,12 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
 
             {/* Audit history section */}
             <CriterionAuditHistory criterionId={criterion.id} />
+
+            <RejectDialog
+                open={rejectDialogOpen}
+                onOpenChange={setRejectDialogOpen}
+                onConfirm={handleRejectConfirm}
+            />
         </div>
     );
 }
