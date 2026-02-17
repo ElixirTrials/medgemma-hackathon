@@ -44,6 +44,9 @@ class PipelineState(TypedDict):
     entities_json: str | None  # Populated by parse/ground
     grounded_entities_json: str | None  # Populated by ground, used by persist
 
+    # Re-extraction context (optional, only present during re-extraction)
+    archived_reviewed_criteria: list[dict] | None
+
     # Output
     status: Literal["processing", "completed", "failed"]
     error: str | None

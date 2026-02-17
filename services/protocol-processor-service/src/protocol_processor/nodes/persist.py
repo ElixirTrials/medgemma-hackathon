@@ -18,6 +18,7 @@ import json
 import logging
 from typing import Any
 
+from api_service.protocols import _apply_review_inheritance
 from api_service.storage import engine
 from shared.models import Criteria, CriteriaBatch, Entity, Protocol
 from sqlmodel import Session
@@ -287,6 +288,31 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
                 len(accumulated_errors),
             )
             session.commit()
+
+        # Apply review inheritance if this is a re-extraction run
+        archived_reviewed = state.get("archived_reviewed_criteria")
+        if archived_reviewed and protocol_id:
+            try:
+                with Session(engine) as inheritance_session:
+                    _apply_review_inheritance(
+                        inheritance_session,
+                        protocol_id,
+                        archived_reviewed,
+                    )
+                logger.info(
+                    "Applied review inheritance for protocol %s"
+                    " (%d archived criteria)",
+                    protocol_id,
+                    len(archived_reviewed),
+                )
+            except Exception as e:
+                # Review inheritance failure should not block
+                logger.warning(
+                    "Review inheritance failed for protocol"
+                    " %s: %s",
+                    protocol_id,
+                    e,
+                )
 
         final_status = "grounding_failed" if all_failed else "pending_review"
         logger.info(
