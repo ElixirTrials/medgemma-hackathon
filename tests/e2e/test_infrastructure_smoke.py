@@ -20,7 +20,7 @@ class TestInfrastructureSmoke:
         protocol_id = upload_test_pdf()
 
         # Verify protocol exists via API
-        resp = e2e_api_client.get(f"/api/protocols/{protocol_id}")
+        resp = e2e_api_client.get(f"/protocols/{protocol_id}")
         assert resp.status_code == 200
         data = resp.json()
         assert data["id"] == protocol_id
@@ -37,14 +37,14 @@ class TestInfrastructureSmoke:
             pdf_path="data/protocols/crc_protocols/isrctn/48616-d8fc1476.pdf"
         )
 
-        resp = e2e_api_client.get(f"/api/protocols/{protocol_id}")
+        resp = e2e_api_client.get(f"/protocols/{protocol_id}")
         assert resp.status_code == 200
 
     def test_protocol_list_includes_upload(self, upload_test_pdf, e2e_api_client):
         """Uploaded protocol appears in the protocol list."""
         protocol_id = upload_test_pdf()
 
-        resp = e2e_api_client.get("/api/protocols")
+        resp = e2e_api_client.get("/protocols")
         assert resp.status_code == 200
         data = resp.json()
         protocol_ids = [p["id"] for p in data["items"]]
