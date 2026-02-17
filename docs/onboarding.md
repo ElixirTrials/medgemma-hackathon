@@ -41,7 +41,7 @@ Set `VITE_API_BASE_URL` if the API is not at the default. See `apps/hitl-ui/READ
 
 ## 4. Run agents
 
-Agent services and LangGraph usage are documented in the [Components Overview](components/index.md) and per-service READMEs under `services/extraction-service` and `services/grounding-service`.
+Agent services and LangGraph pipeline usage are documented in the [Components Overview](components/index.md) and the `services/protocol-processor-service` README. The unified pipeline (ingest → extract → parse → ground → persist) runs inside `protocol-processor-service` via LangGraph.
 
 ## 5. Run tests
 

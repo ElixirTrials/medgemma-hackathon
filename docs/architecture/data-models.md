@@ -134,23 +134,26 @@ erDiagram
 
 ## LangGraph State Schemas
 
-### ExtractionState (Extraction Workflow)
+### PipelineState (Unified Protocol Processing Pipeline)
 
-The extraction-service uses `ExtractionState` TypedDict to carry data between graph nodes.
+The `protocol-processor-service` uses `PipelineState` TypedDict to carry data through all 5 graph nodes in the unified pipeline.
 
 ```mermaid
 classDiagram
-    class ExtractionState {
+    class PipelineState {
         +str protocol_id
         +str file_uri
         +str title
         +str markdown_content
-        +list~dict~ raw_criteria
+        +str criteria_json
+        +str entities_json
+        +str grounded_entities_json
         +str criteria_batch_id
+        +list~str~ errors
         +str|None error
     }
 
-    note for ExtractionState "State flow:\n1. ingest node: populates markdown_content from PDF\n2. extract node: populates raw_criteria from Gemini\n3. parse node: validates and structures raw_criteria\n4. queue node: persists to DB, populates criteria_batch_id"
+    note for PipelineState "State flow:\n1. ingest: populates markdown_content from PDF\n2. extract: populates criteria_json from Gemini\n3. parse: populates entities_json from MedGemma\n4. ground: populates grounded_entities_json via ToolUniverse + MedGemma\n5. persist: saves all to DB, populates criteria_batch_id"
 ```
 
 **Field descriptions:**
@@ -161,53 +164,17 @@ classDiagram
 | `file_uri` | `str` | Trigger handler | GCS URI (gs://) or local path (local://) of PDF |
 | `title` | `str` | Trigger handler | Protocol title from upload metadata |
 | `markdown_content` | `str` | `ingest` node | Parsed PDF content via pymupdf4llm |
-| `raw_criteria` | `list[dict]` | `extract` node | Criteria extracted by Gemini as dicts |
-| `criteria_batch_id` | `str` | `queue` node | ID of persisted CriteriaBatch record |
-| `error` | `str \| None` | Any node | Error message if node fails; enables conditional routing to END |
+| `criteria_json` | `str` | `extract` node | JSON-serialized criteria extracted by Gemini |
+| `entities_json` | `str` | `parse` node | JSON-serialized entities extracted by MedGemma |
+| `grounded_entities_json` | `str` | `ground` node | JSON-serialized entities with terminology codes |
+| `criteria_batch_id` | `str` | `persist` node | ID of persisted CriteriaBatch record |
+| `errors` | `list[str]` | Any node | Accumulated non-fatal errors (error accumulation pattern) |
+| `error` | `str \| None` | Any node | Fatal error message; enables conditional routing to END |
 
 **Data flow:**
 
 ```
-Trigger -> ingest (parses PDF) -> extract (calls Gemini) -> parse (validates) -> queue (persists) -> END
-```
-
-### GroundingState (Grounding Workflow)
-
-The grounding-service uses `GroundingState` TypedDict to carry data between graph nodes.
-
-```mermaid
-classDiagram
-    class GroundingState {
-        +str batch_id
-        +str protocol_id
-        +list~str~ criteria_ids
-        +list~dict~ criteria_texts
-        +list~dict~ raw_entities
-        +list~dict~ grounded_entities
-        +list~str~ entity_ids
-        +str|None error
-    }
-
-    note for GroundingState "State flow:\n1. extract_entities: populates raw_entities from MedGemma\n2. ground_to_umls: enriches with UMLS CUIs\n3. map_to_snomed: enriches with SNOMED codes\n4. validate_confidence: filters low-confidence, populates entity_ids"
-```
-
-**Field descriptions:**
-
-| Field | Type | Populated By | Purpose |
-|-------|------|--------------|---------|
-| `batch_id` | `str` | Trigger handler | UUID of CriteriaBatch being processed |
-| `protocol_id` | `str` | Trigger handler | UUID of parent protocol |
-| `criteria_ids` | `list[str]` | Trigger handler | List of Criterion record IDs to process |
-| `criteria_texts` | `list[dict]` | Trigger handler | Loaded criteria with id, text, type, category |
-| `raw_entities` | `list[dict]` | `extract_entities` | Entities with span positions and types from MedGemma |
-| `grounded_entities` | `list[dict]` | `ground_to_umls`, `map_to_snomed` | Entities enriched with UMLS CUI and SNOMED codes |
-| `entity_ids` | `list[str]` | `validate_confidence` | Persisted Entity record IDs after DB storage |
-| `error` | `str \| None` | Any node | Error message if node fails |
-
-**Data flow:**
-
-```
-Trigger -> extract_entities -> ground_to_umls -> map_to_snomed -> validate_confidence -> END
+Trigger -> ingest (parses PDF) -> extract (Gemini criteria) -> parse (MedGemma entities) -> ground (ToolUniverse + MedGemma) -> persist (DB) -> END
 ```
 
 ### State Design Principles
