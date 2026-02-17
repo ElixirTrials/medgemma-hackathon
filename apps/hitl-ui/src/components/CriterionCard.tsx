@@ -1,9 +1,10 @@
-import { CheckCircle, Clock, Hash, ListChecks, Loader2, Pencil, XCircle } from 'lucide-react';
+import { CheckCircle, Clock, Hash, ListChecks, Loader2, Pencil, Wand2, XCircle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
 import { CriterionAuditHistory } from './CriterionAuditHistory';
+import { CriterionRerunPanel } from './CriterionRerunPanel';
 import FieldMappingBadges from './FieldMappingBadges';
 import RejectDialog from './RejectDialog';
 import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
@@ -611,6 +612,40 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
                         <ListChecks className="h-4 w-4 mr-1" />
                         Modify Fields
                     </Button>
+                    <CriterionRerunPanel
+                        criterionId={criterion.id}
+                        criterionText={criterion.text}
+                        currentExtraction={{
+                            criteria_type: criterion.criteria_type,
+                            category: criterion.category,
+                            temporal_constraint: criterion.temporal_constraint,
+                            conditions: criterion.conditions,
+                            numeric_thresholds: criterion.numeric_thresholds,
+                            text: criterion.text,
+                        }}
+                        onAccept={(revised) => {
+                            onAction(criterion.id, {
+                                action: 'modify',
+                                reviewer_id: 'current-user',
+                                modified_text: revised.text as string | undefined,
+                                modified_type: revised.criteria_type as string | undefined,
+                                modified_category: revised.category as string | undefined,
+                                modified_structured_fields: revised,
+                                comment: 'AI-assisted correction with reviewer feedback',
+                            });
+                        }}
+                        trigger={
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                className="text-purple-700 border-purple-300 hover:bg-purple-50"
+                                disabled={isSubmitting}
+                            >
+                                <Wand2 className="h-4 w-4 mr-1" />
+                                Correct with AI
+                            </Button>
+                        }
+                    />
                 </div>
             )}
 
