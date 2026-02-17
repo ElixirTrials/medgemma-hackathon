@@ -699,3 +699,62 @@ Waves: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
 | 33. Re-Extraction Tooling & Review Protection | v2.0 | 0/TBD | Not started | - |
 | 34. Corpus Comparison & Export | v2.0 | Complete    | 2026-02-17 | - |
 | 35. E2E Gap Closure | v2.0 | Complete    | 2026-02-17 | - |
+
+---
+
+## v2.1 E2E Testing & Quality Evaluation (Phases 36-39)
+
+**Milestone Goal:** Automated E2E testing against Docker Compose stack with quality evaluation.
+
+### Phase 36: E2E Test Infrastructure
+**Goal**: Developers can run the E2E suite against a live Docker Compose stack, with tests skipping gracefully when the stack is not available and test data cleaned up after each run
+**Depends on**: Nothing (first phase of v2.1, scaffold before test cases)
+**Requirements**: E2E-04, E2E-05
+**Success Criteria** (what must be TRUE):
+  1. Running `uv run pytest -m e2e` against a stopped stack prints a skip message for each test and exits with code 0 (not failure)
+  2. Running `uv run pytest -m e2e` against a running Docker Compose stack executes tests against the real PostgreSQL and real Gemini API
+  3. After each E2E test run, all protocols and criteria created during the test are deleted from the database (no leftover test data)
+  4. Test conftest provides a fixture that detects Docker Compose availability and uploads a test PDF, returning the protocol_id
+**Plans**: 2 plans
+
+Plans:
+- [ ] 36-01-PLAN.md -- E2E conftest with Docker Compose detection, skip logic, and core fixtures
+- [ ] 36-02-PLAN.md -- Upload fixture, cleanup fixture, and infrastructure smoke test
+
+### Phase 37: E2E Test Cases & Baseline
+**Goal**: The E2E suite verifies that a real protocol PDF runs through the full pipeline and produces inclusion/exclusion criteria with grounded entities, and establishes a numeric regression baseline
+**Depends on**: Phase 36 (test infrastructure must be in place)
+**Requirements**: E2E-01, E2E-02, E2E-03, E2E-06
+**Plans**: TBD
+
+Plans:
+- [ ] 37-01: TBD
+
+### Phase 38: Quality Evaluation Script
+**Goal**: A standalone script runs the unified pipeline on 2-3 sample PDFs and generates a structured markdown report
+**Depends on**: Nothing (independent script)
+**Requirements**: QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-05, QUAL-06, QUAL-07
+**Plans**: TBD
+
+Plans:
+- [ ] 38-01: TBD
+
+### Phase 39: Bug Catalog
+**Goal**: The quality report includes a bug/problem catalog section that identifies ungrounded entities, pipeline errors, and structural anomalies
+**Depends on**: Phase 38
+**Requirements**: BUG-01, BUG-02, BUG-03, BUG-04, BUG-05
+**Plans**: TBD
+
+Plans:
+- [ ] 39-01: TBD
+
+### v2.1 Dependency Graph
+```
+Phase 36 (E2E Test Infrastructure)
+    └── Phase 37 (E2E Test Cases & Baseline)
+
+Phase 38 (Quality Evaluation Script)  [independent]
+    └── Phase 39 (Bug Catalog)
+```
+
+Tracks: [36 → 37] || [38 → 39]
