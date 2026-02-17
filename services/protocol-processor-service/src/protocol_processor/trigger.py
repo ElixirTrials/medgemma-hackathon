@@ -11,8 +11,9 @@ bridges to the async graph via asyncio.run(). This works without event loop
 conflicts because the outbox processor runs handlers in a thread executor
 via run_in_executor, so there is no existing event loop in the current thread.
 
-Checkpointing: Each invocation passes protocol_id as thread_id so that
-retry_from_checkpoint can resume from the last successful node.
+Checkpointing: Each invocation generates a unique thread_id (protocol_id:uuid4)
+and stores it in protocol.metadata_ so that retry_from_checkpoint can look it up.
+This prevents checkpoint collision when re-extracting the same protocol.
 """
 
 from __future__ import annotations
@@ -21,6 +22,7 @@ import asyncio
 import logging
 import os
 from typing import Any
+from uuid import uuid4
 
 from api_service.storage import engine
 from shared.models import Protocol
@@ -152,6 +154,10 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
     )
 
     try:
+        # Generate unique thread_id per pipeline run to prevent checkpoint collision
+        # on re-extraction (same protocol_id would resume old completed checkpoint)
+        thread_id = f"{protocol_id}:{uuid4()}"
+
         initial_state: dict[str, Any] = {
             "protocol_id": payload["protocol_id"],
             "file_uri": payload["file_uri"],
@@ -161,18 +167,36 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
             "extraction_json": None,
             "entities_json": None,
             "grounded_entities_json": None,
+            "archived_reviewed_criteria": payload.get("archived_reviewed_criteria"),
             "status": "processing",
             "error": None,
             "errors": [],
         }
+
+        # Store thread_id in protocol metadata for retry_from_checkpoint lookup
+        try:
+            with Session(engine) as session:
+                protocol = session.get(Protocol, protocol_id)
+                if protocol:
+                    meta = protocol.metadata_ or {}
+                    protocol.metadata_ = {
+                        **meta,
+                        "pipeline_thread_id": thread_id,
+                    }
+                    session.add(protocol)
+                    session.commit()
+        except Exception:
+            logger.warning(
+                "Failed to store pipeline_thread_id for protocol %s",
+                protocol_id,
+            )
 
         # Lazy import to avoid circular imports at module load time
         from protocol_processor.graph import get_graph
 
         graph = get_graph()
 
-        # Use protocol_id as thread_id so retry can find the checkpoint later
-        config = {"configurable": {"thread_id": protocol_id}}
+        config = {"configurable": {"thread_id": thread_id}}
 
         if _ensure_mlflow():
             import mlflow
@@ -224,18 +248,25 @@ async def retry_from_checkpoint(protocol_id: str) -> dict[str, Any]:
 
     Passes None as the input state to graph.ainvoke, which tells LangGraph
     to resume from the last saved checkpoint for the given thread_id instead
-    of starting from scratch. The protocol_id is used as the thread_id.
+    of starting from scratch. Reads thread_id from protocol.metadata_ where
+    it was stored during the original pipeline invocation.
 
     Args:
-        protocol_id: Protocol ID — used as thread_id for checkpoint lookup.
+        protocol_id: Protocol ID — used to look up thread_id from metadata.
 
     Returns:
         Final pipeline state dict after resuming from checkpoint.
     """
+    with Session(engine) as session:
+        protocol = session.get(Protocol, protocol_id)
+        if not protocol:
+            raise ValueError(f"Protocol {protocol_id} not found")
+        thread_id = (protocol.metadata_ or {}).get("pipeline_thread_id", protocol_id)
+
     from protocol_processor.graph import get_graph
 
     graph = get_graph()
-    config = {"configurable": {"thread_id": protocol_id}}
+    config = {"configurable": {"thread_id": thread_id}}
     # Pass None as input — LangGraph resumes from last checkpoint
     result = await graph.ainvoke(None, config)
     return result
