@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 30 - UX Polish, Editor Pre-loading
+**Current focus:** Phase 31 - TerminologyRouter & Pipeline Consolidation
 
 ## Current Position
 
-Phase: 30 of 34 (UX Polish, Editor Pre-loading)
-Plan: Completed Plan 01
+Phase: 31 of 34 (TerminologyRouter & Pipeline Consolidation)
+Plan: Completed Plan 02 of 3
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 30-01 (review status borders + sticky filter bar + section grouping)
+Last activity: 2026-02-17 — Completed Plan 31-02 (extraction tools and pipeline nodes: ingest, extract, parse)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -38,6 +38,8 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 31    | 02   | 20 min   | 2026-02-17 | Extraction tools (pdf_parser, gemini_extractor), ingest/extract/parse nodes |
+| 31    | 01   | 6 min    | 2026-02-17 | Service skeleton, PipelineState, TerminologyRouter          |
 | 30    | 01   | 2 min    | 2026-02-17 | Review status borders + sticky filter bar + section grouping |
 | 29    | 04   | 4 min    | 2026-02-16 | Medical entity filtering for high CUI rate                  |
 | 29    | 03   | 15 min   | 2026-02-16 | Gemini structured output for MedGemma grounding             |
@@ -98,6 +100,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Base64 PDF data URIs for Gemini input (later: File API in quick-3)
 - [Phase 29]: Added diagnostic logging to grounding pipeline for root cause visibility
 - [Phase 29]: Enhanced MedGemma prompts with explicit search term guidelines and directive evaluate instructions
+- [Phase 31]: Nodes as thin orchestration with business logic in tools (pdf_parser, gemini_extractor)
+- [Phase 31]: extraction_json and entities_json stored as JSON strings in PipelineState (not dicts) for minimal state size
+- [Phase 31]: parse_node clears pdf_bytes and does NOT publish CriteriaExtracted outbox (PIPE-03 complete)
 
 ### Pending Todos
 
@@ -139,10 +144,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 30 Plan 01 (review status borders, sticky filter bar, section grouping)
+Stopped at: Completed Phase 31 Plan 01 (protocol-processor-service skeleton, PipelineState, TerminologyRouter)
 Resume file: None
-Next action: Continue Phase 30 plans if any remain, or proceed to Phase 31 pipeline consolidation
+Next action: Continue Phase 31 Plan 02 (extraction tools, ground node, persist node, or graph definition)
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 30 Plan 01*
+*Last updated: 2026-02-17 after completing Phase 31 Plan 01*
