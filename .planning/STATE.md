@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** v2.1 E2E Testing & Quality Evaluation — Phase 38 (Quality Evaluation Script)
+**Current focus:** Phase 40 — Legacy Cleanup + ToolUniverse Grounding
 
 ## Current Position
 
-Phase: 38 of 39 in v2.1 (Quality Evaluation Script)
-Plan: 02 complete
+Phase: 40 of 40 in current milestone
+Plan: 01 complete
 Status: In progress
-Last activity: 2026-02-17 — 38-02 complete (LLM heuristic assessment)
+Last activity: 2026-02-17 — 40-01 complete (legacy cleanup + ToolUniverse grounding + agentic reasoning loop)
 
-Progress: [████████████████████████████░] 83% of v2.1 (5/6 plans complete)
+Progress: [████████████████████████████░] 40-01 complete
 
 ## Performance Metrics
 
@@ -57,6 +57,15 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Read-only AI criterion re-run: Gemini proposes, reviewer commits via existing action endpoint
 - [Phase 39]: Bug Catalog placed after LLM Assessment; orphan detection skipped per plan constraints
 
+**Phase 40-01 Key Decisions (2026-02-17):**
+- All 6 terminology systems accessed via ToolUniverse SDK (single dependency, single pattern)
+- TTLCache(ttl=300) for autocomplete caching — 5-minute TTL appropriate for real-time use
+- Demographic entities routed to umls+snomed (NOT skipped); MedGemma handles derived mapping
+- Consent entities skipped before grounding — not groundable to medical terminology codes
+- MedGemma 3-question agentic reasoning loop in single prompt (minimize token usage)
+- Gemini collaborates on reasoning structuring via gemini_suggestion field
+- expert_review routing as reasoning string marker (not new field) — avoids schema change
+
 ### Pending Todos
 
 None.
@@ -80,7 +89,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Last activity: 2026-02-17 — completed 38-02 (LLM heuristic assessment)
-Stopped at: Completed 38-02-PLAN.md
+Last activity: 2026-02-17 — completed 40-01 (legacy cleanup + ToolUniverse grounding + agentic reasoning loop)
+Stopped at: Completed 40-01-PLAN.md
 Resume file: None
-Next action: Execute 39-01-PLAN.md (bug catalog section)
+Next action: Execute 40-02-PLAN.md
