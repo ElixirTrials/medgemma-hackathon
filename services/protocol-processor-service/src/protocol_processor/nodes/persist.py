@@ -54,19 +54,48 @@ def _create_entity_record(grounding_result: dict[str, Any]) -> Entity:
     # Review pending for entities without confirmed grounding
     review_status = "pending" if not selected_code or confidence < 0.5 else None
 
-    # Map UMLS CUI vs SNOMED code by source system
+    # Map code to the correct Entity field based on source terminology system
     umls_cui = None
     snomed_code = None
-    if selected_system == "umls":
-        umls_cui = selected_code
-    elif selected_system == "snomed":
-        snomed_code = selected_code
+    rxnorm_code = None
+    icd10_code = None
+    loinc_code = None
+    hpo_code = None
+
+    system_field_map = {
+        "umls": "umls_cui",
+        "snomed": "snomed_code",
+        "rxnorm": "rxnorm_code",
+        "icd10": "icd10_code",
+        "loinc": "loinc_code",
+        "hpo": "hpo_code",
+    }
+
+    if selected_system and selected_code:
+        field = system_field_map.get(selected_system)
+        if field == "umls_cui":
+            umls_cui = selected_code
+        elif field == "snomed_code":
+            snomed_code = selected_code
+        elif field == "rxnorm_code":
+            rxnorm_code = selected_code
+        elif field == "icd10_code":
+            icd10_code = selected_code
+        elif field == "loinc_code":
+            loinc_code = selected_code
+        elif field == "hpo_code":
+            hpo_code = selected_code
 
     return Entity(
         entity_type=entity_type,
         text=entity_text,
         umls_cui=umls_cui,
         snomed_code=snomed_code,
+        rxnorm_code=rxnorm_code,
+        icd10_code=icd10_code,
+        loinc_code=loinc_code,
+        hpo_code=hpo_code,
+        grounding_system=selected_system,
         preferred_term=grounding_result.get("preferred_term"),
         grounding_confidence=confidence,
         grounding_method=grounding_method,

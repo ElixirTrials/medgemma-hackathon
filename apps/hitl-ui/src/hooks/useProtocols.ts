@@ -43,6 +43,7 @@ export interface Protocol {
         | 'grounding'
         | 'grounding_failed'
         | 'pending_review'
+        | 'processing'
         | 'complete'
         | 'dead_letter'
         | 'archived';
