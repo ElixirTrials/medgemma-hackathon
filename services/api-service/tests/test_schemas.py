@@ -1,261 +1,195 @@
-"""Unit tests for Pydantic schemas: criteria extraction and entity extraction.
+"""Unit tests for Pydantic schemas: grounding and entity schemas.
 
-Tests validation behavior for structured output models used by
-ChatVertexAI.with_structured_output() in the extraction pipeline.
+Tests validation behavior for structured output models used by the
+protocol-processor-service grounding pipeline.
 """
 
 import pytest
-from extraction_service.schemas.criteria import (
-    AssertionStatus,
-    ExtractedCriterion,
-    ExtractionResult,
-    NumericThreshold,
-    TemporalConstraint,
-)
-from grounding_service.schemas.entities import (
-    BatchEntityExtractionResult,
-    EntityExtractionResult,
-    EntityType,
-    ExtractedEntity,
+from protocol_processor.schemas.grounding import (
+    EntityGroundingResult,
+    GroundingBatchResult,
+    GroundingCandidate,
 )
 from pydantic import ValidationError
 
+
 # ---------------------------------------------------------------------------
-# Criteria schema tests (extraction-service)
+# GroundingCandidate schema tests
 # ---------------------------------------------------------------------------
 
 
-class TestTemporalConstraint:
-    """Tests for TemporalConstraint model."""
+class TestGroundingCandidate:
+    """Tests for GroundingCandidate model."""
 
-    def test_all_fields_none_by_default(self) -> None:
-        tc = TemporalConstraint()
-        assert tc.duration is None
-        assert tc.relation is None
-        assert tc.reference_point is None
-
-    def test_with_all_fields(self) -> None:
-        tc = TemporalConstraint(
-            duration="6 months",
-            relation="within",
-            reference_point="screening",
+    def test_valid_umls_candidate(self) -> None:
+        candidate = GroundingCandidate(
+            source_api="umls",
+            code="C0011849",
+            preferred_term="Diabetes Mellitus",
+            semantic_type="Disease or Syndrome",
+            score=0.95,
         )
-        assert tc.duration == "6 months"
-        assert tc.relation == "within"
-        assert tc.reference_point == "screening"
+        assert candidate.code == "C0011849"
+        assert candidate.source_api == "umls"
+        assert candidate.preferred_term == "Diabetes Mellitus"
+        assert candidate.semantic_type == "Disease or Syndrome"
+        assert candidate.score == 0.95
 
-
-class TestNumericThreshold:
-    """Tests for NumericThreshold model."""
-
-    def test_valid_threshold(self) -> None:
-        nt = NumericThreshold(value=8.0, unit="%", comparator="<")
-        assert nt.value == 8.0
-        assert nt.unit == "%"
-        assert nt.comparator == "<"
-        assert nt.upper_value is None
-
-    def test_range_with_upper_value(self) -> None:
-        nt = NumericThreshold(
-            value=18.0, unit="years", comparator="range", upper_value=65.0
+    def test_valid_rxnorm_candidate_no_semantic_type(self) -> None:
+        candidate = GroundingCandidate(
+            source_api="rxnorm",
+            code="6809",
+            preferred_term="Metformin",
+            score=0.9,
         )
-        assert nt.upper_value == 65.0
+        assert candidate.semantic_type is None
+
+    def test_valid_icd10_candidate(self) -> None:
+        candidate = GroundingCandidate(
+            source_api="icd10",
+            code="I10",
+            preferred_term="Essential (primary) hypertension",
+            score=1.0,
+        )
+        assert candidate.code == "I10"
+
+    def test_valid_hpo_candidate(self) -> None:
+        candidate = GroundingCandidate(
+            source_api="hpo",
+            code="HP:0002069",
+            preferred_term="Bilateral tonic-clonic seizure",
+            score=0.8,
+        )
+        assert candidate.code == "HP:0002069"
+
+    def test_score_below_zero_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            GroundingCandidate(
+                source_api="umls",
+                code="C0011849",
+                preferred_term="Test",
+                score=-0.1,
+            )
+
+    def test_score_above_one_raises(self) -> None:
+        with pytest.raises(ValidationError):
+            GroundingCandidate(
+                source_api="umls",
+                code="C0011849",
+                preferred_term="Test",
+                score=1.1,
+            )
 
     def test_missing_required_fields_raises(self) -> None:
         with pytest.raises(ValidationError):
-            NumericThreshold(value=1.0)  # type: ignore[call-arg]
+            GroundingCandidate(code="C0011849", preferred_term="Test")  # type: ignore[call-arg]
 
 
-class TestAssertionStatus:
-    """Tests for AssertionStatus enum."""
-
-    @pytest.mark.parametrize(
-        "status",
-        ["PRESENT", "ABSENT", "HYPOTHETICAL", "HISTORICAL", "CONDITIONAL"],
-    )
-    def test_valid_values(self, status: str) -> None:
-        assert AssertionStatus(status).value == status
-
-    def test_invalid_value_raises(self) -> None:
-        with pytest.raises(ValueError):
-            AssertionStatus("INVALID")
+# ---------------------------------------------------------------------------
+# EntityGroundingResult schema tests
+# ---------------------------------------------------------------------------
 
 
-class TestExtractedCriterion:
-    """Tests for ExtractedCriterion model."""
+class TestEntityGroundingResult:
+    """Tests for EntityGroundingResult model."""
 
-    def test_valid_inclusion_criterion(self) -> None:
-        ec = ExtractedCriterion(
-            text="Age >= 18 years",
-            criteria_type="inclusion",
-            assertion_status=AssertionStatus.PRESENT,
-            confidence=0.95,
+    def test_valid_successful_grounding(self) -> None:
+        candidate = GroundingCandidate(
+            source_api="icd10",
+            code="E11.9",
+            preferred_term="Type 2 diabetes mellitus without complications",
+            score=0.98,
         )
-        assert ec.text == "Age >= 18 years"
-        assert ec.criteria_type == "inclusion"
-        assert ec.category is None
-        assert ec.temporal_constraint is None
-        assert ec.conditions == []
-        assert ec.numeric_thresholds == []
-
-    def test_valid_exclusion_criterion_with_all_fields(self) -> None:
-        ec = ExtractedCriterion(
-            text="HbA1c < 8% within 30 days of screening",
-            criteria_type="exclusion",
-            category="lab_values",
-            temporal_constraint=TemporalConstraint(
-                duration="30 days",
-                relation="within",
-                reference_point="screening",
-            ),
-            conditions=["if diabetic"],
-            numeric_thresholds=[NumericThreshold(value=8.0, unit="%", comparator="<")],
-            assertion_status=AssertionStatus.ABSENT,
-            confidence=0.88,
-            source_section="Exclusion Criteria",
+        result = EntityGroundingResult(
+            entity_text="type 2 diabetes mellitus",
+            entity_type="Condition",
+            selected_code="E11.9",
+            selected_system="icd10",
+            preferred_term="Type 2 diabetes mellitus without complications",
+            confidence=0.98,
+            candidates=[candidate],
+            reasoning="Exact match for type 2 diabetes mellitus in ICD-10",
         )
-        assert ec.criteria_type == "exclusion"
-        assert ec.temporal_constraint is not None
-        assert ec.temporal_constraint.duration == "30 days"
-        assert len(ec.numeric_thresholds) == 1
-        assert ec.conditions == ["if diabetic"]
+        assert result.selected_code == "E11.9"
+        assert result.selected_system == "icd10"
+        assert result.confidence == 0.98
+        assert len(result.candidates) == 1
 
-    def test_missing_required_fields_raises(self) -> None:
-        with pytest.raises(ValidationError):
-            ExtractedCriterion(text="test")  # type: ignore[call-arg]
+    def test_failed_grounding_defaults(self) -> None:
+        result = EntityGroundingResult(
+            entity_text="consent",
+            entity_type="Consent",
+            confidence=0.0,
+        )
+        assert result.selected_code is None
+        assert result.selected_system is None
+        assert result.preferred_term is None
+        assert result.candidates == []
+        assert result.field_mappings is None
 
     def test_confidence_out_of_range_raises(self) -> None:
         with pytest.raises(ValidationError):
-            ExtractedCriterion(
-                text="test",
-                criteria_type="inclusion",
-                assertion_status=AssertionStatus.PRESENT,
+            EntityGroundingResult(
+                entity_text="test",
+                entity_type="Condition",
                 confidence=1.5,
             )
 
-
-class TestExtractionResult:
-    """Tests for ExtractionResult model."""
-
-    def test_with_criteria_list(self) -> None:
-        criterion = ExtractedCriterion(
-            text="Age >= 18",
-            criteria_type="inclusion",
-            assertion_status=AssertionStatus.PRESENT,
-            confidence=0.9,
+    def test_with_field_mappings(self) -> None:
+        result = EntityGroundingResult(
+            entity_text="metformin",
+            entity_type="Medication",
+            selected_code="6809",
+            selected_system="rxnorm",
+            preferred_term="Metformin",
+            confidence=0.95,
+            field_mappings=[{"Entity": "metformin", "Code": "6809"}],
         )
-        result = ExtractionResult(
-            criteria=[criterion],
-            protocol_summary="Phase III diabetes trial for adults",
-        )
-        assert len(result.criteria) == 1
-        assert result.protocol_summary == "Phase III diabetes trial for adults"
+        assert result.field_mappings is not None
+        assert result.field_mappings[0]["Entity"] == "metformin"
 
-    def test_empty_criteria_list(self) -> None:
-        result = ExtractionResult(criteria=[], protocol_summary="No criteria found")
-        assert result.criteria == []
-
-
-# ---------------------------------------------------------------------------
-# Entity schema tests (grounding-service)
-# ---------------------------------------------------------------------------
-
-
-class TestEntityType:
-    """Tests for EntityType enum."""
-
-    @pytest.mark.parametrize(
-        "value",
-        [
-            "Condition",
-            "Medication",
-            "Procedure",
-            "Lab_Value",
-            "Demographic",
-            "Biomarker",
-        ],
-    )
-    def test_valid_entity_types(self, value: str) -> None:
-        assert EntityType(value).value == value
-
-    def test_invalid_entity_type_raises(self) -> None:
-        with pytest.raises(ValueError):
-            EntityType("InvalidType")
-
-
-class TestExtractedEntity:
-    """Tests for ExtractedEntity model."""
-
-    def test_valid_entity(self) -> None:
-        entity = ExtractedEntity(
-            text="diabetes mellitus",
-            entity_type=EntityType.CONDITION,
-            span_start=0,
-            span_end=18,
-            context_window="Patient with diabetes mellitus type 2",
-        )
-        assert entity.text == "diabetes mellitus"
-        assert entity.entity_type == EntityType.CONDITION
-        assert entity.span_start == 0
-        assert entity.span_end == 18
-
-    def test_missing_required_fields_raises(self) -> None:
+    def test_missing_required_entity_text_raises(self) -> None:
         with pytest.raises(ValidationError):
-            ExtractedEntity(text="test")  # type: ignore[call-arg]
+            EntityGroundingResult(entity_type="Condition", confidence=0.5)  # type: ignore[call-arg]
 
 
-class TestEntityExtractionResult:
-    """Tests for EntityExtractionResult model."""
+# ---------------------------------------------------------------------------
+# GroundingBatchResult schema tests
+# ---------------------------------------------------------------------------
 
-    def test_with_entities(self) -> None:
-        entity = ExtractedEntity(
-            text="metformin",
-            entity_type=EntityType.MEDICATION,
-            span_start=10,
-            span_end=19,
-            context_window="taking metformin daily",
+
+class TestGroundingBatchResult:
+    """Tests for GroundingBatchResult model."""
+
+    def test_empty_batch(self) -> None:
+        batch = GroundingBatchResult()
+        assert batch.results == []
+        assert batch.errors == []
+
+    def test_batch_with_results(self) -> None:
+        result1 = EntityGroundingResult(
+            entity_text="hypertension",
+            entity_type="Condition",
+            selected_code="I10",
+            selected_system="icd10",
+            preferred_term="Essential (primary) hypertension",
+            confidence=0.99,
         )
-        result = EntityExtractionResult(
-            entities=[entity],
-            criterion_id="crit-001",
+        result2 = EntityGroundingResult(
+            entity_text="age",
+            entity_type="Demographic",
+            confidence=0.0,
+            reasoning="No candidates found for demographic entity",
         )
-        assert len(result.entities) == 1
-        assert result.criterion_id == "crit-001"
-
-    def test_empty_entities(self) -> None:
-        result = EntityExtractionResult(entities=[], criterion_id="crit-002")
-        assert result.entities == []
-
-
-class TestBatchEntityExtractionResult:
-    """Tests for BatchEntityExtractionResult model."""
-
-    def test_with_multiple_results(self) -> None:
-        result1 = EntityExtractionResult(
-            entities=[
-                ExtractedEntity(
-                    text="HbA1c",
-                    entity_type=EntityType.LAB_VALUE,
-                    span_start=0,
-                    span_end=5,
-                    context_window="HbA1c < 8%",
-                )
-            ],
-            criterion_id="crit-001",
-        )
-        result2 = EntityExtractionResult(
-            entities=[
-                ExtractedEntity(
-                    text="age",
-                    entity_type=EntityType.DEMOGRAPHIC,
-                    span_start=0,
-                    span_end=3,
-                    context_window="age >= 18 years",
-                )
-            ],
-            criterion_id="crit-002",
-        )
-        batch = BatchEntityExtractionResult(results=[result1, result2])
+        batch = GroundingBatchResult(results=[result1, result2])
         assert len(batch.results) == 2
-        assert batch.results[0].criterion_id == "crit-001"
-        assert batch.results[1].criterion_id == "crit-002"
+        assert batch.results[0].entity_text == "hypertension"
+        assert batch.results[1].entity_text == "age"
+
+    def test_batch_with_errors(self) -> None:
+        batch = GroundingBatchResult(
+            results=[],
+            errors=["Entity 'xyz' failed: timeout", "Entity 'abc' failed: auth error"],
+        )
+        assert len(batch.errors) == 2
+        assert "timeout" in batch.errors[0]

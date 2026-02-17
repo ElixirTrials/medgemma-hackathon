@@ -1,11 +1,18 @@
-# Entity type → API mapping for terminology grounding
+# Entity type → API mapping for terminology grounding via ToolUniverse
 #
 # routing_rules: maps entity type names to a list of API names to query.
 # Use `skip: true` for entity types that should not be grounded.
 #
 # api_configs: defines how each API is accessed.
-# - source: "direct_api" uses direct NLM REST API calls via httpx (RxNorm, ICD-10, LOINC, HPO)
-# - source: "direct_python" uses direct Python import (UMLS, SNOMED)
+# - source: "tooluniverse" uses the ToolUniverse SDK (all systems)
+# - tool_name: the ToolUniverse tool identifier for this system
+#
+# Note: Demographic entities are NOT skipped — age/gender grounding is attempted
+# via UMLS/SNOMED. The MedGemma agentic reasoning loop handles derived entity
+# mapping (age → birthDate concept) before retry attempts.
+#
+# Note: Consent entities ARE skipped — consent/participation criteria are not
+# groundable to medical terminology codes.
 
 routing_rules:
   Medication:
@@ -34,25 +41,33 @@ routing_rules:
     - umls
 
   Demographic:
-    skip: true  # Demographics not grounded to terminology (no relevant UMLS CUIs)
+    - umls
+    - snomed
+
+  Consent:
+    skip: true  # Consent/participation criteria not groundable to terminology
 
 api_configs:
   rxnorm:
-    source: direct_api
+    source: tooluniverse
+    tool_name: RxNorm_get_drug_names
 
   icd10:
-    source: direct_api
+    source: tooluniverse
+    tool_name: ICD10_search_codes
 
   loinc:
-    source: direct_api
+    source: tooluniverse
+    tool_name: LOINC_search_tests
 
   hpo:
-    source: direct_api
+    source: tooluniverse
+    tool_name: HPO_search_terms
 
   umls:
-    source: direct_python
-    module: "umls_mcp_server.umls_api"
+    source: tooluniverse
+    tool_name: umls_search_concepts
 
   snomed:
-    source: direct_python
-    module: "grounding_service.umls_client"
+    source: tooluniverse
+    tool_name: snomed_search_concepts

@@ -1,7 +1,8 @@
-"""FastAPI router for UMLS search proxy.
+"""FastAPI router for UMLS search proxy via ToolUniverse.
 
-Provides a REST API endpoint that wraps the UMLS MCP server's concept_search
-functionality for frontend autocomplete consumption.
+Provides a REST API endpoint that wraps ToolUniverse-backed UMLS concept search
+for frontend autocomplete consumption. Results are cached via the TTLCache in
+the tooluniverse_client wrapper (5-minute TTL) to reduce autocomplete latency.
 """
 
 from __future__ import annotations
@@ -9,12 +10,8 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from protocol_processor.tools.tooluniverse_client import search_terminology
 from pydantic import BaseModel
-from umls_mcp_server.umls_api import (
-    SnomedCandidate,
-    UmlsApiError,
-    get_umls_client,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -42,81 +39,44 @@ def search_umls_concepts(
     q: str = Query(..., min_length=3),
     max_results: int = Query(default=5, ge=1, le=20),
 ) -> list[UmlsConceptResponse]:
-    """Search UMLS SNOMED concepts by clinical term.
+    """Search UMLS concepts by clinical term via ToolUniverse.
 
     Args:
         q: Search query (minimum 3 characters).
         max_results: Maximum number of results to return (1-20, default 5).
 
     Returns:
-        List of UMLS concept results with CUI, SNOMED code, preferred term,
-        semantic type, and confidence.
+        List of UMLS concept results with CUI, preferred term, semantic type,
+        and confidence. SNOMED code field is populated with the source API
+        root source (e.g. "SNOMEDCT_US") since ToolUniverse UMLS search
+        returns CUIs, not SNOMED numeric codes.
 
     Raises:
-        HTTPException: 400 if query too short, 502 if UMLS API error,
-            503 if UMLS service not configured.
+        HTTPException: 400 if query too short, 502 if ToolUniverse fails.
     """
-    # FastAPI Query validator handles min_length, but add explicit check for clarity
     if len(q.strip()) < 3:
         raise HTTPException(
             status_code=400,
             detail="Search query must be at least 3 characters",
         )
 
-    # Clamp max_results to valid range
     limit = max(1, min(max_results, 20))
 
     try:
-        with get_umls_client() as client:
-            candidates = client.search_snomed(q, limit=limit)
-            return [_map_candidate_to_response(c) for c in candidates]
-    except ValueError as exc:
-        # Missing API key or configuration
-        logger.error("UMLS service not configured: %s", exc)
-        raise HTTPException(
-            status_code=503,
-            detail="UMLS service not configured",
-        ) from exc
-    except UmlsApiError as exc:
-        # UMLS API error (auth, rate limit, server error, etc.)
-        logger.error("UMLS API error during search: %s", exc)
+        candidates = search_terminology("umls", q, max_results=limit)
+        return [
+            UmlsConceptResponse(
+                cui=c.code,
+                snomed_code=c.semantic_type or "",
+                preferred_term=c.preferred_term,
+                semantic_type=c.semantic_type or "Clinical Finding",
+                confidence=c.score,
+            )
+            for c in candidates
+        ]
+    except Exception as exc:
+        logger.error("ToolUniverse UMLS search failed for query '%s': %s", q, exc)
         raise HTTPException(
             status_code=502,
-            detail=f"UMLS API error: {exc.message}",
+            detail=f"Terminology lookup failed: {exc}",
         ) from exc
-
-
-# --- Helpers ---
-
-
-def _map_candidate_to_response(candidate: SnomedCandidate) -> UmlsConceptResponse:
-    """Map a SnomedCandidate to UmlsConceptResponse.
-
-    The UMLS search API returns ontology field which indicates the source
-    (e.g., SNOMEDCT_US). For semantic_type, we use the ontology field value
-    or default to "Clinical Finding" since the search endpoint doesn't
-    return semantic type directly.
-    """
-    # Map ontology to semantic type (simplified for now)
-    semantic_type = _infer_semantic_type(candidate.ontology)
-
-    return UmlsConceptResponse(
-        cui=candidate.cui,
-        snomed_code=candidate.code,
-        preferred_term=candidate.display,
-        semantic_type=semantic_type,
-        confidence=candidate.confidence,
-    )
-
-
-def _infer_semantic_type(ontology: str) -> str:
-    """Infer semantic type from ontology field.
-
-    The UMLS search API doesn't return semantic type directly, so we
-    use the ontology field as a proxy. In practice, SNOMEDCT_US concepts
-    can be various types (Clinical Finding, Disease or Syndrome, etc.),
-    but we default to "Clinical Finding" as a reasonable fallback.
-    """
-    # For now, use a simple default since the ontology field doesn't
-    # directly indicate semantic type
-    return "Clinical Finding"
