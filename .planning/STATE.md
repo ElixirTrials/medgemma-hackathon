@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 32 of 34 (Entity Model, Ground Node & Multi-Code Display)
-Plan: Completed Plan 02 of TBD
+Plan: Completed Plan 03 of TBD
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 32-02 (PostgreSQL checkpointing, retry-from-checkpoint endpoint)
+Last activity: 2026-02-17 — Completed Plan 32-03 (multi-code badges, TerminologyBadge, TerminologyCombobox, per-system editing)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -39,6 +39,7 @@ Progress: [███████████████████████
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
 | 32    | 01   | 4 min    | 2026-02-17 | Real NLM API terminology lookups (RxNorm/ICD-10/LOINC/HPO), terminology search proxy endpoints |
+| 32    | 03   | 3 min    | 2026-02-17 | Multi-code badges (TerminologyBadge/Combobox), per-system EntityCard editing, retry button text |
 | 32    | 02   | 4 min    | 2026-02-17 | PostgreSQL checkpointing, retry-from-checkpoint, async retry endpoint |
 | 31    | 03   | 8 min    | 2026-02-17 | Ground node, persist node, 5-node graph, unified trigger, PIPE-03 |
 | 31    | 02   | 20 min   | 2026-02-17 | Extraction tools (pdf_parser, gemini_extractor), ingest/extract/parse nodes |
@@ -53,6 +54,7 @@ Progress: [███████████████████████
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
 | Phase 32 P01 | 4 | 2 tasks | 6 files |
 | Phase 32 P02 | 4 | 2 tasks | 4 files |
+| Phase 32 P03 | 3 | 2 tasks | 7 files |
 | Phase 31 P03 | 8 | 2 tasks | 13 files |
 
 ## Accumulated Context
@@ -74,6 +76,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - diskcache optional: if not installed, caching silently disabled (graceful degradation) (32-01)
 - SNOMED /api/terminology/snomed/search delegates to get_umls_client().search_snomed() — same existing working path (32-01)
 - Frontend /api/terminology/{system}/search available for all 6 systems: rxnorm, icd10, loinc, hpo, umls, snomed (32-01)
+
+**Phase 32 Multi-Code Display (2026-02-17) - Plan 03:**
+- TerminologyBadge colors: rxnorm=blue, icd10=orange, snomed=green, loinc=purple, hpo=teal, umls=indigo (32-03)
+- getRelevantSystems: Medication→rxnorm+umls, Condition→icd10+snomed+umls, Lab_Value→loinc+umls, Biomarker→hpo+umls, default→snomed+umls (32-03)
+- UMLS combobox always shown in edit mode regardless of entity type (32-03)
+- _entity_codes_snapshot + _apply_modify_codes extracted from _apply_entity_action to satisfy ruff C901 < 10 (32-03)
 
 **Phase 32 Checkpointing (2026-02-17) - Plan 02:**
 - PostgresSaver singleton (not per-invocation) to avoid connection pool exhaustion (32-02)
@@ -179,10 +187,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 32 Plan 01 (real NLM API terminology lookups + frontend proxy endpoints)
+Stopped at: Completed Phase 32 Plan 03 (multi-code badges, per-system editing, retry button text)
 Resume file: None
-Next action: Phase 32 Plan 03 (next plan per ROADMAP)
+Next action: Next plan per ROADMAP
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 32 Plan 01*
+*Last updated: 2026-02-17 after completing Phase 32 Plan 03*
