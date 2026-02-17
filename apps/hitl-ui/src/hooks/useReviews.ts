@@ -36,7 +36,7 @@ export interface CriteriaBatch {
     id: string;
     protocol_id: string;
     protocol_title: string;
-    status: 'pending_review' | 'in_progress' | 'approved' | 'rejected';
+    status: 'pending_review' | 'in_progress' | 'entities_grounded' | 'reviewed' | 'approved' | 'rejected';
     extraction_model: string | null;
     criteria_count: number;
     reviewed_count: number;
