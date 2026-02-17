@@ -510,23 +510,23 @@ Plans:
 - [ ] 31-03-PLAN.md — Ground node, persist node, MedGemma decider, 5-node graph assembly, outbox wiring
 
 ### Phase 32: Entity Model, Ground Node & Multi-Code Display
-**Goal**: Extend Entity model to store multi-system codes, implement ground node with real terminology routing, add pipeline error handling, and display multi-terminology codes in the UI
+**Goal**: Replace ToolUniverse stub with real terminology API integration, add LangGraph PostgreSQL checkpointing for retry-from-failure, and display multi-terminology codes in the UI
 **Depends on**: Phase 31 (pipeline skeleton and terminology clients must exist)
 **Requirements**: GRND-03, GRND-05, PIPE-04, EDIT-03
 **Success Criteria** (what must be TRUE):
-  1. Entity model stores multi-system codes (rxnorm_code, icd10_code, loinc_code, hpo_code alongside existing umls_cui and snomed_code)
-  2. Alembic migration adds new code columns with nullable defaults (existing entities unaffected)
-  3. Ground node uses Gemini structured output OR improved MedGemma prompting for entity extraction (research spike determines approach)
-  4. Ground node routes extracted entities to TerminologyRouter and stores results in Entity table with multi-code population
-  5. Pipeline failure at any stage leaves protocol in recoverable state (not stuck in "extracted" forever) via error state tracking
-  6. Failed protocols can be retried via API endpoint without re-upload
-  7. Multi-terminology codes (RxNorm, ICD-10, LOINC, HPO) are visible per entity in the UI as separate badges
-  8. Graceful fallback for missing codes and pre-v1.5 data
+  1. Entity model stores multi-system codes (rxnorm_code, icd10_code, loinc_code, hpo_code alongside existing umls_cui and snomed_code) — ALREADY DONE
+  2. TerminologyRouter returns real terminology candidates for RxNorm, ICD-10, LOINC, HPO (ToolUniverse or NLM API fallback)
+  3. Terminology search proxy endpoints available for frontend autocomplete across all systems
+  4. LangGraph PostgreSQL checkpointing saves state after each pipeline node
+  5. Failed protocols can be retried via checkpoint resume (not full pipeline restart)
+  6. Multi-terminology codes (RxNorm, ICD-10, LOINC, HPO, SNOMED, UMLS) visible per entity as color-coded badges
+  7. Per-system autocomplete editing for all terminology codes
+  8. Grounding errors shown as red "Failed" badge with specific error reason
 **Plans**: 3 plans
 
 Plans:
-- [ ] 32-01-PLAN.md — Entity model extension, terminology clients, and search proxy endpoints
-- [ ] 32-02-PLAN.md — Ground node with Gemini structured extraction, TerminologyRouter, LangGraph checkpointing, and retry endpoint
+- [ ] 32-01-PLAN.md — Real terminology API integration (ToolUniverse/NLM) and search proxy endpoints
+- [ ] 32-02-PLAN.md — LangGraph PostgreSQL checkpointing and retry-from-checkpoint endpoint
 - [ ] 32-03-PLAN.md — Multi-code badge display, per-system autocomplete, and retry UX
 
 ### Phase 33: Re-Extraction Tooling & Review Protection
@@ -676,6 +676,6 @@ Waves: 29 → [30 ‖ 31] → 32 → 33 → 34
 | 29. Backend Bug Fixes | v2.0 | 0/TBD | Not started | - |
 | 30. UX Polish & Editor Pre-Loading | v2.0 | 0/TBD | Not started | - |
 | 31. TerminologyRouter & Pipeline Consolidation | v2.0 | 0/TBD | Not started | - |
-| 32. Entity Model, Ground Node & Multi-Code Display | v2.0 | 0/TBD | Not started | - |
+| 32. Entity Model, Ground Node & Multi-Code Display | v2.0 | 0/3 | Planned | - |
 | 33. Re-Extraction Tooling & Review Protection | v2.0 | 0/TBD | Not started | - |
 | 34. Corpus Comparison & Export | v2.0 | 0/TBD | Not started | - |
