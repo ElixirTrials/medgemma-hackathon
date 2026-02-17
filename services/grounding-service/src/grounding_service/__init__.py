@@ -1,16 +1,14 @@
-"""Entity Grounding Agent Service.
+"""Entity Grounding Service.
 
-This agent handles entity extraction and UMLS/SNOMED grounding
-using a LangGraph workflow triggered by CriteriaExtracted events.
+Provides terminology-based entity grounding tools and clients.
+The main LangGraph pipeline is in grounding_service.graph.
 """
 
 from .graph import create_graph, get_graph
 from .state import GroundingState
-from .trigger import handle_criteria_extracted
 
 __all__ = [
     "GroundingState",
     "create_graph",
     "get_graph",
-    "handle_criteria_extracted",
 ]
