@@ -703,7 +703,7 @@ Waves: 29 -> [30 || 31] -> 32 -> 33 -> 34 -> 35
 | 37. E2E Test Cases & Baseline | v2.1 | 1/1 | Complete | 2026-02-17 |
 | 38. Quality Evaluation Script | v2.1 | 0/2 | Planned | - |
 | 39. Bug Catalog | v2.1 | 0/1 | Planned | - |
-| 40. Legacy Cleanup & ToolUniverse Grounding | 1/2 | In Progress|  | - |
+| 40. Legacy Cleanup & ToolUniverse Grounding | 2/2 | Complete   | 2026-02-17 | - |
 
 ---
 

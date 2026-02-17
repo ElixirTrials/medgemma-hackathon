@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 40 — Legacy Cleanup + ToolUniverse Grounding
+**Current focus:** Phase 40 — Legacy Cleanup + ToolUniverse Grounding (COMPLETE)
 
 ## Current Position
 
 Phase: 40 of 40 in current milestone
-Plan: 01 complete
-Status: In progress
-Last activity: 2026-02-17 — 40-01 complete (legacy cleanup + ToolUniverse grounding + agentic reasoning loop)
+Plan: 02 complete (all plans complete)
+Status: Complete
+Last activity: 2026-02-17 — 40-02 complete (ToolUniverse live grounding verified: 5/5 systems, caching <100ms, graceful error handling)
 
-Progress: [████████████████████████████░] 40-01 complete
+Progress: [█████████████████████████████] Phase 40 COMPLETE
 
 ## Performance Metrics
 
@@ -36,6 +36,7 @@ Progress: [███████████████████████
 | v2.0 | 29-35 | 19 | ~2 hours | Shipped 2026-02-17 |
 | v2.1 | 36-39 | 5 | ~16 min | In progress |
 | Phase 39 P01 | 121s | 2 tasks | 1 files |
+| Phase 40 P02 | 3 | 2 tasks | 0 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Gemini collaborates on reasoning structuring via gemini_suggestion field
 - expert_review routing as reasoning string marker (not new field) — avoids schema change
 
+**Phase 40-02 Key Decisions (2026-02-17):**
+- Docker container is running stale pre-Phase-40 image; code verification done via direct uv run calls (correct approach)
+- 5/5 tested systems return real codes (ICD10, RxNorm, HPO, LOINC, UMLS) — all pass, plan required only 3
+- [Phase 40]: Docker container running stale pre-Phase-40 image; code verification done via direct uv run calls (correct approach)
+- [Phase 40]: 5/5 tested systems return real codes (ICD10, RxNorm, HPO, LOINC, UMLS) — all pass, plan required only 3
+
 ### Pending Todos
 
 None.
@@ -89,7 +96,7 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Last activity: 2026-02-17 — completed 40-01 (legacy cleanup + ToolUniverse grounding + agentic reasoning loop)
-Stopped at: Completed 40-01-PLAN.md
+Last activity: 2026-02-17 — completed 40-02 (ToolUniverse live grounding verification: 5/5 systems, TTLCache <100ms, CLEAN-04/CLEAN-05 satisfied)
+Stopped at: Completed 40-02-PLAN.md
 Resume file: None
-Next action: Execute 40-02-PLAN.md
+Next action: Phase 40 complete — all plans finished
