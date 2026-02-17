@@ -6,6 +6,7 @@ Provides endpoints for:
 - GET /protocols: Paginated protocol list with optional status filter
 - GET /protocols/{protocol_id}: Protocol detail view with quality metadata
 - POST /protocols/{protocol_id}/retry: Resume failed protocol from LangGraph checkpoint
+- GET /protocols/{protocol_id}/batches: All batches including archived (timeline)
 """
 
 from __future__ import annotations
@@ -108,6 +109,23 @@ class ReExtractResponse(BaseModel):
     status: str
     protocol_id: str
     archived_batches: int
+
+
+class BatchSummaryResponse(BaseModel):
+    """Response model for a single batch summary in the protocol timeline.
+
+    Includes ALL batches (archived and non-archived) ordered chronologically.
+    Used by the batch timeline view to show re-extraction history.
+    """
+
+    id: str
+    protocol_id: str
+    status: str
+    is_archived: bool
+    criteria_count: int
+    reviewed_count: int
+    extraction_model: str | None
+    created_at: datetime
 
 
 # --- Endpoints ---
@@ -484,6 +502,87 @@ def get_protocol(
     _check_dead_letter_archival(protocol, db)
 
     return _protocol_to_response(protocol)
+
+
+@router.get(
+    "/{protocol_id}/batches",
+    response_model=list[BatchSummaryResponse],
+)
+def list_protocol_batches(
+    protocol_id: str,
+    db: Session = Depends(get_db),
+) -> list[BatchSummaryResponse]:
+    """List ALL batches for a protocol including archived ones.
+
+    Returns batches in chronological order (oldest first) for the batch
+    timeline view. Unlike GET /reviews/batches which excludes archived
+    batches for the review workflow, this endpoint includes them so that
+    reviewers can see the full re-extraction history.
+
+    This is intentionally separate from the existing batch listing endpoint
+    to preserve the review workflow's correct exclusion of archived batches
+    (per research anti-pattern guidance).
+
+    Returns 404 if protocol doesn't exist.
+    """
+    # Verify protocol exists
+    protocol = db.get(Protocol, protocol_id)
+    if not protocol:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Protocol {protocol_id} not found",
+        )
+
+    # Load ALL batches for this protocol (no is_archived filter)
+    # ordered chronologically ascending for timeline display
+    batches = db.exec(
+        select(CriteriaBatch)
+        .where(CriteriaBatch.protocol_id == protocol_id)
+        .order_by(col(CriteriaBatch.created_at).asc())
+    ).all()
+
+    if not batches:
+        return []
+
+    # Batch-load criteria counts to avoid N+1 queries
+    batch_ids = [b.id for b in batches]
+
+    # Total criteria count per batch
+    total_counts_stmt = (
+        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))
+        .where(col(Criteria.batch_id).in_(batch_ids))
+        .group_by(Criteria.batch_id)
+    )
+    total_counts: dict[str, int] = {
+        row[0]: row[1] for row in db.exec(total_counts_stmt).all()
+    }
+
+    # Reviewed criteria count per batch (review_status IS NOT NULL)
+    reviewed_counts_stmt = (
+        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))
+        .where(
+            col(Criteria.batch_id).in_(batch_ids),
+            col(Criteria.review_status).isnot(None),
+        )
+        .group_by(Criteria.batch_id)
+    )
+    reviewed_counts: dict[str, int] = {
+        row[0]: row[1] for row in db.exec(reviewed_counts_stmt).all()
+    }
+
+    return [
+        BatchSummaryResponse(
+            id=batch.id,
+            protocol_id=batch.protocol_id,
+            status=batch.status,
+            is_archived=batch.is_archived,
+            criteria_count=total_counts.get(batch.id, 0),
+            reviewed_count=reviewed_counts.get(batch.id, 0),
+            extraction_model=batch.extraction_model,
+            created_at=batch.created_at,
+        )
+        for batch in batches
+    ]
 
 
 # --- Helpers ---
