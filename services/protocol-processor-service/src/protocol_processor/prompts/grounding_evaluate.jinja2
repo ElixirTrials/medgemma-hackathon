@@ -1,0 +1,33 @@
+Select the best terminology match for the following medical entity.
+
+## Entity
+Text: "{{ entity_text }}"
+Type: {{ entity_type }}
+From criterion: "{{ criterion_context[:200] }}"
+
+## Candidates
+{% if candidates %}
+{% for c in candidates %}
+- Source: {{ c.source_api }} | Code: {{ c.code }} | Term: "{{ c.preferred_term }}"{% if c.semantic_type %} | Semantic: {{ c.semantic_type }}{% endif %} | Score: {{ "%.2f"|format(c.score) }}
+{% endfor %}
+{% else %}
+No candidates found from any terminology API.
+{% endif %}
+
+## Instructions
+
+{% if candidates %}
+Review the candidates and select the best match for "{{ entity_text }}" ({{ entity_type }}).
+
+State:
+1. Which candidate best matches the entity (or that none do)
+2. Your confidence (0.9-1.0 exact, 0.7-0.8 synonym, 0.5-0.6 partial, 0.0 no match)
+3. Your brief reasoning
+
+Be decisive. If a candidate clearly represents the same medical concept, assign confidence ≥ 0.8.
+{% else %}
+No terminology candidates were found. State:
+- That no candidates are available
+- Confidence: 0.0
+- Reasoning: why this entity could not be grounded
+{% endif %}
