@@ -6,14 +6,14 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 32 - Entity Model, Ground Node & Multi-Code Display
+**Current focus:** Phase 33 - Re-Extraction Tooling, Review Protection
 
 ## Current Position
 
-Phase: 32 of 34 (Entity Model, Ground Node & Multi-Code Display)
-Plan: Completed Plan 03 of TBD
+Phase: 33 of 34 (Re-Extraction Tooling, Review Protection)
+Plan: Completed Plan 01 of 2
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 32-03 (multi-code badges, TerminologyBadge, TerminologyCombobox, per-system editing)
+Last activity: 2026-02-17 — Completed Plan 33-01 (re-extraction endpoint, batch archiving, fuzzy matching, temperature=0)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 33    | 01   | 6 min    | 2026-02-17 | Re-extraction endpoint, batch archiving, fuzzy review inheritance, temperature=0 |
 | 32    | 01   | 4 min    | 2026-02-17 | Real NLM API terminology lookups (RxNorm/ICD-10/LOINC/HPO), terminology search proxy endpoints |
 | 32    | 03   | 3 min    | 2026-02-17 | Multi-code badges (TerminologyBadge/Combobox), per-system EntityCard editing, retry button text |
 | 32    | 02   | 4 min    | 2026-02-17 | PostgreSQL checkpointing, retry-from-checkpoint, async retry endpoint |
@@ -54,8 +55,10 @@ Progress: [███████████████████████
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
 | Phase 32 P01 | 4 | 2 tasks | 6 files |
 | Phase 32 P02 | 4 | 2 tasks | 4 files |
+| Phase 33 P01 | 6 | 2 tasks | 7 files |
 | Phase 32 P03 | 3 | 2 tasks | 7 files |
 | Phase 31 P03 | 8 | 2 tasks | 13 files |
+| Phase 33 P01 | 6 | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -146,6 +149,9 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 30]: FieldMappingBadges returns null when no field_mappings exist; AND connector is static in read mode, editable in structured editor (30-02)
 - [Phase 31]: ground_node delegates to tools (TerminologyRouter+MedGemma+field_mapper); error accumulation; AuditLog per entity
 - [Phase 31]: criteria_extracted outbox removed from api-service; protocol_processor.trigger.handle_protocol_uploaded is sole handler (PIPE-03)
+- [Phase 33]: batch_alter_table for Alembic migration: SQLite incompatibility with ALTER TABLE SET NOT NULL requires batch approach that works on both SQLite (dev) and PostgreSQL (prod) (33-01)
+- [Phase 33]: token_set_ratio criteria_type guard prevents false positives between inclusion/exclusion criteria (33-01)
+- [Phase 33]: archived_reviewed_criteria in outbox payload for race-condition-free review inheritance (33-01)
 
 ### Pending Todos
 
@@ -181,16 +187,16 @@ None.
 
 - ~~No display of field_mappings in non-edit mode (badges for saved mappings)~~ **FIXED in 30-02 (FieldMappingBadges)**
 - ~~No initialValues population from saved field_mappings (editor always starts empty)~~ **VERIFIED WORKING in 30-02 (buildInitialValues Priority 1)**
-- No re-extraction tooling (script to re-run extraction/grounding on existing protocols)
+- ~~No re-extraction tooling (script to re-run extraction/grounding on existing protocols)~~ **BACKEND COMPLETE in 33-01 (re-extract endpoint, batch archiving, fuzzy inheritance)**
 - No corpus comparison (view/export AI vs human corrected data)
 
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 32 Plan 03 (multi-code badges, per-system editing, retry button text)
+Stopped at: Completed Phase 33 Plan 01 (re-extraction endpoint, batch archiving, fuzzy matching, temperature=0)
 Resume file: None
 Next action: Next plan per ROADMAP
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 32 Plan 03*
+*Last updated: 2026-02-17 after completing Phase 33 Plan 01*
