@@ -700,7 +700,10 @@ Waves: 29 -> [30 || 31] -> 32 -> 33 -> 34 -> 35
 | 34. Corpus Comparison & Export | v2.0 | Complete    | 2026-02-17 | - |
 | 35. E2E Gap Closure | v2.0 | Complete    | 2026-02-17 | - |
 | 36. E2E Test Infrastructure | v2.1 | 2/2 | Complete | 2026-02-17 |
-| 37. E2E Test Cases & Baseline | v2.1 | 0/1 | Planned | - |
+| 37. E2E Test Cases & Baseline | v2.1 | 1/1 | Complete | 2026-02-17 |
+| 38. Quality Evaluation Script | v2.1 | 0/2 | Planned | - |
+| 39. Bug Catalog | v2.1 | 0/1 | Planned | - |
+| 40. Legacy Cleanup & ToolUniverse Grounding | v2.1 | 0/3 | Planned | - |
 
 ---
 
@@ -730,25 +733,43 @@ Plans:
 **Plans**: 1 plan
 
 Plans:
-- [ ] 37-01-PLAN.md — Baseline config + full pipeline E2E tests (upload, criteria verification, entity grounding, regression baseline)
+- [x] 37-01-PLAN.md — Baseline config + full pipeline E2E tests (upload, criteria verification, entity grounding, regression baseline)
 
 ### Phase 38: Quality Evaluation Script
 **Goal**: A standalone script runs the unified pipeline on 2-3 sample PDFs and generates a structured markdown report
 **Depends on**: Nothing (independent script)
 **Requirements**: QUAL-01, QUAL-02, QUAL-03, QUAL-04, QUAL-05, QUAL-06, QUAL-07
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 38-01: TBD
+- [ ] 38-01-PLAN.md — Core quality eval script: upload PDFs, collect results via API, compute stats, generate markdown report (QUAL-01 through QUAL-06)
+- [ ] 38-02-PLAN.md — LLM heuristic assessment (QUAL-07): Gemini evaluates extraction completeness and grounding accuracy with reasoning
 
 ### Phase 39: Bug Catalog
 **Goal**: The quality report includes a bug/problem catalog section that identifies ungrounded entities, pipeline errors, and structural anomalies
 **Depends on**: Phase 38
 **Requirements**: BUG-01, BUG-02, BUG-03, BUG-04, BUG-05
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 39-01: TBD
+- [ ] 39-01-PLAN.md — Bug catalog analysis functions + report section integration (ungrounded entities, pipeline errors, structural issues, severity categorization, recommendations)
+
+### Phase 40: Legacy Cleanup & ToolUniverse Grounding
+**Goal**: Delete legacy v1 services (grounding-service, extraction-service), replace broken UMLS/SNOMED direct imports with ToolUniverse SDK, eliminate all cross-dependencies on legacy code, and verify the unified pipeline grounds entities with real terminology codes
+**Depends on**: Nothing (independent cleanup, can run after quality eval reveals the broken grounding)
+**Requirements**: CLEAN-01 (delete legacy services), CLEAN-02 (ToolUniverse replaces UmlsClient in TerminologyRouter), CLEAN-03 (zero imports from grounding-service), CLEAN-04 (pipeline produces grounded entities with >0% CUI rate)
+**Success Criteria** (what must be TRUE):
+  1. `services/grounding-service/` and `services/extraction-service/` directories deleted; all imports, workspace refs, docker-compose entries, and pyproject.toml references removed
+  2. TerminologyRouter uses ToolUniverse SDK (`tooluniverse` package) for ALL terminology lookups: `umls_search_concepts`, `snomed_search_concepts`, `icd_search_codes`, `loinc_search_codes`, RxNorm tool, HPO tool
+  3. `umls-mcp-server` retained ONLY as a thin wrapper for ToolUniverse (or deleted if ToolUniverse replaces it entirely); no direct `UmlsClient` usage in the pipeline
+  4. API service search endpoints (`/api/terminology/{system}/search`, `/api/umls/search`) work via ToolUniverse instead of UmlsClient
+  5. Running the pipeline on a test PDF produces entities with non-zero grounding confidence and real CUI/SNOMED/terminology codes
+  6. `uv run pytest` passes with no import errors from deleted services
+**Plans**: 2 plans
+
+Plans:
+- [ ] 40-01-PLAN.md — Delete legacy services + integrate ToolUniverse SDK + rewrite all endpoints and tests
+- [ ] 40-02-PLAN.md — End-to-end verification: live grounding codes + autocomplete + human checkpoint
 
 ### v2.1 Dependency Graph
 ```
@@ -757,6 +778,8 @@ Phase 36 (E2E Test Infrastructure)
 
 Phase 38 (Quality Evaluation Script)  [independent]
     └── Phase 39 (Bug Catalog)
+
+Phase 40 (Legacy Cleanup & ToolUniverse Grounding)  [independent]
 ```
 
-Tracks: [36 -> 37] || [38 -> 39]
+Tracks: [36 -> 37] || [38 -> 39] || [40]
