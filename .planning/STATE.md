@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 33 - Re-Extraction Tooling, Review Protection
+**Current focus:** Phase 34 - Corpus Comparison and Export
 
 ## Current Position
 
-Phase: 33 of 34 (Re-Extraction Tooling, Review Protection)
-Plan: Completed Plan 02 of 2
+Phase: 34 of 34 (Corpus Comparison and Export)
+Plan: Completed Plan 01 of 1
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 33-02 (re-extraction frontend UI: button, modal, processing spinner, review link)
+Last activity: 2026-02-17 — Completed Plan 34-01 (data integrity check endpoint, CI test suite, batch agreement metrics endpoint)
 
-Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
+Progress: [█████████████████████████░░░░░░░░░] 88% (30/34 phases complete)
 
 ## Performance Metrics
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 34    | 01   | 4 min    | 2026-02-17 | Data integrity check endpoint (4 categories, protocol scoping, 6 CI tests), batch metrics endpoint (2-query, modification breakdown) |
 | 33    | 02   | 8 min    | 2026-02-17 | Re-extraction frontend: button, AlertDialog modal, processing spinner, review link, polling |
 | 33    | 01   | 6 min    | 2026-02-17 | Re-extraction endpoint, batch archiving, fuzzy review inheritance, temperature=0 |
 | 32    | 01   | 4 min    | 2026-02-17 | Real NLM API terminology lookups (RxNorm/ICD-10/LOINC/HPO), terminology search proxy endpoints |
@@ -53,6 +54,7 @@ Progress: [███████████████████████
 | 29    | 01   | 9 min    | 2026-02-16 | Grounding confidence bug fix with diagnostic logging        |
 
 *Metrics from MILESTONES.md and previous roadmaps*
+| Phase 34 P01 | 4 | 2 tasks | 5 files |
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
 | Phase 32 P01 | 4 | 2 tasks | 6 files |
 | Phase 32 P02 | 4 | 2 tasks | 4 files |
@@ -75,6 +77,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - UMLS retained via direct Python import (not MCP subprocess)
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
+
+**Phase 34 Integrity + Metrics (2026-02-17) - Plan 01:**
+- integrity.py split into 4 private check functions to satisfy ruff C901 < 10 (34-01)
+- criterion_rerun.py google.generativeai import made lazy (inside endpoint) — missing package blocked all test collection (Rule 3 auto-fix) (34-01)
+- Empty scoped_criteria_ids list causes each check to return [] immediately — avoids empty IN () SQL (34-01)
+- BatchMetricsResponse.modification_breakdown: text_v1→text_edits, structured_v1→structured_edits, v1.5-multi→field_mapping_changes (34-01)
 
 **Phase 33 Re-Extraction Frontend (2026-02-17) - Plan 02:**
 - Radix AlertDialog imported as namespace (* as AlertDialog) and composed inline — no pre-built wrapper needed for single-use modal (33-02)
@@ -202,10 +210,10 @@ None.
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 33 Plan 02 (re-extraction frontend UI: button, modal, processing spinner, review link)
+Stopped at: Completed Phase 34 Plan 01 (data integrity check endpoint, CI test suite, batch metrics endpoint)
 Resume file: None
 Next action: Next plan per ROADMAP
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 33 Plan 02*
+*Last updated: 2026-02-17 after completing Phase 34 Plan 01*
