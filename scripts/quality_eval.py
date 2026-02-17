@@ -3,19 +3,22 @@
 
 Uploads sample PDFs through the running Docker Compose stack, waits for
 pipeline completion, queries results via the API, computes statistics,
-and generates a structured markdown report.
+runs an LLM heuristic assessment, and generates a structured markdown report.
 
 Usage:
     uv run python scripts/quality_eval.py              # Upload + evaluate
     uv run python scripts/quality_eval.py --fresh      # Force re-upload
     uv run python scripts/quality_eval.py --skip-upload # Use existing data
     uv run python scripts/quality_eval.py --protocol-ids id1,id2
+    uv run python scripts/quality_eval.py --skip-llm   # Skip LLM assessment
+    uv run python scripts/quality_eval.py --report-name my_report.md
 """
 
 from __future__ import annotations
 
 import argparse
 import base64
+import os
 import sys
 import time
 from collections import Counter
@@ -89,6 +92,12 @@ def _wait_for_pipeline(
         data = resp.json()
 
         status = data.get("status", "")
+        elapsed = int(timeout - (deadline - time.monotonic()))
+        print(
+            f"    Waiting for pipeline (protocol {protocol_id[:8]}...)..."
+            f" status: {status} ({elapsed}s)"
+        )
+
         if status in _TERMINAL_STATUSES:
             return data
 
@@ -155,19 +164,28 @@ def upload_and_process(
     Returns list of dicts with protocol_id, status, and title for each PDF.
     """
     results: list[dict] = []
+    total_pdfs = len(SAMPLE_PDFS)
 
-    for pdf_path in SAMPLE_PDFS:
+    for idx, pdf_path in enumerate(SAMPLE_PDFS, 1):
         pdf_name = Path(pdf_path).name
-        print(f"  [{pdf_name}] Uploading...")
+        print(f"  Uploading PDF {idx}/{total_pdfs}: {pdf_name}...")
 
         try:
             protocol_id = upload_pdf(client, pdf_path)
-            print(f"  [{pdf_name}] protocol_id={protocol_id}, waiting for pipeline...")
+            print(
+                f"  [{pdf_name}] protocol_id={protocol_id},"
+                " waiting for pipeline..."
+            )
 
+            start = time.monotonic()
             final = _wait_for_pipeline(client, protocol_id)
+            elapsed = int(time.monotonic() - start)
             status = final.get("status", "unknown")
             title = final.get("title", pdf_name)
-            print(f"  [{pdf_name}] Pipeline finished: status={status}")
+            print(
+                f"  Pipeline complete for protocol {protocol_id[:8]}..."
+                f" (status: {status}, {elapsed}s)"
+            )
 
             results.append(
                 {
@@ -201,6 +219,8 @@ def collect_criteria(
     client: httpx.Client, protocol_id: str
 ) -> list[dict]:
     """Fetch all criteria + entities for a protocol via the API."""
+    print(f"  Collecting results for protocol {protocol_id[:8]}...")
+
     # Get batches for the protocol
     resp = client.get(f"/protocols/{protocol_id}/batches")
     resp.raise_for_status()
@@ -349,6 +369,230 @@ def compute_terminology_success(all_entities: list[dict]) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# LLM Heuristic Assessment (QUAL-07)
+# ---------------------------------------------------------------------------
+
+_LLM_ASSESSMENT_PROMPT = """\
+You are evaluating the quality of an automated clinical trial criteria \
+extraction and medical entity grounding pipeline. You are given the actual \
+output from processing {n} clinical trial protocol PDFs.
+
+## Pipeline Output Summary
+{stats_summary}
+
+## Sample Extracted Criteria with Entities
+{criteria_samples}
+
+## Your Assessment
+
+Evaluate the following dimensions. Be specific -- reference actual criteria \
+text and entity examples from above.
+
+### Extraction Completeness
+Are all medical entities in the criteria text captured? Identify any obvious \
+missed entities by quoting the criteria text.
+
+### Grounding Accuracy
+For grounded entities, do the terminology codes seem correct? Flag any \
+obvious mismatches (e.g., a medication mapped to a condition code).
+
+### Coverage Gaps
+Which entity types or terminology systems have low/zero coverage? \
+Hypothesize why.
+
+### Overall Quality Rating
+Rate: Excellent / Good / Fair / Poor
+Provide 2-3 sentences of reasoning.
+"""
+
+
+def _build_stats_summary(
+    stats: dict,
+    per_protocol_stats: list[dict],
+    terminology: dict,
+    confidence_dist: dict,
+    total_criteria: int,
+) -> str:
+    """Build a text summary of pipeline stats for the LLM prompt."""
+    lines: list[str] = []
+    lines.append(f"- Total criteria extracted: {total_criteria}")
+    lines.append(f"- Total entities: {stats['total_entities']}")
+    lines.append(
+        f"- Overall CUI (UMLS) rate: {stats['overall_cui_rate'] * 100:.1f}%"
+    )
+    lines.append(f"- Mean grounding confidence: {stats['mean_confidence']:.3f}")
+    lines.append(
+        f"- Median grounding confidence: {stats['median_confidence']:.3f}"
+    )
+
+    # Entity type distribution
+    lines.append("\nEntity type distribution:")
+    for etype, count in sorted(
+        stats["entity_type_distribution"].items(),
+        key=lambda x: x[1],
+        reverse=True,
+    ):
+        lines.append(f"  - {etype}: {count}")
+
+    # Per-protocol summary
+    lines.append("\nPer-protocol breakdown:")
+    for ps in per_protocol_stats:
+        lines.append(
+            f"  - Protocol {ps['protocol_id'][:8]}...: "
+            f"{ps['criteria_count']} criteria, "
+            f"{ps['entity_count']} entities, "
+            f"CUI rate {ps['cui_rate'] * 100:.1f}%"
+        )
+
+    # Terminology coverage
+    lines.append("\nTerminology system coverage:")
+    for system_name in ["UMLS", "SNOMED", "RxNorm", "ICD-10", "LOINC", "HPO"]:
+        info = terminology.get(system_name, {"count": 0, "rate": 0.0})
+        lines.append(f"  - {system_name}: {info['count']} entities ({info['rate']}%)")
+
+    # Confidence distribution
+    lines.append("\nConfidence distribution:")
+    for bucket_name in ["null/zero", "0-0.5", "0.5-0.7", "0.7-0.9", "0.9-1.0"]:
+        info = confidence_dist.get(bucket_name, {"count": 0, "percentage": 0.0})
+        lines.append(f"  - {bucket_name}: {info['count']} ({info['percentage']}%)")
+
+    return "\n".join(lines)
+
+
+def _build_criteria_samples(
+    all_criteria_by_protocol: dict[str, list[dict]],
+    max_criteria: int = 20,
+) -> str:
+    """Build sample criteria text with entities for the LLM prompt.
+
+    Selects up to max_criteria representative criteria across protocols,
+    prioritizing criteria that have entities to give the LLM useful context.
+    """
+    samples: list[str] = []
+    remaining = max_criteria
+
+    for protocol_id, criteria_list in all_criteria_by_protocol.items():
+        if remaining <= 0:
+            break
+
+        # Take a proportional share from each protocol, at least 2
+        share = max(2, remaining // max(1, len(all_criteria_by_protocol)))
+
+        # Sort: criteria with entities first (more informative)
+        sorted_criteria = sorted(
+            criteria_list,
+            key=lambda c: len(c.get("entities", [])),
+            reverse=True,
+        )
+
+        for criterion in sorted_criteria[:share]:
+            if remaining <= 0:
+                break
+
+            ctype = criterion.get("criteria_type", "unknown")
+            text = criterion.get("criteria_text", "")[:300]
+            entities = criterion.get("entities", [])
+
+            sample = f"**[{ctype.upper()}]** {text}"
+            if entities:
+                sample += "\n  Entities:"
+                for ent in entities[:5]:  # Limit entities per criterion
+                    ent_text = ent.get("entity_text", "?")
+                    ent_type = ent.get("entity_type", "?")
+                    cui = ent.get("umls_cui", "")
+                    snomed = ent.get("snomed_code", "")
+                    rxnorm = ent.get("rxnorm_code", "")
+                    conf = ent.get("grounding_confidence")
+
+                    codes_parts: list[str] = []
+                    if cui:
+                        codes_parts.append(f"UMLS:{cui}")
+                    if snomed:
+                        codes_parts.append(f"SNOMED:{snomed}")
+                    if rxnorm:
+                        codes_parts.append(f"RxNorm:{rxnorm}")
+                    codes = ", ".join(codes_parts) if codes_parts else "ungrounded"
+                    conf_str = f", conf={conf:.2f}" if conf is not None else ""
+
+                    sample += (
+                        f"\n    - \"{ent_text}\" ({ent_type}) -> {codes}{conf_str}"
+                    )
+                if len(entities) > 5:
+                    sample += f"\n    - ... and {len(entities) - 5} more entities"
+            else:
+                sample += "\n  Entities: (none extracted)"
+
+            samples.append(sample)
+            remaining -= 1
+
+    return "\n\n".join(samples) if samples else "(No criteria available for sampling)"
+
+
+def run_llm_assessment(
+    all_criteria_by_protocol: dict[str, list[dict]],
+    aggregate_stats: dict,
+    per_protocol_stats: list[dict],
+    terminology: dict,
+    confidence_dist: dict,
+    total_criteria: int,
+) -> str:
+    """Run LLM heuristic assessment of pipeline quality using Gemini.
+
+    Returns the LLM's markdown-formatted assessment text, or an error
+    message if the assessment could not be completed.
+    """
+    # Try to import google.genai
+    try:
+        from google import genai  # noqa: F811
+    except ImportError:
+        return (
+            "*LLM assessment unavailable: google-genai SDK not installed. "
+            "Install with `pip install google-genai`.*"
+        )
+
+    # Check for API key
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return (
+            "*LLM assessment unavailable: GOOGLE_API_KEY environment variable "
+            "not set. Set it to enable LLM-based quality assessment.*"
+        )
+
+    # Build prompt components
+    n_protocols = len(all_criteria_by_protocol)
+    stats_summary = _build_stats_summary(
+        aggregate_stats,
+        per_protocol_stats,
+        terminology,
+        confidence_dist,
+        total_criteria,
+    )
+    criteria_samples = _build_criteria_samples(all_criteria_by_protocol)
+
+    prompt = _LLM_ASSESSMENT_PROMPT.format(
+        n=n_protocols,
+        stats_summary=stats_summary,
+        criteria_samples=criteria_samples,
+    )
+
+    # Call Gemini
+    model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config={
+                "temperature": 0.3,
+            },
+        )
+        return response.text or "(LLM returned empty response)"
+    except Exception as exc:
+        return f"*LLM assessment unavailable: {exc}*"
+
+
+# ---------------------------------------------------------------------------
 # Step 4: Generate markdown report
 # ---------------------------------------------------------------------------
 
@@ -360,6 +604,7 @@ def generate_report(
     confidence_dist: dict,
     terminology: dict,
     total_criteria: int,
+    llm_assessment: str | None = None,
 ) -> str:
     """Generate the markdown report content."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -476,6 +721,14 @@ def generate_report(
         lines.append(f"| {system_name} | {info['count']} | {info['rate']}% |")
 
     lines.append("")
+
+    # --- LLM Heuristic Assessment (QUAL-07) ---
+    if llm_assessment is not None:
+        lines.append("## LLM Heuristic Assessment")
+        lines.append("")
+        lines.append(llm_assessment)
+        lines.append("")
+
     return "\n".join(lines)
 
 
@@ -503,9 +756,24 @@ def main() -> None:
         "--protocol-ids",
         type=str,
         default=None,
-        help="Comma-separated protocol IDs to evaluate (use with --skip-upload)",
+        help="Comma-separated protocol IDs to evaluate (implies --skip-upload)",
+    )
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        help="Skip the LLM heuristic assessment (no Gemini API call)",
+    )
+    parser.add_argument(
+        "--report-name",
+        type=str,
+        default="quality_eval.md",
+        help="Output report filename (default: quality_eval.md)",
     )
     args = parser.parse_args()
+
+    # --protocol-ids implies --skip-upload
+    if args.protocol_ids:
+        args.skip_upload = True
 
     print("=" * 60)
     print("Quality Evaluation - Unified Pipeline")
@@ -523,13 +791,30 @@ def main() -> None:
         else:
             # Try to list existing protocols
             print("\nFetching existing protocols from API...")
-            resp = client.get("/protocols")
-            resp.raise_for_status()
-            data = resp.json()
-            protocols = data if isinstance(data, list) else data.get("items", [])
-            ids = [p["id"] for p in protocols[:5]]  # Limit to 5
+            try:
+                resp = client.get("/protocols")
+                resp.raise_for_status()
+                data = resp.json()
+                protocols = (
+                    data if isinstance(data, list) else data.get("items", [])
+                )
+                ids = [p["id"] for p in protocols[:5]]  # Limit to 5
+            except Exception as exc:
+                print(
+                    f"\nERROR: Could not list protocols: {exc}\n"
+                    "Please provide --protocol-ids explicitly."
+                )
+                sys.exit(1)
+
+        if not ids:
+            print(
+                "\nERROR: No protocols found. "
+                "Please provide --protocol-ids explicitly."
+            )
+            sys.exit(1)
 
         for pid in ids:
+            print(f"  Fetching protocol {pid[:8]}...")
             resp = client.get(f"/protocols/{pid}")
             resp.raise_for_status()
             pdata = resp.json()
@@ -586,8 +871,34 @@ def main() -> None:
     confidence_dist = compute_confidence_distribution(all_entities)
     terminology = compute_terminology_success(all_entities)
 
-    # --- Step 4: Generate report ---
-    print("\nStep 4: Generating report...")
+    # --- Step 4: LLM Heuristic Assessment ---
+    llm_assessment: str | None = None
+
+    if args.skip_llm:
+        print("\nStep 4: Skipping LLM heuristic assessment (--skip-llm)")
+    else:
+        print("\nStep 4: Running LLM heuristic assessment...")
+        if not os.getenv("GOOGLE_API_KEY"):
+            print(
+                "  WARNING: GOOGLE_API_KEY not set. "
+                "Skipping LLM assessment."
+            )
+            llm_assessment = (
+                "*LLM assessment skipped: GOOGLE_API_KEY not set.*"
+            )
+        else:
+            llm_assessment = run_llm_assessment(
+                all_criteria_by_protocol=all_criteria_by_protocol,
+                aggregate_stats=aggregate,
+                per_protocol_stats=per_protocol_stats,
+                terminology=terminology,
+                confidence_dist=confidence_dist,
+                total_criteria=total_criteria,
+            )
+            print("  LLM assessment complete.")
+
+    # --- Step 5: Generate report ---
+    print("\nGenerating report...")
 
     report_content = generate_report(
         protocol_results=successful,
@@ -596,21 +907,26 @@ def main() -> None:
         confidence_dist=confidence_dist,
         terminology=terminology,
         total_criteria=total_criteria,
+        llm_assessment=llm_assessment,
     )
 
     output_dir = _REPO_ROOT / REPORT_OUTPUT_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / "quality_eval.md"
+    report_path = output_dir / args.report_name
     report_path.write_text(report_content)
 
-    print(f"\nReport written to: {report_path}")
+    print(f"\nReport written to {report_path}")
     print("=" * 60)
 
-    # Print summary to stdout
-    print(f"\nSummary: {total_criteria} criteria, {len(all_entities)} entities")
-    print(f"  CUI rate: {aggregate['overall_cui_rate'] * 100:.1f}%")
+    # Print 3-line summary to stdout
+    print(f"\nProtocols: {len(successful)}")
+    print(
+        f"Criteria: {total_criteria} | "
+        f"Entities: {len(all_entities)} | "
+        f"CUI rate: {aggregate['overall_cui_rate'] * 100:.1f}%"
+    )
     if aggregate["mean_confidence"] > 0:
-        print(f"  Mean confidence: {aggregate['mean_confidence']:.3f}")
+        print(f"Mean confidence: {aggregate['mean_confidence']:.3f}")
     print("Done.")
 
     client.close()
