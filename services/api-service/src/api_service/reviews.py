@@ -156,16 +156,20 @@ def list_batches(
     - Count of linked criteria per batch
     - Count of reviewed criteria (review_status IS NOT NULL) for progress
     """
-    # Build count query
-    count_stmt = select(func.count()).select_from(CriteriaBatch)
+    # Build count query — exclude archived batches (hidden from dashboard)
+    count_stmt = select(func.count()).select_from(CriteriaBatch).where(
+        CriteriaBatch.is_archived == False  # noqa: E712
+    )
     if status:
         count_stmt = count_stmt.where(CriteriaBatch.status == status)
     if protocol_id:
         count_stmt = count_stmt.where(CriteriaBatch.protocol_id == protocol_id)
     total = db.exec(count_stmt).one()
 
-    # Build data query
-    data_stmt = select(CriteriaBatch)
+    # Build data query — exclude archived batches (Pitfall 1 from RESEARCH.md)
+    data_stmt = select(CriteriaBatch).where(
+        CriteriaBatch.is_archived == False  # noqa: E712
+    )
     if status:
         data_stmt = data_stmt.where(CriteriaBatch.status == status)
     if protocol_id:
