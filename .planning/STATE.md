@@ -61,6 +61,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
 
+**Phase 31 Pipeline Consolidation (2026-02-17) - Plan 01:**
+- TerminologyRouter loads YAML config and returns correct API list per entity type (31-01)
+- ToolUniverse _query_tooluniverse is a stub — medical tool availability unconfirmed; UMLS/SNOMED direct Python paths are fully functional (31-01)
+- SNOMED lookup is two-step: UMLS concept_search → CUI → get_snomed_code_for_cui (reuses umls_mcp_server + grounding_service) (31-01)
+- Demographic entities explicitly logged at INFO level and skipped — not silently dropped (GRND-06 pattern) (31-01)
+- PipelineState uses str | None JSON fields (not nested dicts) for minimal LangGraph state serialization overhead (31-01)
+
 **Phase 30 UX Polish (2026-02-17) - Plan 01:**
 - Review status colored left borders on CriterionCard: green=approved, red=rejected, blue=modified, yellow=pending (30-01)
 - Status border supersedes low-confidence border — review_status is more actionable, ConfidenceBadge already shows confidence (30-01)
