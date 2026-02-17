@@ -99,6 +99,7 @@ export interface ReviewActionRequest {
         [key: string]: unknown;
     };
     comment?: string;
+    reject_reasons?: string[];  // predefined reject reason codes
 }
 
 export interface PdfUrlResponse {
