@@ -66,6 +66,11 @@ class CriterionEntityResponse(BaseModel):
     snomed_code: str | None
     preferred_term: str | None
     grounding_confidence: float | None
+    grounding_method: str | None
+    rxnorm_code: str | None
+    icd10_code: str | None
+    loinc_code: str | None
+    hpo_code: str | None
 
 
 class CriterionResponse(BaseModel):
@@ -778,6 +783,11 @@ def _criterion_to_response(
             snomed_code=e.snomed_code,
             preferred_term=e.preferred_term,
             grounding_confidence=e.grounding_confidence,
+            grounding_method=e.grounding_method,
+            rxnorm_code=e.rxnorm_code,
+            icd10_code=e.icd10_code,
+            loinc_code=e.loinc_code,
+            hpo_code=e.hpo_code,
         )
         for e in (entities or [])
     ]
