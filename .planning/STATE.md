@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 34 of 34 (Corpus Comparison and Export)
-Plan: Completed Plan 01 of 1
+Plan: Completed Plan 02 of 2
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 34-01 (data integrity check endpoint, CI test suite, batch agreement metrics endpoint)
+Last activity: 2026-02-17 — Completed Plan 34-02 (criterion AI re-run endpoint, batch comparison endpoint, protocol batches timeline endpoint)
 
 Progress: [█████████████████████████░░░░░░░░░] 88% (30/34 phases complete)
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 34    | 02   | 5 min    | 2026-02-17 | Criterion AI re-run (Gemini proposal, no DB write), batch comparison (70%/90% thresholds), protocol batches timeline endpoint |
 | 34    | 01   | 4 min    | 2026-02-17 | Data integrity check endpoint (4 categories, protocol scoping, 6 CI tests), batch metrics endpoint (2-query, modification breakdown) |
 | 33    | 02   | 8 min    | 2026-02-17 | Re-extraction frontend: button, AlertDialog modal, processing spinner, review link, polling |
 | 33    | 01   | 6 min    | 2026-02-17 | Re-extraction endpoint, batch archiving, fuzzy review inheritance, temperature=0 |
@@ -54,6 +55,7 @@ Progress: [███████████████████████
 | 29    | 01   | 9 min    | 2026-02-16 | Grounding confidence bug fix with diagnostic logging        |
 
 *Metrics from MILESTONES.md and previous roadmaps*
+| Phase 34 P02 | 5 | 2 tasks | 4 files |
 | Phase 34 P01 | 4 | 2 tasks | 5 files |
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
 | Phase 32 P01 | 4 | 2 tasks | 6 files |
@@ -77,6 +79,13 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - UMLS retained via direct Python import (not MCP subprocess)
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
+
+**Phase 34 Criterion Re-run + Batch Compare (2026-02-17) - Plan 02:**
+- criterion_rerun.py: read-only AI proposal pattern — no DB writes; reviewer commits via existing action endpoint (34-02)
+- batch_compare.py: 70%/90% thresholds distinct from 90% inheritance threshold in fuzzy_matching.py (34-02)
+- _find_best_match() extracted from compare_batches to satisfy C901 < 10 complexity limit (34-02)
+- list_protocol_batches uses bulk GROUP BY queries for N+1-free criteria counts (34-02)
+- Existing GET /reviews/batches untouched — new GET /protocols/{id}/batches is separate for timeline (34-02)
 
 **Phase 34 Integrity + Metrics (2026-02-17) - Plan 01:**
 - integrity.py split into 4 private check functions to satisfy ruff C901 < 10 (34-01)
@@ -205,15 +214,15 @@ None.
 - ~~No display of field_mappings in non-edit mode (badges for saved mappings)~~ **FIXED in 30-02 (FieldMappingBadges)**
 - ~~No initialValues population from saved field_mappings (editor always starts empty)~~ **VERIFIED WORKING in 30-02 (buildInitialValues Priority 1)**
 - ~~No re-extraction tooling (script to re-run extraction/grounding on existing protocols)~~ **COMPLETE in 33-01+33-02 (backend endpoint + frontend button, modal, spinner, review link)**
-- No corpus comparison (view/export AI vs human corrected data)
+- ~~No corpus comparison (view/export AI vs human corrected data)~~ **BACKEND COMPLETE in 34-01+34-02 (integrity checks, batch metrics, criterion re-run, batch compare, protocol timeline batches)**
 
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 34 Plan 01 (data integrity check endpoint, CI test suite, batch metrics endpoint)
+Stopped at: Completed Phase 34 Plan 02 (criterion AI re-run endpoint, batch comparison endpoint, protocol batches timeline)
 Resume file: None
 Next action: Next plan per ROADMAP
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 34 Plan 01*
+*Last updated: 2026-02-17 after completing Phase 34 Plan 02*
