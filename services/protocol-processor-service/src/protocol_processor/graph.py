@@ -11,6 +11,7 @@ Error routing:
 Per user decision (v2.0 Architecture): "Flat 5-node LangGraph pipeline"
 """
 
+import os
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -35,7 +36,7 @@ def should_continue(state: PipelineState) -> str:
     return "error" if state.get("error") else "continue"
 
 
-def create_graph() -> Any:
+def create_graph(checkpointer: Any = None) -> Any:
     """Create and compile the 5-node protocol processing workflow graph.
 
     The graph follows this flow:
@@ -43,6 +44,12 @@ def create_graph() -> Any:
 
     Conditional error routing after ingest, extract, and parse.
     Ground always proceeds to persist (ground uses error accumulation).
+
+    Args:
+        checkpointer: Optional LangGraph checkpointer for fault-tolerant execution.
+            When provided, state is persisted after each node, enabling retry-from-
+            checkpoint. Use PostgresSaver for production. Defaults to None (no
+            checkpointing).
 
     Returns:
         Compiled StateGraph ready for async execution.
@@ -75,20 +82,54 @@ def create_graph() -> Any:
     workflow.add_edge("ground", "persist")
     workflow.add_edge("persist", END)
 
-    return workflow.compile()
+    return workflow.compile(checkpointer=checkpointer)
 
 
-# Singleton instance for reuse across outbox handler invocations
+# Singleton instances for reuse across outbox handler invocations.
+# Per Pitfall 1 from research: checkpointer is singleton, created once,
+# reused across all invocations. Do NOT create per-invocation.
 _graph = None
+_checkpointer = None
+
+
+def _get_checkpointer() -> Any:
+    """Get or create the PostgresSaver checkpointer singleton.
+
+    Creates a PostgresSaver using DATABASE_URL from the environment.
+    Calls setup() on first creation to ensure checkpoint tables exist.
+
+    Returns:
+        PostgresSaver instance configured with the application database.
+
+    Raises:
+        KeyError: If DATABASE_URL environment variable is not set.
+    """
+    global _checkpointer  # noqa: PLW0603
+    if _checkpointer is None:
+        from langgraph.checkpoint.postgres import PostgresSaver
+
+        db_url = os.environ["DATABASE_URL"]
+        _checkpointer = PostgresSaver.from_conn_string(db_url)
+        _checkpointer.setup()  # Create checkpoint tables if they don't exist
+    return _checkpointer
 
 
 def get_graph() -> Any:
     """Get or create the compiled graph singleton.
+
+    Compiles the graph with a PostgresSaver checkpointer if DATABASE_URL
+    is available. Falls back to no checkpointer if DATABASE_URL is not set
+    (e.g. in unit tests).
 
     Returns:
         Compiled StateGraph instance.
     """
     global _graph  # noqa: PLW0603
     if _graph is None:
-        _graph = create_graph()
+        try:
+            checkpointer = _get_checkpointer()
+        except (KeyError, Exception):
+            # DATABASE_URL not set (e.g. unit tests) — compile without checkpointer
+            checkpointer = None
+        _graph = create_graph(checkpointer=checkpointer)
     return _graph

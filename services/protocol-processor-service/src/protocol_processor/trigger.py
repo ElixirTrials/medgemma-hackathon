@@ -10,6 +10,9 @@ The handler is synchronous (called by OutboxProcessor.poll_and_process) and
 bridges to the async graph via asyncio.run(). This works without event loop
 conflicts because the outbox processor runs handlers in a thread executor
 via run_in_executor, so there is no existing event loop in the current thread.
+
+Checkpointing: Each invocation passes protocol_id as thread_id so that
+retry_from_checkpoint can resume from the last successful node.
 """
 
 from __future__ import annotations
@@ -128,6 +131,9 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
     Constructs the initial PipelineState from the event payload and
     invokes the consolidated 5-node LangGraph workflow via asyncio.run().
 
+    Uses protocol_id as the LangGraph thread_id so that retry_from_checkpoint
+    can locate the saved checkpoint by protocol_id alone.
+
     Replaces both extraction_service.trigger.handle_protocol_uploaded and
     grounding_service.trigger.handle_criteria_extracted from the v1.x
     two-service architecture.
@@ -165,6 +171,9 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
 
         graph = get_graph()
 
+        # Use protocol_id as thread_id so retry can find the checkpoint later
+        config = {"configurable": {"thread_id": protocol_id}}
+
         if _ensure_mlflow():
             import mlflow
 
@@ -179,7 +188,7 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
                         "file_uri": payload.get("file_uri", ""),
                     }
                 )
-                result = asyncio.run(graph.ainvoke(initial_state))
+                result = asyncio.run(graph.ainvoke(initial_state, config))
                 span.set_outputs(
                     {
                         "status": result.get("status"),
@@ -188,7 +197,7 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
                     }
                 )
         else:
-            asyncio.run(graph.ainvoke(initial_state))
+            asyncio.run(graph.ainvoke(initial_state, config))
 
         logger.info(
             "Protocol pipeline completed for protocol %s",
@@ -208,3 +217,25 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
             type(e).__name__,
         )
         raise
+
+
+async def retry_from_checkpoint(protocol_id: str) -> dict[str, Any]:
+    """Resume pipeline from last checkpoint for a failed protocol.
+
+    Passes None as the input state to graph.ainvoke, which tells LangGraph
+    to resume from the last saved checkpoint for the given thread_id instead
+    of starting from scratch. The protocol_id is used as the thread_id.
+
+    Args:
+        protocol_id: Protocol ID — used as thread_id for checkpoint lookup.
+
+    Returns:
+        Final pipeline state dict after resuming from checkpoint.
+    """
+    from protocol_processor.graph import get_graph
+
+    graph = get_graph()
+    config = {"configurable": {"thread_id": protocol_id}}
+    # Pass None as input — LangGraph resumes from last checkpoint
+    result = await graph.ainvoke(None, config)
+    return result
