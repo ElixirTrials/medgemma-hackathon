@@ -765,6 +765,7 @@ def generate_report(
     terminology: dict,
     total_criteria: int,
     llm_assessment: str | None = None,
+    bug_catalog: dict | None = None,
 ) -> str:
     """Generate the markdown report content."""
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
@@ -887,6 +888,192 @@ def generate_report(
         lines.append("## LLM Heuristic Assessment")
         lines.append("")
         lines.append(llm_assessment)
+        lines.append("")
+
+    # --- Bug Catalog ---
+    if bug_catalog is not None:
+        summary = bug_catalog["summary"]
+        critical_count = summary["by_severity"].get("critical", 0)
+        warning_count = summary["by_severity"].get("warning", 0)
+        info_count = summary["by_severity"].get("info", 0)
+
+        lines.append("## Bug Catalog")
+        lines.append("")
+        lines.append(
+            f"**Summary:** {summary['total_issues']} issues found "
+            f"({critical_count} critical, {warning_count} warning, "
+            f"{info_count} info)"
+        )
+        lines.append("")
+
+        # --- Critical Issues ---
+        lines.append("### Critical Issues")
+        lines.append("")
+
+        # Pipeline Errors
+        pipeline_errors = bug_catalog["pipeline_errors"]
+        lines.append(f"#### Pipeline Errors ({len(pipeline_errors)})")
+        lines.append("")
+        if pipeline_errors:
+            lines.append("| Protocol | Status | Error |")
+            lines.append("|----------|--------|-------|")
+            for issue in pipeline_errors:
+                title = issue.get("title", "Unknown")
+                status = issue.get("status", "")
+                error = issue.get("error") or "\u2014"
+                lines.append(f"| {title} | {status} | {error} |")
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Re-run failed protocols. Check pipeline logs "
+            "for extraction/grounding failures. Protocols in dead_letter status "
+            "may need manual PDF review."
+        )
+        lines.append("")
+
+        # Ungrounded Entities - Critical
+        critical_ungrounded = [
+            e
+            for e in bug_catalog["ungrounded_entities"]
+            if e["severity"] == "critical"
+        ]
+        lines.append(
+            f"#### Ungrounded Entities \u2014 Critical ({len(critical_ungrounded)})"
+        )
+        lines.append("")
+        if critical_ungrounded:
+            lines.append(
+                "| Entity | Type | Criterion (excerpt) | Method | Confidence |"
+            )
+            lines.append(
+                "|--------|------|---------------------|--------|------------|"
+            )
+            for issue in critical_ungrounded:
+                entity_text = issue.get("entity_text", "")
+                entity_type = issue.get("entity_type", "unknown")
+                criterion_text = issue.get("criterion_text", "")
+                method = issue.get("grounding_method") or "\u2014"
+                confidence = issue.get("grounding_confidence")
+                conf_str = f"{confidence}" if confidence is not None else "\u2014"
+                lines.append(
+                    f"| {entity_text} | {entity_type} | {criterion_text} "
+                    f"| {method} | {conf_str} |"
+                )
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Review grounding pipeline coverage. Entities "
+            "with no grounding method attempted may indicate entity types not "
+            "routed by TerminologyRouter."
+        )
+        lines.append("")
+
+        # --- Warnings ---
+        lines.append("### Warnings")
+        lines.append("")
+
+        # Ungrounded Entities - Low Confidence
+        warning_ungrounded = [
+            e
+            for e in bug_catalog["ungrounded_entities"]
+            if e["severity"] == "warning"
+        ]
+        lines.append(
+            f"#### Ungrounded Entities \u2014 Low Confidence "
+            f"({len(warning_ungrounded)})"
+        )
+        lines.append("")
+        if warning_ungrounded:
+            lines.append(
+                "| Entity | Type | Criterion (excerpt) | Method | Confidence |"
+            )
+            lines.append(
+                "|--------|------|---------------------|--------|------------|"
+            )
+            for issue in warning_ungrounded:
+                entity_text = issue.get("entity_text", "")
+                entity_type = issue.get("entity_type", "unknown")
+                criterion_text = issue.get("criterion_text", "")
+                method = issue.get("grounding_method") or "\u2014"
+                confidence = issue.get("grounding_confidence")
+                conf_str = f"{confidence}" if confidence is not None else "\u2014"
+                lines.append(
+                    f"| {entity_text} | {entity_type} | {criterion_text} "
+                    f"| {method} | {conf_str} |"
+                )
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** These entities attempted grounding but scored "
+            "below 0.5 confidence. Consider reviewing terminology search queries "
+            "or adding synonyms."
+        )
+        lines.append("")
+
+        # Criteria Without Entities
+        no_entity_criteria = [
+            i
+            for i in bug_catalog["structural_issues"]
+            if i.get("issue") == "no_entities"
+        ]
+        lines.append(
+            f"#### Criteria Without Entities ({len(no_entity_criteria)})"
+        )
+        lines.append("")
+        if no_entity_criteria:
+            lines.append("| Criterion (excerpt) | Type | Protocol |")
+            lines.append("|---------------------|------|----------|")
+            for issue in no_entity_criteria:
+                criterion_text = issue.get("criterion_text", "")
+                criteria_type = issue.get("criteria_type", "unknown")
+                protocol_id = issue.get("protocol_id", "")[:8]
+                lines.append(
+                    f"| {criterion_text} | {criteria_type} | {protocol_id} |"
+                )
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Criteria without extracted entities may contain "
+            "only demographic or procedural language. Verify these are truly "
+            "entity-free or if extraction missed relevant terms."
+        )
+        lines.append("")
+
+        # --- Info ---
+        lines.append("### Info")
+        lines.append("")
+
+        # Unknown Criteria Types
+        unknown_type_criteria = [
+            i
+            for i in bug_catalog["structural_issues"]
+            if i.get("issue") == "unknown_criteria_type"
+        ]
+        lines.append(
+            f"#### Unknown Criteria Types ({len(unknown_type_criteria)})"
+        )
+        lines.append("")
+        if unknown_type_criteria:
+            lines.append("| Criterion (excerpt) | Type | Protocol |")
+            lines.append("|---------------------|------|----------|")
+            for issue in unknown_type_criteria:
+                criterion_text = issue.get("criterion_text", "")
+                criteria_type = issue.get("criteria_type", "unknown")
+                protocol_id = issue.get("protocol_id", "")[:8]
+                lines.append(
+                    f"| {criterion_text} | {criteria_type} | {protocol_id} |"
+                )
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Criteria should be classified as inclusion or "
+            "exclusion. Unknown types may indicate extraction parsing issues."
+        )
         lines.append("")
 
     return "\n".join(lines)
@@ -1031,6 +1218,14 @@ def main() -> None:
     confidence_dist = compute_confidence_distribution(all_entities)
     terminology = compute_terminology_success(all_entities)
 
+    # --- Step 3b: Bug catalog ---
+    print("\nStep 3b: Building bug catalog...")
+    bug_catalog = catalog_bugs(protocol_results, all_criteria_by_protocol)
+    print(
+        f"  Found {bug_catalog['summary']['total_issues']} issues "
+        f"({bug_catalog['summary']['by_severity'].get('critical', 0)} critical)"
+    )
+
     # --- Step 4: LLM Heuristic Assessment ---
     llm_assessment: str | None = None
 
@@ -1068,6 +1263,7 @@ def main() -> None:
         terminology=terminology,
         total_criteria=total_criteria,
         llm_assessment=llm_assessment,
+        bug_catalog=bug_catalog,
     )
 
     output_dir = _REPO_ROOT / REPORT_OUTPUT_DIR
