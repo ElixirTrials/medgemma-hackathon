@@ -8,7 +8,7 @@
 - ✅ **v1.3 Multimodal PDF Extraction** - Phase 16 (shipped 2026-02-12)
 - ✅ **v1.4 Structured Entity Display & Grounding Fixes** — Phases 17-21 (shipped 2026-02-13)
 - ✅ **v1.5 Structured Criteria Editor** — Phases 22-28 (shipped 2026-02-13)
-- 🚧 **v2.0 Pipeline Consolidation & E2E Quality** — Phases 29-34 (in progress)
+- 🚧 **v2.0 Pipeline Consolidation & E2E Quality** — Phases 29-35 (in progress)
 
 ## Phases
 
@@ -555,10 +555,28 @@ Plans:
   3. Metrics dashboard shows agreement rate and modification frequency by category/entity_type (computed from audit log)
   4. Batch-level comparison available when multiple batches exist for same protocol (old batch vs new batch after re-extraction)
   5. Corpus export includes extraction model version and prompt version for traceability
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 34-01: TBD
+- [ ] 34-01-PLAN.md — Data integrity check endpoint + CI test suite + agreement metrics endpoint
+- [ ] 34-02-PLAN.md — Per-criterion AI re-run endpoint + batch comparison endpoint + protocol batches endpoint
+- [ ] 34-03-PLAN.md — Frontend: agreement metrics, batch timeline, batch comparison view, criterion re-run dialog
+
+### Phase 35: E2E Gap Closure
+**Goal**: Fix all bugs discovered during E2E Playwright testing — re-extraction pipeline completion, criterion AI rerun SDK mismatch, and housekeeping (hooks fix commit, schema drift)
+**Depends on**: Phase 34 (gap closure for Phase 34 UAT findings)
+**Requirements**: GAP-1, GAP-5, GAP-6, GAP-7, GAP-8 (from 34-GAPS-v2.md)
+**Success Criteria** (what must be TRUE):
+  1. Re-extraction pipeline completes end-to-end: protocol status transitions to "pending_review" after re-extraction (not stuck at "grounding")
+  2. Re-extracted batch has entities populated by ground_node (not 0 entities)
+  3. Criterion AI rerun endpoint returns 200 with original vs revised structured fields (not 503)
+  4. ProtocolDetail.tsx hooks fix committed (useState before conditional returns)
+  5. Alembic version stamped so migrations can be applied going forward
+**Plans**: 2 plans
+
+Plans:
+- [ ] 35-01-PLAN.md — Re-extraction pipeline fixes: persist_node status transition + ground_node entity population during re-extraction
+- [ ] 35-02-PLAN.md — Rerun SDK fix (google.generativeai → google.genai) + hooks commit + alembic stamp
 
 ---
 
@@ -623,9 +641,10 @@ Phase 29 (Backend Bug Fixes)
                 └── Phase 32 (Entity Model, Ground Node & Multi-Code Display)
                         └── Phase 33 (Re-Extraction & Review Protection)
                                 └── Phase 34 (Corpus Comparison & Export)
+                                        └── Phase 35 (E2E Gap Closure)
 ```
 
-Waves: 29 → [30 ‖ 31] → 32 → 33 → 34
+Waves: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
 
 ---
 
@@ -638,7 +657,7 @@ Waves: 29 → [30 ‖ 31] → 32 → 33 → 34
 - v1.3: 16
 - v1.4: 17 + 18 + 19 (parallel) → 20 (after 18) + 21 (independent)
 - v1.5: 22 → 23 → 24 + 25 (parallel) → 26 + 27 + 28 (after 24)
-- v2.0: 29 → [30 ‖ 31] → 32 → 33 → 34
+- v2.0: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -678,4 +697,5 @@ Waves: 29 → [30 ‖ 31] → 32 → 33 → 34
 | 31. TerminologyRouter & Pipeline Consolidation | v2.0 | 0/TBD | Not started | - |
 | 32. Entity Model, Ground Node & Multi-Code Display | v2.0 | 0/3 | Planned | - |
 | 33. Re-Extraction Tooling & Review Protection | v2.0 | 0/TBD | Not started | - |
-| 34. Corpus Comparison & Export | v2.0 | 0/TBD | Not started | - |
+| 34. Corpus Comparison & Export | v2.0 | Complete    | 2026-02-17 | - |
+| 35. E2E Gap Closure | v2.0 | Complete    | 2026-02-17 | - |
