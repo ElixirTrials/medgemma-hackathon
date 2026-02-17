@@ -124,7 +124,15 @@ Current extraction: {json.dumps(current_extraction, indent=2)}
 Reviewer feedback: {body.reviewer_feedback}
 
 Re-extract this single criterion following the reviewer's correction guidance.
-Return ONLY the corrected structured fields."""
+Return ONLY valid JSON with these fields:
+- criteria_type: "inclusion" or "exclusion"
+- category: string or null
+- text: string (the criterion text)
+- temporal_constraint: object or null (e.g. reference_point, offset)
+- conditions: array of strings
+- numeric_thresholds: array of objects (with fields like value, unit, comparator)
+- assertion_status: string or null
+- confidence: number between 0 and 1"""
 
     # Configure Gemini client (lazy import to avoid requiring package at test time)
     try:
@@ -147,7 +155,6 @@ Return ONLY the corrected structured fields."""
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                response_schema=SingleCriterionResult,
                 temperature=0.0,
             ),
         )
