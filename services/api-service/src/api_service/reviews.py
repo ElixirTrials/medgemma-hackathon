@@ -138,6 +138,22 @@ class PendingSummaryResponse(BaseModel):
     message: str
 
 
+class BatchMetricsResponse(BaseModel):
+    """Per-batch review agreement metrics response."""
+
+    batch_id: str
+    total_criteria: int
+    approved: int
+    rejected: int
+    modified: int
+    pending: int
+    approved_pct: float
+    rejected_pct: float
+    modified_pct: float
+    modification_breakdown: Dict[str, int]
+    per_criterion_details: list[Dict[str, Any]]
+
+
 # --- Endpoints ---
 
 
@@ -228,6 +244,100 @@ def list_batches(
         page=page,
         page_size=page_size,
         pages=pages,
+    )
+
+
+@router.get(
+    "/batches/{batch_id}/metrics",
+    response_model=BatchMetricsResponse,
+)
+def get_batch_metrics(
+    batch_id: str,
+    db: Session = Depends(get_db),
+) -> BatchMetricsResponse:
+    """Return agreement metrics for a criteria batch.
+
+    Counts criteria by review_status and computes percentages.
+    Breaks down modify actions by schema_version from AuditLog details.
+    Includes per_criterion_details for reviewed criteria (drill-down layer 2).
+
+    Uses exactly 2 SQL queries (criteria + audit logs) — no N+1.
+    """
+    # Verify batch exists
+    batch = db.get(CriteriaBatch, batch_id)
+    if not batch:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Batch {batch_id} not found",
+        )
+
+    # Query 1: All criteria for this batch
+    criteria_list = db.exec(
+        select(Criteria).where(Criteria.batch_id == batch_id)
+    ).all()
+
+    total = len(criteria_list)
+    approved = sum(1 for c in criteria_list if c.review_status == "approved")
+    rejected = sum(1 for c in criteria_list if c.review_status == "rejected")
+    modified = sum(1 for c in criteria_list if c.review_status == "modified")
+    pending = sum(1 for c in criteria_list if c.review_status is None)
+
+    def _pct(count: int) -> float:
+        return round(count / total * 100, 1) if total > 0 else 0.0
+
+    # Query 2: All audit logs for this batch's criteria (join Criteria → AuditLog)
+    criteria_ids = [c.id for c in criteria_list]
+    modification_breakdown: Dict[str, int] = {}
+    if criteria_ids:
+        audit_logs = db.exec(
+            select(AuditLog)
+            .join(Criteria, col(AuditLog.target_id) == col(Criteria.id))
+            .where(
+                col(AuditLog.target_type) == "criteria",
+                col(Criteria.batch_id) == batch_id,
+                col(AuditLog.event_type) == "review_action",
+            )
+        ).all()
+
+        schema_version_map = {
+            "text_v1": "text_edits",
+            "structured_v1": "structured_edits",
+            "v1.5-multi": "field_mapping_changes",
+        }
+        for log in audit_logs:
+            details = log.details or {}
+            if details.get("action") == "modify":
+                schema_version = details.get("schema_version", "")
+                breakdown_key = schema_version_map.get(schema_version)
+                if breakdown_key:
+                    modification_breakdown[breakdown_key] = (
+                        modification_breakdown.get(breakdown_key, 0) + 1
+                    )
+
+    # Build per_criterion_details for reviewed criteria
+    per_criterion_details: list[Dict[str, Any]] = [
+        {
+            "criterion_id": c.id,
+            "criterion_text": c.text[:100],
+            "review_status": c.review_status,
+            "criteria_type": c.criteria_type,
+        }
+        for c in criteria_list
+        if c.review_status is not None
+    ]
+
+    return BatchMetricsResponse(
+        batch_id=batch_id,
+        total_criteria=total,
+        approved=approved,
+        rejected=rejected,
+        modified=modified,
+        pending=pending,
+        approved_pct=_pct(approved),
+        rejected_pct=_pct(rejected),
+        modified_pct=_pct(modified),
+        modification_breakdown=modification_breakdown,
+        per_criterion_details=per_criterion_details,
     )
 
 
