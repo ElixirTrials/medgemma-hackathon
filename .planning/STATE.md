@@ -11,9 +11,9 @@ See: .planning/PROJECT.md (updated 2026-02-16)
 ## Current Position
 
 Phase: 33 of 34 (Re-Extraction Tooling, Review Protection)
-Plan: Completed Plan 01 of 2
+Plan: Completed Plan 02 of 2
 Status: In Progress
-Last activity: 2026-02-17 — Completed Plan 33-01 (re-extraction endpoint, batch archiving, fuzzy matching, temperature=0)
+Last activity: 2026-02-17 — Completed Plan 33-02 (re-extraction frontend UI: button, modal, processing spinner, review link)
 
 Progress: [█████████████████████████░░░░░░░░░] 85% (29/34 phases complete)
 
@@ -38,6 +38,7 @@ Progress: [███████████████████████
 **Recent Plans:**
 | Phase | Plan | Duration | Date       | Notes                                                       |
 | ----- | ---- | -------- | ---------- | ----------------------------------------------------------- |
+| 33    | 02   | 8 min    | 2026-02-17 | Re-extraction frontend: button, AlertDialog modal, processing spinner, review link, polling |
 | 33    | 01   | 6 min    | 2026-02-17 | Re-extraction endpoint, batch archiving, fuzzy review inheritance, temperature=0 |
 | 32    | 01   | 4 min    | 2026-02-17 | Real NLM API terminology lookups (RxNorm/ICD-10/LOINC/HPO), terminology search proxy endpoints |
 | 32    | 03   | 3 min    | 2026-02-17 | Multi-code badges (TerminologyBadge/Combobox), per-system EntityCard editing, retry button text |
@@ -55,10 +56,12 @@ Progress: [███████████████████████
 | Phase 30-ux-polish-editor-pre-loading P02 | 2 | 3 tasks | 4 files |
 | Phase 32 P01 | 4 | 2 tasks | 6 files |
 | Phase 32 P02 | 4 | 2 tasks | 4 files |
+| Phase 33 P02 | 8 | 2 tasks | 2 files |
 | Phase 33 P01 | 6 | 2 tasks | 7 files |
 | Phase 32 P03 | 3 | 2 tasks | 7 files |
 | Phase 31 P03 | 8 | 2 tasks | 13 files |
 | Phase 33 P01 | 6 | 2 tasks | 7 files |
+| Phase 33 P02 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -72,6 +75,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - UMLS retained via direct Python import (not MCP subprocess)
 - Store errors in state, use Command for routing
 - Remove criteria_extracted outbox, retain protocol_uploaded
+
+**Phase 33 Re-Extraction Frontend (2026-02-17) - Plan 02:**
+- Radix AlertDialog imported as namespace (* as AlertDialog) and composed inline — no pre-built wrapper needed for single-use modal (33-02)
+- refetchInterval=5000 constant (not query-state-conditional) — TanStack Query deduplicates; refetchIntervalInBackground=false prevents background tab polling (33-02)
+- Review New Criteria shown when status=pending_review to distinguish re-extraction result from pre-existing batch (33-02)
+- useProtocol accepts Partial<UseQueryOptions> spread — allows callers to pass refetchInterval without forking the hook (33-02)
 
 **Phase 32 Terminology API (2026-02-17) - Plan 01:**
 - NLM direct API over ToolUniverse: ToolUniverse medical tool availability unconfirmed; NLM REST APIs (RxNav, Clinical Tables, JAX HPO) are free, no-auth, well-documented (32-01)
@@ -187,16 +196,16 @@ None.
 
 - ~~No display of field_mappings in non-edit mode (badges for saved mappings)~~ **FIXED in 30-02 (FieldMappingBadges)**
 - ~~No initialValues population from saved field_mappings (editor always starts empty)~~ **VERIFIED WORKING in 30-02 (buildInitialValues Priority 1)**
-- ~~No re-extraction tooling (script to re-run extraction/grounding on existing protocols)~~ **BACKEND COMPLETE in 33-01 (re-extract endpoint, batch archiving, fuzzy inheritance)**
+- ~~No re-extraction tooling (script to re-run extraction/grounding on existing protocols)~~ **COMPLETE in 33-01+33-02 (backend endpoint + frontend button, modal, spinner, review link)**
 - No corpus comparison (view/export AI vs human corrected data)
 
 ## Session Continuity
 
 Last session: 2026-02-17
-Stopped at: Completed Phase 33 Plan 01 (re-extraction endpoint, batch archiving, fuzzy matching, temperature=0)
+Stopped at: Completed Phase 33 Plan 02 (re-extraction frontend UI: button, modal, processing spinner, review link)
 Resume file: None
 Next action: Next plan per ROADMAP
 
 ---
 
-*Last updated: 2026-02-17 after completing Phase 33 Plan 01*
+*Last updated: 2026-02-17 after completing Phase 33 Plan 02*
