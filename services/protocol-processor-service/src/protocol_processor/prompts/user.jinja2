@@ -1,0 +1,23 @@
+## Protocol: {{ title }}
+
+Analyze the attached PDF document and extract all inclusion and exclusion criteria from this clinical trial protocol.
+
+The PDF contains the complete protocol document. Please:
+
+1. Identify all eligibility criteria sections (inclusion and exclusion)
+2. Extract each criterion as a separate item with its complete original text
+3. Detect temporal constraints, numeric thresholds, and conditional dependencies
+4. Assign assertion status based on the guidance in the system prompt
+5. Split independent composite criteria into separate entries (see splitting rules in system prompt)
+
+Pay special attention to:
+- Criteria that appear in tables or structured lists
+- Negation markers ("no history of", "without", "absence of")
+- Conditional statements ("if", "for patients who", "when applicable")
+- Time-based requirements ("within X months", "at least Y weeks before")
+- Independent composite criteria with AND/OR that should be split
+
+Extract from the entire document, including:
+- Formal eligibility criteria sections
+- Protocol summary sections
+- Any patient selection requirements mentioned throughout the document
