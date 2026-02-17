@@ -4,8 +4,8 @@
 # Use `skip: true` for entity types that should not be grounded.
 #
 # api_configs: defines how each API is accessed.
-# - source: "tooluniverse" uses ToolUniverse Python SDK
-# - source: "direct_python" uses direct Python import
+# - source: "direct_api" uses direct NLM REST API calls via httpx (RxNorm, ICD-10, LOINC, HPO)
+# - source: "direct_python" uses direct Python import (UMLS, SNOMED)
 
 routing_rules:
   Medication:
@@ -38,20 +38,16 @@ routing_rules:
 
 api_configs:
   rxnorm:
-    source: tooluniverse
-    tool_name: "rxnorm_search"
+    source: direct_api
 
   icd10:
-    source: tooluniverse
-    tool_name: "icd10_search"
+    source: direct_api
 
   loinc:
-    source: tooluniverse
-    tool_name: "loinc_search"
+    source: direct_api
 
   hpo:
-    source: tooluniverse
-    tool_name: "hpo_search"
+    source: direct_api
 
   umls:
     source: direct_python

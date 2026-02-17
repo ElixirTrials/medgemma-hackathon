@@ -1,12 +1,13 @@
 """TerminologyRouter: entity-type-aware routing to terminology APIs.
 
 Routes entities to terminology APIs based on entity type using a YAML config.
-Supports direct Python imports for UMLS/SNOMED and a ToolUniverse stub for
-RxNorm/ICD-10/LOINC/HPO (pending ToolUniverse medical tool validation).
+Supports direct Python imports for UMLS/SNOMED and direct NLM API calls for
+RxNorm/ICD-10/LOINC/HPO.
 
 Per user decisions:
 - Entity type → API mapping stored in config file (YAML), not hardcoded.
 - UMLS/SNOMED accessed via direct Python import (not MCP subprocess).
+- RxNorm/ICD-10/LOINC/HPO via direct NLM REST APIs (httpx, no auth required).
 - On API failure: retry transient errors; continue on permanent failures.
 - Demographic entities explicitly skipped with logging, not silently dropped.
 
@@ -18,7 +19,9 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import httpx
 import yaml
+from platformdirs import user_cache_dir
 from tenacity import (
     before_sleep_log,
     retry,
@@ -33,6 +36,35 @@ logger = logging.getLogger(__name__)
 
 # Default routing config path relative to this file
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config" / "routing.yaml"
+
+# NLM API URLs
+_RXNORM_APPROXIMATE_URL = "https://rxnav.nlm.nih.gov/REST/approximateTerm.json"
+_ICD10_SEARCH_URL = "https://clinicaltables.nlm.nih.gov/api/icd10cm/v3/search"
+_LOINC_SEARCH_URL = "https://clinicaltables.nlm.nih.gov/api/loincs/v3/search"
+_HPO_SEARCH_URL = "https://ontology.jax.org/api/hp/search"
+
+# HTTP timeout for NLM API calls
+_HTTP_TIMEOUT = 10.0
+
+# diskcache TTL: 7 days in seconds
+_CACHE_TTL = 7 * 24 * 60 * 60
+
+
+def _get_cache():
+    """Get or create the diskcache Cache instance.
+
+    Returns:
+        diskcache.Cache instance stored in user cache dir, or None if
+        diskcache is not installed.
+    """
+    try:
+        import diskcache
+
+        cache_dir = Path(user_cache_dir("medgemma-terminology-router"))
+        return diskcache.Cache(str(cache_dir))
+    except ImportError:
+        logger.debug("diskcache not installed — terminology API caching disabled.")
+        return None
 
 
 class TransientAPIError(Exception):
@@ -158,11 +190,8 @@ class TerminologyRouter:
                     candidates = await self._query_umls(entity_text)
                 elif source == "direct_python" and api_name == "snomed":
                     candidates = await self._query_snomed(entity_text)
-                elif source == "tooluniverse":
-                    tool_name = api_config.get("tool_name", api_name)
-                    candidates = await self._query_tooluniverse(
-                        tool_name, entity_text
-                    )
+                elif source == "direct_api":
+                    candidates = await self._query_direct_api(api_name, entity_text)
                 else:
                     logger.warning(
                         "Unknown API source '%s' for api '%s'. Skipping.",
@@ -291,40 +320,330 @@ class TerminologyRouter:
 
         return candidates
 
-    async def _query_tooluniverse(
-        self, tool_name: str, entity_text: str
+    @retry(
+        retry=retry_if_exception_type(TransientAPIError),
+        stop=stop_after_attempt(3),
+        wait=wait_random_exponential(multiplier=1, min=2, max=10),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True,
+    )
+    async def _query_direct_api(
+        self, api_name: str, entity_text: str
     ) -> list[GroundingCandidate]:
-        """Query a ToolUniverse medical terminology tool.
+        """Query NLM terminology APIs directly via HTTP.
 
-        TODO: ToolUniverse medical tool availability needs validation.
-        Per 31-RESEARCH Open Question 1: ToolUniverse has 1000+ scientific tools
-        but specific RxNorm, ICD-10, LOINC, HPO tool availability and API
-        signatures have not been confirmed via direct testing.
+        Dispatches to the appropriate NLM REST API based on api_name.
+        Uses diskcache for 7-day TTL caching. Retries on 429/5xx errors.
 
-        Currently implemented as a stub that returns an empty list.
-        The UMLS/SNOMED direct Python path is fully functional.
+        Supported apis: rxnorm, icd10, loinc, hpo.
 
         Args:
-            tool_name: ToolUniverse tool name (e.g. "rxnorm_search").
+            api_name: One of "rxnorm", "icd10", "loinc", "hpo".
             entity_text: Term to search.
 
         Returns:
-            Empty list (stub — ToolUniverse integration pending validation).
+            List of GroundingCandidate objects parsed from the API response.
+
+        Raises:
+            TransientAPIError: On 429 or 5xx responses.
+            PermanentAPIError: On 4xx responses.
         """
-        # TODO: Implement ToolUniverse Python SDK integration once medical
-        # tool availability is validated. Expected usage:
-        #
-        #   from tooluniverse import ToolLoader
-        #   loader = ToolLoader(tools=[tool_name], compact_mode=True)
-        #   tool = loader.get_tool(tool_name)
-        #   results = await tool.run(query=entity_text)
-        #   return [GroundingCandidate(source_api=..., ...) for r in results]
-        #
-        # See: https://zitniklab.hms.harvard.edu/ToolUniverse/
-        logger.debug(
-            "ToolUniverse tool '%s' is a stub — returning empty candidates "
-            "for entity '%s'. UMLS/SNOMED paths are active.",
-            tool_name,
-            entity_text,
+        cache_key = f"terminology:{api_name}:{entity_text.lower().strip()}"
+        cache = _get_cache()
+
+        if cache is not None:
+            cached = cache.get(cache_key)
+            if cached is not None:
+                logger.debug(
+                    "Cache hit for %s '%s' (%d candidates)",
+                    api_name,
+                    entity_text,
+                    len(cached),
+                )
+                return [GroundingCandidate(**c) for c in cached]
+
+        candidates: list[GroundingCandidate] = []
+
+        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT) as client:
+            if api_name == "rxnorm":
+                candidates = await self._fetch_rxnorm(client, entity_text)
+            elif api_name == "icd10":
+                candidates = await self._fetch_icd10(client, entity_text)
+            elif api_name == "loinc":
+                candidates = await self._fetch_loinc(client, entity_text)
+            elif api_name == "hpo":
+                candidates = await self._fetch_hpo(client, entity_text)
+            else:
+                logger.warning(
+                    "Unknown direct_api name '%s' for entity '%s'. Skipping.",
+                    api_name,
+                    entity_text,
+                )
+                return []
+
+        if cache is not None and candidates:
+            cache.set(
+                cache_key,
+                [c.model_dump() for c in candidates],
+                expire=_CACHE_TTL,
+            )
+
+        return candidates
+
+    async def _fetch_rxnorm(
+        self, client: httpx.AsyncClient, entity_text: str
+    ) -> list[GroundingCandidate]:
+        """Fetch RxNorm candidates from the NLM RxNav approximate term API.
+
+        Args:
+            client: httpx async client.
+            entity_text: Drug/medication term to search.
+
+        Returns:
+            List of GroundingCandidate objects with RxCUI codes.
+
+        Raises:
+            TransientAPIError: On 429 or 5xx responses.
+            PermanentAPIError: On other 4xx responses.
+        """
+        resp = await client.get(
+            _RXNORM_APPROXIMATE_URL,
+            params={"term": entity_text, "maxEntries": "5"},
         )
-        return []
+        self._raise_for_status(resp, "rxnorm")
+
+        data = resp.json()
+        candidates: list[GroundingCandidate] = []
+
+        # Response: {"approximateGroup": {"inputTerm": ..., "candidate": [...]}}
+        approx_group = data.get("approximateGroup", {})
+        raw_candidates = approx_group.get("candidate", []) or []
+
+        for i, item in enumerate(raw_candidates[:5]):
+            rxcui = item.get("rxcui", "")
+            name = item.get("name", entity_text)
+            # RxNorm scores are integers (rank); normalize to 0.0-1.0
+            raw_score = float(item.get("score", 0))
+            score = min(raw_score / 100.0, 1.0) if raw_score > 0 else 0.5
+
+            if rxcui:
+                candidates.append(
+                    GroundingCandidate(
+                        source_api="rxnorm",
+                        code=rxcui,
+                        preferred_term=name,
+                        semantic_type=None,
+                        score=score,
+                    )
+                )
+
+        logger.debug(
+            "RxNorm: '%s' → %d candidates", entity_text, len(candidates)
+        )
+        return candidates
+
+    async def _fetch_icd10(
+        self, client: httpx.AsyncClient, entity_text: str
+    ) -> list[GroundingCandidate]:
+        """Fetch ICD-10-CM candidates from NLM Clinical Tables API.
+
+        Args:
+            client: httpx async client.
+            entity_text: Condition/diagnosis term to search.
+
+        Returns:
+            List of GroundingCandidate objects with ICD-10 codes.
+
+        Raises:
+            TransientAPIError: On 429 or 5xx responses.
+            PermanentAPIError: On other 4xx responses.
+        """
+        resp = await client.get(
+            _ICD10_SEARCH_URL,
+            params={"sf": "code,name", "terms": entity_text, "maxList": "5"},
+        )
+        self._raise_for_status(resp, "icd10")
+
+        data = resp.json()
+        candidates: list[GroundingCandidate] = []
+
+        # Response format: [total, codes_list, extra_fields, display_strings]
+        # codes_list is at index 1: list of lists like [["J45.909"], ["E11.9"]]
+        # display_strings at index 3: list of lists like [["Asthma", "..."]]
+        if not isinstance(data, list) or len(data) < 4:
+            logger.debug("ICD-10 API returned unexpected format for '%s'", entity_text)
+            return candidates
+
+        codes_list = data[1] or []
+        display_list = data[3] or []
+
+        for i, code_item in enumerate(codes_list[:5]):
+            if not isinstance(code_item, list) or not code_item:
+                continue
+            code = code_item[0] if code_item else ""
+            display = ""
+            if i < len(display_list) and isinstance(display_list[i], list):
+                display = display_list[i][0] if display_list[i] else entity_text
+            else:
+                display = entity_text
+
+            if code:
+                # Rank-based score: first result = 1.0, decreasing by 0.1
+                score = max(1.0 - i * 0.1, 0.5)
+                candidates.append(
+                    GroundingCandidate(
+                        source_api="icd10",
+                        code=code,
+                        preferred_term=display,
+                        semantic_type=None,
+                        score=score,
+                    )
+                )
+
+        logger.debug(
+            "ICD-10: '%s' → %d candidates", entity_text, len(candidates)
+        )
+        return candidates
+
+    async def _fetch_loinc(
+        self, client: httpx.AsyncClient, entity_text: str
+    ) -> list[GroundingCandidate]:
+        """Fetch LOINC candidates from NLM Clinical Tables API.
+
+        Args:
+            client: httpx async client.
+            entity_text: Lab test/observation term to search.
+
+        Returns:
+            List of GroundingCandidate objects with LOINC codes.
+
+        Raises:
+            TransientAPIError: On 429 or 5xx responses.
+            PermanentAPIError: On other 4xx responses.
+        """
+        resp = await client.get(
+            _LOINC_SEARCH_URL,
+            params={
+                "sf": "LOINC_NUM,LONG_COMMON_NAME",
+                "terms": entity_text,
+                "maxList": "5",
+            },
+        )
+        self._raise_for_status(resp, "loinc")
+
+        data = resp.json()
+        candidates: list[GroundingCandidate] = []
+
+        # Same format as ICD-10: [total, codes_list, extra_fields, display_strings]
+        if not isinstance(data, list) or len(data) < 4:
+            logger.debug("LOINC API returned unexpected format for '%s'", entity_text)
+            return candidates
+
+        codes_list = data[1] or []
+        display_list = data[3] or []
+
+        for i, code_item in enumerate(codes_list[:5]):
+            if not isinstance(code_item, list) or not code_item:
+                continue
+            code = code_item[0] if code_item else ""
+            display = ""
+            if i < len(display_list) and isinstance(display_list[i], list):
+                display = display_list[i][0] if display_list[i] else entity_text
+            else:
+                display = entity_text
+
+            if code:
+                score = max(1.0 - i * 0.1, 0.5)
+                candidates.append(
+                    GroundingCandidate(
+                        source_api="loinc",
+                        code=code,
+                        preferred_term=display,
+                        semantic_type=None,
+                        score=score,
+                    )
+                )
+
+        logger.debug(
+            "LOINC: '%s' → %d candidates", entity_text, len(candidates)
+        )
+        return candidates
+
+    async def _fetch_hpo(
+        self, client: httpx.AsyncClient, entity_text: str
+    ) -> list[GroundingCandidate]:
+        """Fetch HPO candidates from JAX HPO ontology API.
+
+        Args:
+            client: httpx async client.
+            entity_text: Phenotype/biomarker term to search.
+
+        Returns:
+            List of GroundingCandidate objects with HPO codes.
+
+        Raises:
+            TransientAPIError: On 429 or 5xx responses.
+            PermanentAPIError: On other 4xx responses.
+        """
+        resp = await client.get(
+            _HPO_SEARCH_URL,
+            params={"q": entity_text, "max": "5"},
+        )
+        self._raise_for_status(resp, "hpo")
+
+        data = resp.json()
+        candidates: list[GroundingCandidate] = []
+
+        # Response: {"terms": [{"id": "HP:0001234", "name": "...", ...}, ...]}
+        terms = data.get("terms", []) or []
+
+        for i, term in enumerate(terms[:5]):
+            hpo_id = term.get("id", "")
+            name = term.get("name", entity_text)
+            # HPO score not provided; use rank-based
+            score = max(1.0 - i * 0.1, 0.5)
+
+            if hpo_id:
+                candidates.append(
+                    GroundingCandidate(
+                        source_api="hpo",
+                        code=hpo_id,
+                        preferred_term=name,
+                        semantic_type=None,
+                        score=score,
+                    )
+                )
+
+        logger.debug(
+            "HPO: '%s' → %d candidates", entity_text, len(candidates)
+        )
+        return candidates
+
+    @staticmethod
+    def _raise_for_status(resp: httpx.Response, api_name: str) -> None:
+        """Raise appropriate error class based on HTTP status code.
+
+        Args:
+            resp: httpx response object.
+            api_name: API name for logging context.
+
+        Raises:
+            TransientAPIError: On 408, 429, or 5xx status codes.
+            PermanentAPIError: On 4xx status codes (not 408/429).
+        """
+        if resp.status_code == 429:
+            raise TransientAPIError(
+                f"{api_name} rate limited (429): {resp.text[:200]}"
+            )
+        if resp.status_code == 408:
+            raise TransientAPIError(
+                f"{api_name} request timeout (408)"
+            )
+        if resp.status_code >= 500:
+            raise TransientAPIError(
+                f"{api_name} server error ({resp.status_code}): {resp.text[:200]}"
+            )
+        if resp.status_code >= 400:
+            raise PermanentAPIError(
+                f"{api_name} client error ({resp.status_code}): {resp.text[:200]}"
+            )
