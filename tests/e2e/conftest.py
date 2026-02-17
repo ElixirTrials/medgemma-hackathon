@@ -208,9 +208,9 @@ def upload_test_pdf(
     Returns a callable ``upload_test_pdf(pdf_path=None) -> protocol_id``.
     The upload follows the same three-step flow the frontend uses:
 
-    1. POST /api/protocols/upload  (get signed/local upload URL)
+    1. POST /protocols/upload  (get signed/local upload URL)
     2. PUT pdf bytes to the upload URL
-    3. POST /api/protocols/{id}/confirm-upload
+    3. POST /protocols/{id}/confirm-upload
 
     Requires ``USE_LOCAL_STORAGE=1`` on the API container so that the
     upload URL points to the local-upload endpoint.
@@ -228,7 +228,7 @@ def upload_test_pdf(
 
         # Step 1: Request upload URL
         resp = e2e_api_client.post(
-            "/api/protocols/upload",
+            "/protocols/upload",
             json={
                 "filename": "test-e2e.pdf",
                 "content_type": "application/pdf",
@@ -256,7 +256,7 @@ def upload_test_pdf(
         # Step 3: Confirm upload (with base64 PDF for quality scoring)
         pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
         confirm_resp = e2e_api_client.post(
-            f"/api/protocols/{protocol_id}/confirm-upload",
+            f"/protocols/{protocol_id}/confirm-upload",
             json={"pdf_bytes_base64": pdf_b64},
         )
         assert confirm_resp.status_code == 200, (
@@ -413,7 +413,7 @@ def wait_for_pipeline(
     """
     deadline = time.monotonic() + timeout
     while True:
-        resp = api_client.get(f"/api/protocols/{protocol_id}")
+        resp = api_client.get(f"/protocols/{protocol_id}")
         resp.raise_for_status()
         data = resp.json()
 

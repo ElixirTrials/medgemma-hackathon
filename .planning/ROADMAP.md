@@ -451,11 +451,11 @@ Plans:
 
 </details>
 
-## 🚧 v2.0 Pipeline Consolidation & E2E Quality (Current)
+## v2.0 Pipeline Consolidation & E2E Quality (Current)
 
 **Milestone Goal:** Consolidate the extraction and grounding pipeline into a unified architecture, replace UMLS MCP with ToolUniverse scoped grounding, fix all critical E2E bugs (audit trail, grounding confidence, dashboard), improve extraction determinism, and complete the editor polish for real-world corpus building.
 
-**Parallel Execution:** Phases 30 and 31 run in parallel after Phase 29 completes (UI track ‖ Pipeline track).
+**Parallel Execution:** Phases 30 and 31 run in parallel after Phase 29 completes (UI track || Pipeline track).
 
 ### Phase 29: Backend Bug Fixes
 **Goal**: Fix critical bugs blocking regulatory compliance and user trust — grounding confidence >0%, visible audit trail, accurate dashboard pending count
@@ -471,7 +471,7 @@ Plans:
 - [ ] 29-01-PLAN.md — Fix grounding confidence 0% (BUGF-01): diagnostic logging + root cause fix in MedGemma agentic loop
 - [ ] 29-02-PLAN.md — Audit trail visibility (BUGF-02) + pending count fix (BUGF-03): batch_id filter, inline audit history UI, criteria-level pending count
 
-### Phase 30: UX Polish & Editor Pre-Loading ‖ PARALLEL with Phase 31
+### Phase 30: UX Polish & Editor Pre-Loading || PARALLEL with Phase 31
 **Goal**: Essential UX improvements for review workflow plus editor pre-loading and read-mode badges — frontend-only work that runs in parallel with backend pipeline consolidation
 **Depends on**: Phase 29 (bug fixes complete; runs parallel with Phase 31)
 **Requirements**: UX-01, UX-02, UX-03, UX-04, EDIT-01, EDIT-02
@@ -488,16 +488,16 @@ Plans:
 - [ ] 30-01-PLAN.md — Review status borders, sticky search/filter bar, section sorting with headers
 - [ ] 30-02-PLAN.md — Reject dialog with predefined reasons, field mapping read-mode badges with AND/OR connectors
 
-### Phase 31: TerminologyRouter & Pipeline Consolidation ‖ PARALLEL with Phase 30
+### Phase 31: TerminologyRouter & Pipeline Consolidation || PARALLEL with Phase 30
 **Goal**: Build entity-type-aware terminology routing with ToolUniverse API and consolidate extraction+grounding into a unified 5-node LangGraph pipeline — backend work that runs in parallel with frontend UX polish
 **Depends on**: Phase 29 (bug fixes complete; runs parallel with Phase 30)
 **Requirements**: GRND-01, GRND-02, GRND-04, GRND-06, PIPE-01, PIPE-02, PIPE-03
 **Success Criteria** (what must be TRUE):
-  1. TerminologyRouter routes entities to terminology APIs based on entity type (Medication→RxNorm, Condition→ICD-10+SNOMED, Lab→LOINC, Phenotype→HPO)
+  1. TerminologyRouter routes entities to terminology APIs based on entity type (Medication->RxNorm, Condition->ICD-10+SNOMED, Lab->LOINC, Phenotype->HPO)
   2. UMLS/SNOMED grounding is retained via direct Python import (not MCP subprocess) for unroutable entity types
   3. ToolUniverse Python API used with selective tool loading (RxNorm, ICD-10, LOINC, HPO, UMLS REST) — not MCP subprocess
   4. Unroutable entity types (Demographic, Procedure, Biomarker) are explicitly skipped with logging, not silently dropped
-  5. Extraction and grounding run in a flat 5-node LangGraph (ingest→extract→parse→ground→persist) with no outbox hop
+  5. Extraction and grounding run in a flat 5-node LangGraph (ingest->extract->parse->ground->persist) with no outbox hop
   6. PipelineState TypedDict carries all data through pipeline (PDF bytes, extraction results, entities, grounding results) with no redundant DB reads
   7. criteria_extracted outbox event is removed; protocol_uploaded outbox is retained for async pipeline trigger
   8. Ground node delegates to helper functions for entity extraction and terminology routing (not inline logic)
@@ -576,11 +576,11 @@ Plans:
 
 Plans:
 - [ ] 35-01-PLAN.md — Re-extraction pipeline fixes: persist_node status transition + ground_node entity population during re-extraction
-- [ ] 35-02-PLAN.md — Rerun SDK fix (google.generativeai → google.genai) + hooks commit + alembic stamp
+- [ ] 35-02-PLAN.md — Rerun SDK fix (google.generativeai -> google.genai) + hooks commit + alembic stamp
 
 ---
 
-## 🚧 v1.2 GCP Cloud Run Deployment (Paused)
+## v1.2 GCP Cloud Run Deployment (Paused)
 
 **Milestone Goal:** Deploy the entire application to Google Cloud Run using Terraform, with all configuration consumed from .env file and documented .env.example for operators. This is a lean 50-protocol pilot deployment — prioritize simplicity over enterprise patterns.
 
@@ -644,20 +644,20 @@ Phase 29 (Backend Bug Fixes)
                                         └── Phase 35 (E2E Gap Closure)
 ```
 
-Waves: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
+Waves: 29 -> [30 || 31] -> 32 -> 33 -> 34 -> 35
 
 ---
 
 ## Progress
 
 **Execution Order:**
-- v1.0: 1 → 2 → 3 → 4 → 5 → 5.1 → 5.2 → 5.3 → 6 → 7
-- v1.1: 8 → 9 → 10 → [11-12 paused]
-- v1.2: 13 → 14 → 15
+- v1.0: 1 -> 2 -> 3 -> 4 -> 5 -> 5.1 -> 5.2 -> 5.3 -> 6 -> 7
+- v1.1: 8 -> 9 -> 10 -> [11-12 paused]
+- v1.2: 13 -> 14 -> 15
 - v1.3: 16
-- v1.4: 17 + 18 + 19 (parallel) → 20 (after 18) + 21 (independent)
-- v1.5: 22 → 23 → 24 + 25 (parallel) → 26 + 27 + 28 (after 24)
-- v2.0: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
+- v1.4: 17 + 18 + 19 (parallel) -> 20 (after 18) + 21 (independent)
+- v1.5: 22 -> 23 -> 24 + 25 (parallel) -> 26 + 27 + 28 (after 24)
+- v2.0: 29 -> [30 || 31] -> 32 -> 33 -> 34 -> 35
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
@@ -699,6 +699,8 @@ Waves: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
 | 33. Re-Extraction Tooling & Review Protection | v2.0 | 0/TBD | Not started | - |
 | 34. Corpus Comparison & Export | v2.0 | Complete    | 2026-02-17 | - |
 | 35. E2E Gap Closure | v2.0 | Complete    | 2026-02-17 | - |
+| 36. E2E Test Infrastructure | v2.1 | 2/2 | Complete | 2026-02-17 |
+| 37. E2E Test Cases & Baseline | v2.1 | 0/1 | Planned | - |
 
 ---
 
@@ -718,17 +720,17 @@ Waves: 29 → [30 ‖ 31] → 32 → 33 → 34 → 35
 **Plans**: 2 plans
 
 Plans:
-- [ ] 36-01-PLAN.md -- E2E conftest with Docker Compose detection, skip logic, and core fixtures
-- [ ] 36-02-PLAN.md -- Upload fixture, cleanup fixture, and infrastructure smoke test
+- [x] 36-01-PLAN.md -- E2E conftest with Docker Compose detection, skip logic, and core fixtures
+- [x] 36-02-PLAN.md -- Upload fixture, cleanup fixture, and infrastructure smoke test
 
 ### Phase 37: E2E Test Cases & Baseline
 **Goal**: The E2E suite verifies that a real protocol PDF runs through the full pipeline and produces inclusion/exclusion criteria with grounded entities, and establishes a numeric regression baseline
 **Depends on**: Phase 36 (test infrastructure must be in place)
 **Requirements**: E2E-01, E2E-02, E2E-03, E2E-06
-**Plans**: TBD
+**Plans**: 1 plan
 
 Plans:
-- [ ] 37-01: TBD
+- [ ] 37-01-PLAN.md — Baseline config + full pipeline E2E tests (upload, criteria verification, entity grounding, regression baseline)
 
 ### Phase 38: Quality Evaluation Script
 **Goal**: A standalone script runs the unified pipeline on 2-3 sample PDFs and generates a structured markdown report
@@ -757,4 +759,4 @@ Phase 38 (Quality Evaluation Script)  [independent]
     └── Phase 39 (Bug Catalog)
 ```
 
-Tracks: [36 → 37] || [38 → 39]
+Tracks: [36 -> 37] || [38 -> 39]
