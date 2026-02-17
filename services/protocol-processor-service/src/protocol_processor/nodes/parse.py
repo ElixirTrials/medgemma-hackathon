@@ -91,12 +91,24 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
                 session.add(criterion)
                 session.flush()  # Get criterion.id
 
+                # Map category to entity_type for TerminologyRouter
+                category = raw.get("category", "")
+                known_types = {
+                    "Medication", "Condition", "Lab_Value",
+                    "Biomarker", "Procedure",
+                }
+                entity_type = (
+                    category if category in known_types
+                    else "Condition"
+                )
+
                 # Collect entity-relevant data for the ground node
                 entity_items.append({
                     "criterion_id": criterion.id,
                     "text": raw["text"],
                     "criteria_type": raw["criteria_type"],
                     "category": raw.get("category"),
+                    "entity_type": entity_type,
                 })
 
             # Update protocol status to 'processing' (not 'extracted' — grounding
