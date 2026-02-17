@@ -57,6 +57,7 @@ mypy_path = [
 [tool.pytest.ini_options]
 pythonpath = [
     "src",
+    "../api-service/src",
     "../shared/src",
     "../inference/src",
     "../../libs/events-py/src",

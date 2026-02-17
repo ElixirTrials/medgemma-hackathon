@@ -9,11 +9,10 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from events_py.outbox import OutboxProcessor  # noqa: E402
-from extraction_service.trigger import handle_protocol_uploaded  # noqa: E402
 from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
-from grounding_service.trigger import handle_criteria_extracted  # noqa: E402
+from protocol_processor.trigger import handle_protocol_uploaded  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
@@ -74,11 +73,13 @@ async def lifespan(app: FastAPI):
         )
 
     # Start outbox processor as background task
+    # Per PIPE-03: criteria_extracted outbox removed. protocol_uploaded retained.
+    # protocol_processor.trigger.handle_protocol_uploaded replaces both the
+    # old extraction_service.trigger and grounding_service.trigger handlers.
     processor = OutboxProcessor(
         engine=engine,
         handlers={
             "protocol_uploaded": [handle_protocol_uploaded],
-            "criteria_extracted": [handle_criteria_extracted],
         },
     )
     task = asyncio.create_task(processor.start())
