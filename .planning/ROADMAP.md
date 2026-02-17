@@ -757,7 +757,7 @@ Plans:
 ### Phase 40: Legacy Cleanup & ToolUniverse Grounding
 **Goal**: Delete legacy v1 services (grounding-service, extraction-service), replace broken UMLS/SNOMED direct imports with ToolUniverse SDK, eliminate all cross-dependencies on legacy code, and verify the unified pipeline grounds entities with real terminology codes
 **Depends on**: Nothing (independent cleanup, can run after quality eval reveals the broken grounding)
-**Requirements**: CLEAN-01 (delete legacy services), CLEAN-02 (ToolUniverse replaces UmlsClient in TerminologyRouter), CLEAN-03 (zero imports from grounding-service), CLEAN-04 (pipeline produces grounded entities with >0% CUI rate)
+**Requirements**: CLEAN-01 (delete legacy services), CLEAN-02 (ToolUniverse replaces UmlsClient in TerminologyRouter), CLEAN-03 (zero imports from grounding-service), CLEAN-04 (pipeline produces grounded entities with >0% CUI rate), CLEAN-05 (MedGemma agentic reasoning loop with 3-question retry and expert_review routing)
 **Success Criteria** (what must be TRUE):
   1. `services/grounding-service/` and `services/extraction-service/` directories deleted; all imports, workspace refs, docker-compose entries, and pyproject.toml references removed
   2. TerminologyRouter uses ToolUniverse SDK (`tooluniverse` package) for ALL terminology lookups: `umls_search_concepts`, `snomed_search_concepts`, `icd_search_codes`, `loinc_search_codes`, RxNorm tool, HPO tool
@@ -765,11 +765,14 @@ Plans:
   4. API service search endpoints (`/api/terminology/{system}/search`, `/api/umls/search`) work via ToolUniverse instead of UmlsClient
   5. Running the pipeline on a test PDF produces entities with non-zero grounding confidence and real CUI/SNOMED/terminology codes
   6. `uv run pytest` passes with no import errors from deleted services
+  7. MedGemma agentic reasoning loop asks 3 questions (valid criterion? derived entity? rephrase?) before retry attempts
+  8. Max 3 grounding attempts per entity, then route to expert_review queue with warning badge
+  9. Consent entities skip grounding; Demographics (age/gender) attempt grounding via UMLS/SNOMED
 **Plans**: 2 plans
 
 Plans:
-- [ ] 40-01-PLAN.md — Delete legacy services + integrate ToolUniverse SDK + rewrite all endpoints and tests
-- [ ] 40-02-PLAN.md — End-to-end verification: live grounding codes + autocomplete + human checkpoint
+- [ ] 40-01-PLAN.md — Delete legacy services + integrate ToolUniverse SDK + rewrite endpoints/tests + MedGemma agentic loop
+- [ ] 40-02-PLAN.md — End-to-end verification: live grounding codes + autocomplete + agentic loop + human checkpoint
 
 ### v2.1 Dependency Graph
 ```
