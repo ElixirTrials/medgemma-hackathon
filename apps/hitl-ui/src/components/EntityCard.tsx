@@ -10,9 +10,10 @@ import {
 import { useState } from 'react';
 
 import type { EntityActionRequest, EntityResponse } from '../hooks/useEntities';
-import type { UmlsSearchResult } from '../hooks/useUmlsSearch';
+import type { TerminologySearchResult } from '../hooks/useTerminologySearch';
 import { cn } from '../lib/utils';
-import { UmlsCombobox } from './UmlsCombobox';
+import { ErrorBadge, TerminologyBadge } from './TerminologyBadge';
+import { TerminologyCombobox } from './TerminologyCombobox';
 import { Button } from './ui/Button';
 
 interface EntityCardProps {
@@ -106,14 +107,46 @@ function ReviewStatusBadge({ status }: { status: string | null }) {
     );
 }
 
+/** Determine which systems are relevant for a given entity type. */
+function getRelevantSystems(entityType: string): string[] {
+    switch (entityType) {
+        case 'Medication':
+            return ['rxnorm', 'umls'];
+        case 'Condition':
+            return ['icd10', 'snomed', 'umls'];
+        case 'Lab_Value':
+            return ['loinc', 'umls'];
+        case 'Biomarker':
+            return ['hpo', 'umls'];
+        default:
+            return ['snomed', 'umls'];
+    }
+}
+
 export default function EntityCard({ entity, onAction, isSubmitting }: EntityCardProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [contextOpen, setContextOpen] = useState(false);
+
+    // Edit state for all code fields
     const [editCui, setEditCui] = useState(entity.umls_cui ?? '');
     const [editSnomed, setEditSnomed] = useState(entity.snomed_code ?? '');
     const [editPreferredTerm, setEditPreferredTerm] = useState(entity.preferred_term ?? '');
+    const [editRxnorm, setEditRxnorm] = useState(entity.rxnorm_code ?? '');
+    const [editIcd10, setEditIcd10] = useState(entity.icd10_code ?? '');
+    const [editLoinc, setEditLoinc] = useState(entity.loinc_code ?? '');
+    const [editHpo, setEditHpo] = useState(entity.hpo_code ?? '');
 
     const isLowConfidence = (entity.grounding_confidence ?? 0) < 0.7;
+    const relevantSystems = getRelevantSystems(entity.entity_type);
+
+    // Check if entity has any codes
+    const hasCodes =
+        entity.umls_cui ||
+        entity.snomed_code ||
+        entity.rxnorm_code ||
+        entity.icd10_code ||
+        entity.loinc_code ||
+        entity.hpo_code;
 
     function handleApprove() {
         onAction(entity.id, {
@@ -136,6 +169,10 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
             modified_umls_cui: editCui || undefined,
             modified_snomed_code: editSnomed || undefined,
             modified_preferred_term: editPreferredTerm || undefined,
+            modified_rxnorm_code: editRxnorm || undefined,
+            modified_icd10_code: editIcd10 || undefined,
+            modified_loinc_code: editLoinc || undefined,
+            modified_hpo_code: editHpo || undefined,
         });
         setIsEditing(false);
     }
@@ -144,6 +181,10 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
         setEditCui(entity.umls_cui ?? '');
         setEditSnomed(entity.snomed_code ?? '');
         setEditPreferredTerm(entity.preferred_term ?? '');
+        setEditRxnorm(entity.rxnorm_code ?? '');
+        setEditIcd10(entity.icd10_code ?? '');
+        setEditLoinc(entity.loinc_code ?? '');
+        setEditHpo(entity.hpo_code ?? '');
         setIsEditing(false);
     }
 
@@ -174,61 +215,150 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
             {/* Entity text */}
             <p className="text-sm font-medium text-foreground mb-3">{entity.text}</p>
 
-            {/* SNOMED Badge */}
-            {entity.snomed_code && entity.preferred_term && (
-                <div className="mb-2">
-                    <span className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                        SNOMED: {entity.snomed_code} - {entity.preferred_term}
-                    </span>
-                </div>
-            )}
-
-            {/* UMLS Badge with link */}
-            {entity.umls_cui && (
-                <div className="mb-3">
+            {/* Multi-code badge section */}
+            <div className="flex flex-wrap gap-1.5 mb-3">
+                {entity.rxnorm_code && (
+                    <TerminologyBadge system="rxnorm" code={entity.rxnorm_code} />
+                )}
+                {entity.icd10_code && (
+                    <TerminologyBadge system="icd10" code={entity.icd10_code} />
+                )}
+                {entity.snomed_code && (
+                    <TerminologyBadge
+                        system="snomed"
+                        code={entity.snomed_code}
+                        display={entity.preferred_term ?? undefined}
+                    />
+                )}
+                {entity.loinc_code && (
+                    <TerminologyBadge system="loinc" code={entity.loinc_code} />
+                )}
+                {entity.hpo_code && (
+                    <TerminologyBadge system="hpo" code={entity.hpo_code} />
+                )}
+                {entity.umls_cui && (
                     <a
                         href={`https://uts.nlm.nih.gov/cts/umls/concept/${entity.umls_cui}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-sm font-medium text-indigo-800 hover:bg-indigo-200 transition-colors"
+                        className="inline-flex items-center gap-1 rounded-full border border-indigo-300 bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800 hover:bg-indigo-200 transition-colors"
                     >
                         CUI: {entity.umls_cui}
                         <ExternalLink className="h-3 w-3" />
                     </a>
-                </div>
-            )}
+                )}
+                {entity.grounding_error && (
+                    <ErrorBadge errorReason={entity.grounding_error} />
+                )}
+                {!hasCodes && !entity.grounding_error && (
+                    <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
+                        Not grounded
+                    </span>
+                )}
+            </div>
 
-            {/* Modify mode */}
+            {/* Edit mode */}
             {isEditing && (
                 <div className="space-y-3 mb-3 border-t pt-3">
+                    {/* Per-system comboboxes for relevant systems */}
+                    {relevantSystems.includes('rxnorm') && (
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                RxNorm
+                            </label>
+                            <TerminologyCombobox
+                                system="rxnorm"
+                                value={editRxnorm}
+                                onChange={(val) => setEditRxnorm(val)}
+                                onSelect={(result: TerminologySearchResult) => {
+                                    setEditRxnorm(result.code);
+                                }}
+                            />
+                        </div>
+                    )}
+                    {relevantSystems.includes('icd10') && (
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                ICD-10
+                            </label>
+                            <TerminologyCombobox
+                                system="icd10"
+                                value={editIcd10}
+                                onChange={(val) => setEditIcd10(val)}
+                                onSelect={(result: TerminologySearchResult) => {
+                                    setEditIcd10(result.code);
+                                }}
+                            />
+                        </div>
+                    )}
+                    {relevantSystems.includes('snomed') && (
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                SNOMED
+                            </label>
+                            <TerminologyCombobox
+                                system="snomed"
+                                value={editSnomed}
+                                onChange={(val) => setEditSnomed(val)}
+                                onSelect={(result: TerminologySearchResult) => {
+                                    setEditSnomed(result.code);
+                                    if (result.display) setEditPreferredTerm(result.display);
+                                }}
+                            />
+                        </div>
+                    )}
+                    {relevantSystems.includes('loinc') && (
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                LOINC
+                            </label>
+                            <TerminologyCombobox
+                                system="loinc"
+                                value={editLoinc}
+                                onChange={(val) => setEditLoinc(val)}
+                                onSelect={(result: TerminologySearchResult) => {
+                                    setEditLoinc(result.code);
+                                }}
+                            />
+                        </div>
+                    )}
+                    {relevantSystems.includes('hpo') && (
+                        <div>
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                HPO
+                            </label>
+                            <TerminologyCombobox
+                                system="hpo"
+                                value={editHpo}
+                                onChange={(val) => setEditHpo(val)}
+                                onSelect={(result: TerminologySearchResult) => {
+                                    setEditHpo(result.code);
+                                }}
+                            />
+                        </div>
+                    )}
+                    {/* UMLS always shown */}
                     <div>
-                        <label
-                            htmlFor={`edit-umls-${entity.id}`}
-                            className="block text-sm font-medium text-muted-foreground mb-1"
-                        >
-                            Search UMLS Concept
+                        <label className="block text-xs font-medium text-muted-foreground mb-1">
+                            UMLS
                         </label>
-                        <UmlsCombobox
+                        <TerminologyCombobox
+                            system="umls"
                             value={editPreferredTerm}
                             onChange={(val) => setEditPreferredTerm(val)}
-                            onSelect={(result: UmlsSearchResult) => {
-                                setEditCui(result.cui);
-                                setEditSnomed(result.snomed_code);
-                                setEditPreferredTerm(result.preferred_term);
+                            onSelect={(result: TerminologySearchResult) => {
+                                setEditCui(result.code);
+                                setEditPreferredTerm(result.display);
                             }}
-                            placeholder="Search UMLS concepts..."
                         />
                     </div>
+                    {/* Manual CUI input fallback */}
                     <div className="grid grid-cols-2 gap-2">
                         <div>
-                            <label
-                                htmlFor={`edit-cui-${entity.id}`}
-                                className="block text-xs font-medium text-muted-foreground mb-1"
-                            >
-                                CUI
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                CUI (manual)
                             </label>
                             <input
-                                id={`edit-cui-${entity.id}`}
                                 type="text"
                                 value={editCui}
                                 onChange={(e) => setEditCui(e.target.value)}
@@ -236,14 +366,10 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                             />
                         </div>
                         <div>
-                            <label
-                                htmlFor={`edit-snomed-${entity.id}`}
-                                className="block text-xs font-medium text-muted-foreground mb-1"
-                            >
-                                SNOMED
+                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                                SNOMED (manual)
                             </label>
                             <input
-                                id={`edit-snomed-${entity.id}`}
                                 type="text"
                                 value={editSnomed}
                                 onChange={(e) => setEditSnomed(e.target.value)}

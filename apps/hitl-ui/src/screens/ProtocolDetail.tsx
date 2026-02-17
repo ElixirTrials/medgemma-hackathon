@@ -9,6 +9,7 @@ import { cn } from '../lib/utils';
 
 const STATUS_COLORS: Record<string, string> = {
     uploaded: 'bg-blue-100 text-blue-800',
+    processing: 'bg-blue-100 text-blue-800',
     extracting: 'bg-yellow-100 text-yellow-800',
     extraction_failed: 'bg-red-100 text-red-800',
     grounding: 'bg-cyan-100 text-cyan-800',
@@ -23,6 +24,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUS_LABELS: Record<string, string> = {
     uploaded: 'Uploaded',
+    processing: 'Processing',
     extracting: 'Extracting',
     extraction_failed: 'Extraction Failed',
     grounding: 'Grounding',
@@ -68,7 +70,7 @@ function RetryButton({ protocolId }: { protocolId: string }) {
                     Retrying...
                 </>
             ) : (
-                'Retry Extraction'
+                'Retry Processing'
             )}
         </Button>
     );

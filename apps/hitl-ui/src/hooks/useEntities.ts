@@ -46,6 +46,13 @@ export interface EntityResponse {
     grounding_method: string | null;
     review_status: string | null;
     context_window: Record<string, unknown> | null;
+    // Multi-terminology code fields (Phase 32)
+    rxnorm_code: string | null;
+    icd10_code: string | null;
+    loinc_code: string | null;
+    hpo_code: string | null;
+    grounding_system: string | null;
+    grounding_error: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -56,6 +63,10 @@ export interface EntityActionRequest {
     modified_umls_cui?: string;
     modified_snomed_code?: string;
     modified_preferred_term?: string;
+    modified_rxnorm_code?: string;
+    modified_icd10_code?: string;
+    modified_loinc_code?: string;
+    modified_hpo_code?: string;
     comment?: string;
 }
 
