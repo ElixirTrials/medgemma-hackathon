@@ -1,0 +1,62 @@
+# Entity type → API mapping for terminology grounding
+#
+# routing_rules: maps entity type names to a list of API names to query.
+# Use `skip: true` for entity types that should not be grounded.
+#
+# api_configs: defines how each API is accessed.
+# - source: "tooluniverse" uses ToolUniverse Python SDK
+# - source: "direct_python" uses direct Python import
+
+routing_rules:
+  Medication:
+    - rxnorm
+    - umls
+
+  Condition:
+    - icd10
+    - snomed
+    - umls
+
+  Lab_Value:
+    - loinc
+    - umls
+
+  Biomarker:
+    - hpo
+    - umls
+
+  Procedure:
+    - umls
+    - snomed
+
+  Phenotype:
+    - hpo
+    - umls
+
+  Demographic:
+    skip: true  # Demographics not grounded to terminology (no relevant UMLS CUIs)
+
+api_configs:
+  rxnorm:
+    source: tooluniverse
+    tool_name: "rxnorm_search"
+
+  icd10:
+    source: tooluniverse
+    tool_name: "icd10_search"
+
+  loinc:
+    source: tooluniverse
+    tool_name: "loinc_search"
+
+  hpo:
+    source: tooluniverse
+    tool_name: "hpo_search"
+
+  umls:
+    source: direct_python
+    module: "umls_mcp_server.umls_api"
+
+  snomed:
+    source: direct_python
+    module: "grounding_service.umls_client"
