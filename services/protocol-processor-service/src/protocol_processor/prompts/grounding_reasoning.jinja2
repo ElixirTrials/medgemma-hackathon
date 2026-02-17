@@ -1,0 +1,43 @@
+Evaluate the following medical entity that failed initial terminology grounding.
+Answer all three questions below to determine the best retry strategy.
+
+## Entity
+Text: "{{ entity_text }}"
+Type: {{ entity_type }}
+From criterion: "{{ criterion_context[:300] }}"
+{% if previous_query and previous_query != entity_text %}
+Previous search query: "{{ previous_query }}"
+{% endif %}
+Attempt: {{ attempt }} of 3
+
+## Three Reasoning Questions
+
+**Q1: Valid medical criterion?**
+Is "{{ entity_text }}" actually a valid medical criterion that should be grounded to a
+terminology code? Examples of entities that are NOT groundable: consent, participation,
+willingness, study enrollment, investigator discretion, geographic location.
+If it is not a valid medical criterion, return should_skip=true.
+
+**Q2: Derived entity?**
+Is "{{ entity_text }}" a derived entity that maps to a more standard medical concept?
+Examples:
+- "age >= 18 years" → the concept is "age" (the numeric value is a filter, not the concept)
+- "male" or "female" → maps to SNOMED gender concepts
+- "BMI > 30" → the concept is "body mass index"
+If derived, return is_derived=true and the standard medical concept term.
+
+**Q3: Rephrase for better terminology search?**
+Can "{{ entity_text }}" be rephrased as proper medical terminology to improve search results?
+Examples:
+- "high blood pressure" → "hypertension"
+- "sugar diabetes" → "diabetes mellitus"
+- "heart attack" → "myocardial infarction"
+- "kidney failure" → "renal failure"
+If rephrasing would help, return the rephrased query. Otherwise return null.
+
+## Instructions
+
+Respond with a brief clinical analysis. Address all three questions.
+State whether the entity should be skipped, whether it is a derived entity (and the
+standard term), and whether a rephrased query would improve terminology lookup.
+Be concise — one sentence per question.

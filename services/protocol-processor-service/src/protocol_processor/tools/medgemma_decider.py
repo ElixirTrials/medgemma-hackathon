@@ -10,7 +10,10 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from protocol_processor.tools.terminology_router import TerminologyRouter
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -40,6 +43,58 @@ def _render_template(template_name: str, **kwargs: Any) -> str:
     env = Environment(loader=FileSystemLoader(str(prompts_dir)), autoescape=False)
     template = env.get_template(template_name)
     return template.render(**kwargs)
+
+
+class AgenticReasoningResult(BaseModel):
+    """MedGemma's 3-question reasoning output for failed grounding retry.
+
+    Used by agentic_reasoning_loop to determine whether to skip an entity,
+    apply derived entity mapping, or rephrase the query for a better search.
+
+    Attributes:
+        should_skip: True if entity is not a valid medical criterion.
+        is_derived: True if entity maps to a more standard medical concept.
+        derived_term: Standard concept term if is_derived is True.
+        rephrased_query: Rephrased medical terminology query if applicable.
+        gemini_suggestion: Optional additional reformulation from Gemini.
+        reasoning: Brief explanation of the reasoning decisions.
+    """
+
+    should_skip: bool = Field(
+        default=False,
+        description=(
+            "True if entity is not a valid medical criterion "
+            "(e.g., consent, participation, willingness)"
+        ),
+    )
+    is_derived: bool = Field(
+        default=False,
+        description="True if entity maps to a more standard medical concept",
+    )
+    derived_term: str | None = Field(
+        default=None,
+        description=(
+            "Standard concept term if is_derived is True "
+            "(e.g., 'age' for 'age >= 18 years')"
+        ),
+    )
+    rephrased_query: str | None = Field(
+        default=None,
+        description=(
+            "Rephrased medical terminology query for better search "
+            "(e.g., 'hypertension' for 'high blood pressure')"
+        ),
+    )
+    gemini_suggestion: str | None = Field(
+        default=None,
+        description=(
+            "Optional reformulation suggestion from Gemini structuring step"
+        ),
+    )
+    reasoning: str = Field(
+        default="",
+        description="Brief explanation of the three-question reasoning",
+    )
 
 
 class GroundingDecision(BaseModel):
@@ -228,4 +283,142 @@ async def medgemma_decide(
             confidence=0.0,
             candidates=candidates,
             reasoning=f"MedGemma decision failed: {e}",
+        )
+
+
+def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningResult:
+    """Structure raw MedGemma reasoning output using Gemini with_structured_output.
+
+    Gemini also acts as a collaborating agent here — it can add its own
+    reformulation suggestions via the gemini_suggestion field when structuring
+    the output.
+
+    Args:
+        raw_text: Raw MedGemma reasoning output (free-form text).
+
+    Returns:
+        AgenticReasoningResult with structured 3-question answers.
+    """
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+
+    if not google_api_key:
+        raise ValueError("GOOGLE_API_KEY environment variable is required")
+
+    gemini = ChatGoogleGenerativeAI(
+        model=gemini_model_name,
+        google_api_key=google_api_key,
+    )
+    structured_llm = gemini.with_structured_output(AgenticReasoningResult)
+
+    prompt = (
+        "Extract the structured reasoning from this medical entity analysis. "
+        "Determine: (1) should_skip if entity is not a valid medical criterion, "
+        "(2) is_derived and derived_term if entity maps to a standard concept, "
+        "(3) rephrased_query if a better medical term would improve search. "
+        "You may also add a gemini_suggestion with your own reformulation if "
+        "you can improve on the analysis.\n\n"
+        f"{raw_text}"
+    )
+
+    result = structured_llm.invoke(prompt)
+    if isinstance(result, dict):
+        return AgenticReasoningResult.model_validate(result)
+    return result  # type: ignore[return-value]
+
+
+async def agentic_reasoning_loop(
+    entity: dict,
+    criterion_context: str,
+    router: "TerminologyRouter",
+    attempt: int = 1,
+) -> AgenticReasoningResult:
+    """Ask MedGemma 3 reasoning questions to determine retry strategy.
+
+    Called by ground_node when an entity fails initial grounding (zero
+    candidates or confidence < 0.5). Asks MedGemma in a single prompt:
+    - Q1: Is this a valid medical criterion (or should it be skipped)?
+    - Q2: Is this a derived entity that maps to a standard concept?
+    - Q3: Can this entity be rephrased for better terminology search?
+
+    Uses the two-model architecture: MedGemma for medical reasoning, Gemini
+    for structured output parsing (and optional reformulation suggestion).
+
+    Args:
+        entity: Entity dict with keys: text, entity_type, criterion_id.
+        criterion_context: The full criterion text for context.
+        router: TerminologyRouter instance (for get_apis_for_entity context).
+        attempt: Current attempt number (1-3) for prompt context.
+
+    Returns:
+        AgenticReasoningResult with should_skip, is_derived, derived_term,
+        rephrased_query, gemini_suggestion, and reasoning fields.
+        On error, returns default result (no skip, no rephrase) to allow
+        the retry loop to continue with the original query.
+    """
+    entity_text = entity.get("text", "")
+    entity_type = entity.get("entity_type", "")
+    previous_query = entity.get("_previous_query", entity_text)
+
+    logger.info(
+        "Agentic reasoning (attempt %d) for entity '%s' (type=%s)",
+        attempt,
+        entity_text[:50],
+        entity_type,
+    )
+
+    try:
+        model = _get_medgemma_model()
+
+        system_prompt = _render_template("grounding_system.jinja2")
+        reasoning_prompt = _render_template(
+            "grounding_reasoning.jinja2",
+            entity_text=entity_text,
+            entity_type=entity_type,
+            criterion_context=criterion_context,
+            previous_query=previous_query,
+            attempt=attempt,
+        )
+
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=reasoning_prompt),
+        ]
+        raw_response = await model.ainvoke(messages)
+        raw_text = raw_response.content
+
+        logger.debug(
+            "MedGemma reasoning response for '%s' (first 300 chars): %s",
+            entity_text[:30],
+            raw_text[:300],
+        )
+
+        result = _structure_reasoning_with_gemini(raw_text)
+
+        logger.info(
+            "Agentic reasoning result for '%s': skip=%s, derived=%s, "
+            "derived_term=%s, rephrased=%s",
+            entity_text[:50],
+            result.should_skip,
+            result.is_derived,
+            result.derived_term,
+            result.rephrased_query,
+        )
+
+        return result
+
+    except Exception as e:
+        logger.error(
+            "Agentic reasoning loop failed for entity '%s': %s",
+            entity_text[:50],
+            e,
+            exc_info=True,
+        )
+        # Return default result (no skip, no rephrase) — retry with original query
+        return AgenticReasoningResult(
+            should_skip=False,
+            is_derived=False,
+            derived_term=None,
+            rephrased_query=None,
+            reasoning=f"Reasoning loop failed: {e}",
         )

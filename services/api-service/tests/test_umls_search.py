@@ -1,7 +1,7 @@
 """Tests for UMLS search proxy endpoint backed by ToolUniverse.
 
-All ToolUniverse calls are mocked via patch on api_service.umls_search.search_terminology.
-No real network calls are made.
+All ToolUniverse calls are mocked via patch on
+api_service.umls_search.search_terminology. No real network calls are made.
 """
 
 from unittest.mock import patch
