@@ -3,7 +3,7 @@
   "checkpoint_id": "7f1f4e5f60d3",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "apps/hitl-ui/src/screens/ProtocolList.tsx"
   ],
@@ -28,13 +28,20 @@
       "context": "/7f/1f4e5f60d3/2/context.md",
       "content_hash": "/7f/1f4e5f60d3/2/content_hash.txt",
       "prompt": "/7f/1f4e5f60d3/2/prompt.txt"
+    },
+    {
+      "metadata": "/7f/1f4e5f60d3/3/metadata.json",
+      "transcript": "/7f/1f4e5f60d3/3/full.jsonl",
+      "context": "/7f/1f4e5f60d3/3/context.md",
+      "content_hash": "/7f/1f4e5f60d3/3/content_hash.txt",
+      "prompt": "/7f/1f4e5f60d3/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 171,
-    "cache_creation_tokens": 280500,
-    "cache_read_tokens": 14660449,
-    "output_tokens": 15601,
-    "api_call_count": 148
+    "input_tokens": 223,
+    "cache_creation_tokens": 420048,
+    "cache_read_tokens": 20027675,
+    "output_tokens": 22669,
+    "api_call_count": 194
   }
 }
