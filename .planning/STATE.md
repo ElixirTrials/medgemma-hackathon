@@ -6,16 +6,16 @@ See: .planning/PROJECT.md (updated 2026-02-17)
 
 **Core value:** Clinical researchers can upload a protocol PDF and get accurately extracted, UMLS-grounded eligibility criteria that they can review and approve in a single workflow — replacing manual extraction that takes hours per protocol.
 
-**Current focus:** Phase 40 — Legacy Cleanup + ToolUniverse Grounding (COMPLETE)
+**Current focus:** Phase 42 — Pipeline Stability + UMLS Resilience (In Progress)
 
 ## Current Position
 
-Phase: 40 of 40 in current milestone
-Plan: 02 complete (all plans complete)
-Status: Complete
-Last activity: 2026-02-17 — 40-02 complete (ToolUniverse live grounding verified: 5/5 systems, caching <100ms, graceful error handling)
+Phase: 42 of 43 in current milestone
+Plan: 01 complete (01 of 02 plans complete)
+Status: In Progress
+Last activity: 2026-02-18 — 42-01 complete (MLflow trace leak fixed via try/finally, upload bind mount + SHA-256 dedup added)
 
-Progress: [█████████████████████████████] Phase 40 COMPLETE
+Progress: [█████████████████████████████░] Phase 42 — Plan 01/02 complete
 
 ## Performance Metrics
 
@@ -73,6 +73,12 @@ Decisions are logged in PROJECT.md Key Decisions table.
 - [Phase 40]: Docker container running stale pre-Phase-40 image; code verification done via direct uv run calls (correct approach)
 - [Phase 40]: 5/5 tested systems return real codes (ICD10, RxNorm, HPO, LOINC, UMLS) — all pass, plan required only 3
 
+**Phase 42-01 Key Decisions (2026-02-18):**
+- end_trace() inside finally is a no-op when span closes normally via context manager — safe to always call
+- MLFLOW_TRACE_TIMEOUT_SECONDS=300 is safety net only (process-kill), not primary fix (try/finally is primary)
+- Bind mount (../data/uploads:/app/uploads) over named volume — dev workflow benefits from browsable host directory
+- SHA-256 symlink deduplication preserves URI compatibility while saving disk space via .hash-index.json
+
 ### Pending Todos
 
 None.
@@ -95,8 +101,8 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-02-17
-Last activity: 2026-02-17 — completed 40-02 (ToolUniverse live grounding verification: 5/5 systems, TTLCache <100ms, CLEAN-04/CLEAN-05 satisfied)
-Stopped at: Completed 40-02-PLAN.md
+Last session: 2026-02-18
+Last activity: 2026-02-18 — completed 42-01 (MLflow trace leak fixed, upload bind mount + SHA-256 dedup, gaps B14/B13 resolved)
+Stopped at: Completed 42-01-PLAN.md
 Resume file: None
-Next action: Phase 40 complete — all plans finished
+Next action: Phase 42-02 — ToolUniverse resilience
