@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7f1f4e5f60d3",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T16:07:53.249911Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/screens/ProtocolList.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "53daf0164b9d",
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T16:07:53.244694Z",
+    "agent_lines": 0,
+    "human_added": 99,
+    "human_modified": 33,
+    "human_removed": 0,
+    "total_committed": 99,
+    "agent_percentage": 0
+  }
+}
