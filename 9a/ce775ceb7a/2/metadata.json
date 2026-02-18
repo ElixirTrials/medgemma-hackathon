@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9ace775ceb7a",
+  "session_id": "8000ab07-b7ed-4807-9480-552b38ab70a2",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T12:18:11.971614Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useTerminologySearch.ts",
+    "infra/docker-compose.yml",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/src/api_service/terminology_search.py",
+    "services/api-service/tests/test_umls_clients.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "23f382277d5b",
+  "token_usage": {
+    "input_tokens": 2522,
+    "cache_creation_tokens": 758999,
+    "cache_read_tokens": 33343224,
+    "output_tokens": 36132,
+    "api_call_count": 370
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T12:18:10.850032Z",
+    "agent_lines": 183,
+    "human_added": 759,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 951,
+    "agent_percentage": 19.242902208201894
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/8000ab07-b7ed-4807-9480-552b38ab70a2.jsonl"
+}
