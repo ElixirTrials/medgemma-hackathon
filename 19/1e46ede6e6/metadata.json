@@ -3,7 +3,7 @@
   "checkpoint_id": "191e46ede6e6",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 9,
+  "checkpoints_count": 11,
   "files_touched": [
     "services/api-service/src/api_service/protocols.py"
   ],
@@ -49,6 +49,13 @@
       "context": "/19/1e46ede6e6/5/context.md",
       "content_hash": "/19/1e46ede6e6/5/content_hash.txt",
       "prompt": "/19/1e46ede6e6/5/prompt.txt"
+    },
+    {
+      "metadata": "/19/1e46ede6e6/6/metadata.json",
+      "transcript": "/19/1e46ede6e6/6/full.jsonl",
+      "context": "",
+      "content_hash": "/19/1e46ede6e6/6/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
