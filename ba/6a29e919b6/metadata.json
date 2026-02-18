@@ -3,7 +3,7 @@
   "checkpoint_id": "ba6a29e919b6",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": [
     "infra/docker-compose.yml",
     "libs/inference/src/inference/model_garden.py",
@@ -97,13 +97,20 @@
       "context": "/ba/6a29e919b6/7/context.md",
       "content_hash": "/ba/6a29e919b6/7/content_hash.txt",
       "prompt": "/ba/6a29e919b6/7/prompt.txt"
+    },
+    {
+      "metadata": "/ba/6a29e919b6/8/metadata.json",
+      "transcript": "/ba/6a29e919b6/8/full.jsonl",
+      "context": "/ba/6a29e919b6/8/context.md",
+      "content_hash": "/ba/6a29e919b6/8/content_hash.txt",
+      "prompt": "/ba/6a29e919b6/8/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2919,
-    "cache_creation_tokens": 1479663,
-    "cache_read_tokens": 64583886,
-    "output_tokens": 80111,
-    "api_call_count": 723
+    "input_tokens": 3000,
+    "cache_creation_tokens": 1625079,
+    "cache_read_tokens": 70160393,
+    "output_tokens": 90782,
+    "api_call_count": 794
   }
 }
