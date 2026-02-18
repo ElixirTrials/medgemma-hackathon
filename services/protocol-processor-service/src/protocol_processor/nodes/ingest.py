@@ -19,6 +19,7 @@ from sqlmodel import Session
 
 from protocol_processor.state import PipelineState
 from protocol_processor.tools.pdf_parser import fetch_pdf_bytes
+from protocol_processor.tracing import pipeline_span
 
 logger = logging.getLogger(__name__)
 
@@ -38,28 +39,36 @@ async def ingest_node(state: PipelineState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
-    try:
-        pdf_bytes = await fetch_pdf_bytes(state["file_uri"])
+    with pipeline_span("ingest_node") as span:
+        span.set_inputs({
+            "protocol_id": state.get("protocol_id", ""),
+            "file_uri": state.get("file_uri", ""),
+        })
 
-        # Update protocol status to 'extracting'
-        with Session(engine) as session:
-            protocol = session.get(Protocol, state["protocol_id"])
-            if protocol:
-                protocol.status = "extracting"
-                session.add(protocol)
-                session.commit()
+        try:
+            pdf_bytes = await fetch_pdf_bytes(state["file_uri"])
 
-        logger.info(
-            "Ingested protocol %s: %d bytes of PDF",
-            state["protocol_id"],
-            len(pdf_bytes),
-        )
-        return {"pdf_bytes": pdf_bytes, "status": "processing"}
+            # Update protocol status to 'extracting'
+            with Session(engine) as session:
+                protocol = session.get(Protocol, state["protocol_id"])
+                if protocol:
+                    protocol.status = "extracting"
+                    session.add(protocol)
+                    session.commit()
 
-    except Exception as e:
-        logger.exception(
-            "Ingestion failed for protocol %s: %s",
-            state.get("protocol_id", "unknown"),
-            e,
-        )
-        return {"error": f"Ingestion failed: {e}", "status": "failed"}
+            logger.info(
+                "Ingested protocol %s: %d bytes of PDF",
+                state["protocol_id"],
+                len(pdf_bytes),
+            )
+            span.set_outputs({"pdf_bytes_len": len(pdf_bytes), "status": "processing"})
+            return {"pdf_bytes": pdf_bytes, "status": "processing"}
+
+        except Exception as e:
+            logger.exception(
+                "Ingestion failed for protocol %s: %s",
+                state.get("protocol_id", "unknown"),
+                e,
+            )
+            span.set_outputs({"error": str(e)})
+            return {"error": f"Ingestion failed: {e}", "status": "failed"}

@@ -226,5 +226,5 @@ class TerminologyRouter:
         """
         from protocol_processor.tools.tooluniverse_client import search_terminology
 
-        candidates = search_terminology(api_name, entity_text, max_results=10)
+        candidates = await search_terminology(api_name, entity_text, max_results=10)
         return candidates

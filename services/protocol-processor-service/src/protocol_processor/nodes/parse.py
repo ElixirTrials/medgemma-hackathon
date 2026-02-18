@@ -28,6 +28,7 @@ from sqlmodel import Session
 
 from protocol_processor.schemas.extraction import ExtractionResult
 from protocol_processor.state import PipelineState
+from protocol_processor.tracing import pipeline_span
 
 logger = logging.getLogger(__name__)
 
@@ -49,101 +50,111 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
-    try:
-        extraction_json = state.get("extraction_json")
-        if not extraction_json:
+    with pipeline_span("parse_node") as span:
+        span.set_inputs({"protocol_id": state.get("protocol_id", "")})
+
+        try:
+            extraction_json = state.get("extraction_json")
+            if not extraction_json:
+                span.set_outputs({"error": "No extraction_json in state"})
+                return {
+                    "error": "No extraction_json in state — extract node may have failed"
+                }
+
+            # Parse extraction JSON into Pydantic model
+            extraction_result = ExtractionResult.model_validate_json(extraction_json)
+
+            extraction_model = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
+            with Session(engine) as session:
+                # Create CriteriaBatch
+                batch = CriteriaBatch(
+                    protocol_id=state["protocol_id"],
+                    status="pending_review",
+                    extraction_model=extraction_model,
+                )
+                session.add(batch)
+                session.flush()  # Get batch.id
+
+                # Create Criteria records and collect entity data
+                entity_items: list[dict[str, Any]] = []
+                for extracted in extraction_result.criteria:
+                    raw = extracted.model_dump()
+                    criterion = Criteria(
+                        batch_id=batch.id,
+                        criteria_type=raw["criteria_type"],
+                        category=raw.get("category"),
+                        text=raw["text"],
+                        temporal_constraint=raw.get("temporal_constraint"),
+                        conditions=raw.get("conditions"),
+                        numeric_thresholds=raw.get("numeric_thresholds"),
+                        assertion_status=raw.get("assertion_status"),
+                        confidence=raw.get("confidence", 1.0),
+                        source_section=raw.get("source_section"),
+                        page_number=raw.get("page_number"),
+                    )
+                    session.add(criterion)
+                    session.flush()  # Get criterion.id
+
+                    # Map category to entity_type for TerminologyRouter
+                    category = raw.get("category", "")
+                    known_types = {
+                        "Medication", "Condition", "Lab_Value",
+                        "Biomarker", "Procedure",
+                    }
+                    entity_type = (
+                        category if category in known_types
+                        else "Condition"
+                    )
+
+                    # Collect entity-relevant data for the ground node
+                    entity_items.append({
+                        "criterion_id": criterion.id,
+                        "text": raw["text"],
+                        "criteria_type": raw["criteria_type"],
+                        "category": raw.get("category"),
+                        "entity_type": entity_type,
+                    })
+
+                # Update protocol status to 'processing' (not 'extracted' — grounding
+                # happens in the same pipeline, full status set by persist node)
+                protocol = session.get(Protocol, state["protocol_id"])
+                if protocol:
+                    protocol.status = "grounding"
+                    session.add(protocol)
+
+                session.commit()
+
+                # Capture batch_id before session closes (avoids DetachedInstanceError)
+                batch_id = batch.id
+
+            logger.info(
+                "Parsed and persisted CriteriaBatch %s with %d criteria for protocol %s",
+                batch_id,
+                len(entity_items),
+                state["protocol_id"],
+            )
+
+            # Build entities_json for the ground node
+            entities_json = json.dumps(entity_items)
+
+            span.set_outputs({
+                "batch_id": batch_id,
+                "criteria_count": len(entity_items),
+            })
+
+            # Return batch_id, entities_json, and clear pdf_bytes (state size optimization)
             return {
-                "error": "No extraction_json in state — extract node may have failed"
+                "batch_id": batch_id,
+                "entities_json": entities_json,
+                "pdf_bytes": None,  # Clear pdf_bytes — no longer needed after extraction
             }
 
-        # Parse extraction JSON into Pydantic model
-        extraction_result = ExtractionResult.model_validate_json(extraction_json)
-
-        extraction_model = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-
-        with Session(engine) as session:
-            # Create CriteriaBatch
-            batch = CriteriaBatch(
-                protocol_id=state["protocol_id"],
-                status="pending_review",
-                extraction_model=extraction_model,
+        except Exception as e:
+            logger.exception(
+                "Parse failed for protocol %s: %s",
+                state.get("protocol_id", "unknown"),
+                e,
             )
-            session.add(batch)
-            session.flush()  # Get batch.id
-
-            # Create Criteria records and collect entity data
-            entity_items: list[dict[str, Any]] = []
-            for extracted in extraction_result.criteria:
-                raw = extracted.model_dump()
-                criterion = Criteria(
-                    batch_id=batch.id,
-                    criteria_type=raw["criteria_type"],
-                    category=raw.get("category"),
-                    text=raw["text"],
-                    temporal_constraint=raw.get("temporal_constraint"),
-                    conditions=raw.get("conditions"),
-                    numeric_thresholds=raw.get("numeric_thresholds"),
-                    assertion_status=raw.get("assertion_status"),
-                    confidence=raw.get("confidence", 1.0),
-                    source_section=raw.get("source_section"),
-                    page_number=raw.get("page_number"),
-                )
-                session.add(criterion)
-                session.flush()  # Get criterion.id
-
-                # Map category to entity_type for TerminologyRouter
-                category = raw.get("category", "")
-                known_types = {
-                    "Medication", "Condition", "Lab_Value",
-                    "Biomarker", "Procedure",
-                }
-                entity_type = (
-                    category if category in known_types
-                    else "Condition"
-                )
-
-                # Collect entity-relevant data for the ground node
-                entity_items.append({
-                    "criterion_id": criterion.id,
-                    "text": raw["text"],
-                    "criteria_type": raw["criteria_type"],
-                    "category": raw.get("category"),
-                    "entity_type": entity_type,
-                })
-
-            # Update protocol status to 'processing' (not 'extracted' — grounding
-            # happens in the same pipeline, full status set by persist node)
-            protocol = session.get(Protocol, state["protocol_id"])
-            if protocol:
-                protocol.status = "grounding"
-                session.add(protocol)
-
-            session.commit()
-
-            # Capture batch_id before session closes (avoids DetachedInstanceError)
-            batch_id = batch.id
-
-        logger.info(
-            "Parsed and persisted CriteriaBatch %s with %d criteria for protocol %s",
-            batch_id,
-            len(entity_items),
-            state["protocol_id"],
-        )
-
-        # Build entities_json for the ground node
-        entities_json = json.dumps(entity_items)
-
-        # Return batch_id, entities_json, and clear pdf_bytes (state size optimization)
-        return {
-            "batch_id": batch_id,
-            "entities_json": entities_json,
-            "pdf_bytes": None,  # Clear pdf_bytes — no longer needed after extraction
-        }
-
-    except Exception as e:
-        logger.exception(
-            "Parse failed for protocol %s: %s",
-            state.get("protocol_id", "unknown"),
-            e,
-        )
-        return {"error": f"Parse failed: {e}"}
+            span.set_outputs({"error": str(e)})
+            return {"error": f"Parse failed: {e}"}

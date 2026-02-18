@@ -274,111 +274,124 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
     Returns:
         Dict with status='completed' or status='failed' on total failure.
     """
+    from protocol_processor.tracing import pipeline_span
+
     if state.get("error"):
         return {}
 
-    try:
-        grounded_json = state.get("grounded_entities_json")
-        if not grounded_json:
-            logger.warning(
-                "No grounded_entities_json in state for protocol %s",
-                state.get("protocol_id"),
-            )
-            return {"status": "completed"}
+    with pipeline_span("persist_node") as span:
+        span.set_inputs({"protocol_id": state.get("protocol_id", "")})
 
-        grounding_results: list[dict[str, Any]] = json.loads(grounded_json)
-        protocol_id = state["protocol_id"]
-        batch_id = state.get("batch_id")
-        accumulated_errors = state.get("errors") or []
+        try:
+            grounded_json = state.get("grounded_entities_json")
+            if not grounded_json:
+                logger.warning(
+                    "No grounded_entities_json in state for protocol %s",
+                    state.get("protocol_id"),
+                )
+                span.set_outputs({"status": "completed", "note": "no grounded entities"})
+                return {"status": "completed"}
 
-        logger.info(
-            "Persisting %d grounding results for protocol %s (batch %s)",
-            len(grounding_results),
-            protocol_id,
-            batch_id[:12] if batch_id else "none",
-        )
+            grounding_results: list[dict[str, Any]] = json.loads(grounded_json)
+            protocol_id = state["protocol_id"]
+            batch_id = state.get("batch_id")
+            accumulated_errors = state.get("errors") or []
 
-        # Total failure: zero successes AND errors accumulated
-        successful = [r for r in grounding_results if r.get("selected_code")]
-        all_failed = (
-            len(grounding_results) > 0
-            and len(successful) == 0
-            and len(accumulated_errors) > 0
-        )
-
-        with Session(engine) as session:
-            entity_ids = _persist_entities(session, grounding_results, batch_id)
-            _update_batch_and_protocol(
-                session,
-                batch_id,
-                protocol_id,
-                all_failed,
+            logger.info(
+                "Persisting %d grounding results for protocol %s (batch %s)",
                 len(grounding_results),
+                protocol_id,
+                batch_id[:12] if batch_id else "none",
+            )
+
+            # Total failure: zero successes AND errors accumulated
+            successful = [r for r in grounding_results if r.get("selected_code")]
+            all_failed = (
+                len(grounding_results) > 0
+                and len(successful) == 0
+                and len(accumulated_errors) > 0
+            )
+
+            with Session(engine) as session:
+                entity_ids = _persist_entities(session, grounding_results, batch_id)
+                _update_batch_and_protocol(
+                    session,
+                    batch_id,
+                    protocol_id,
+                    all_failed,
+                    len(grounding_results),
+                    len(accumulated_errors),
+                )
+                session.commit()
+
+            # Apply review inheritance if this is a re-extraction run
+            archived_reviewed = state.get("archived_reviewed_criteria")
+            if archived_reviewed and protocol_id:
+                try:
+                    with Session(engine) as inheritance_session:
+                        _apply_review_inheritance(
+                            inheritance_session,
+                            protocol_id,
+                            archived_reviewed,
+                        )
+                    logger.info(
+                        "Applied review inheritance for protocol %s"
+                        " (%d archived criteria)",
+                        protocol_id,
+                        len(archived_reviewed),
+                    )
+                except Exception as e:
+                    # Review inheritance failure should not block
+                    logger.warning(
+                        "Review inheritance failed for protocol"
+                        " %s: %s",
+                        protocol_id,
+                        e,
+                    )
+
+            final_status = "grounding_failed" if all_failed else "pending_review"
+            logger.info(
+                "Persist node complete for protocol %s: %d entities persisted,"
+                " status=%s (accumulated_errors=%d)",
+                protocol_id,
+                len(entity_ids),
+                final_status,
                 len(accumulated_errors),
             )
-            session.commit()
 
-        # Apply review inheritance if this is a re-extraction run
-        archived_reviewed = state.get("archived_reviewed_criteria")
-        if archived_reviewed and protocol_id:
-            try:
-                with Session(engine) as inheritance_session:
-                    _apply_review_inheritance(
-                        inheritance_session,
-                        protocol_id,
-                        archived_reviewed,
-                    )
-                logger.info(
-                    "Applied review inheritance for protocol %s"
-                    " (%d archived criteria)",
-                    protocol_id,
-                    len(archived_reviewed),
-                )
-            except Exception as e:
-                # Review inheritance failure should not block
-                logger.warning(
-                    "Review inheritance failed for protocol"
-                    " %s: %s",
-                    protocol_id,
-                    e,
-                )
+            span.set_outputs({
+                "entities_persisted": len(entity_ids),
+                "status": final_status,
+                "error_count": len(accumulated_errors),
+            })
 
-        final_status = "grounding_failed" if all_failed else "pending_review"
-        logger.info(
-            "Persist node complete for protocol %s: %d entities persisted,"
-            " status=%s (accumulated_errors=%d)",
-            protocol_id,
-            len(entity_ids),
-            final_status,
-            len(accumulated_errors),
-        )
+            if all_failed:
+                return {"status": "failed", "error": "All entities failed grounding"}
+            return {"status": "completed"}
 
-        if all_failed:
-            return {"status": "failed", "error": "All entities failed grounding"}
-        return {"status": "completed"}
-
-    except Exception as e:
-        logger.exception(
-            "Persist node failed for protocol %s: %s",
-            state.get("protocol_id", "unknown"),
-            e,
-        )
-        # On persist failure, try to mark protocol as grounding_failed
-        try:
-            protocol_id = state.get("protocol_id")
-            if protocol_id:
-                with Session(engine) as session:
-                    protocol = session.get(Protocol, protocol_id)
-                    if protocol:
-                        protocol.status = "grounding_failed"
-                        protocol.error_reason = (
-                            f"Persist failed: {type(e).__name__}"
-                        )
-                        session.add(protocol)
-                        session.commit()
-        except Exception:
+        except Exception as e:
             logger.exception(
-                "Failed to update protocol status after persist failure"
+                "Persist node failed for protocol %s: %s",
+                state.get("protocol_id", "unknown"),
+                e,
             )
+            span.set_outputs({"error": str(e)})
+            # On persist failure, try to mark protocol as grounding_failed
+            try:
+                protocol_id = state.get("protocol_id")
+                if protocol_id:
+                    with Session(engine) as session:
+                        protocol = session.get(Protocol, protocol_id)
+                        if protocol:
+                            protocol.status = "grounding_failed"
+                            protocol.error_reason = (
+                                f"Persist failed: {type(e).__name__}"
+                            )
+                            session.add(protocol)
+                            session.commit()
+            except Exception:
+                logger.exception(
+                    "Failed to update protocol status after persist failure"
+                )
 
-        return {"error": f"Persist node failed: {e}"}
+            return {"error": f"Persist node failed: {e}"}
