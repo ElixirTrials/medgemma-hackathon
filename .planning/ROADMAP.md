@@ -705,7 +705,7 @@ Waves: 29 -> [30 || 31] -> 32 -> 33 -> 34 -> 35
 | 39. Bug Catalog | v2.1 | 0/1 | Planned | - |
 | 40. Legacy Cleanup & ToolUniverse Grounding | 2/2 | Complete   | 2026-02-17 | - |
 | 41. Entity Decomposition & Docker GCP Credentials | v2.1 | 0/2 | Planned | - |
-| 42. Pipeline Stability & UMLS Resilience | v2.1 | 0/1 | Planned | - |
+| 42. Pipeline Stability & UMLS Resilience | v2.1 | 0/2 | Planned | - |
 | 43. Dashboard & Protocol List UX | v2.1 | 0/1 | Planned | - |
 
 ---
@@ -804,10 +804,11 @@ Plans:
   2. UMLS search validates queries client-side (rejects numeric-only, too-short, sentence-length queries) — eliminates 422 errors
   3. UMLS search retries on 502/503 with exponential backoff (max 3 attempts) and circuit breaker (10 failures → 60s cooldown)
   4. Upload directory persisted via Docker named volume across container restarts
-**Plans**: 1 plan
+**Plans**: 2 plans
 
 Plans:
-- [ ] 42-01-PLAN.md — MLflow trace leak fix + UMLS query validation/retry/circuit breaker + upload volume mount
+- [ ] 42-01-PLAN.md — MLflow trace leak fix + upload volume persistence with SHA-256 dedup
+- [ ] 42-02-PLAN.md — ToolUniverse retry/circuit breaker + frontend query validation and circuit-open indicator
 
 ### Phase 43: Dashboard & Protocol List UX
 **Goal**: Wire dashboard recent activity feed, deduplicate protocol list, and add retry/archive actions for dead letter protocols
