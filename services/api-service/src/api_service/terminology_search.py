@@ -17,9 +17,9 @@ import logging
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import JSONResponse
-from protocol_processor.tools.tooluniverse_client import (
-    search_terminology as tu_search,
-)
+from protocol_processor.tools.tooluniverse_client import ToolUniverseError
+from protocol_processor.tools.tooluniverse_client import search_terminology as tu_search
+from pybreaker import CircuitBreakerError
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -115,6 +115,23 @@ async def search_terminology(
 
     except HTTPException:
         raise
+    except CircuitBreakerError:
+        logger.warning("Circuit breaker open — returning 503 for %s search", system)
+        raise HTTPException(
+            status_code=503,
+            detail="Terminology search temporarily unavailable",
+        )
+    except ToolUniverseError as exc:
+        logger.error(
+            "ToolUniverse error for system=%s query='%s': %s",
+            system,
+            q,
+            exc,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Terminology search failed for {system}",
+        ) from exc
     except Exception as exc:
         logger.error(
             "Terminology search failed system=%s query='%s': %s",
