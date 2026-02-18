@@ -3,7 +3,7 @@
   "checkpoint_id": "a0a6799b358d",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/nodes/persist.py"
   ],
@@ -14,13 +14,20 @@
       "context": "/a0/a6799b358d/0/context.md",
       "content_hash": "/a0/a6799b358d/0/content_hash.txt",
       "prompt": "/a0/a6799b358d/0/prompt.txt"
+    },
+    {
+      "metadata": "/a0/a6799b358d/1/metadata.json",
+      "transcript": "/a0/a6799b358d/1/full.jsonl",
+      "context": "/a0/a6799b358d/1/context.md",
+      "content_hash": "/a0/a6799b358d/1/content_hash.txt",
+      "prompt": "/a0/a6799b358d/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 106,
-    "cache_creation_tokens": 123774,
-    "cache_read_tokens": 10213105,
-    "output_tokens": 7613,
-    "api_call_count": 98
+    "input_tokens": 149,
+    "cache_creation_tokens": 257371,
+    "cache_read_tokens": 13355533,
+    "output_tokens": 14056,
+    "api_call_count": 131
   }
 }
