@@ -3,7 +3,7 @@
   "checkpoint_id": "2eba8a2920e1",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/trigger.py"
   ],
@@ -28,13 +28,20 @@
       "context": "/2e/ba8a2920e1/2/context.md",
       "content_hash": "/2e/ba8a2920e1/2/content_hash.txt",
       "prompt": "/2e/ba8a2920e1/2/prompt.txt"
+    },
+    {
+      "metadata": "/2e/ba8a2920e1/3/metadata.json",
+      "transcript": "/2e/ba8a2920e1/3/full.jsonl",
+      "context": "/2e/ba8a2920e1/3/context.md",
+      "content_hash": "/2e/ba8a2920e1/3/content_hash.txt",
+      "prompt": "/2e/ba8a2920e1/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2590,
-    "cache_creation_tokens": 956871,
-    "cache_read_tokens": 39417432,
-    "output_tokens": 45180,
-    "api_call_count": 427
+    "input_tokens": 2671,
+    "cache_creation_tokens": 1102287,
+    "cache_read_tokens": 44993939,
+    "output_tokens": 55851,
+    "api_call_count": 498
   }
 }
