@@ -704,6 +704,9 @@ Waves: 29 -> [30 || 31] -> 32 -> 33 -> 34 -> 35
 | 38. Quality Evaluation Script | v2.1 | 0/2 | Planned | - |
 | 39. Bug Catalog | v2.1 | 0/1 | Planned | - |
 | 40. Legacy Cleanup & ToolUniverse Grounding | 2/2 | Complete   | 2026-02-17 | - |
+| 41. Entity Decomposition & Docker GCP Credentials | v2.1 | 0/2 | Planned | - |
+| 42. Pipeline Stability & UMLS Resilience | v2.1 | 0/1 | Planned | - |
+| 43. Dashboard & Protocol List UX | v2.1 | 0/1 | Planned | - |
 
 ---
 
@@ -774,6 +777,52 @@ Plans:
 - [ ] 40-01-PLAN.md — Delete legacy services + integrate ToolUniverse SDK + rewrite endpoints/tests + MedGemma agentic loop
 - [ ] 40-02-PLAN.md — End-to-end verification: live grounding codes + autocomplete + agentic loop + human checkpoint
 
+### Phase 41: Entity Decomposition & Docker GCP Credentials
+**Goal**: Fix the critical grounding pipeline: decompose full criterion sentences into discrete medical entities with correct types, and configure GCP credentials in Docker so MedGemma auth succeeds
+**Depends on**: Phase 40 (ToolUniverse grounding must be in place)
+**Requirements**: FIX-B3, FIX-B4, FIX-B5, FIX-B12
+**Gap Closure:** Closes gaps B3, B4, B5, B12 from E2E Test Report 2026-02-18
+**Success Criteria** (what must be TRUE):
+  1. Parse node decomposes each criterion into discrete medical entities (e.g., "eGFR" not "The patient must have eGFR ≥ 30 mL/min") via a Gemini entity-decomposition prompt
+  2. Entities have correct types (Medication, Condition, Lab, Procedure, Demographic) — not all "Condition"
+  3. Docker Compose mounts GCP service account credentials and sets GOOGLE_APPLICATION_CREDENTIALS for MedGemma/Vertex AI
+  4. MedGemma auth failure falls back gracefully to best UMLS candidate (not 186s retry timeout)
+  5. Re-running pipeline on test PDF produces entities with non-zero grounding confidence and real terminology codes
+**Plans**: 2 plans
+
+Plans:
+- [ ] 41-01-PLAN.md — Entity decomposition prompt + parse node integration + entity type mapping
+- [ ] 41-02-PLAN.md — Docker GCP credential mount + MedGemma auth fallback + end-to-end verification
+
+### Phase 42: Pipeline Stability & UMLS Resilience
+**Goal**: Fix MLflow trace leaks, add UMLS search resilience (validation + retry + circuit breaker), and persist upload directory across container restarts
+**Depends on**: Phase 41 (grounding must work before optimizing stability)
+**Requirements**: FIX-B14, FIX-B15, FIX-B13
+**Gap Closure:** Closes gaps B14, B15, B13 from E2E Test Report 2026-02-18
+**Success Criteria** (what must be TRUE):
+  1. MLflow traces are never stuck IN_PROGRESS: MLFLOW_TRACE_TIMEOUT_SECONDS set + try/finally span closure in trigger.py
+  2. UMLS search validates queries client-side (rejects numeric-only, too-short, sentence-length queries) — eliminates 422 errors
+  3. UMLS search retries on 502/503 with exponential backoff (max 3 attempts) and circuit breaker (10 failures → 60s cooldown)
+  4. Upload directory persisted via Docker named volume across container restarts
+**Plans**: 1 plan
+
+Plans:
+- [ ] 42-01-PLAN.md — MLflow trace leak fix + UMLS query validation/retry/circuit breaker + upload volume mount
+
+### Phase 43: Dashboard & Protocol List UX
+**Goal**: Wire dashboard recent activity feed, deduplicate protocol list, and add retry/archive actions for dead letter protocols
+**Depends on**: Nothing (independent UX fixes)
+**Requirements**: FIX-B7, FIX-B6, FIX-B8
+**Gap Closure:** Closes gaps B7, B6, B8 from E2E Test Report 2026-02-18
+**Success Criteria** (what must be TRUE):
+  1. Dashboard Recent Activity shows last 20 audit log entries (review actions, pipeline completions)
+  2. Protocol list deduplicates re-uploaded protocols (show latest version, expandable version history)
+  3. Dead Letter protocols have Retry and Archive action buttons in the UI
+**Plans**: 1 plan
+
+Plans:
+- [ ] 43-01-PLAN.md — Dashboard activity feed + protocol dedup + dead letter retry/archive endpoints and UI
+
 ### v2.1 Dependency Graph
 ```
 Phase 36 (E2E Test Infrastructure)
@@ -783,6 +832,10 @@ Phase 38 (Quality Evaluation Script)  [independent]
     └── Phase 39 (Bug Catalog)
 
 Phase 40 (Legacy Cleanup & ToolUniverse Grounding)  [independent]
+    └── Phase 41 (Entity Decomposition & Docker GCP Credentials)
+            └── Phase 42 (Pipeline Stability & UMLS Resilience)
+
+Phase 43 (Dashboard & Protocol List UX)  [independent]
 ```
 
-Tracks: [36 -> 37] || [38 -> 39] || [40]
+Tracks: [36 -> 37] || [38 -> 39] || [40 -> 41 -> 42] || [43]
