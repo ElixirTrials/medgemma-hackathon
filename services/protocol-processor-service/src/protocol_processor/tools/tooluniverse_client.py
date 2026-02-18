@@ -10,6 +10,9 @@ Architecture:
 - Two-layer cache: exact-match TTLCache + prefix-aware autocomplete cache
 - Selective tool loading (5 categories, ~18 tools) rather than all 1495
 - Response parsing handles each system's unique return format
+- Retry on transient 502/503 errors (3 attempts, exponential backoff)
+- Circuit breaker trips after 10 consecutive failures (60s cooldown)
+- Sentence-length queries pre-processed to extract medical terms
 
 Caching strategy for autocomplete:
   Typing "hyp" → "hype" → "hyper" used to make 3 API calls (different keys).
@@ -27,15 +30,82 @@ See 40-RESEARCH.md for tool names, response formats, and latency info.
 from __future__ import annotations
 
 import logging
+import re
 from functools import lru_cache
 from typing import Any
 
+import pybreaker
 from cachetools import TTLCache
+from shared.resilience import tu_breaker
+from tenacity import (
+    before_sleep_log,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential,
+)
 from tooluniverse import ToolUniverse
 
 from protocol_processor.schemas.grounding import GroundingCandidate
 
 logger = logging.getLogger(__name__)
+
+
+class ToolUniverseError(Exception):
+    """ToolUniverse returned an error dict response."""
+
+    pass
+
+
+class ToolUniverseUnavailableError(ToolUniverseError):
+    """Transient 502/503 error — eligible for retry."""
+
+    pass
+
+
+# Sentence extraction thresholds
+_SENTENCE_WORD_THRESHOLD = 4
+_SENTENCE_CHAR_THRESHOLD = 40
+
+# Regex to strip clinical preamble from sentence-length queries before search.
+# Matches common patterns like "patients must have", "history of", "diagnosis of", etc.
+_PREAMBLE_PATTERN = re.compile(
+    r"^(?:patient(?:s)?\s+(?:must|should|may|with|who|have|has|had|are|is)\s+"
+    r"|(?:has|have|had|is|are|must|should|may)\s+(?:a|an|the|confirmed|known|documented|active|history\s+of)\s+"
+    r"|(?:history\s+of|presence\s+of|absence\s+of|diagnosis\s+of)\s+)",
+    re.IGNORECASE,
+)
+
+
+def _extract_term_from_sentence(query: str) -> str:
+    """Extract medical term from sentence-length query.
+
+    Sentence-length queries (>= 4 words or >= 40 chars) are pre-processed
+    to remove clinical preamble before searching. This prevents 422 errors
+    from APIs that don't accept full sentences as search terms.
+
+    Args:
+        query: Raw query string from user or pipeline.
+
+    Returns:
+        Extracted medical term, or original query if it's short.
+    """
+    stripped = query.strip()
+    word_count = len(stripped.split())
+    too_short = (
+        word_count < _SENTENCE_WORD_THRESHOLD
+        or len(stripped) < _SENTENCE_CHAR_THRESHOLD
+    )
+    if too_short:
+        return stripped
+    cleaned = _PREAMBLE_PATTERN.sub("", stripped).strip()
+    if cleaned and cleaned != stripped and len(cleaned) >= 3:
+        logger.debug("Extracted term '%s' from sentence '%s'", cleaned, stripped[:60])
+        return cleaned
+    # Fallback: take last 4 words as the medical term
+    words = stripped.split()
+    return " ".join(words[-min(4, len(words)):])
+
 
 # Tool categories to load (subset of 1495 total tools — only medical terminology)
 _TOOL_CATEGORIES = ["umls", "icd", "loinc", "rxnorm", "hpo"]
@@ -94,11 +164,15 @@ def _check_prefix_cache(
     Returns:
         Filtered candidate list if a prefix match was found, None otherwise.
     """
-    for (cached_tool, cached_query, cached_max), cached_candidates in list(_CACHE.items()):
+    for (cached_tool, cached_query, cached_max), cached_candidates in list(
+        _CACHE.items()
+    ):
         if cached_tool != tool_name or cached_max != max_results:
             continue
         # Check if cached query is a prefix of the new query
-        if not normalized_query.startswith(cached_query) or cached_query == normalized_query:
+        starts_with = normalized_query.startswith(cached_query)
+        is_prefix = starts_with and cached_query != normalized_query
+        if not is_prefix:
             continue
 
         # Filter cached results: keep candidates whose preferred_term
@@ -155,6 +229,10 @@ async def search_terminology(
         logger.warning("Unknown terminology system requested: '%s'", system)
         return []
 
+    # Pre-process sentence-length queries to extract medical terms.
+    # This prevents 422 errors caused by submitting full sentences to term search APIs.
+    query = _extract_term_from_sentence(query)
+
     normalized_query = query.strip().lower()
     cache_key = (tool_name, normalized_query, max_results)
 
@@ -173,7 +251,22 @@ async def search_terminology(
             return prefix_result
 
     tu = _get_tu()
-    raw = await _call_tool(tu, system, tool_name, query, max_results)
+    try:
+        raw = await _call_tool_with_resilience(
+            tu, system, tool_name, query, max_results
+        )
+    except pybreaker.CircuitBreakerError:
+        logger.warning(
+            "Circuit breaker open for ToolUniverse — returning cached/empty for '%s'",
+            query,
+        )
+        # Return cached results if available (TTLCache may still have them)
+        if use_cache and cache_key in _CACHE:
+            return _CACHE[cache_key]
+        return []
+    except ToolUniverseError as e:
+        logger.warning("ToolUniverse error for '%s': %s", query, e)
+        return []
     candidates = _parse_result(system, tool_name, query, raw)
 
     if use_cache:
@@ -188,14 +281,14 @@ async def search_terminology(
     return candidates
 
 
-async def _call_tool(
+async def _call_tool_raw(
     tu: ToolUniverse,
     system: str,
     tool_name: str,
     query: str,
     max_results: int,
 ) -> dict[str, Any]:
-    """Execute a single ToolUniverse tool call.
+    """Execute a single ToolUniverse tool call (raw, no retry/circuit breaker).
 
     Constructs the correct argument dict per system's tool specification
     and calls tu.run(). Returns {} on any exception.
@@ -230,6 +323,58 @@ async def _call_tool(
     except Exception:
         logger.exception("ToolUniverse %s failed for query '%s'", tool_name, query)
         return {}
+
+
+@tu_breaker
+@retry(
+    retry=retry_if_exception_type(ToolUniverseUnavailableError),
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+async def _call_tool_with_resilience(
+    tu: ToolUniverse,
+    system: str,
+    tool_name: str,
+    query: str,
+    max_results: int,
+) -> dict[str, Any]:
+    """Call ToolUniverse with retry on transient errors and circuit breaker.
+
+    Decorator order: @tu_breaker (outer) wraps @retry (inner). This means
+    tenacity retries up to 3 times before counting as 1 circuit breaker failure.
+
+    ToolUniverse SDK catches HTTP exceptions internally and returns error dicts
+    instead of raising. This function detects those error dicts and converts
+    them to typed exceptions for retry/breaker interception.
+
+    Args:
+        tu: ToolUniverse singleton instance.
+        system: System identifier for argument construction.
+        tool_name: ToolUniverse tool name to call.
+        query: Search term (already extracted from sentence if needed).
+        max_results: Max results to request.
+
+    Returns:
+        Raw response dict from ToolUniverse.
+
+    Raises:
+        ToolUniverseUnavailableError: On 502/503/timeout — triggers retry.
+        ToolUniverseError: On other non-transient errors — no retry.
+    """
+    raw = await _call_tool_raw(tu, system, tool_name, query, max_results)
+
+    # Detect error dict: ToolUniverse catches HTTP exceptions internally
+    # and returns {"error": "..."} dicts instead of raising.
+    if isinstance(raw, dict) and "error" in raw:
+        error_msg = str(raw["error"])
+        transient_markers = ("502", "503", "Service Unavailable", "timeout", "Timeout")
+        if any(s in error_msg for s in transient_markers):
+            raise ToolUniverseUnavailableError(f"Transient error: {error_msg}")
+        raise ToolUniverseError(f"Non-transient error: {error_msg}")
+
+    return raw
 
 
 def _parse_result(  # noqa: C901
