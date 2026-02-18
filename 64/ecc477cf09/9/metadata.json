@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "64ecc477cf09",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T17:48:52.415363Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".planning/ROADMAP.md",
+    ".planning/phases/44-quality-report-fix-traceability/44-01-PLAN.md",
+    ".planning/phases/44-quality-report-fix-traceability/44-02-PLAN.md",
+    ".planning/phases/44-quality-report-fix-traceability/44-03-PLAN.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f2ad094002d5",
+  "checkpoint_transcript_start": 5,
+  "transcript_lines_at_start": 5,
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T17:48:52.408323Z",
+    "agent_lines": 127,
+    "human_added": 269,
+    "human_modified": 369,
+    "human_removed": 0,
+    "total_committed": 765,
+    "agent_percentage": 16.60130718954248
+  }
+}
