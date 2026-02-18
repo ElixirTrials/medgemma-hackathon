@@ -64,7 +64,7 @@ def _get_tu() -> ToolUniverse:
     return tu
 
 
-def search_terminology(
+async def search_terminology(
     system: str,
     query: str,
     max_results: int = 10,
@@ -103,7 +103,7 @@ def search_terminology(
         return _CACHE[cache_key]
 
     tu = _get_tu()
-    raw = _call_tool(tu, system, tool_name, query, max_results)
+    raw = await _call_tool(tu, system, tool_name, query, max_results)
     candidates = _parse_result(system, tool_name, query, raw)
 
     if use_cache:
@@ -118,7 +118,7 @@ def search_terminology(
     return candidates
 
 
-def _call_tool(
+async def _call_tool(
     tu: ToolUniverse,
     system: str,
     tool_name: str,
@@ -156,7 +156,7 @@ def _call_tool(
         return {}
 
     try:
-        return tu.run({"name": tool_name, "arguments": args})  # type: ignore[return-value]
+        return await tu.run({"name": tool_name, "arguments": args})  # type: ignore[return-value]
     except Exception:
         logger.exception("ToolUniverse %s failed for query '%s'", tool_name, query)
         return {}

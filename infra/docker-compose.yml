@@ -62,6 +62,7 @@ services:
       --port 5000
       --backend-store-uri sqlite:///mlflow/mlflow.db
       --artifacts-destination /mlflow/artifacts
+      --allowed-hosts "mlflow,mlflow:5000,localhost,localhost:5000,localhost:5001,*"
     volumes:
       - mlflow_data:/mlflow
     healthcheck:
