@@ -3,7 +3,7 @@
   "checkpoint_id": "612cfadc9283",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "infra/docker-compose.yml",
     "services/api-service/src/api_service/gcs.py"
@@ -15,13 +15,20 @@
       "context": "/61/2cfadc9283/0/context.md",
       "content_hash": "/61/2cfadc9283/0/content_hash.txt",
       "prompt": "/61/2cfadc9283/0/prompt.txt"
+    },
+    {
+      "metadata": "/61/2cfadc9283/1/metadata.json",
+      "transcript": "/61/2cfadc9283/1/full.jsonl",
+      "context": "/61/2cfadc9283/1/context.md",
+      "content_hash": "/61/2cfadc9283/1/content_hash.txt",
+      "prompt": "/61/2cfadc9283/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 105,
-    "cache_creation_tokens": 123337,
-    "cache_read_tokens": 10068894,
-    "output_tokens": 7612,
-    "api_call_count": 97
+    "input_tokens": 157,
+    "cache_creation_tokens": 262885,
+    "cache_read_tokens": 15436120,
+    "output_tokens": 14680,
+    "api_call_count": 143
   }
 }
