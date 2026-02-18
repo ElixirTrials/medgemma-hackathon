@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d6b007990b82",
+  "session_id": "8000ab07-b7ed-4807-9480-552b38ab70a2",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T09:03:36.889158Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py",
+    ".claude/settings.json",
+    "services/protocol-processor-service/pyproject.toml",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ingest.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/terminology_router.py",
+    "services/protocol-processor-service/src/protocol_processor/tracing.py",
+    ".entire/settings.json",
+    "infra/docker-compose.yml",
+    "services/api-service/Dockerfile",
+    "services/api-service/alembic/versions/40_01_add_entity_grounding_columns.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/extract.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "0526b0f097e4",
+  "token_usage": {
+    "input_tokens": 2378,
+    "cache_creation_tokens": 494080,
+    "cache_read_tokens": 22790385,
+    "output_tokens": 18591,
+    "api_call_count": 252
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T09:03:36.166494Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 579,
+    "human_removed": 7185,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/8000ab07-b7ed-4807-9480-552b38ab70a2.jsonl"
+}
