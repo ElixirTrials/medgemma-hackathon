@@ -28,7 +28,7 @@ export function useTerminologySearch(
     useEffect(() => {
         const timeout = setTimeout(() => {
             setDebouncedQuery(query);
-        }, 300);
+        }, 150);
 
         return () => {
             clearTimeout(timeout);

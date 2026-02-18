@@ -303,7 +303,7 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                 entity_text = entity.get("text", "")
                 entity_type = entity.get("entity_type", "")
                 criterion_id = entity.get("criterion_id", "")
-                criterion_text = entity.get("text", "")  # Use criterion text as context
+                criterion_text = entity.get("criterion_text") or entity.get("text", "")
 
                 logger.info(
                     "Grounding entity %d/%d: '%s' (type=%s, criterion=%s)",

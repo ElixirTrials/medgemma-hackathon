@@ -17,6 +17,7 @@ for workflow orchestration nodes.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -28,6 +29,7 @@ from sqlmodel import Session
 
 from protocol_processor.schemas.extraction import ExtractionResult
 from protocol_processor.state import PipelineState
+from protocol_processor.tools.entity_decomposer import decompose_entities_from_criterion
 from protocol_processor.tracing import pipeline_span
 
 logger = logging.getLogger(__name__)
@@ -66,6 +68,10 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
 
             extraction_model = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
+            # Phase A: Persist criteria to DB and collect raw data
+            criteria_raws: list[dict[str, Any]] = []
+            criterion_ids: list[str] = []
+
             with Session(engine) as session:
                 # Create CriteriaBatch
                 batch = CriteriaBatch(
@@ -76,8 +82,7 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
                 session.add(batch)
                 session.flush()  # Get batch.id
 
-                # Create Criteria records and collect entity data
-                entity_items: list[dict[str, Any]] = []
+                # Create Criteria records and collect raw data for decomposition
                 for extracted in extraction_result.criteria:
                     raw = extracted.model_dump()
                     criterion = Criteria(
@@ -96,25 +101,8 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
                     session.add(criterion)
                     session.flush()  # Get criterion.id
 
-                    # Map category to entity_type for TerminologyRouter
-                    category = raw.get("category", "")
-                    known_types = {
-                        "Medication", "Condition", "Lab_Value",
-                        "Biomarker", "Procedure",
-                    }
-                    entity_type = (
-                        category if category in known_types
-                        else "Condition"
-                    )
-
-                    # Collect entity-relevant data for the ground node
-                    entity_items.append({
-                        "criterion_id": criterion.id,
-                        "text": raw["text"],
-                        "criteria_type": raw["criteria_type"],
-                        "category": raw.get("category"),
-                        "entity_type": entity_type,
-                    })
+                    criteria_raws.append(raw)
+                    criterion_ids.append(criterion.id)
 
                 # Update protocol status to 'processing' (not 'extracted' — grounding
                 # happens in the same pipeline, full status set by persist node)
@@ -128,9 +116,49 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
                 # Capture batch_id before session closes (avoids DetachedInstanceError)
                 batch_id = batch.id
 
+            # Phase B: Decompose criteria into discrete medical entities concurrently
+            # Runs OUTSIDE DB session — async LLM calls shouldn't hold sessions open
+            decompose_tasks = [
+                decompose_entities_from_criterion(raw["text"], raw.get("category"))
+                for raw in criteria_raws
+            ]
+            decomposed_results = await asyncio.gather(*decompose_tasks)
+
+            # Build entity_items from decomposition results
+            entity_items: list[dict[str, Any]] = []
+            for raw, cid, decomposed in zip(
+                criteria_raws, criterion_ids, decomposed_results
+            ):
+                if decomposed:
+                    for ent in decomposed:
+                        entity_items.append({
+                            "criterion_id": cid,
+                            "text": ent["text"],
+                            "entity_type": ent["entity_type"],
+                            "criterion_text": raw["text"],
+                            "criteria_type": raw["criteria_type"],
+                        })
+                else:
+                    # Fallback: category-based type mapping with full text
+                    category = raw.get("category", "")
+                    fallback_type = {
+                        "medications": "Medication",
+                        "lab_values": "Lab_Value",
+                        "procedures": "Procedure",
+                        "demographics": "Demographic",
+                    }.get(category, "Condition")
+                    entity_items.append({
+                        "criterion_id": cid,
+                        "text": raw["text"],
+                        "entity_type": fallback_type,
+                        "criterion_text": raw["text"],
+                        "criteria_type": raw["criteria_type"],
+                    })
+
             logger.info(
-                "Parsed and persisted CriteriaBatch %s with %d criteria for protocol %s",
+                "Parsed CriteriaBatch %s: %d criteria -> %d entities for protocol %s",
                 batch_id,
+                len(criteria_raws),
                 len(entity_items),
                 state["protocol_id"],
             )

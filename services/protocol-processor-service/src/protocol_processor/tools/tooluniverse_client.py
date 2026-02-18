@@ -7,9 +7,16 @@ systems: UMLS, SNOMED, ICD-10, LOINC, RxNorm, HPO.
 
 Architecture:
 - Singleton via @lru_cache(maxsize=1) on _get_tu()
-- In-memory TTLCache keyed on (tool_name, normalized_query, max_results)
+- Two-layer cache: exact-match TTLCache + prefix-aware autocomplete cache
 - Selective tool loading (5 categories, ~18 tools) rather than all 1495
 - Response parsing handles each system's unique return format
+
+Caching strategy for autocomplete:
+  Typing "hyp" → "hype" → "hyper" used to make 3 API calls (different keys).
+  Now the prefix cache checks: if we already have results for "hyp" and the
+  new query "hype" starts with "hyp", we filter the cached "hyp" results
+  client-side by checking if preferred_term contains "hype". This avoids
+  redundant API calls for progressive typing.
 
 Per user decision: ToolUniverse SDK for all 6 terminology systems (UMLS,
 SNOMED, RxNorm, ICD-10, LOINC, HPO) — single SDK, single dependency.
@@ -64,6 +71,62 @@ def _get_tu() -> ToolUniverse:
     return tu
 
 
+def _check_prefix_cache(
+    tool_name: str,
+    normalized_query: str,
+    max_results: int,
+) -> list[GroundingCandidate] | None:
+    """Check if a shorter (prefix) query is cached and filter its results.
+
+    For autocomplete: if the user typed "hyp" and we cached results, then
+    typing "hype" can reuse those results by filtering on preferred_term.
+
+    We only reuse when the cached shorter query returned fewer results than
+    max_results (meaning the API exhausted all matches — a longer query
+    can only produce a subset) OR when we can filter the cached results
+    to find matches containing the longer query.
+
+    Args:
+        tool_name: ToolUniverse tool name (cache key component).
+        normalized_query: Current query, stripped and lowered.
+        max_results: Max results requested.
+
+    Returns:
+        Filtered candidate list if a prefix match was found, None otherwise.
+    """
+    for (cached_tool, cached_query, cached_max), cached_candidates in list(_CACHE.items()):
+        if cached_tool != tool_name or cached_max != max_results:
+            continue
+        # Check if cached query is a prefix of the new query
+        if not normalized_query.startswith(cached_query) or cached_query == normalized_query:
+            continue
+
+        # Filter cached results: keep candidates whose preferred_term
+        # contains the longer query (case-insensitive)
+        filtered = [
+            c for c in cached_candidates
+            if normalized_query in c.preferred_term.lower()
+        ]
+
+        # If the original shorter query returned fewer than max_results,
+        # the API had no more matches — any longer query is a strict subset.
+        # Safe to return the filtered list even if empty.
+        if len(cached_candidates) < max_results:
+            return filtered
+
+        # If the shorter query returned max_results (truncated), we can still
+        # return filtered results if we got some. But if filtered is empty,
+        # we can't be sure — there might be results the API would return
+        # for the longer query that weren't in the truncated shorter results.
+        if filtered:
+            return filtered
+
+        # Truncated + no filtered matches → must query the API
+        return None
+
+    return None
+
+
 async def search_terminology(
     system: str,
     query: str,
@@ -92,15 +155,22 @@ async def search_terminology(
         logger.warning("Unknown terminology system requested: '%s'", system)
         return []
 
-    cache_key = (tool_name, query.strip().lower(), max_results)
-    if use_cache and cache_key in _CACHE:
-        logger.debug(
-            "Cache hit for %s '%s' (max_results=%d)",
-            system,
-            query,
-            max_results,
-        )
-        return _CACHE[cache_key]
+    normalized_query = query.strip().lower()
+    cache_key = (tool_name, normalized_query, max_results)
+
+    if use_cache:
+        # Layer 1: exact match
+        if cache_key in _CACHE:
+            logger.debug("Cache hit (exact) for %s '%s'", system, query)
+            return _CACHE[cache_key]
+
+        # Layer 2: prefix match — reuse results from a shorter query
+        prefix_result = _check_prefix_cache(tool_name, normalized_query, max_results)
+        if prefix_result is not None:
+            logger.debug("Cache hit (prefix) for %s '%s'", system, query)
+            # Store the filtered result under the exact key too
+            _CACHE[cache_key] = prefix_result
+            return prefix_result
 
     tu = _get_tu()
     raw = await _call_tool(tu, system, tool_name, query, max_results)

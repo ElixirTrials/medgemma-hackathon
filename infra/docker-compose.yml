@@ -12,7 +12,11 @@ services:
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_TRACE_TIMEOUT_SECONDS=300
       - USE_LOCAL_STORAGE=1
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
+    volumes:
+      - ${GOOGLE_ADC_PATH:-~/.config/gcloud/application_default_credentials.json}:/tmp/keys/application_default_credentials.json:ro
     depends_on:
       db:
         condition: service_healthy

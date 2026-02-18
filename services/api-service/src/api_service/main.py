@@ -31,7 +31,6 @@ from api_service.storage import create_db_and_tables, engine  # noqa: E402
 from api_service.terminology_search import (  # noqa: E402
     router as terminology_search_router,
 )
-from api_service.umls_search import router as umls_search_router  # noqa: E402
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -60,7 +59,7 @@ async def lifespan(app: FastAPI):
             mlflow.set_experiment("protocol-processing")
             # Enable LangChain autolog for extraction/grounding agent traces
             try:
-                mlflow.langchain.autolog(log_models=False)
+                mlflow.langchain.autolog()
                 logger.info("MLflow LangChain autolog enabled")
             except Exception:
                 logger.debug("MLflow LangChain autolog failed", exc_info=True)
@@ -151,7 +150,6 @@ app.include_router(protocols_router, dependencies=[Depends(get_current_user)])
 app.include_router(reviews_router, dependencies=[Depends(get_current_user)])
 app.include_router(entities_router, dependencies=[Depends(get_current_user)])
 app.include_router(search_router, dependencies=[Depends(get_current_user)])
-app.include_router(umls_search_router, dependencies=[Depends(get_current_user)])
 app.include_router(terminology_search_router, dependencies=[Depends(get_current_user)])
 app.include_router(integrity_router, dependencies=[Depends(get_current_user)])
 app.include_router(criterion_rerun_router, dependencies=[Depends(get_current_user)])

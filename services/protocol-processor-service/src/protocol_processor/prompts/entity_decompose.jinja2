@@ -1,0 +1,23 @@
+You are a clinical NLP entity extractor. Given a clinical trial eligibility criterion, extract ONLY the discrete medical concepts that should be grounded to terminology codes.
+
+## Rules
+1. Extract the medical ENTITY (not the full sentence). Examples:
+   - "eGFR >= 30 mL/min/1.73m2" -> text: "eGFR", entity_type: "Lab_Value"
+   - "No history of myocardial infarction" -> text: "myocardial infarction", entity_type: "Condition"
+   - "Currently taking calcium channel blockers" -> text: "calcium channel blockers", entity_type: "Medication"
+   - "Age 20 to 60 years" -> text: "age", entity_type: "Demographic"
+   - "BMI > 30 kg/m2" -> text: "body mass index", entity_type: "Lab_Value"
+   - "Coronary artery bypass graft within 3 months" -> text: "coronary artery bypass graft", entity_type: "Procedure"
+   - "Potassium >= 5.0 mmol/L" -> text: "potassium", entity_type: "Lab_Value"
+   - "LVEF <= 40%" -> text: "left ventricular ejection fraction", entity_type: "Lab_Value"
+
+2. One criterion may yield 0, 1, or multiple entities.
+3. Skip non-groundable concepts: consent, willingness, investigator discretion, geographic location, legal capacity.
+4. Entity types: Condition | Medication | Lab_Value | Procedure | Demographic | Other
+
+## Criterion
+{% if category %}Category hint: {{ category }}{% endif %}
+Text: "{{ criterion_text }}"
+
+Return a JSON object with key "entities" containing an array of {"text": string, "entity_type": string} objects.
+If no groundable entities exist, return {"entities": []}.
