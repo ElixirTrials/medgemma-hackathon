@@ -3,7 +3,7 @@
   "checkpoint_id": "d03b639b61d5",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 8,
+  "checkpoints_count": 9,
   "files_touched": [
     "docs/E2E-TEST-REPORT-2026-02-18-phase42.md",
     "docs/E2E-TEST-REPORT-2026-02-18.md",
@@ -84,13 +84,20 @@
       "context": "/d0/3b639b61d5/9/context.md",
       "content_hash": "/d0/3b639b61d5/9/content_hash.txt",
       "prompt": "/d0/3b639b61d5/9/prompt.txt"
+    },
+    {
+      "metadata": "/d0/3b639b61d5/10/metadata.json",
+      "transcript": "/d0/3b639b61d5/10/full.jsonl",
+      "context": "/d0/3b639b61d5/10/context.md",
+      "content_hash": "/d0/3b639b61d5/10/content_hash.txt",
+      "prompt": "/d0/3b639b61d5/10/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3092,
-    "cache_creation_tokens": 1889189,
-    "cache_read_tokens": 77813853,
-    "output_tokens": 92271,
-    "api_call_count": 870
+    "input_tokens": 3146,
+    "cache_creation_tokens": 2085212,
+    "cache_read_tokens": 80688262,
+    "output_tokens": 94346,
+    "api_call_count": 903
   }
 }
