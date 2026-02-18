@@ -40,9 +40,9 @@ Requirements for E2E Testing & Quality Evaluation milestone.
 - [ ] **FIX-B4**: Entities have correct types (Medication, Condition, Lab, Procedure, Demographic) — not all "Condition"
 - [ ] **FIX-B5**: Entity text is the specific medical term (e.g., "eGFR"), not the full criterion sentence
 - [ ] **FIX-B12**: Docker Compose mounts GCP credentials for MedGemma/Vertex AI; auth failure falls back gracefully
-- [ ] **FIX-B14**: MLflow traces are never stuck IN_PROGRESS (timeout + try/finally span closure)
+- [x] **FIX-B14**: MLflow traces are never stuck IN_PROGRESS (timeout + try/finally span closure)
 - [ ] **FIX-B15**: UMLS search validates queries client-side, retries on 502/503, circuit breaker for sustained failures
-- [ ] **FIX-B13**: Upload directory persisted via Docker named volume across container restarts
+- [x] **FIX-B13**: Upload directory persisted via Docker named volume across container restarts
 - [ ] **FIX-B7**: Dashboard Recent Activity shows last 20 audit log entries
 - [ ] **FIX-B6**: Protocol list deduplicates re-uploaded protocols
 - [ ] **FIX-B8**: Dead Letter protocols have Retry and Archive action buttons
@@ -91,9 +91,9 @@ Requirements for E2E Testing & Quality Evaluation milestone.
 | FIX-B4 | Phase 41 | Pending |
 | FIX-B5 | Phase 41 | Pending |
 | FIX-B12 | Phase 41 | Pending |
-| FIX-B14 | Phase 42 | Pending |
+| FIX-B14 | Phase 42 | Complete |
 | FIX-B15 | Phase 42 | Pending |
-| FIX-B13 | Phase 42 | Pending |
+| FIX-B13 | Phase 42 | Complete |
 | FIX-B7 | Phase 43 | Pending |
 | FIX-B6 | Phase 43 | Pending |
 | FIX-B8 | Phase 43 | Pending |
