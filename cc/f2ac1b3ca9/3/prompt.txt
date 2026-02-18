@@ -1,0 +1,132 @@
+<objective>
+Check for GSD updates, install if available, and display what changed.
+
+Routes to the update workflow which handles:
+- Version detection (local vs global installation)
+- npm version checking
+- Changelog fetching and display
+- User confirmation with clean install warning
+- Update execution and cache clearing
+- Restart reminder
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/update.md
+</execution_context>
+
+<process>
+**Follow the update workflow** from `@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/update.md`.
+
+The workflow handles all logic including:
+1. Installed version detection (local/global)
+2. Latest version checking via npm
+3. Version comparison
+4. Changelog fetching and extraction
+5. Clean install warning display
+6. User confirmation
+7. Update execution
+8. Cache clearing
+</process>
+
+---
+
+<objective>
+Create all phases necessary to close gaps identified by `/gsd:audit-milestone`.
+
+Reads MILESTONE-AUDIT.md, groups gaps into logical phases, creates phase entries in ROADMAP.md, and offers to plan each phase.
+
+One command creates all fix phases — no manual `/gsd:add-phase` per gap.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-milestone-gaps.md
+</execution_context>
+
+<context>
+**Audit results:**
+Glob: .planning/v*-MILESTONE-AUDIT.md (use most recent)
+
+**Original intent (for prioritization):**
+@.planning/PROJECT.md
+@.planning/REQUIREMENTS.md
+
+**Current state:**
+@.planning/ROADMAP.md
+@.planning/STATE.md
+</context>
+
+<process>
+Execute the plan-milestone-gaps workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-milestone-gaps.md end-to-end.
+Preserve all workflow gates (audit loading, prioritization, phase grouping, user confirmation, roadmap updates).
+</process>
+
+
+ARGUMENTS: "look at /Users/noahdolevelixir/Code/medgemma-hackathon/instructions/e2e-issues.md and /Users/noahdolevelixir/Code/medgemma-hackathon/instructions/ElixirTrials Bug Fix Plan.md and fix the remaining issues our investigation uncovered"
+
+---
+
+<objective>
+Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.
+
+**Default flow:** Research (if needed) → Plan → Verify → Done
+
+**Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase number: 42 --auto --research (optional — auto-detects next unplanned phase if omitted)
+
+**Flags:**
+- `--research` — Force re-research even if RESEARCH.md exists
+- `--skip-research` — Skip research, go straight to planning
+- `--gaps` — Gap closure mode (reads VERIFICATION.md, skips research)
+- `--skip-verify` — Skip verification loop
+
+Normalize phase input in step 2 before any directory lookups.
+</context>
+
+<process>
+Execute the plan-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md end-to-end.
+Preserve all workflow gates (validation, research, planning, verification loop, routing).
+</process>
+
+---
+
+[Request interrupted by user]
+
+---
+
+<objective>
+Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.
+
+**Default flow:** Research (if needed) → Plan → Verify → Done
+
+**Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase number: 41 --auto --research (optional — auto-detects next unplanned phase if omitted)
+
+**Flags:**
+- `--research` — Force re-research even if RESEARCH.md exists
+- `--skip-research` — Skip research, go straight to planning
+- `--gaps` — Gap closure mode (reads VERIFICATION.md, skips research)
+- `--skip-verify` — Skip verification loop
+
+Normalize phase input in step 2 before any directory lookups.
+</context>
+
+<process>
+Execute the plan-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md end-to-end.
+Preserve all workflow gates (validation, research, planning, verification loop, routing).
+</process>
