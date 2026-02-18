@@ -3,7 +3,7 @@
   "checkpoint_id": "3c9cb9af7949",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 4,
+  "checkpoints_count": 7,
   "files_touched": [
     ".planning/ROADMAP.md",
     ".planning/phases/42-pipeline-stability-umls-resilience/42-01-PLAN.md",
@@ -23,13 +23,20 @@
       "context": "/3c/9cb9af7949/1/context.md",
       "content_hash": "/3c/9cb9af7949/1/content_hash.txt",
       "prompt": "/3c/9cb9af7949/1/prompt.txt"
+    },
+    {
+      "metadata": "/3c/9cb9af7949/2/metadata.json",
+      "transcript": "/3c/9cb9af7949/2/full.jsonl",
+      "context": "/3c/9cb9af7949/2/context.md",
+      "content_hash": "/3c/9cb9af7949/2/content_hash.txt",
+      "prompt": "/3c/9cb9af7949/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2574,
-    "cache_creation_tokens": 898547,
-    "cache_read_tokens": 38710450,
-    "output_tokens": 43200,
-    "api_call_count": 416
+    "input_tokens": 2638,
+    "cache_creation_tokens": 1013602,
+    "cache_read_tokens": 42294293,
+    "output_tokens": 50919,
+    "api_call_count": 472
   }
 }
