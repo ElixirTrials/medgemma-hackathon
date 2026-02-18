@@ -273,7 +273,6 @@ async def medgemma_decide(
             e,
             exc_info=True,
         )
-        # Return zero-confidence result on error so error accumulation continues
         return EntityGroundingResult(
             entity_text=entity_text,
             entity_type=entity_type,

@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import JSONResponse
 from protocol_processor.tools.tooluniverse_client import (
     search_terminology as tu_search,
 )
@@ -53,12 +54,12 @@ class TerminologySearchResult(BaseModel):
 # --- Endpoint ---
 
 
-@router.get("/{system}/search", response_model=list[TerminologySearchResult])
+@router.get("/{system}/search")
 async def search_terminology(
     system: str,
     q: str = Query(..., min_length=3),
     max_results: int = Query(default=5, ge=1, le=20),
-) -> list[TerminologySearchResult]:
+) -> JSONResponse:
     """Search a specific terminology system by term via ToolUniverse.
 
     Routes to the ToolUniverse SDK for all supported systems. Results are
@@ -95,7 +96,7 @@ async def search_terminology(
     limit = max(1, min(max_results, 20))
 
     try:
-        candidates = tu_search(system, q, max_results=limit)
+        candidates = await tu_search(system, q, max_results=limit)
         results = [
             TerminologySearchResult(
                 code=c.code,
@@ -107,7 +108,10 @@ async def search_terminology(
             for c in candidates
         ]
         logger.debug("Terminology search %s '%s' → %d results", system, q, len(results))
-        return results
+        return JSONResponse(
+            content=[r.model_dump() for r in results],
+            headers={"Cache-Control": "public, max-age=300"},
+        )
 
     except HTTPException:
         raise

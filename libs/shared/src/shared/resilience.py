@@ -80,3 +80,13 @@ vertex_ai_breaker = CircuitBreaker(
     name="vertex_ai",
     listeners=[_mlflow_listener],
 )
+
+# ToolUniverse circuit breaker — higher fail threshold (10 vs 3) because
+# ToolUniverse wraps multiple APIs and transient failures are more common.
+# fail_max=10 per user decision (NOT reusing _FAIL_MAX=3 from other breakers).
+tu_breaker = CircuitBreaker(
+    fail_max=10,
+    reset_timeout=60,
+    name="tooluniverse",
+    listeners=[_mlflow_listener],
+)

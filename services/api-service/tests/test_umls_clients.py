@@ -1,8 +1,7 @@
-"""Unit tests for ToolUniverse-backed API search endpoints.
+"""Unit tests for ToolUniverse-backed terminology search endpoint.
 
-Tests the /api/umls/search and /api/terminology/{system}/search endpoints
-using mocked ToolUniverse calls. Verifies response format, error handling,
-and parameter passing.
+Tests the /api/terminology/{system}/search endpoint using mocked ToolUniverse
+calls. Verifies response format, error handling, and parameter passing.
 """
 
 from unittest.mock import patch
@@ -29,84 +28,6 @@ def _make_candidate(
         semantic_type=semantic_type,
         score=score,
     )
-
-
-# ---------------------------------------------------------------------------
-# /api/umls/search tests
-# ---------------------------------------------------------------------------
-
-
-class TestUmlsSearchEndpoint:
-    """Tests for GET /api/umls/search."""
-
-    def test_search_too_short_returns_422(self, test_client) -> None:
-        response = test_client.get("/api/umls/search", params={"q": "ab"})
-        assert response.status_code == 422
-
-    def test_search_success_returns_200(self, test_client) -> None:
-        mock_candidates = [
-            _make_candidate(code="C0011849", preferred_term="Diabetes Mellitus"),
-            _make_candidate(
-                code="C0011860",
-                preferred_term="Diabetes Mellitus, Type 2",
-                score=0.85,
-            ),
-        ]
-        with patch(
-            "api_service.umls_search.search_terminology",
-            return_value=mock_candidates,
-        ):
-            response = test_client.get("/api/umls/search", params={"q": "diabetes"})
-
-        assert response.status_code == 200
-        data = response.json()
-        assert len(data) == 2
-        assert data[0]["cui"] == "C0011849"
-        assert data[0]["preferred_term"] == "Diabetes Mellitus"
-        assert data[0]["confidence"] == 0.95
-        assert "semantic_type" in data[0]
-
-    def test_search_empty_results_returns_200_empty_list(self, test_client) -> None:
-        with patch(
-            "api_service.umls_search.search_terminology",
-            return_value=[],
-        ):
-            response = test_client.get("/api/umls/search", params={"q": "xyzzy123"})
-
-        assert response.status_code == 200
-        assert response.json() == []
-
-    def test_search_max_results_passed_to_client(self, test_client) -> None:
-        with patch(
-            "api_service.umls_search.search_terminology",
-            return_value=[],
-        ) as mock_search:
-            test_client.get(
-                "/api/umls/search", params={"q": "test", "max_results": 7}
-            )
-            mock_search.assert_called_once_with("umls", "test", max_results=7)
-
-    def test_search_max_results_upper_bound_validates(self, test_client) -> None:
-        response = test_client.get(
-            "/api/umls/search", params={"q": "test", "max_results": 100}
-        )
-        assert response.status_code == 422  # FastAPI validation error
-
-    def test_search_max_results_lower_bound_validates(self, test_client) -> None:
-        response = test_client.get(
-            "/api/umls/search", params={"q": "test", "max_results": 0}
-        )
-        assert response.status_code == 422  # FastAPI validation error
-
-    def test_search_exception_returns_502(self, test_client) -> None:
-        with patch(
-            "api_service.umls_search.search_terminology",
-            side_effect=RuntimeError("ToolUniverse connection failed"),
-        ):
-            response = test_client.get("/api/umls/search", params={"q": "test"})
-
-        assert response.status_code == 502
-        assert "Terminology lookup failed" in response.json()["detail"]
 
 
 # ---------------------------------------------------------------------------

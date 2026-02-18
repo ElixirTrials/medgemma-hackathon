@@ -127,6 +127,66 @@ def _update_protocol_failed(
         )
 
 
+async def _run_pipeline(
+    graph: Any,
+    initial_state: dict[str, Any],
+    config: dict[str, Any],
+    payload: dict[str, Any],
+) -> dict[str, Any]:
+    """Run the pipeline graph with MLflow tracing inside the async context.
+
+    MLflow ContextVars must be created in the same async context as the
+    LangGraph invocation. asyncio.run() creates an isolated context, so
+    we initialize MLflow tracing HERE (inside asyncio.run) rather than
+    in the sync caller.
+    """
+    if _ensure_mlflow():
+        import mlflow
+
+        mlflow.langchain.autolog()
+
+        with mlflow.start_span(
+            name="protocol_pipeline",
+            span_type="CHAIN",
+        ) as span:
+            # Capture trace_id immediately so finally block can force-close
+            # orphaned traces on process-kill or unexpected exception.
+            trace_id = mlflow.get_active_trace_id()
+            span.set_inputs(
+                {
+                    "protocol_id": payload.get("protocol_id", ""),
+                    "title": payload.get("title", ""),
+                    "file_uri": payload.get("file_uri", ""),
+                }
+            )
+            try:
+                result = await graph.ainvoke(initial_state, config)
+                span.set_outputs(
+                    {
+                        "status": result.get("status"),
+                        "error": result.get("error"),
+                        "error_count": len(result.get("errors", [])),
+                    }
+                )
+                return result
+            finally:
+                # Guarantee span closure — no-op if context manager already closed it.
+                if trace_id:
+                    logger.warning(
+                        "Ensuring MLflow trace %s is closed (try/finally cleanup)",
+                        trace_id,
+                    )
+                    try:
+                        mlflow.MlflowClient().end_trace(trace_id, status="ERROR")
+                    except Exception:
+                        logger.warning(
+                            "Could not force-close MLflow trace %s — already closed or unavailable",
+                            trace_id,
+                        )
+
+    return await graph.ainvoke(initial_state, config)
+
+
 def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
     """Handle a ProtocolUploaded event by running the full pipeline.
 
@@ -198,30 +258,9 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
 
         config = {"configurable": {"thread_id": thread_id}}
 
-        if _ensure_mlflow():
-            import mlflow
-
-            with mlflow.start_span(
-                name="protocol_pipeline",
-                span_type="CHAIN",
-            ) as span:
-                span.set_inputs(
-                    {
-                        "protocol_id": protocol_id,
-                        "title": payload.get("title", ""),
-                        "file_uri": payload.get("file_uri", ""),
-                    }
-                )
-                result = asyncio.run(graph.ainvoke(initial_state, config))
-                span.set_outputs(
-                    {
-                        "status": result.get("status"),
-                        "error": result.get("error"),
-                        "error_count": len(result.get("errors", [])),
-                    }
-                )
-        else:
-            asyncio.run(graph.ainvoke(initial_state, config))
+        asyncio.run(
+            _run_pipeline(graph, initial_state, config, payload)
+        )
 
         logger.info(
             "Protocol pipeline completed for protocol %s",
