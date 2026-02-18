@@ -10,6 +10,8 @@ Otherwise requires GCS_BUCKET_NAME and valid GCP credentials.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import os
 from datetime import timedelta
@@ -173,12 +175,68 @@ def _local_generate_download_url(gcs_path: str) -> str:
     return f"http://localhost:{api_port}/local-files/{path}"
 
 
+def _content_hash(data: bytes) -> str:
+    """Compute SHA-256 hex digest of file content for deduplication.
+
+    Args:
+        data: Raw file bytes.
+
+    Returns:
+        SHA-256 hex digest string.
+    """
+    return hashlib.sha256(data).hexdigest()
+
+
 def local_save_file(blob_path: str, data: bytes) -> None:
-    """Save uploaded file to local storage."""
+    """Save uploaded file to local storage with SHA-256 deduplication.
+
+    Uses a hash-index file (.hash-index.json) in the upload directory to
+    detect duplicate content. If an identical file already exists, creates a
+    symlink to the original rather than storing duplicate bytes.
+
+    Args:
+        blob_path: Relative path within the local upload directory.
+        data: Raw file bytes to store.
+    """
     file_path = _LOCAL_UPLOAD_DIR / blob_path
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    file_path.write_bytes(data)
-    logger.info("Local storage: saved %d bytes to %s", len(data), file_path)
+
+    content_hash = _content_hash(data)
+    hash_index_path = _LOCAL_UPLOAD_DIR / ".hash-index.json"
+
+    # Load existing hash index or create empty dict
+    hash_index: dict[str, str] = {}
+    if hash_index_path.exists():
+        try:
+            hash_index = json.loads(hash_index_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            logger.warning("Could not read hash index — starting fresh")
+
+    if content_hash in hash_index:
+        existing_path = _LOCAL_UPLOAD_DIR / hash_index[content_hash]
+        logger.info(
+            "Dedup: content hash %s... already stored at %s",
+            content_hash[:8],
+            existing_path,
+        )
+        # Create symlink to existing file (saves disk space)
+        if existing_path.exists() and not file_path.exists():
+            file_path.symlink_to(existing_path)
+        elif not file_path.exists():
+            # Fallback: existing file gone, store normally and update index
+            file_path.write_bytes(data)
+            hash_index[content_hash] = blob_path
+    else:
+        # New content — store file and record in index
+        file_path.write_bytes(data)
+        hash_index[content_hash] = blob_path
+        logger.info("Local storage: saved %d bytes to %s", len(data), file_path)
+
+    # Write updated hash index back to disk
+    try:
+        hash_index_path.write_text(json.dumps(hash_index, indent=2))
+    except OSError:
+        logger.warning("Could not write hash index to %s", hash_index_path)
 
 
 def local_get_file_path(blob_path: str) -> Path | None:
