@@ -3,7 +3,7 @@
   "checkpoint_id": "9ace775ceb7a",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/hitl-ui/src/hooks/useTerminologySearch.ts",
     "infra/.env.example",
@@ -34,13 +34,20 @@
       "context": "/9a/ce775ceb7a/1/context.md",
       "content_hash": "/9a/ce775ceb7a/1/content_hash.txt",
       "prompt": "/9a/ce775ceb7a/1/prompt.txt"
+    },
+    {
+      "metadata": "/9a/ce775ceb7a/2/metadata.json",
+      "transcript": "/9a/ce775ceb7a/2/full.jsonl",
+      "context": "/9a/ce775ceb7a/2/context.md",
+      "content_hash": "/9a/ce775ceb7a/2/content_hash.txt",
+      "prompt": "/9a/ce775ceb7a/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 57,
-    "cache_creation_tokens": 187005,
-    "cache_read_tokens": 5563418,
-    "output_tokens": 8302,
-    "api_call_count": 50
+    "input_tokens": 2579,
+    "cache_creation_tokens": 946004,
+    "cache_read_tokens": 38906642,
+    "output_tokens": 44434,
+    "api_call_count": 420
   }
 }
