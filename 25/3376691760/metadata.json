@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "253376691760",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "infra/docker-compose.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/3376691760/0/metadata.json",
+      "transcript": "/25/3376691760/0/full.jsonl",
+      "context": "/25/3376691760/0/context.md",
+      "content_hash": "/25/3376691760/0/content_hash.txt",
+      "prompt": "/25/3376691760/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 67,
+    "cache_creation_tokens": 74165,
+    "cache_read_tokens": 2979071,
+    "output_tokens": 2581,
+    "api_call_count": 53
+  }
+}

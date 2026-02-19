@@ -1,0 +1,123 @@
+I think some elements of this repo got messed up. I am getting the message  loop_factory=self.config.get_loop_factory())
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/asyncio/base_events.py", line 691, in run_until_complete
+    return future.Traceback (most recent call last):
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 314, in _bootstrap
+    self.run()
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/_subprocess.py", line 80, in subprocess_started
+    target(sockets=sockets)
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 75, in run
+    return asyncio_run(self.serve(sockets=sockets),result()
+           ^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 79, in serve
+    await self._serve(sockets)
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/server.py", line 86, in _serve
+    config.load()
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/config.py", line 441, in load
+    self.loaded_app = import_from_string(self.app)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/importer.py", line 22, in import_from_string
+    raise exc from None
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.12/site-packages/uvicorn/importer.py", line 19, in import_from_string
+    module = importlib.import_module(module_str)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.12_2/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py", line 90, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 999, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/main.py", line 11, in <module>
+    from events_py.outbox import OutboxProcessor  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ModuleNotFoundError: No module named 'events_py'. If you look at ../medgemma-hackathon-backup you  may be able to restore work by copying rather than reimplementing from scratch
+
+---
+
+[Request interrupted by user]
+
+---
+
+Instead of force installing, compare to the backup repo medgemma-hackathon-backup
+
+---
+
+Look for differences between this repo and medgemma-hackathon-backup. I am seeing warnings and errors that have already been solved. Like: INFO:protocol_processor.trigger:Handling ProtocolUploaded event for protocol 7248a75b-f067-4e25-8241-203e7a45e8ca (consolidated pipeline)
+ERROR:protocol_processor.nodes.ingest:Ingestion failed for protocol 7248a75b-f067-4e25-8241-203e7a45e8ca: Local PDF not found at uploads/protocols/64c4831e-a417-4d7d-9917-c98f04be1641/Prot_000-3aca1102.pdf. Ensure LOCAL_UPLOAD_DIR is set correctly (current: ./uploads) and the file has been uploaded.
+Traceback (most recent call last):
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/nodes/ingest.py", line 51, in ingest_node
+    pdf_bytes = await fetch_pdf_bytes(state["file_uri"])
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/tools/pdf_parser.py", line 79, in fetch_pdf_bytes
+    raise FileNotFoundError(
+FileNotFoundError: Local PDF not found at uploads/protocols/64c4831e-a417-4d7d-9917-c98f04be1641/Prot_000-3aca1102.pdf. Ensure LOCAL_UPLOAD_DIR is set correctly (current: ./uploads) and the file has been uploaded.
+2026/02/19 11:25:25 WARNING mlflow.utils.autologging_utils: Encountered unexpected error during autologging: <Token var=<ContextVar name='current_context' default={} at 0x116248b80> at 0x128f585c0> was created in a different Context
+2026/02/19 11:25:25 WARNING mlflow.utils.autologging_utils: Encountered unexpected error during autologging: <Token var=<ContextVar name='current_context' default={} at 0x116248b80> at 0x128f5bc40> was created in a different Context
+2026/02/19 11:25:25 WARNING mlflow.utils.autologging_utils: Encountered unexpected error during autologging: <Token var=<ContextVar name='current_context' default={} at 0x116248b80> at 0x128f5fb00> was created in a different Context
+WARNING:protocol_processor.trigger:Ensuring MLflow trace tr-bf3ed63669a689c3492aa8917f755da6 is closed (try/finally cleanup)
+INFO:protocol_processor.trigger:Protocol pipeline completed for protocol 7248a75b-f067-4e25-8241-203e7a45e8ca. Can you see if changes from backup need to be reimplemented here?
+
+---
+
+Yeah but all of these issues we already fixed once before. Maybe you could look at the backup repo to see how the mlflow issue and pdf upload issue were already solved.
+
+---
+
+[Request interrupted by user]
+
+---
+
+Also look through the entire explain and the branch that covers previous conversations and what was achieved. entire explain
+Branch: feature/major-refactor-langgraph
+Checkpoints: 12
+
+[unknown] [temporary] (no prompt)
+  02-19 10:44 (2bc45f8) Claude Code session updates
+
+[ea2f873d3db1] (no prompt)
+  02-19 10:30 (3005b55) feat: add Google OAuth configuration and enhance Docker setup
+
+[cfea58d9336f] (no prompt)
+  02-19 10:29 (46fd738) chore: remove obsolete planning documents
+
+[88a08f218f5a] "<objective>\nCheck project progress, summarize recent work..."
+  02-18 13:22 (e5b578f) feat(42-02): frontend circuit-open indicator and query validation hints
+
+[1943796ebf22] "<objective>\nCheck project progress, summarize recent work..."
+  02-18 13:21 (66e36ed) docs(42-01): complete MLflow trace fix + upload persistence plan
+
+[188654cf2dc8] "<objective>\nCheck project progress, summarize recent work..."
+  02-18 13:20 (c964e86) feat(42-02): ToolUniverse retry + circuit breaker + sentence extraction
+
+[954ef2cbf999] "<objective>\nCheck project progress, summarize recent work..."
+  02-18 13:19 (5416731) feat(42-01): upload volume persistence + SHA-256 deduplication
+
+[80be5b4839ec] "<objective>\nCheck project progress, summarize recent work..."
+  02-18 13:17 (562f6a7) refactor: optimize terminology search and enhance Docker configuration
+
+[9ace775ceb7a] (no prompt)
+  02-18 13:17 (2216465) fix(42-01): MLflow trace leak — try/finally span closure + timeout env var
+
+[3c9cb9af7949] (no prompt)
+  02-18 12:46 (ef537a5) docs(42): create phase plan — MLflow trace fix, ToolUniverse resilience, up...
+
+[545babba9054] (no prompt)
+  02-18 11:34 (aa083f3) docs(roadmap): add gap closure phases 41-43 from E2E test report
+
+[d6b007990b82] "<objective>\nRestore complete project context and resume w..."
+  02-18 10:03 (2be92d4) feat: add configuration for Claude hooks and enhance Docker setup
+
+---
+
+yes
