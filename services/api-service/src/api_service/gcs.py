@@ -161,7 +161,7 @@ def _local_generate_upload_url(filename: str) -> tuple[str, str]:
 
     api_port = os.getenv("API_PORT", "8000")
     upload_url = f"http://localhost:{api_port}/local-upload/{blob_path}"
-    local_uri = f"local://protocols/{blob_path}"
+    local_uri = f"local://{blob_path}"
 
     logger.info("Local storage: upload URL for %s -> %s", filename, local_uri)
     return (upload_url, local_uri)
@@ -169,8 +169,9 @@ def _local_generate_upload_url(filename: str) -> tuple[str, str]:
 
 def _local_generate_download_url(gcs_path: str) -> str:
     """Generate a local download URL from a local:// URI."""
-    # local://protocols/{uuid}/{filename} -> /local-files/{uuid}/{filename}
-    path = gcs_path.replace("local://protocols/", "")
+    # local://{uuid}/{filename} -> /local-files/{uuid}/{filename}
+    # Also handle legacy local://protocols/ URIs for backward compatibility
+    path = gcs_path.replace("local://protocols/", "").replace("local://", "")
     api_port = os.getenv("API_PORT", "8000")
     return f"http://localhost:{api_port}/local-files/{path}"
 
