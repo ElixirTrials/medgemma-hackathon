@@ -229,9 +229,7 @@ def _entity_to_response(entity: Entity) -> EntityResponse:
         grounding_system=getattr(entity, "grounding_system", None),
         grounding_error=getattr(entity, "grounding_error", None),
         omop_concept_id=getattr(entity, "omop_concept_id", None),
-        reconciliation_status=getattr(
-            entity, "reconciliation_status", None
-        ),
+        reconciliation_status=getattr(entity, "reconciliation_status", None),
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )

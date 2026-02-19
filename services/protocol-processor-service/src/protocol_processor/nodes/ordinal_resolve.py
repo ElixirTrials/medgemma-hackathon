@@ -14,20 +14,17 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, cast
 
 from api_service.storage import engine
 from shared.models import AtomicCriterion, AuditLog, Criteria
+from sqlalchemy.sql.expression import ColumnElement
 from sqlmodel import Session, select
 
 from protocol_processor.state import PipelineState
 from protocol_processor.tools.ordinal_resolver import (
     resolve_ordinal_candidates,
 )
-
-# Use table columns for SQL expressions so mypy sees ColumnElement, not Python types
-_atomic = AtomicCriterion.__table__.c
-_criteria = Criteria.__table__.c
 
 logger = logging.getLogger(__name__)
 
@@ -67,14 +64,20 @@ def _query_candidates(
     Returns:
         List of matching AtomicCriterion records.
     """
+    # Cast to ColumnElement so mypy accepts join (stubs expose attr types, not columns)
+    on_clause = cast(ColumnElement[bool], AtomicCriterion.criterion_id == Criteria.id)
+    # Column descriptors have .is_()/.isnot(); mypy sees Python attribute types
+    unit_is_null = AtomicCriterion.unit_concept_id.is_(None)  # type: ignore[union-attr]
+    value_not_null = AtomicCriterion.value_numeric.isnot(None)  # type: ignore[union-attr]
+    unit_text_is_null = AtomicCriterion.unit_text.is_(None)  # type: ignore[union-attr]
     stmt = (
         select(AtomicCriterion)
-        .join(Criteria, _atomic.criterion_id == _criteria.id)
+        .join(Criteria, on_clause)
         .where(
-            _criteria.batch_id == batch_id,
-            _atomic.unit_concept_id.is_(None),
-            _atomic.value_numeric.isnot(None),
-            _atomic.unit_text.is_(None),
+            Criteria.batch_id == batch_id,
+            cast(ColumnElement[bool], unit_is_null),
+            cast(ColumnElement[bool], value_not_null),
+            cast(ColumnElement[bool], unit_text_is_null),
         )
     )
     return list(session.exec(stmt).all())

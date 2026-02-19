@@ -22,6 +22,7 @@ from api_service.batch_compare import router as batch_compare_router  # noqa: E4
 from api_service.criterion_rerun import router as criterion_rerun_router  # noqa: E402
 from api_service.dependencies import get_current_user, get_db  # noqa: E402
 from api_service.entities import router as entities_router  # noqa: E402
+from api_service.exports import router as exports_router  # noqa: E402
 from api_service.integrity import router as integrity_router  # noqa: E402
 from api_service.middleware import MLflowRequestMiddleware  # noqa: E402
 from api_service.protocols import router as protocols_router  # noqa: E402
@@ -154,6 +155,7 @@ app.include_router(terminology_search_router, dependencies=[Depends(get_current_
 app.include_router(integrity_router, dependencies=[Depends(get_current_user)])
 app.include_router(criterion_rerun_router, dependencies=[Depends(get_current_user)])
 app.include_router(batch_compare_router, dependencies=[Depends(get_current_user)])
+app.include_router(exports_router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health")

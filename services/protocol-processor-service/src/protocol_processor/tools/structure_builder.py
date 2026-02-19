@@ -31,6 +31,17 @@ from protocol_processor.tools.unit_normalizer import (
 
 logger = logging.getLogger(__name__)
 
+# Map pipeline entity_type to OMOP-style entity_domain.
+# Used when field_mappings don't include an explicit entity_domain.
+_ENTITY_TYPE_TO_DOMAIN: dict[str, str] = {
+    "Condition": "condition",
+    "Medication": "drug",
+    "Lab_Value": "measurement",
+    "Procedure": "procedure",
+    "Demographic": "demographics",
+    "Other": "observation",
+}
+
 
 def _parse_value(
     raw_value: str,
@@ -207,6 +218,12 @@ def _create_atomic_from_mapping(
     elif value_text and value_numeric is None:
         _, value_concept_id = normalize_value(value_text)
 
+    # Derive entity_domain from entity_type when not explicitly provided
+    entity_domain = fm.get("entity_domain")
+    if not entity_domain:
+        entity_type = fm.get("entity_type", "")
+        entity_domain = _ENTITY_TYPE_TO_DOMAIN.get(entity_type)
+
     return AtomicCriterion(
         criterion_id=criterion_id,
         protocol_id=protocol_id,
@@ -214,7 +231,7 @@ def _create_atomic_from_mapping(
         entity_concept_id=fm.get("entity_concept_id"),
         entity_concept_system=fm.get("entity_concept_system"),
         omop_concept_id=fm.get("omop_concept_id"),
-        entity_domain=fm.get("entity_domain"),
+        entity_domain=entity_domain,
         relation_operator=relation,
         value_numeric=value_numeric,
         value_text=value_text,
