@@ -57,26 +57,20 @@ class IntegrityCheckResponse(BaseModel):
 # --- Scoping helper ---
 
 
-def _get_scoped_criteria_ids(
-    db: Session, protocol_id: str
-) -> list[str] | None:
+def _get_scoped_criteria_ids(db: Session, protocol_id: str) -> list[str] | None:
     """Return criteria IDs scoped to a protocol, or None if unscoped.
 
     Returns an empty list if the protocol has no batches/criteria.
     Returns None when protocol_id is not provided (unscoped).
     """
-    batch_stmt = select(CriteriaBatch).where(
-        CriteriaBatch.protocol_id == protocol_id
-    )
+    batch_stmt = select(CriteriaBatch).where(CriteriaBatch.protocol_id == protocol_id)
     batches = db.exec(batch_stmt).all()
     batch_ids = [b.id for b in batches]
 
     if not batch_ids:
         return []
 
-    criteria_stmt = select(Criteria).where(
-        col(Criteria.batch_id).in_(batch_ids)
-    )
+    criteria_stmt = select(Criteria).where(col(Criteria.batch_id).in_(batch_ids))
     scoped = db.exec(criteria_stmt).all()
     return [c.id for c in scoped]
 
@@ -88,9 +82,7 @@ def _check_orphaned_entities(
     db: Session, scoped_criteria_ids: list[str] | None
 ) -> list[IntegrityIssue]:
     """Check 1 (orphaned_entity, error): Entity rows with no matching Criteria row."""
-    stmt = select(Entity).where(
-        ~col(Entity.criteria_id).in_(select(col(Criteria.id)))
-    )
+    stmt = select(Entity).where(~col(Entity.criteria_id).in_(select(col(Criteria.id))))
     if scoped_criteria_ids is not None:
         if not scoped_criteria_ids:
             return []
@@ -126,9 +118,7 @@ def _check_incomplete_audit_logs(
     issues = []
     for entry in db.exec(stmt).all():
         details = entry.details or {}
-        missing = [
-            k for k in ("before_value", "after_value") if k not in details
-        ]
+        missing = [k for k in ("before_value", "after_value") if k not in details]
         if missing:
             issues.append(
                 IntegrityIssue(

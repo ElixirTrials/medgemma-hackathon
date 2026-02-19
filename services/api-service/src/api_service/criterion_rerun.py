@@ -28,8 +28,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
 _AI_PARSE_ERROR = (
-    "AI could not produce a valid structured result. "
-    "Try rephrasing your feedback."
+    "AI could not produce a valid structured result. Try rephrasing your feedback."
 )
 
 
@@ -170,8 +169,13 @@ Return ONLY valid JSON with these fields:
     revised: SingleCriterionResult | None = None
     try:
         if hasattr(response, "parsed") and response.parsed is not None:
-            revised = response.parsed
-        else:
+            raw = response.parsed
+            revised = (
+                raw
+                if isinstance(raw, SingleCriterionResult)
+                else SingleCriterionResult.model_validate(raw)
+            )
+        elif response.text:
             revised = SingleCriterionResult.model_validate_json(response.text)
     except Exception as e:
         logger.warning(

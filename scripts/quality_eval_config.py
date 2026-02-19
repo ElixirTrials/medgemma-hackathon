@@ -20,6 +20,4 @@ REPORT_OUTPUT_DIR: str = "reports"
 PIPELINE_TIMEOUT: int = 300
 
 # JWT secret for authenticating API requests
-JWT_SECRET: str = os.getenv(
-    "JWT_SECRET_KEY", "dev-secret-key-change-in-production"
-)
+JWT_SECRET: str = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")

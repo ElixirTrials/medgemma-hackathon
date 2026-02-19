@@ -156,9 +156,7 @@ def upload_pdf(client: httpx.Client, pdf_path: str) -> str:
     return protocol_id
 
 
-def upload_and_process(
-    client: httpx.Client, fresh: bool = False
-) -> list[dict]:
+def upload_and_process(client: httpx.Client, fresh: bool = False) -> list[dict]:
     """Upload sample PDFs and wait for pipeline completion.
 
     Returns list of dicts with protocol_id, status, and title for each PDF.
@@ -172,10 +170,7 @@ def upload_and_process(
 
         try:
             protocol_id = upload_pdf(client, pdf_path)
-            print(
-                f"  [{pdf_name}] protocol_id={protocol_id},"
-                " waiting for pipeline..."
-            )
+            print(f"  [{pdf_name}] protocol_id={protocol_id}, waiting for pipeline...")
 
             start = time.monotonic()
             final = _wait_for_pipeline(client, protocol_id)
@@ -215,9 +210,7 @@ def upload_and_process(
 # ---------------------------------------------------------------------------
 
 
-def collect_criteria(
-    client: httpx.Client, protocol_id: str
-) -> list[dict]:
+def collect_criteria(client: httpx.Client, protocol_id: str) -> list[dict]:
     """Fetch all criteria + entities for a protocol via the API."""
     print(f"  Collecting results for protocol {protocol_id[:8]}...")
 
@@ -257,9 +250,7 @@ def _extract_entities(criteria_list: list[dict]) -> list[dict]:
     return entities
 
 
-def compute_per_protocol_stats(
-    protocol_id: str, criteria_list: list[dict]
-) -> dict:
+def compute_per_protocol_stats(protocol_id: str, criteria_list: list[dict]) -> dict:
     """Compute per-protocol statistics."""
     entities = _extract_entities(criteria_list)
 
@@ -391,9 +382,7 @@ def _find_ungrounded_entities(
             criterion_text = (criterion.get("criteria_text") or "")[:80]
             for entity in criterion.get("entities", []):
                 has_cui = bool(entity.get("umls_cui"))
-                has_code = any(
-                    entity.get(field) for field in _TERMINOLOGY_CODE_FIELDS
-                )
+                has_code = any(entity.get(field) for field in _TERMINOLOGY_CODE_FIELDS)
                 if has_cui or has_code:
                     continue
 
@@ -577,13 +566,9 @@ def _build_stats_summary(
     lines: list[str] = []
     lines.append(f"- Total criteria extracted: {total_criteria}")
     lines.append(f"- Total entities: {stats['total_entities']}")
-    lines.append(
-        f"- Overall CUI (UMLS) rate: {stats['overall_cui_rate'] * 100:.1f}%"
-    )
+    lines.append(f"- Overall CUI (UMLS) rate: {stats['overall_cui_rate'] * 100:.1f}%")
     lines.append(f"- Mean grounding confidence: {stats['mean_confidence']:.3f}")
-    lines.append(
-        f"- Median grounding confidence: {stats['median_confidence']:.3f}"
-    )
+    lines.append(f"- Median grounding confidence: {stats['median_confidence']:.3f}")
 
     # Entity type distribution
     lines.append("\nEntity type distribution:")
@@ -674,9 +659,7 @@ def _build_criteria_samples(
                     codes = ", ".join(codes_parts) if codes_parts else "ungrounded"
                     conf_str = f", conf={conf:.2f}" if conf is not None else ""
 
-                    sample += (
-                        f"\n    - \"{ent_text}\" ({ent_type}) -> {codes}{conf_str}"
-                    )
+                    sample += f'\n    - "{ent_text}" ({ent_type}) -> {codes}{conf_str}'
                 if len(entities) > 5:
                     sample += f"\n    - ... and {len(entities) - 5} more entities"
             else:
@@ -783,12 +766,8 @@ def generate_report(
     # --- Per-Protocol Statistics ---
     lines.append("## Per-Protocol Statistics")
     lines.append("")
-    lines.append(
-        "| Protocol | Criteria | Inc | Exc | Entities | CUI Rate | Status |"
-    )
-    lines.append(
-        "|----------|----------|-----|-----|----------|----------|--------|"
-    )
+    lines.append("| Protocol | Criteria | Inc | Exc | Entities | CUI Rate | Status |")
+    lines.append("|----------|----------|-----|-----|----------|----------|--------|")
 
     for pr, ps in zip(protocol_results, per_protocol_stats):
         title = pr.get("title", "Unknown")[:40]
@@ -837,9 +816,7 @@ def generate_report(
     lines.append(f"| Total entities | {aggregate['total_entities']} |")
     lines.append(f"| Mean confidence | {aggregate['mean_confidence']:.3f} |")
     lines.append(f"| Median confidence | {aggregate['median_confidence']:.3f} |")
-    lines.append(
-        f"| Overall CUI rate | {aggregate['overall_cui_rate'] * 100:.1f}% |"
-    )
+    lines.append(f"| Overall CUI rate | {aggregate['overall_cui_rate'] * 100:.1f}% |")
     lines.append("")
 
     # --- Entity Type Distribution ---
@@ -934,9 +911,7 @@ def generate_report(
 
         # Ungrounded Entities - Critical
         critical_ungrounded = [
-            e
-            for e in bug_catalog["ungrounded_entities"]
-            if e["severity"] == "critical"
+            e for e in bug_catalog["ungrounded_entities"] if e["severity"] == "critical"
         ]
         lines.append(
             f"#### Ungrounded Entities \u2014 Critical ({len(critical_ungrounded)})"
@@ -976,9 +951,7 @@ def generate_report(
 
         # Ungrounded Entities - Low Confidence
         warning_ungrounded = [
-            e
-            for e in bug_catalog["ungrounded_entities"]
-            if e["severity"] == "warning"
+            e for e in bug_catalog["ungrounded_entities"] if e["severity"] == "warning"
         ]
         lines.append(
             f"#### Ungrounded Entities \u2014 Low Confidence "
@@ -1019,9 +992,7 @@ def generate_report(
             for i in bug_catalog["structural_issues"]
             if i.get("issue") == "no_entities"
         ]
-        lines.append(
-            f"#### Criteria Without Entities ({len(no_entity_criteria)})"
-        )
+        lines.append(f"#### Criteria Without Entities ({len(no_entity_criteria)})")
         lines.append("")
         if no_entity_criteria:
             lines.append("| Criterion (excerpt) | Type | Protocol |")
@@ -1030,9 +1001,7 @@ def generate_report(
                 criterion_text = issue.get("criterion_text", "")
                 criteria_type = issue.get("criteria_type", "unknown")
                 protocol_id = issue.get("protocol_id", "")[:8]
-                lines.append(
-                    f"| {criterion_text} | {criteria_type} | {protocol_id} |"
-                )
+                lines.append(f"| {criterion_text} | {criteria_type} | {protocol_id} |")
         else:
             lines.append("None found.")
         lines.append("")
@@ -1053,9 +1022,7 @@ def generate_report(
             for i in bug_catalog["structural_issues"]
             if i.get("issue") == "unknown_criteria_type"
         ]
-        lines.append(
-            f"#### Unknown Criteria Types ({len(unknown_type_criteria)})"
-        )
+        lines.append(f"#### Unknown Criteria Types ({len(unknown_type_criteria)})")
         lines.append("")
         if unknown_type_criteria:
             lines.append("| Criterion (excerpt) | Type | Protocol |")
@@ -1064,9 +1031,7 @@ def generate_report(
                 criterion_text = issue.get("criterion_text", "")
                 criteria_type = issue.get("criteria_type", "unknown")
                 protocol_id = issue.get("protocol_id", "")[:8]
-                lines.append(
-                    f"| {criterion_text} | {criteria_type} | {protocol_id} |"
-                )
+                lines.append(f"| {criterion_text} | {criteria_type} | {protocol_id} |")
         else:
             lines.append("None found.")
         lines.append("")
@@ -1142,9 +1107,7 @@ def main() -> None:
                 resp = client.get("/protocols")
                 resp.raise_for_status()
                 data = resp.json()
-                protocols = (
-                    data if isinstance(data, list) else data.get("items", [])
-                )
+                protocols = data if isinstance(data, list) else data.get("items", [])
                 ids = [p["id"] for p in protocols[:5]]  # Limit to 5
             except Exception as exc:
                 print(
@@ -1155,8 +1118,7 @@ def main() -> None:
 
         if not ids:
             print(
-                "\nERROR: No protocols found. "
-                "Please provide --protocol-ids explicitly."
+                "\nERROR: No protocols found. Please provide --protocol-ids explicitly."
             )
             sys.exit(1)
 
@@ -1234,13 +1196,8 @@ def main() -> None:
     else:
         print("\nStep 4: Running LLM heuristic assessment...")
         if not os.getenv("GOOGLE_API_KEY"):
-            print(
-                "  WARNING: GOOGLE_API_KEY not set. "
-                "Skipping LLM assessment."
-            )
-            llm_assessment = (
-                "*LLM assessment skipped: GOOGLE_API_KEY not set.*"
-            )
+            print("  WARNING: GOOGLE_API_KEY not set. Skipping LLM assessment.")
+            llm_assessment = "*LLM assessment skipped: GOOGLE_API_KEY not set.*"
         else:
             llm_assessment = run_llm_assessment(
                 all_criteria_by_protocol=all_criteria_by_protocol,

@@ -48,9 +48,7 @@ class TestCreateGraph:
         # LangGraph adds __start__ and __end__ internal nodes
         # User nodes are those without leading underscores
         all_nodes = graph.nodes
-        user_nodes = {
-            name for name in all_nodes if not name.startswith("__")
-        }
+        user_nodes = {name for name in all_nodes if not name.startswith("__")}
         assert user_nodes == {"ingest", "extract", "parse", "ground", "persist"}, (
             f"Expected 5 user nodes, got: {user_nodes}"
         )
@@ -139,7 +137,6 @@ class TestPipelineStateShape:
         """PipelineState TypedDict should have all required fields."""
         from typing import get_type_hints
 
-
         hints = get_type_hints(PipelineState)
         required = {
             "protocol_id",
@@ -161,7 +158,6 @@ class TestPipelineStateShape:
     def test_errors_field_is_list(self):
         """PipelineState.errors should be typed as list[str]."""
         from typing import get_origin, get_type_hints
-
 
         hints = get_type_hints(PipelineState)
         errors_type = hints["errors"]

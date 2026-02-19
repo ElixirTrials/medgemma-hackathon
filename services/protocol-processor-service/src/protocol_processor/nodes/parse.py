@@ -60,7 +60,9 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
             if not extraction_json:
                 span.set_outputs({"error": "No extraction_json in state"})
                 return {
-                    "error": "No extraction_json in state — extract node may have failed"
+                    "error": (
+                        "No extraction_json in state — extract node may have failed"
+                    )
                 }
 
             # Parse extraction JSON into Pydantic model
@@ -131,13 +133,15 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
             ):
                 if decomposed:
                     for ent in decomposed:
-                        entity_items.append({
-                            "criterion_id": cid,
-                            "text": ent["text"],
-                            "entity_type": ent["entity_type"],
-                            "criterion_text": raw["text"],
-                            "criteria_type": raw["criteria_type"],
-                        })
+                        entity_items.append(
+                            {
+                                "criterion_id": cid,
+                                "text": ent["text"],
+                                "entity_type": ent["entity_type"],
+                                "criterion_text": raw["text"],
+                                "criteria_type": raw["criteria_type"],
+                            }
+                        )
                 else:
                     # Fallback: category-based type mapping with full text
                     category = raw.get("category", "")
@@ -147,13 +151,15 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
                         "procedures": "Procedure",
                         "demographics": "Demographic",
                     }.get(category, "Condition")
-                    entity_items.append({
-                        "criterion_id": cid,
-                        "text": raw["text"],
-                        "entity_type": fallback_type,
-                        "criterion_text": raw["text"],
-                        "criteria_type": raw["criteria_type"],
-                    })
+                    entity_items.append(
+                        {
+                            "criterion_id": cid,
+                            "text": raw["text"],
+                            "entity_type": fallback_type,
+                            "criterion_text": raw["text"],
+                            "criteria_type": raw["criteria_type"],
+                        }
+                    )
 
             logger.info(
                 "Parsed CriteriaBatch %s: %d criteria -> %d entities for protocol %s",
@@ -166,16 +172,18 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
             # Build entities_json for the ground node
             entities_json = json.dumps(entity_items)
 
-            span.set_outputs({
-                "batch_id": batch_id,
-                "criteria_count": len(entity_items),
-            })
+            span.set_outputs(
+                {
+                    "batch_id": batch_id,
+                    "criteria_count": len(entity_items),
+                }
+            )
 
-            # Return batch_id, entities_json, and clear pdf_bytes (state size optimization)
+            # Return batch_id, entities_json; clear pdf_bytes (state size optimization)
             return {
                 "batch_id": batch_id,
                 "entities_json": entities_json,
-                "pdf_bytes": None,  # Clear pdf_bytes — no longer needed after extraction
+                "pdf_bytes": None,  # No longer needed after extraction
             }
 
         except Exception as e:

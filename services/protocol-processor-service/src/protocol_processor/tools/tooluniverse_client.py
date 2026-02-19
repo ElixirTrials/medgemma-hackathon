@@ -44,7 +44,7 @@ from tenacity import (
     stop_after_attempt,
     wait_exponential,
 )
-from tooluniverse import ToolUniverse
+from tooluniverse import ToolUniverse  # type: ignore[import-untyped]
 
 from protocol_processor.schemas.grounding import GroundingCandidate
 
@@ -104,7 +104,7 @@ def _extract_term_from_sentence(query: str) -> str:
         return cleaned
     # Fallback: take last 4 words as the medical term
     words = stripped.split()
-    return " ".join(words[-min(4, len(words)):])
+    return " ".join(words[-min(4, len(words)) :])
 
 
 # Tool categories to load (subset of 1495 total tools — only medical terminology)
@@ -178,8 +178,7 @@ def _check_prefix_cache(
         # Filter cached results: keep candidates whose preferred_term
         # contains the longer query (case-insensitive)
         filtered = [
-            c for c in cached_candidates
-            if normalized_query in c.preferred_term.lower()
+            c for c in cached_candidates if normalized_query in c.preferred_term.lower()
         ]
 
         # If the original shorter query returned fewer than max_results,

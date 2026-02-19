@@ -17,7 +17,7 @@ import logging
 import os
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Generator
 
 import httpx
 import jwt
@@ -158,7 +158,7 @@ def e2e_db_session():
 
 
 @pytest.fixture()
-def e2e_api_client(e2e_api_url: str) -> httpx.Client:
+def e2e_api_client(e2e_api_url: str) -> Generator[httpx.Client, None, None]:
     """Provide an authenticated ``httpx.Client`` pointed at the running API.
 
     The client includes a ``Bearer`` JWT in the ``Authorization`` header,
@@ -310,9 +310,7 @@ def e2e_cleanup(
         batch_ids: list[str] = [
             row
             for row in session.exec(
-                select(CriteriaBatch.id).where(
-                    CriteriaBatch.protocol_id == protocol_id
-                )
+                select(CriteriaBatch.id).where(CriteriaBatch.protocol_id == protocol_id)
             ).all()
         ]
 
@@ -358,8 +356,8 @@ def e2e_cleanup(
 
         # 6. Delete outbox events for this protocol
         session.exec(
-            delete(OutboxEvent).where(  # type: ignore[arg-type]
-                OutboxEvent.aggregate_id == protocol_id
+            delete(OutboxEvent).where(
+                OutboxEvent.aggregate_id == protocol_id  # type: ignore[arg-type]
             )
         )
 

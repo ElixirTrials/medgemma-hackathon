@@ -25,14 +25,11 @@ class GroundingCandidate(BaseModel):
         description="Name of the terminology API that produced this candidate"
     )
     code: str = Field(description="Terminology code (CUI, RxNorm, ICD-10, etc.)")
-    preferred_term: str = Field(
-        description="Canonical preferred name for the concept"
-    )
+    preferred_term: str = Field(description="Canonical preferred name for the concept")
     semantic_type: str | None = Field(
         default=None,
         description=(
-            "UMLS semantic type (e.g. 'Disease or Syndrome'). "
-            "None for non-UMLS APIs."
+            "UMLS semantic type (e.g. 'Disease or Syndrome'). None for non-UMLS APIs."
         ),
     )
     score: float = Field(
@@ -63,9 +60,7 @@ class EntityGroundingResult(BaseModel):
     """
 
     entity_text: str = Field(description="Original entity text from the protocol")
-    entity_type: str = Field(
-        description="Entity type (e.g. 'Medication', 'Condition')"
-    )
+    entity_type: str = Field(description="Entity type (e.g. 'Medication', 'Condition')")
     selected_code: str | None = Field(
         default=None,
         description="The chosen terminology code. None if grounding failed.",

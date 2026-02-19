@@ -36,8 +36,7 @@ class FieldMappingItem(BaseModel):
     )
     value: str = Field(
         description=(
-            "The specific value or threshold"
-            " (e.g. '7%', 'positive', 'confirmed')"
+            "The specific value or threshold (e.g. '7%', 'positive', 'confirmed')"
         )
     )
     unit: str | None = Field(

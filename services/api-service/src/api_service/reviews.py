@@ -178,8 +178,12 @@ def list_batches(
     - Count of reviewed criteria (review_status IS NOT NULL) for progress
     """
     # Build count query — exclude archived batches (hidden from dashboard)
-    count_stmt = select(func.count()).select_from(CriteriaBatch).where(
-        CriteriaBatch.is_archived == False  # noqa: E712
+    count_stmt = (
+        select(func.count())
+        .select_from(CriteriaBatch)
+        .where(
+            CriteriaBatch.is_archived == False  # noqa: E712
+        )
     )
     if status:
         count_stmt = count_stmt.where(CriteriaBatch.status == status)
@@ -277,9 +281,7 @@ def get_batch_metrics(
         )
 
     # Query 1: All criteria for this batch
-    criteria_list = db.exec(
-        select(Criteria).where(Criteria.batch_id == batch_id)
-    ).all()
+    criteria_list = db.exec(select(Criteria).where(Criteria.batch_id == batch_id)).all()
 
     total = len(criteria_list)
     approved = sum(1 for c in criteria_list if c.review_status == "approved")
@@ -587,13 +589,10 @@ def list_audit_log(
 
     if batch_id:
         # Join AuditLog → Criteria to filter by batch_id
-        count_stmt = (
-            count_stmt
-            .join(Criteria, col(AuditLog.target_id) == col(Criteria.id))
-            .where(
-                col(AuditLog.target_type) == "criteria",
-                col(Criteria.batch_id) == batch_id
-            )
+        count_stmt = count_stmt.join(
+            Criteria, col(AuditLog.target_id) == col(Criteria.id)
+        ).where(
+            col(AuditLog.target_type) == "criteria", col(Criteria.batch_id) == batch_id
         )
     else:
         # Existing filters (unchanged for backward compatibility)
@@ -608,13 +607,10 @@ def list_audit_log(
     data_stmt = select(AuditLog)
 
     if batch_id:
-        data_stmt = (
-            data_stmt
-            .join(Criteria, col(AuditLog.target_id) == col(Criteria.id))
-            .where(
-                col(AuditLog.target_type) == "criteria",
-                col(Criteria.batch_id) == batch_id
-            )
+        data_stmt = data_stmt.join(
+            Criteria, col(AuditLog.target_id) == col(Criteria.id)
+        ).where(
+            col(AuditLog.target_type) == "criteria", col(Criteria.batch_id) == batch_id
         )
     else:
         if target_type:

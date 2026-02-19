@@ -8,17 +8,15 @@ Uses the same client and model as the extraction service; useful after
 enabling Generative Language API and setting up a Cloud Console API key.
 """
 
-from pathlib import Path
-
-# Load .env from repo root
-repo_root = Path(__file__).resolve().parent.parent
-env_file = repo_root / ".env"
-if env_file.exists():
-    from dotenv import load_dotenv
-    load_dotenv(env_file)
-
 import os
 import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+# Load .env from repo root so GOOGLE_API_KEY is available
+repo_root = Path(__file__).resolve().parent.parent
+load_dotenv(repo_root / ".env")
 
 
 def main() -> int:

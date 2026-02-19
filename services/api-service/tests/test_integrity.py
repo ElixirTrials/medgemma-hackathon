@@ -24,7 +24,9 @@ def _make_protocol(db_session, title: str = "Test Protocol") -> Protocol:
     return protocol
 
 
-def _make_batch(db_session, protocol_id: str, status: str = "pending_review") -> CriteriaBatch:
+def _make_batch(
+    db_session, protocol_id: str, status: str = "pending_review"
+) -> CriteriaBatch:
     """Create and persist a CriteriaBatch for testing."""
     batch = CriteriaBatch(protocol_id=protocol_id, status=status)
     db_session.add(batch)
@@ -108,7 +110,7 @@ class TestIntegrityDetection:
     """Tests that each issue category is correctly detected."""
 
     def test_detects_orphaned_entity(self, test_client: TestClient, db_session) -> None:
-        """Entity referencing a non-existent criteria_id is flagged as orphaned_entity error."""
+        """Entity with non-existent criteria_id is flagged as orphaned_entity error."""
         # Create entity with a made-up criteria_id (no corresponding Criteria row)
         orphan = Entity(
             criteria_id="nonexistent-criteria-id-000",
@@ -122,7 +124,9 @@ class TestIntegrityDetection:
         assert response.status_code == 200
         data = response.json()
 
-        orphan_issues = [i for i in data["issues"] if i["category"] == "orphaned_entity"]
+        orphan_issues = [
+            i for i in data["issues"] if i["category"] == "orphaned_entity"
+        ]
         assert len(orphan_issues) == 1
         assert orphan_issues[0]["severity"] == "error"
         assert orphan_issues[0]["affected_id"] == orphan.id
@@ -132,7 +136,7 @@ class TestIntegrityDetection:
     def test_detects_missing_audit_before_after(
         self, test_client: TestClient, db_session
     ) -> None:
-        """AuditLog review_action entry missing before_value/after_value is flagged as audit_log warning."""
+        """AuditLog review_action missing before/after_value flagged as audit_log."""
         protocol = _make_protocol(db_session)
         batch = _make_batch(db_session, protocol.id)
         criterion = _make_criteria(db_session, batch.id)
@@ -158,7 +162,7 @@ class TestIntegrityDetection:
     def test_detects_ungrounded_entity(
         self, test_client: TestClient, db_session
     ) -> None:
-        """Entity with no codes and no grounding_error is flagged as entity_grounding warning."""
+        """Entity with no codes and no grounding_error flagged as entity_grounding."""
         protocol = _make_protocol(db_session)
         batch = _make_batch(db_session, protocol.id)
         criterion = _make_criteria(db_session, batch.id)
@@ -176,7 +180,9 @@ class TestIntegrityDetection:
         assert response.status_code == 200
         data = response.json()
 
-        grounding_issues = [i for i in data["issues"] if i["category"] == "entity_grounding"]
+        grounding_issues = [
+            i for i in data["issues"] if i["category"] == "entity_grounding"
+        ]
         assert len(grounding_issues) == 1
         assert grounding_issues[0]["severity"] == "warning"
         assert data["passed"] is False
@@ -185,7 +191,7 @@ class TestIntegrityDetection:
     def test_detects_review_without_audit(
         self, test_client: TestClient, db_session
     ) -> None:
-        """Criteria with review_status but no AuditLog entry is flagged as criteria_state warning."""
+        """Criteria with review_status but no AuditLog flagged as criteria_state."""
         protocol = _make_protocol(db_session)
         batch = _make_batch(db_session, protocol.id)
 

@@ -201,8 +201,7 @@ def _update_batch_and_protocol(
         if all_failed:
             protocol.status = "grounding_failed"
             protocol.error_reason = (
-                f"All {result_count} entities failed grounding."
-                f" Errors: {error_count}"
+                f"All {result_count} entities failed grounding. Errors: {error_count}"
             )
         else:
             protocol.status = "pending_review"
@@ -289,7 +288,12 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
                     "No grounded_entities_json in state for protocol %s",
                     state.get("protocol_id"),
                 )
-                span.set_outputs({"status": "completed", "note": "no grounded entities"})
+                span.set_outputs(
+                    {
+                        "status": "completed",
+                        "note": "no grounded entities",
+                    }
+                )
                 return {"status": "completed"}
 
             grounding_results: list[dict[str, Any]] = json.loads(grounded_json)
@@ -343,8 +347,7 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
                 except Exception as e:
                     # Review inheritance failure should not block
                     logger.warning(
-                        "Review inheritance failed for protocol"
-                        " %s: %s",
+                        "Review inheritance failed for protocol %s: %s",
                         protocol_id,
                         e,
                     )
@@ -359,11 +362,13 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
                 len(accumulated_errors),
             )
 
-            span.set_outputs({
-                "entities_persisted": len(entity_ids),
-                "status": final_status,
-                "error_count": len(accumulated_errors),
-            })
+            span.set_outputs(
+                {
+                    "entities_persisted": len(entity_ids),
+                    "status": final_status,
+                    "error_count": len(accumulated_errors),
+                }
+            )
 
             if all_failed:
                 return {"status": "failed", "error": "All entities failed grounding"}

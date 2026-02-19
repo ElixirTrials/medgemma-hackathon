@@ -549,7 +549,7 @@ def list_protocol_batches(
 
     # Total criteria count per batch
     total_counts_stmt = (
-        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))
+        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))  # type: ignore[arg-type]
         .where(col(Criteria.batch_id).in_(batch_ids))
         .group_by(Criteria.batch_id)
     )
@@ -559,7 +559,7 @@ def list_protocol_batches(
 
     # Reviewed criteria count per batch (review_status IS NOT NULL)
     reviewed_counts_stmt = (
-        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))
+        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))  # type: ignore[arg-type]
         .where(
             col(Criteria.batch_id).in_(batch_ids),
             col(Criteria.review_status).isnot(None),
