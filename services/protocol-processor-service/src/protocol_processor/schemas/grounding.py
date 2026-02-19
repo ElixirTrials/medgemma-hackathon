@@ -93,6 +93,27 @@ class EntityGroundingResult(BaseModel):
             "(Entity, Operator, Value, Unit, Time)."
         ),
     )
+    criterion_id: str | None = Field(
+        default=None,
+        description=(
+            "FK to Criteria record this entity belongs to "
+            "(threaded from parse)."
+        ),
+    )
+    omop_concept_id: str | None = Field(
+        default=None,
+        description=(
+            "OMOP standard concept_id from Athena vocabulary lookup. "
+            "Used for CIRCE export and OMOP CDM joins."
+        ),
+    )
+    reconciliation_status: str | None = Field(
+        default=None,
+        description=(
+            "Dual grounding reconciliation: 'agree', 'disagreement', "
+            "'omop_missing', 'tooluniverse_missing'."
+        ),
+    )
 
 
 class GroundingBatchResult(BaseModel):
