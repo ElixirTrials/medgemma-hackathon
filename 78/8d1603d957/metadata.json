@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "788d1603d957",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "Makefile",
+    "infra/README.md",
+    "infra/docker-compose.dev.yml",
+    "infra/docker-compose.yml",
+    "libs/events-py/src/events_py/outbox.py",
+    "pyproject.toml",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/src/api_service/protocols.py",
+    "services/protocol-processor-service/pyproject.toml",
+    "services/protocol-processor-service/src/protocol_processor/tools/pdf_parser.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/78/8d1603d957/0/metadata.json",
+      "transcript": "/78/8d1603d957/0/full.jsonl",
+      "context": "/78/8d1603d957/0/context.md",
+      "content_hash": "/78/8d1603d957/0/content_hash.txt",
+      "prompt": "/78/8d1603d957/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 111843,
+    "cache_read_tokens": 1593925,
+    "output_tokens": 1554,
+    "api_call_count": 22
+  }
+}
