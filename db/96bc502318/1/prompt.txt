@@ -1,0 +1,73 @@
+You are an expert Python engineer and data modeler working on a clinical trials ETL/criteria‑structuring system. Your job is to implement the “Gap Closure Plan: From Grounded Entities to Join‑Ready Structured Data” in instructions/Refactoring/gap_closure_plan.md as efficiently and safely as possible, using subagents, parallel work, and granular verified commits.
+
+Overall goals
+- Implement the plan phases in gap_closure_plan.md, from dual grounding through atomic criteria tables and patient matching.
+- Keep the codebase green at all times: linting, typechecking, and tests must all pass for any work to be considered done.
+- Use small, atomic commits with clear messages tied to specific gaps/phases.
+- Use subagents (Sonnet 4.6) to parallelize well‑separated tasks (e.g., tooling vs migrations vs business logic), but never at the expense of correctness.
+
+Monorepo Pathing Context (Crucial):
+- Pipeline nodes/tools (`nodes/ground.py`, `tools/omop_mapper.py`) live in: `services/protocol-processor-service/src/protocol_processor/`
+- Database models live in: `libs/shared/src/shared/models.py`
+- DB Migrations live in and must be run from: `services/api-service/` (Use `uv run alembic ...`)
+- Use `uv` for all dependency/script executions (e.g. `uv run pytest`).
+
+Constraints and quality gates
+For every task or sub‑task:
+
+Planning and scoping
+- Read and internalize the relevant sections of gap_closure_plan.md (gaps, phases, target schemas, and validation queries).
+- Identify files to touch, new/changed models, and required migrations/tests.
+- Write a short plan in the editor before making changes, including which subagent(s) you will call and which checks you will run.
+
+Execution
+- Keep each change conceptually atomic. Prefer in‑place refactors over large rewrites.
+- For parallelizable work, use subagents as described below.
+
+Verification (required)
+After each unit of work (before committing), run the monorepo checks:
+- `uv run ruff check .`
+- `uv run mypy .`
+- `uv run pytest`
+If any of these fail, fix the issues and re‑run until they pass.
+For schema/SQL‑heavy changes, draft/run validation queries described in the plan.
+
+Commits
+Only commit when checks pass. Use clear, descriptive commit messages prefixed with the phase/gap (e.g., `feat(phase1a): add OMOP mapper and dual grounding`). Never mix unrelated changes in one commit.
+
+Subagents and parallelization
+Use Claude Code subagents to parallelize work only when tasks are logically independent:
+
+Subagent: “OMOP mapper & dual grounding” (Phase 1a)
+- Scope: Create tools/omop_mapper.py. Load Athena tables into Postgres (or wire to OMOP API). Integrate dual grounding into nodes/ground.py using asyncio.gather. Update Entity model.
+- Verification: Unit tests for the mapper. Tests pass.
+
+Subagent: “Field mapping + persist wiring” (Phase 1b)
+- Scope: Update tools/field_mapper.py. Propagate criterion_id. Fix multi‑entity overwrite in persist.py to accumulate mappings.
+- Verification: Tests for multi-entity accumulation. Tests pass.
+
+Subagent: “Schema + migrations (Phase 2)”
+- Scope: Update shared/models.py for atomic/composite criteria. Run Alembic migrations in api-service.
+- Verification: Migrations run cleanly locally. Simple round-trip tests. Tests pass.
+
+Subagent: “Structure builder + normalization (Phases 2 & 3)”
+- Scope: Implement structure_builder node/tool. Parse numerics/text. Apply UCUM mapping.
+- Verification: Tests for AND/OR tree building and unit normalization. Tests pass.
+
+Subagent: “Patient matching + exports (Phases 4 & 5)”
+- Scope: Implement patient_criterion_matches table and evaluation pipeline. Implement CIRCE/FHIR exports.
+- Verification: End-to-end ingest -> export tests. Tests pass.
+
+When using subagents: State clearly in the main thread: “Subagent X: implement Y in files A/B; constraints...”. Review the diff in the main session before committing.
+
+Step‑by‑step execution loop
+For each phase (1a, 1b, 2, 3, 4, 5) from gap_closure_plan.md:
+1. Read the phase description and gaps it addresses.
+2. Draft a mini‑plan in the editor (Tasks, Subagents, Files, Tests).
+3. Execute the changes (using subagents where appropriate).
+4. Run tests/linters and fix until green.
+5. Create a granular commit.
+6. Update a `progress.txt` log.
+7. PRIORITY GATE: After completing Phase 1b, you MUST stop and ask the user for confirmation/QA before beginning any work on Phase 2. Do not proceed to Phase 2 without user approval.
+
+Always favor correctness, schema integrity, and OMOP joinability over cleverness. If the plan and existing code disagree, highlight the conflict, propose a resolution consistent with OMOP/CDM practice, and implement it.
