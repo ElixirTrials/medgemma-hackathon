@@ -1,0 +1,48 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "188654cf2dc8",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "services/api-service/src/api_service/terminology_search.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/18/8654cf2dc8/0/metadata.json",
+      "transcript": "/18/8654cf2dc8/0/full.jsonl",
+      "context": "/18/8654cf2dc8/0/context.md",
+      "content_hash": "/18/8654cf2dc8/0/content_hash.txt",
+      "prompt": "/18/8654cf2dc8/0/prompt.txt"
+    },
+    {
+      "metadata": "/18/8654cf2dc8/1/metadata.json",
+      "transcript": "/18/8654cf2dc8/1/full.jsonl",
+      "context": "/18/8654cf2dc8/1/context.md",
+      "content_hash": "/18/8654cf2dc8/1/content_hash.txt",
+      "prompt": "/18/8654cf2dc8/1/prompt.txt"
+    },
+    {
+      "metadata": "/18/8654cf2dc8/2/metadata.json",
+      "transcript": "/18/8654cf2dc8/2/full.jsonl",
+      "context": "/18/8654cf2dc8/2/context.md",
+      "content_hash": "/18/8654cf2dc8/2/content_hash.txt",
+      "prompt": "/18/8654cf2dc8/2/prompt.txt"
+    },
+    {
+      "metadata": "/18/8654cf2dc8/3/metadata.json",
+      "transcript": "/18/8654cf2dc8/3/full.jsonl",
+      "context": "/18/8654cf2dc8/3/context.md",
+      "content_hash": "/18/8654cf2dc8/3/content_hash.txt",
+      "prompt": "/18/8654cf2dc8/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2655,
+    "cache_creation_tokens": 1043963,
+    "cache_read_tokens": 44286957,
+    "output_tokens": 53871,
+    "api_call_count": 487
+  }
+}

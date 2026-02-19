@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "612cfadc9283",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "docs/E2E-TEST-REPORT-2026-02-18-phase42.md",
+    "infra/docker-compose.yml",
+    "services/api-service/src/api_service/gcs.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/61/2cfadc9283/0/metadata.json",
+      "transcript": "/61/2cfadc9283/0/full.jsonl",
+      "context": "/61/2cfadc9283/0/context.md",
+      "content_hash": "/61/2cfadc9283/0/content_hash.txt",
+      "prompt": "/61/2cfadc9283/0/prompt.txt"
+    },
+    {
+      "metadata": "/61/2cfadc9283/1/metadata.json",
+      "transcript": "/61/2cfadc9283/1/full.jsonl",
+      "context": "/61/2cfadc9283/1/context.md",
+      "content_hash": "/61/2cfadc9283/1/content_hash.txt",
+      "prompt": "/61/2cfadc9283/1/prompt.txt"
+    },
+    {
+      "metadata": "/61/2cfadc9283/2/metadata.json",
+      "transcript": "/61/2cfadc9283/2/full.jsonl",
+      "context": "/61/2cfadc9283/2/context.md",
+      "content_hash": "/61/2cfadc9283/2/content_hash.txt",
+      "prompt": "/61/2cfadc9283/2/prompt.txt"
+    },
+    {
+      "metadata": "/61/2cfadc9283/3/metadata.json",
+      "transcript": "/61/2cfadc9283/3/full.jsonl",
+      "context": "/61/2cfadc9283/3/context.md",
+      "content_hash": "/61/2cfadc9283/3/content_hash.txt",
+      "prompt": "/61/2cfadc9283/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2760,
+    "cache_creation_tokens": 1167300,
+    "cache_read_tokens": 54355851,
+    "output_tokens": 61483,
+    "api_call_count": 584
+  }
+}

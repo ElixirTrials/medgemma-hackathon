@@ -1,0 +1,90 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "80be5b4839ec",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 4,
+  "files_touched": [
+    ".planning/phases/29-backend-bug-fixes/29-01-PLAN.md",
+    ".planning/phases/29-backend-bug-fixes/29-02-PLAN.md",
+    ".planning/phases/29-backend-bug-fixes/29-02-SUMMARY.md",
+    ".planning/phases/29-backend-bug-fixes/29-03-SUMMARY.md",
+    ".planning/phases/30-ux-polish-editor-pre-loading/30-01-PLAN.md",
+    ".planning/phases/30-ux-polish-editor-pre-loading/30-01-SUMMARY.md",
+    ".planning/phases/30-ux-polish-editor-pre-loading/30-02-PLAN.md",
+    ".planning/phases/30-ux-polish-editor-pre-loading/30-02-SUMMARY.md",
+    ".planning/phases/30-ux-polish-editor-pre-loading/30-CONTEXT.md",
+    ".planning/phases/30-ux-polish-editor-pre-loading/30-RESEARCH.md",
+    ".planning/phases/31-terminologyrouter-pipeline-consolidation/31-01-PLAN.md",
+    ".planning/phases/31-terminologyrouter-pipeline-consolidation/31-01-SUMMARY.md",
+    ".planning/phases/31-terminologyrouter-pipeline-consolidation/31-02-PLAN.md",
+    ".planning/phases/31-terminologyrouter-pipeline-consolidation/31-02-SUMMARY.md",
+    ".planning/phases/31-terminologyrouter-pipeline-consolidation/31-03-PLAN.md",
+    ".planning/phases/31-terminologyrouter-pipeline-consolidation/31-03-SUMMARY.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-01-PLAN.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-01-SUMMARY.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-02-PLAN.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-02-SUMMARY.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-03-PLAN.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-03-SUMMARY.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-CONTEXT.md",
+    ".planning/phases/32-entity-model-ground-node-multi-code-display/32-RESEARCH.md",
+    ".planning/phases/33-re-extraction-tooling-review-protection/33-01-PLAN.md",
+    ".planning/phases/33-re-extraction-tooling-review-protection/33-01-SUMMARY.md",
+    ".planning/phases/33-re-extraction-tooling-review-protection/33-02-PLAN.md",
+    ".planning/phases/33-re-extraction-tooling-review-protection/33-02-SUMMARY.md",
+    ".planning/phases/34-corpus-comparison-export/34-01-SUMMARY.md",
+    ".planning/phases/34-corpus-comparison-export/34-02-SUMMARY.md",
+    ".planning/phases/34-corpus-comparison-export/34-03-SUMMARY.md",
+    ".planning/phases/35-e2e-gap-closure/35-01-SUMMARY.md",
+    ".planning/phases/35-e2e-gap-closure/35-02-SUMMARY.md",
+    ".planning/phases/35-e2e-gap-closure/35-VERIFICATION.md",
+    ".planning/phases/36-e2e-test-infrastructure/36-01-PLAN.md",
+    ".planning/phases/36-e2e-test-infrastructure/36-02-PLAN.md",
+    ".planning/phases/42-pipeline-stability-umls-resilience/42-01-PLAN.md",
+    ".planning/phases/42-pipeline-stability-umls-resilience/42-02-PLAN.md",
+    "apps/hitl-ui/src/components/UmlsCombobox.tsx",
+    "apps/hitl-ui/src/hooks/useUmlsSearch.ts",
+    "docs/E2E-TEST-REPORT-2026-02-18.md",
+    "docs/development/gemini-vertex-auth.md",
+    "services/api-service/src/api_service/umls_search.py",
+    "services/api-service/tests/test_umls_search.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/80/be5b4839ec/0/metadata.json",
+      "transcript": "/80/be5b4839ec/0/full.jsonl",
+      "context": "/80/be5b4839ec/0/context.md",
+      "content_hash": "/80/be5b4839ec/0/content_hash.txt",
+      "prompt": "/80/be5b4839ec/0/prompt.txt"
+    },
+    {
+      "metadata": "/80/be5b4839ec/1/metadata.json",
+      "transcript": "/80/be5b4839ec/1/full.jsonl",
+      "context": "/80/be5b4839ec/1/context.md",
+      "content_hash": "/80/be5b4839ec/1/content_hash.txt",
+      "prompt": "/80/be5b4839ec/1/prompt.txt"
+    },
+    {
+      "metadata": "/80/be5b4839ec/2/metadata.json",
+      "transcript": "/80/be5b4839ec/2/full.jsonl",
+      "context": "/80/be5b4839ec/2/context.md",
+      "content_hash": "/80/be5b4839ec/2/content_hash.txt",
+      "prompt": "/80/be5b4839ec/2/prompt.txt"
+    },
+    {
+      "metadata": "/80/be5b4839ec/3/metadata.json",
+      "transcript": "/80/be5b4839ec/3/full.jsonl",
+      "context": "/80/be5b4839ec/3/context.md",
+      "content_hash": "/80/be5b4839ec/3/content_hash.txt",
+      "prompt": "/80/be5b4839ec/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2655,
+    "cache_creation_tokens": 1043963,
+    "cache_read_tokens": 44286957,
+    "output_tokens": 53871,
+    "api_call_count": 487
+  }
+}

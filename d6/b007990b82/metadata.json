@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d6b007990b82",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 5,
+  "files_touched": [
+    ".claude/settings.json",
+    ".entire/settings.json",
+    "infra/docker-compose.yml",
+    "services/api-service/Dockerfile",
+    "services/api-service/alembic/versions/40_01_add_entity_grounding_columns.py",
+    "services/protocol-processor-service/pyproject.toml",
+    "services/protocol-processor-service/src/protocol_processor/nodes/extract.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ingest.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/terminology_router.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py",
+    "services/protocol-processor-service/src/protocol_processor/tracing.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d6/b007990b82/0/metadata.json",
+      "transcript": "/d6/b007990b82/0/full.jsonl",
+      "context": "/d6/b007990b82/0/context.md",
+      "content_hash": "/d6/b007990b82/0/content_hash.txt",
+      "prompt": "/d6/b007990b82/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2378,
+    "cache_creation_tokens": 494080,
+    "cache_read_tokens": 22790385,
+    "output_tokens": 18591,
+    "api_call_count": 252
+  }
+}

@@ -1,0 +1,136 @@
+Implement the following plan:
+
+# Plan: Fast, Opt-In E2E Pipeline Test
+
+## Context
+
+The current E2E tests (`test_pipeline_full.py`) process the full protocol — 20 criteria, ~46 entities, ~15 min wall clock. This makes them impractical: they time out at 180s and never pass. We need a focused E2E test that validates the full pipeline path (upload → extract → parse → ground → persist) but with a small enough scope to complete in ~1-2 minutes.
+
+The test must be opt-in only — it should never run in CI/CD or during `uv run pytest`. It should only run when expressly requested.
+
+## Approach
+
+### 1. Add `e2e_live` pytest marker (opt-in, never runs by default)
+
+**File:** `pyproject.toml` — add marker definition
+**File:** `tests/e2e/conftest.py` — add skip logic
+
+Add a new `e2e_live` marker that is **always skipped** unless the user passes `-m e2e_live` explicitly. This is different from the existing `e2e` marker which auto-skips only when the stack is down. The `e2e_live` marker will skip even when the stack IS running, unless expressly requested.
+
+### 2. Add pipeline scope limits via env vars
+
+**File:** `services/protocol-processor-service/src/protocol_processor/nodes/parse.py`
+- After parsing `ExtractionResult`, check `PIPELINE_MAX_CRITERIA` env var
+- If set and > 0, truncate `extraction_result.criteria` before DB writes and decomposition
+- Default: 0 (disabled, no-op in production)
+
+**File:** `services/protocol-processor-service/src/protocol_processor/nodes/ground.py`
+- After building `entities_to_ground` list, check `PIPELINE_MAX_ENTITIES` env var
+- If set and > 0, truncate the list before async grounding
+- Default: 0 (disabled, no-op in production)
+
+These are development/debug knobs, not test hacks. They're useful for local development too.
+
+### 3. Write the focused E2E test
+
+**File:** `tests/e2e/test_pipeline_focused.py`
+
+A single test class with one test method:
+- Marked `@pytest.mark.e2e_live`
+- Sets `PIPELINE_MAX_CRITERIA=3` and `PIPELINE_MAX_ENTITIES=5` on the Docker API container via `docker exec` before running
+- Uploads the same test PDF
+- Waits for pipeline completion with a 300s timeout (generous but bounded)
+- Asserts: status == `pending_review`, criteria >= 1 inclusion + 1 exclusion, entities > 0 with grounding codes
+- Restores original env after test (container restart or env reset)
+
+Wait — setting env vars on a running Docker container mid-test is messy. Better approach: the test sets the env vars before the upload, and the pipeline reads them at runtime (they're `os.getenv` calls in the node functions, which run in the same process).
+
+Since the API runs inside Docker, we can't set env vars from outside mid-process. Two alternatives:
+
+**Option A:** Add an API endpoint like `POST /debug/config` that sets runtime config — too invasive.
+
+**Option B:** Use `docker exec` to set env vars — doesn't work for running processes.
+
+**Option C (chosen):** Add the env vars to `docker-compose.yml` with defaults of 0. The test then doesn't need to change anything — we configure the Docker container with small limits specifically for E2E testing. But this limits ALL pipeline runs...
+
+**Option D (actually chosen):** The env vars are checked at node execution time. We can pass them through the pipeline state/config from the trigger. But this requires changes to the graph config threading.
+
+**Simplest approach:** Add the env vars to `infra/docker-compose.yml` with sensible defaults (0 = unlimited). For the focused E2E test, the test itself documents that you should set `PIPELINE_MAX_CRITERIA=3 PIPELINE_MAX_ENTITIES=5` in your `.env` or docker-compose override before running. The test just validates whatever comes out — it uses low baselines (min 1 criterion, min 1 entity).
+
+Actually even simpler: the test doesn't need to control pipeline scope at all. It just needs generous timeouts and low thresholds. The real pipeline takes ~15 min — we just need the test to wait that long. The "small section" the user mentioned could simply mean the test validates a focused subset of assertions rather than running a smaller pipeline.
+
+Let me reconsider: the user said "test a small section with a limited number of grounding." This means they DO want fewer entities to be grounded, not just lower assertions. The env var approach in parse/ground nodes is right, and we should make the Docker container pick them up.
+
+**Final approach:** Add env vars to the pipeline nodes (read at runtime). The `docker-compose.yml` gets them with defaults of 0. The focused test's docstring and a `conftest` fixture explain that to run fast, set `PIPELINE_MAX_CRITERIA=3` and `PIPELINE_MAX_ENTITIES=5` in your environment. The test itself uses a 300s timeout and low baselines.
+
+## Changes
+
+### `pyproject.toml`
+- Add `e2e_live` marker: `"e2e_live: live end-to-end pipeline tests (only run with -m e2e_live)"`
+
+### `tests/e2e/conftest.py`
+- In `pytest_collection_modifyitems`: skip `e2e_live` tests unless `-m` expression contains `e2e_live`
+
+### `services/protocol-processor-service/src/protocol_processor/nodes/parse.py`
+- After `extraction_result = ExtractionResult.model_validate_json(extraction_json)` (around line 67):
+  ```python
+  _max = int(os.getenv("PIPELINE_MAX_CRITERIA", "0"))
+  if _max > 0:
+      extraction_result.criteria = extraction_result.criteria[:_max]
+      logger.info("PIPELINE_MAX_CRITERIA=%d: truncated to %d criteria", _max, len(extraction_result.criteria))
+  ```
+
+### `services/protocol-processor-service/src/protocol_processor/nodes/ground.py`
+- After `entities_to_ground` list is built (around line 390):
+  ```python
+  _max = int(os.getenv("PIPELINE_MAX_ENTITIES", "0"))
+  if _max > 0:
+      entities_to_ground = entities_to_ground[:_max]
+      logger.info("PIPELINE_MAX_ENTITIES=%d: truncated to %d entities", _max, len(entities_to_ground))
+  ```
+
+### `infra/docker-compose.yml`
+- Add `PIPELINE_MAX_CRITERIA` and `PIPELINE_MAX_ENTITIES` to the `api` service environment (default: 0)
+
+### `tests/e2e/test_pipeline_focused.py` (new file)
+- `@pytest.mark.e2e_live` test class
+- Single test: upload PDF, wait 300s, assert pipeline completes with criteria + grounded entities
+- Low baselines: min 1 criterion, min 1 grounded entity
+- Prints a regression summary (like the existing test_regression_baseline)
+
+## Also fix: BUG-1 (persist node crash)
+
+Since the test can't pass without this fix:
+
+### `services/protocol-processor-service/src/protocol_processor/nodes/persist.py`
+- Line 140-141: handle `conditions` being a list instead of dict:
+  ```python
+  existing = criterion.conditions or {}
+  if not isinstance(existing, dict):
+      existing = {"original_conditions": existing}
+  criterion.conditions = {**existing, "field_mappings": field_mappings}
+  ```
+
+## Verification
+
+```bash
+# Set scope limits in .env or export:
+export PIPELINE_MAX_CRITERIA=3
+export PIPELINE_MAX_ENTITIES=5
+
+# Rebuild API container to pick up env vars:
+docker compose -f infra/docker-compose.yml up -d api
+
+# Run the focused test (only this runs, everything else skips):
+uv run pytest tests/e2e/test_pipeline_focused.py -m e2e_live -s -v -o "addopts="
+
+# Verify regular pytest does NOT run it:
+uv run pytest tests/e2e/ -v  # should skip e2e_live tests
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Which tests are you skipping and why?

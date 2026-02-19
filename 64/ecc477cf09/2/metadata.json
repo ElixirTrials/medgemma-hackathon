@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "64ecc477cf09",
+  "session_id": "527e3ccf-f028-4cc0-8e57-def5c5b7d5de",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T17:47:28.670131Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".planning/ROADMAP.md",
+    ".planning/phases/44-quality-report-fix-traceability/44-01-PLAN.md",
+    ".planning/phases/44-quality-report-fix-traceability/44-02-PLAN.md",
+    ".planning/phases/44-quality-report-fix-traceability/44-03-PLAN.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6572b7f19133",
+  "transcript_identifier_at_start": "5266b741-184e-463f-89d1-a5ae978816bc",
+  "checkpoint_transcript_start": 99,
+  "transcript_lines_at_start": 99,
+  "token_usage": {
+    "input_tokens": 2,
+    "cache_creation_tokens": 424,
+    "cache_read_tokens": 164648,
+    "output_tokens": 155,
+    "api_call_count": 2
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T17:47:28.624465Z",
+    "agent_lines": 127,
+    "human_added": 269,
+    "human_modified": 369,
+    "human_removed": 0,
+    "total_committed": 765,
+    "agent_percentage": 16.60130718954248
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/527e3ccf-f028-4cc0-8e57-def5c5b7d5de.jsonl"
+}

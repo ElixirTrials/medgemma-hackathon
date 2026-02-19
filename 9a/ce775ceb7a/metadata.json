@@ -1,0 +1,67 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9ace775ceb7a",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useTerminologySearch.ts",
+    "infra/.env.example",
+    "infra/docker-compose.yml",
+    "libs/shared/src/shared/resilience.py",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/src/api_service/terminology_search.py",
+    "services/api-service/tests/test_umls_clients.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9a/ce775ceb7a/0/metadata.json",
+      "transcript": "/9a/ce775ceb7a/0/full.jsonl",
+      "context": "/9a/ce775ceb7a/0/context.md",
+      "content_hash": "/9a/ce775ceb7a/0/content_hash.txt",
+      "prompt": "/9a/ce775ceb7a/0/prompt.txt"
+    },
+    {
+      "metadata": "/9a/ce775ceb7a/1/metadata.json",
+      "transcript": "/9a/ce775ceb7a/1/full.jsonl",
+      "context": "/9a/ce775ceb7a/1/context.md",
+      "content_hash": "/9a/ce775ceb7a/1/content_hash.txt",
+      "prompt": "/9a/ce775ceb7a/1/prompt.txt"
+    },
+    {
+      "metadata": "/9a/ce775ceb7a/2/metadata.json",
+      "transcript": "/9a/ce775ceb7a/2/full.jsonl",
+      "context": "/9a/ce775ceb7a/2/context.md",
+      "content_hash": "/9a/ce775ceb7a/2/content_hash.txt",
+      "prompt": "/9a/ce775ceb7a/2/prompt.txt"
+    },
+    {
+      "metadata": "/9a/ce775ceb7a/3/metadata.json",
+      "transcript": "/9a/ce775ceb7a/3/full.jsonl",
+      "context": "/9a/ce775ceb7a/3/context.md",
+      "content_hash": "/9a/ce775ceb7a/3/content_hash.txt",
+      "prompt": "/9a/ce775ceb7a/3/prompt.txt"
+    },
+    {
+      "metadata": "/9a/ce775ceb7a/4/metadata.json",
+      "transcript": "/9a/ce775ceb7a/4/full.jsonl",
+      "context": "",
+      "content_hash": "/9a/ce775ceb7a/4/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2660,
+    "cache_creation_tokens": 1091420,
+    "cache_read_tokens": 44483149,
+    "output_tokens": 55105,
+    "api_call_count": 491
+  }
+}
