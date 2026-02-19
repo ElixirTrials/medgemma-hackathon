@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 OMOP_MIN_MATCH_SCORE: float = 0.3
 """Minimum fuzzy-match score to accept a candidate. Below this, return None."""
 
-OMOP_MAX_CANDIDATES: int = 20
+OMOP_MAX_CANDIDATES: int = 50
 """Maximum number of rows to fetch from each SQL query (LIMIT clause)."""
 
 # ---------------------------------------------------------------------------
@@ -176,7 +176,13 @@ def _score_candidates(
 
         candidate["score"] = min(base_score + bonus, 1.0)
 
-    candidates.sort(key=lambda c: c["score"], reverse=True)
+    # Sort by score desc, then by length similarity (prefer match_text
+    # closest in length to entity_text) as tiebreaker.
+    entity_len = len(entity_lower)
+    candidates.sort(
+        key=lambda c: (c["score"], -abs(len(c.get("match_text", "").strip()) - entity_len)),
+        reverse=True,
+    )
     return candidates
 
 
@@ -221,6 +227,7 @@ def _query_concept_table(
         "WHERE standard_concept = 'S' "
         "  AND domain_id = :domain_id "
         "  AND concept_name ILIKE :pattern "
+        "ORDER BY length(concept_name) ASC "
         "LIMIT :max_candidates"
     )
     pattern = f"%{entity_text}%"
@@ -271,6 +278,7 @@ def _query_synonym_table(
         "WHERE c.standard_concept = 'S' "
         "  AND c.domain_id = :domain_id "
         "  AND s.concept_synonym_name ILIKE :pattern "
+        "ORDER BY length(s.concept_synonym_name) ASC "
         "LIMIT :max_candidates"
     )
     pattern = f"%{entity_text}%"
