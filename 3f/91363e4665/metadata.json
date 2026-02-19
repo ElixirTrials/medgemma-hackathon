@@ -3,7 +3,7 @@
   "checkpoint_id": "3f91363e4665",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/api-service/src/api_service/gcs.py"
   ],
@@ -14,13 +14,20 @@
       "context": "/3f/91363e4665/0/context.md",
       "content_hash": "/3f/91363e4665/0/content_hash.txt",
       "prompt": "/3f/91363e4665/0/prompt.txt"
+    },
+    {
+      "metadata": "/3f/91363e4665/1/metadata.json",
+      "transcript": "/3f/91363e4665/1/full.jsonl",
+      "context": "/3f/91363e4665/1/context.md",
+      "content_hash": "/3f/91363e4665/1/content_hash.txt",
+      "prompt": "/3f/91363e4665/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 102,
-    "cache_creation_tokens": 129746,
-    "cache_read_tokens": 7935524,
-    "output_tokens": 10121,
-    "api_call_count": 90
+    "input_tokens": 206,
+    "cache_creation_tokens": 232053,
+    "cache_read_tokens": 13589513,
+    "output_tokens": 16745,
+    "api_call_count": 170
   }
 }
