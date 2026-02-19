@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9e1f65531cc5",
+  "session_id": "9e308917-11ec-45e0-ba67-9ff5deffb7c1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T22:21:27.108044Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "services/api-service/alembic/versions/44_01_add_export_indexes.py",
+    "services/api-service/scripts/demo_exports.py",
+    "services/api-service/src/api_service/exporters/__init__.py",
+    "services/api-service/src/api_service/exporters/circe_builder.py",
+    "services/api-service/src/api_service/exporters/evaluation_sql_builder.py",
+    "services/api-service/src/api_service/exporters/fhir_group_builder.py",
+    "services/api-service/src/api_service/exports.py",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/tests/test_exports.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d30c99b02136",
+  "token_usage": {
+    "input_tokens": 98,
+    "cache_creation_tokens": 209037,
+    "cache_read_tokens": 7393035,
+    "output_tokens": 15296,
+    "api_call_count": 80
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T22:21:26.252952Z",
+    "agent_lines": 1922,
+    "human_added": 40,
+    "human_modified": 141,
+    "human_removed": 0,
+    "total_committed": 2103,
+    "agent_percentage": 91.39324774132193
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/9e308917-11ec-45e0-ba67-9ff5deffb7c1.jsonl"
+}
