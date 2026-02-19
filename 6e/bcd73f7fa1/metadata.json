@@ -3,7 +3,7 @@
   "checkpoint_id": "6ebcd73f7fa1",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 3,
+  "checkpoints_count": 6,
   "files_touched": [
     "services/protocol-processor-service/scripts/run_ordinal_e2e.py",
     "services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml",
@@ -37,13 +37,20 @@
       "context": "/6e/bcd73f7fa1/1/context.md",
       "content_hash": "/6e/bcd73f7fa1/1/content_hash.txt",
       "prompt": "/6e/bcd73f7fa1/1/prompt.txt"
+    },
+    {
+      "metadata": "/6e/bcd73f7fa1/2/metadata.json",
+      "transcript": "/6e/bcd73f7fa1/2/full.jsonl",
+      "context": "/6e/bcd73f7fa1/2/context.md",
+      "content_hash": "/6e/bcd73f7fa1/2/content_hash.txt",
+      "prompt": "/6e/bcd73f7fa1/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 201,
-    "cache_creation_tokens": 265565,
-    "cache_read_tokens": 17368701,
-    "output_tokens": 23982,
-    "api_call_count": 177
+    "input_tokens": 320,
+    "cache_creation_tokens": 455813,
+    "cache_read_tokens": 26763888,
+    "output_tokens": 39026,
+    "api_call_count": 282
   }
 }
