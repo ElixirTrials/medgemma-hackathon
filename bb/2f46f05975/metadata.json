@@ -3,7 +3,7 @@
   "checkpoint_id": "bb2f46f05975",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 5,
+  "checkpoints_count": 6,
   "files_touched": [
     "apps/hitl-ui/src/features/dashboard/ActivityFeed.tsx"
   ],
@@ -63,13 +63,20 @@
       "context": "/bb/2f46f05975/7/context.md",
       "content_hash": "/bb/2f46f05975/7/content_hash.txt",
       "prompt": "/bb/2f46f05975/7/prompt.txt"
+    },
+    {
+      "metadata": "/bb/2f46f05975/8/metadata.json",
+      "transcript": "/bb/2f46f05975/8/full.jsonl",
+      "context": "/bb/2f46f05975/8/context.md",
+      "content_hash": "/bb/2f46f05975/8/content_hash.txt",
+      "prompt": "/bb/2f46f05975/8/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3008,
-    "cache_creation_tokens": 1561606,
-    "cache_read_tokens": 69235381,
-    "output_tokens": 81664,
-    "api_call_count": 769
+    "input_tokens": 3946,
+    "cache_creation_tokens": 1905865,
+    "cache_read_tokens": 82288080,
+    "output_tokens": 93313,
+    "api_call_count": 911
   }
 }
