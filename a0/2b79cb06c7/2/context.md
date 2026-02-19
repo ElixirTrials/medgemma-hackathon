@@ -1,0 +1,52 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+You have mypy errors. Check that you don't have pytest failures.
+
+### Prompt 2
+
+In dev, we should be using a local mlflow rather from the docker so we can use claude mlflow assistant.
+
+### Prompt 3
+
+[Request interrupted by user]
+
+### Prompt 4
+
+Make run-dev is for local. when are we supposed to use make-infra? And for prod, how do we end up with the mlflow docker?
+
+### Prompt 5
+
+Make sure the local mlflow is using sql. Also, it seems like the whole graph is being traced as one one trace so we can't see the tool calls, gemini and medgemma traces as they come in. Is there a way to log each of these as seperate traces but group them by session?
+
+### Prompt 6
+
+Can you confirm we are running grounding in parallel and in batches?
+
+### Prompt 7
+
+Do some research and make a suggestion. I am trying to decide between 1 and 3.
+
+### Prompt 8
+
+proceed
+
+### Prompt 9
+
+Some of the pytests take forever to run. Can you look run the tests one by one with a relatively short timeout to determine which is the bottleneck. Then propose a solution.
+
+### Prompt 10
+
+This is taking so long it is likely the culprit
+
+### Prompt 11
+
+[Request interrupted by user for tool use]
+
+### Prompt 12
+
+This seems messy to me and this test is still taking a long time I think. Each test should take <30s with the exception of an E2E grounding.
+
