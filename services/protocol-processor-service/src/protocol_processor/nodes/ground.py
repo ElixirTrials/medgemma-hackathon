@@ -288,6 +288,11 @@ async def _ground_entity_parallel(
         )
         try:
             result = await _ground_entity_with_retry(entity, router, criterion_text)
+
+            # Generate field mappings in parallel (same semaphore slot)
+            field_mappings = await generate_field_mappings(result, criterion_text)
+            result.field_mappings = field_mappings if field_mappings else None
+
             elapsed = time.monotonic() - start
             logger.info(
                 "Entity %d/%d '%s' grounded in %.1fs: code=%s, conf=%.2f",
@@ -434,13 +439,6 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                 criterion_text = entity.get("criterion_text") or entity.get("text", "")
 
                 if result is not None:
-                    # Generate field mappings for this entity
-                    field_mappings = await generate_field_mappings(
-                        result,
-                        criterion_text,
-                    )
-                    result.field_mappings = field_mappings if field_mappings else None
-
                     # Log grounding decision to AuditLog
                     try:
                         with Session(engine) as session:
