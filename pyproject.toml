@@ -47,6 +47,8 @@ dependencies = [
     "itsdangerous>=2.1.0",
     "pybreaker>=1.2.0",
     "langchain-google-genai>=4.2.0",
+    "rapidfuzz>=3.14.3",
+    "tooluniverse>=1.0.18",
 ]
 
 [dependency-groups]
@@ -62,7 +64,13 @@ dev = [
     "requests-mock>=1.12.1",
     "transformers>=4.57.6",
     "ipykernel>=7.2.0",
+    "types-requests>=2.32.4.20260107",
+    "types-cachetools>=6.2.0.20251022",
 ]
+
+[tool.uv]
+# Exclude conflicting "fitz" package (shadows PyMuPDF's fitz); we use pymupdf for PDF.
+override-dependencies = ["fitz ; sys_platform == 'never'"]
 
 [tool.uv.workspace]
 members = [
@@ -105,6 +113,10 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "httpx"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tooluniverse"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
@@ -185,6 +197,7 @@ pythonpath = [
     "services/protocol-processor-service/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
+    "libs/events-py",
     "libs/events-py/src",
     "libs/inference/src",
     "libs/model-training/src",

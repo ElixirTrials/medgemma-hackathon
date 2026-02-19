@@ -96,26 +96,26 @@ class TestGetApisForEntity:
         apis = default_router.get_apis_for_entity("Lab_Value")
         assert apis == ["loinc", "umls"]
 
-    def test_demographic_returns_empty_list(
+    def test_demographic_returns_umls_and_snomed(
         self, default_router: TerminologyRouter
     ) -> None:
-        """Demographic must return empty list (explicitly skipped)."""
+        """Demographic must route to umls and snomed (age/gender grounding)."""
         apis = default_router.get_apis_for_entity("Demographic")
-        assert apis == []
+        assert apis == ["umls", "snomed"]
 
-    def test_demographic_skip_is_logged_at_info(
+    def test_consent_skip_is_logged_at_info(
         self,
         default_router: TerminologyRouter,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """Demographic skip must be logged at INFO level (explicit, not silent)."""
+        """Consent skip must be logged at INFO level (explicit, not silent)."""
         with caplog.at_level(logging.INFO, logger="protocol_processor"):
-            default_router.get_apis_for_entity("Demographic")
-        assert any("Demographic" in record.message for record in caplog.records)
+            default_router.get_apis_for_entity("Consent")
+        assert any("Consent" in record.message for record in caplog.records)
         assert any(
             record.levelno == logging.INFO
             for record in caplog.records
-            if "Demographic" in record.message
+            if "Consent" in record.message
         )
 
     def test_unknown_entity_type_returns_empty_list(

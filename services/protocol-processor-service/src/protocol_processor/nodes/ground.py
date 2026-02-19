@@ -215,8 +215,7 @@ async def _ground_entity_with_retry(
                     confidence=result.confidence,
                     candidates=result.candidates,
                     reasoning=(
-                        f"[Attempt {attempt}, query='{new_query}'] "
-                        f"{result.reasoning}"
+                        f"[Attempt {attempt}, query='{new_query}'] {result.reasoning}"
                     ),
                     field_mappings=result.field_mappings,
                 )
@@ -279,15 +278,19 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
             entities_json = state.get("entities_json")
             if not entities_json:
                 span.set_outputs({"error": "No entities_json in state"})
-                return {"error": "No entities_json in state — parse node may have failed"}
+                return {
+                    "error": "No entities_json in state — parse node may have failed"
+                }
 
             entity_items: list[dict[str, Any]] = json.loads(entities_json)
             protocol_id = state["protocol_id"]
 
-            span.set_inputs({
-                "protocol_id": protocol_id,
-                "entity_count": len(entity_items),
-            })
+            span.set_inputs(
+                {
+                    "protocol_id": protocol_id,
+                    "entity_count": len(entity_items),
+                }
+            )
 
             logger.info(
                 "Starting grounding for protocol %s: %d entities",
@@ -338,11 +341,15 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                         grounding_results.append(result.model_dump())
                         continue
 
-                    # Ground with agentic retry (up to 3 attempts, expert_review on failure)
-                    result = await _ground_entity_with_retry(entity, router, criterion_text)
+                    # Ground with agentic retry (3 attempts; expert_review on failure)
+                    result = await _ground_entity_with_retry(
+                        entity, router, criterion_text
+                    )
 
                     # Generate field mappings for this entity
-                    field_mappings = await generate_field_mappings(result, criterion_text)
+                    field_mappings = await generate_field_mappings(
+                        result, criterion_text
+                    )
                     result.field_mappings = field_mappings if field_mappings else None
 
                     # Log grounding decision to AuditLog
@@ -393,10 +400,12 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                 len(accumulated_errors),
             )
 
-            span.set_outputs({
-                "grounded_count": len(grounding_results),
-                "error_count": len(accumulated_errors),
-            })
+            span.set_outputs(
+                {
+                    "grounded_count": len(grounding_results),
+                    "error_count": len(accumulated_errors),
+                }
+            )
 
             return {
                 "grounded_entities_json": json.dumps(grounding_results),

@@ -180,7 +180,8 @@ async def _run_pipeline(
                         mlflow.MlflowClient().end_trace(trace_id, status="ERROR")
                     except Exception:
                         logger.warning(
-                            "Could not force-close MLflow trace %s — already closed or unavailable",
+                            "Could not force-close MLflow trace %s — "
+                            "already closed or unavailable",
                             trace_id,
                         )
 
@@ -258,9 +259,7 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
 
         config = {"configurable": {"thread_id": thread_id}}
 
-        asyncio.run(
-            _run_pipeline(graph, initial_state, config, payload)
-        )
+        asyncio.run(_run_pipeline(graph, initial_state, config, payload))
 
         logger.info(
             "Protocol pipeline completed for protocol %s",

@@ -21,11 +21,11 @@ from __future__ import annotations
 
 BASELINES: dict[str, dict[str, int]] = {
     "data/protocols/crc_protocols/isrctn/48616-d8fc1476.pdf": {
-        "min_criteria": 3,          # At least 3 criteria extracted
-        "min_inclusion": 1,         # At least 1 inclusion criterion
-        "min_exclusion": 1,         # At least 1 exclusion criterion
-        "min_entities": 2,          # At least 2 entities across all criteria
-        "min_grounded_entities": 1, # At least 1 entity with non-zero confidence
+        "min_criteria": 3,  # At least 3 criteria extracted
+        "min_inclusion": 1,  # At least 1 inclusion criterion
+        "min_exclusion": 1,  # At least 1 exclusion criterion
+        "min_entities": 2,  # At least 2 entities across all criteria
+        "min_grounded_entities": 1,  # At least 1 entity with non-zero confidence
     },
 }
 
@@ -47,7 +47,6 @@ def get_baseline(pdf_path: str) -> dict[str, int]:
     if pdf_path not in BASELINES:
         available = ", ".join(sorted(BASELINES.keys()))
         raise KeyError(
-            f"No baseline entry for '{pdf_path}'. "
-            f"Available baselines: {available}"
+            f"No baseline entry for '{pdf_path}'. Available baselines: {available}"
         )
     return BASELINES[pdf_path]

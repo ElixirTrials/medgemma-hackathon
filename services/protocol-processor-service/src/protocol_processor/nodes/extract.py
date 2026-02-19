@@ -32,11 +32,13 @@ async def extract_node(state: PipelineState) -> dict[str, Any]:
         return {}
 
     with pipeline_span("extract_node", span_type="LLM") as span:
-        span.set_inputs({
-            "protocol_id": state.get("protocol_id", ""),
-            "title": state.get("title", ""),
-            "pdf_bytes_len": len(state.get("pdf_bytes") or b""),
-        })
+        span.set_inputs(
+            {
+                "protocol_id": state.get("protocol_id", ""),
+                "title": state.get("title", ""),
+                "pdf_bytes_len": len(state.get("pdf_bytes") or b""),
+            }
+        )
 
         try:
             extraction_json = await extract_criteria_structured(
@@ -49,9 +51,13 @@ async def extract_node(state: PipelineState) -> dict[str, Any]:
                 "Extraction complete for protocol %s",
                 state["protocol_id"],
             )
-            span.set_outputs({
-                "extraction_json_len": len(extraction_json) if extraction_json else 0,
-            })
+            span.set_outputs(
+                {
+                    "extraction_json_len": len(extraction_json)
+                    if extraction_json
+                    else 0,
+                }
+            )
             return {"extraction_json": extraction_json}
 
         except Exception as e:

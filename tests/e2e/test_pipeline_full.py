@@ -124,9 +124,7 @@ class TestFullPipeline:
         e2e_api_client: httpx.Client,
     ) -> None:
         """E2E-01: Pipeline reaches pending_review status after uploading a real PDF."""
-        _protocol_id, protocol_data = _upload_and_wait(
-            upload_test_pdf, e2e_api_client
-        )
+        _protocol_id, protocol_data = _upload_and_wait(upload_test_pdf, e2e_api_client)
         assert protocol_data["status"] == "pending_review"
 
     def test_criteria_have_inclusion_and_exclusion(
@@ -183,7 +181,8 @@ class TestFullPipeline:
 
         # Filter grounded entities (non-null, non-zero confidence)
         grounded = [
-            e for e in all_entities
+            e
+            for e in all_entities
             if e.get("grounding_confidence") is not None
             and e["grounding_confidence"] > 0
         ]
@@ -222,18 +221,29 @@ class TestFullPipeline:
             all_entities.extend(criterion.get("entities", []))
 
         grounded = [
-            e for e in all_entities
+            e
+            for e in all_entities
             if e.get("grounding_confidence") is not None
             and e["grounding_confidence"] > 0
         ]
 
         # Print actual vs baseline for visibility (pytest -s)
         print(f"\n--- Regression Baseline Report for {_DEFAULT_PDF} ---")
-        print(f"  Criteria:          {len(criteria):>4} (baseline: {baseline['min_criteria']})")
-        print(f"  Inclusion:         {inclusion_count:>4} (baseline: {baseline['min_inclusion']})")
-        print(f"  Exclusion:         {exclusion_count:>4} (baseline: {baseline['min_exclusion']})")
-        print(f"  Entities:          {len(all_entities):>4} (baseline: {baseline['min_entities']})")
-        print(f"  Grounded entities: {len(grounded):>4} (baseline: {baseline['min_grounded_entities']})")
+        print(
+            f"  Criteria:          {len(criteria):>4} (baseline: {baseline['min_criteria']})"
+        )
+        print(
+            f"  Inclusion:         {inclusion_count:>4} (baseline: {baseline['min_inclusion']})"
+        )
+        print(
+            f"  Exclusion:         {exclusion_count:>4} (baseline: {baseline['min_exclusion']})"
+        )
+        print(
+            f"  Entities:          {len(all_entities):>4} (baseline: {baseline['min_entities']})"
+        )
+        print(
+            f"  Grounded entities: {len(grounded):>4} (baseline: {baseline['min_grounded_entities']})"
+        )
         print("---")
 
         # Assert ALL baseline thresholds

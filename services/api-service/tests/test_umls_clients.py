@@ -46,9 +46,7 @@ class TestTerminologySearchEndpoint:
         assert "Invalid terminology system" in response.json()["detail"]
 
     def test_query_too_short_returns_422(self, test_client) -> None:
-        response = test_client.get(
-            "/api/terminology/icd10/search", params={"q": "ab"}
-        )
+        response = test_client.get("/api/terminology/icd10/search", params={"q": "ab"})
         assert response.status_code == 422
 
     def test_icd10_search_returns_200(self, test_client) -> None:

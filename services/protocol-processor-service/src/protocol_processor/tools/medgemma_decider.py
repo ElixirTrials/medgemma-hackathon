@@ -32,6 +32,7 @@ _PROMPTS_DIR = None
 
 def _get_prompts_dir():
     from pathlib import Path
+
     return Path(__file__).parent.parent / "prompts"
 
 
@@ -87,9 +88,7 @@ class AgenticReasoningResult(BaseModel):
     )
     gemini_suggestion: str | None = Field(
         default=None,
-        description=(
-            "Optional reformulation suggestion from Gemini structuring step"
-        ),
+        description=("Optional reformulation suggestion from Gemini structuring step"),
     )
     reasoning: str = Field(
         default="",
@@ -110,8 +109,7 @@ class GroundingDecision(BaseModel):
     selected_system: str | None = Field(
         default=None,
         description=(
-            "The API/system that produced the selected code"
-            " (e.g. 'umls', 'snomed')."
+            "The API/system that produced the selected code (e.g. 'umls', 'snomed')."
         ),
     )
     preferred_term: str | None = Field(

@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import logging
 
-import fitz
+import pymupdf as fitz
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
@@ -62,14 +62,15 @@ def compute_quality_score(pdf_bytes: bytes) -> QualityResult:
     pages_with_text = 0
     pages_with_images = 0
 
-    for page in doc:
-        # Check for extractable text
-        text = page.get_text("text").strip()
+    for i in range(len(doc)):
+        page = doc[i]
+        # Check for extractable text (pymupdf Page API)
+        text = page.get_text("text").strip()  # type: ignore[attr-defined]
         if text:
             pages_with_text += 1
 
         # Check for embedded images
-        images = page.get_images()
+        images = page.get_images()  # type: ignore[attr-defined]
         if images:
             pages_with_images += 1
 

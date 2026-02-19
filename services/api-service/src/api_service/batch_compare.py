@@ -15,7 +15,7 @@ Endpoints:
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, Literal
+from typing import Any, Dict, Literal, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
@@ -160,7 +160,7 @@ def compare_batches(
 
         if best_b_idx is not None and best_score >= CHANGED_THRESHOLD:
             b_items[best_b_idx]["matched"] = True
-            matched_b: Criteria = b_items[best_b_idx]["criterion"]
+            matched_b = cast(Criteria, b_items[best_b_idx]["criterion"])
 
             if best_score >= UNCHANGED_THRESHOLD:
                 status: CompareStatus = "unchanged"
@@ -193,11 +193,12 @@ def compare_batches(
     for b_item in b_items:
         if not b_item["matched"]:
             added_count += 1
+            crit_b = cast(Criteria, b_item["criterion"])
             rows.append(
                 CriterionCompareRow(
                     status="added",
                     batch_a_criterion=None,
-                    batch_b_criterion=_criterion_dict(b_item["criterion"]),
+                    batch_b_criterion=_criterion_dict(crit_b),
                     match_score=None,
                 )
             )

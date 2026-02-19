@@ -40,10 +40,12 @@ async def ingest_node(state: PipelineState) -> dict[str, Any]:
         return {}
 
     with pipeline_span("ingest_node") as span:
-        span.set_inputs({
-            "protocol_id": state.get("protocol_id", ""),
-            "file_uri": state.get("file_uri", ""),
-        })
+        span.set_inputs(
+            {
+                "protocol_id": state.get("protocol_id", ""),
+                "file_uri": state.get("file_uri", ""),
+            }
+        )
 
         try:
             pdf_bytes = await fetch_pdf_bytes(state["file_uri"])

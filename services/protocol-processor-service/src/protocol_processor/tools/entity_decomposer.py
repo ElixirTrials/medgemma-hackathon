@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -86,7 +86,8 @@ async def decompose_entities_from_criterion(
         result = await structured.ainvoke(prompt)
         if isinstance(result, dict):
             result = DecomposedEntityList.model_validate(result)
-        return [e.model_dump() for e in result.entities]
+        decomposed = cast(DecomposedEntityList, result)
+        return [e.model_dump() for e in decomposed.entities]
     except Exception as e:
         logger.error(
             "Entity decomposition failed for criterion '%s': %s",
