@@ -2,6 +2,9 @@
 -- These indexes are critical for fast concept lookups and searches
 -- Run AFTER data loading (indexes slow down COPY)
 
+-- Enable pg_trgm extension for fuzzy text search (must come before trigram indexes)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 \echo 'Creating indexes for OMOP Vocabulary tables...'
 \echo 'This may take 10-20 minutes depending on vocabulary size.'
 \echo ''
@@ -61,9 +64,6 @@ ALTER TABLE concept_relationship ADD CONSTRAINT fk_concept_relationship_concept_
 ALTER TABLE concept_relationship ADD CONSTRAINT fk_concept_relationship_relationship FOREIGN KEY (relationship_id) REFERENCES relationship (relationship_id);
 
 ALTER TABLE concept_synonym ADD CONSTRAINT fk_concept_synonym_concept FOREIGN KEY (concept_id) REFERENCES concept (concept_id);
-
--- Enable pg_trgm extension for fuzzy text search (if not already enabled)
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
 
 -- Analyze tables for query planner statistics
 \echo 'Analyzing tables...'

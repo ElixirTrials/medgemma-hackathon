@@ -1,27 +1,32 @@
 """OMOP vocabulary mapper: look up standard OMOP concept_ids for medical entities.
 
-Queries Athena vocabulary tables (omop_concept, omop_concept_synonym) loaded
-into the shared Postgres database. Uses fuzzy string matching to rank candidates
-and returns the best match above a configurable similarity threshold.
+Queries Athena vocabulary tables (concept, concept_synonym) in a dedicated
+OMOP vocabulary database. Requires OMOP_VOCAB_URL environment variable
+pointing to a Postgres instance with loaded Athena vocabulary data.
 
 This tool provides the OMOP grounding leg of the dual-grounding pipeline:
 - TerminologyRouter provides UMLS/SNOMED/RxNorm/ICD-10/LOINC/HPO codes
 - OmopMapper provides OMOP standard concept_ids for CIRCE export and CDM joins
 
-Architecture note: Imports api_service.storage lazily to avoid circular imports
-at module load time. All DB I/O is synchronous SQLAlchemy wrapped in
-run_in_executor for async compatibility.
+Connection: Uses a dedicated SQLAlchemy engine created from OMOP_VOCAB_URL.
+This is separate from the main app database (DATABASE_URL). If OMOP_VOCAB_URL
+is not set, lookup_omop_concept raises RuntimeError — callers must handle this
+explicitly rather than silently receiving empty results.
+
+All DB I/O is synchronous SQLAlchemy wrapped in run_in_executor for async
+compatibility.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import os
 from difflib import SequenceMatcher
 from typing import Any
 
 from pydantic import BaseModel, Field
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +39,39 @@ OMOP_MIN_MATCH_SCORE: float = 0.3
 
 OMOP_MAX_CANDIDATES: int = 20
 """Maximum number of rows to fetch from each SQL query (LIMIT clause)."""
+
+# ---------------------------------------------------------------------------
+# Dedicated OMOP vocabulary engine (lazy singleton)
+# ---------------------------------------------------------------------------
+
+_omop_engine: Any = None
+
+
+def _get_omop_engine() -> Any:
+    """Return the OMOP vocabulary SQLAlchemy engine.
+
+    Creates a dedicated engine from OMOP_VOCAB_URL on first call.
+    Raises RuntimeError if the env var is not set — callers must
+    handle this rather than silently degrading.
+    """
+    global _omop_engine  # noqa: PLW0603
+    if _omop_engine is not None:
+        return _omop_engine
+
+    omop_url = os.getenv("OMOP_VOCAB_URL")
+    if not omop_url:
+        raise RuntimeError(
+            "OMOP_VOCAB_URL environment variable is not set. "
+            "Set it to the OMOP vocabulary Postgres connection string "
+            "(e.g. postgresql://postgres:postgres@localhost:5433/omop_vocab) "
+            "or start the omop-vocab container: "
+            "docker compose -f infra/docker-compose.yml --profile omop up -d"
+        )
+
+    _omop_engine = create_engine(omop_url, pool_pre_ping=True)
+    logger.info("OMOP vocabulary engine created: %s", omop_url.split("@")[-1])
+    return _omop_engine
+
 
 # ---------------------------------------------------------------------------
 # Entity type -> OMOP domain mapping
@@ -71,7 +109,7 @@ class OmopLookupResult(BaseModel):
 
     omop_concept_id: str | None = Field(
         default=None,
-        description="Matched OMOP concept_id as a string, or None if no match.",
+        description=("Matched OMOP concept_id as a string, or None if no match."),
     )
     omop_concept_name: str | None = Field(
         default=None,
@@ -79,7 +117,7 @@ class OmopLookupResult(BaseModel):
     )
     omop_vocabulary_id: str | None = Field(
         default=None,
-        description="Vocabulary source of the match (e.g. 'SNOMED', 'RxNorm').",
+        description=("Vocabulary source of the match (e.g. 'SNOMED', 'RxNorm')."),
     )
     omop_domain_id: str | None = Field(
         default=None,
@@ -166,10 +204,10 @@ def _get_domain_filter(entity_type: str) -> str:
 def _query_concept_table(
     engine: Any, entity_text: str, domain_id: str
 ) -> list[dict[str, Any]]:
-    """Query omop_concept for standard concepts matching *entity_text*.
+    """Query concept table for standard concepts matching *entity_text*.
 
     Args:
-        engine: SQLAlchemy engine instance.
+        engine: SQLAlchemy engine for the OMOP vocabulary database.
         entity_text: Text to search for (used in ILIKE pattern).
         domain_id: OMOP domain_id filter.
 
@@ -179,7 +217,7 @@ def _query_concept_table(
     """
     sql = text(
         "SELECT concept_id, concept_name, domain_id, vocabulary_id "
-        "FROM omop_concept "
+        "FROM concept "
         "WHERE standard_concept = 'S' "
         "  AND domain_id = :domain_id "
         "  AND concept_name ILIKE :pattern "
@@ -214,10 +252,10 @@ def _query_concept_table(
 def _query_synonym_table(
     engine: Any, entity_text: str, domain_id: str
 ) -> list[dict[str, Any]]:
-    """Query omop_concept_synonym joined with omop_concept for synonym matches.
+    """Query concept_synonym joined with concept for synonym matches.
 
     Args:
-        engine: SQLAlchemy engine instance.
+        engine: SQLAlchemy engine for the OMOP vocabulary database.
         entity_text: Text to search for (used in ILIKE pattern).
         domain_id: OMOP domain_id filter.
 
@@ -226,10 +264,10 @@ def _query_synonym_table(
         domain_id, vocabulary_id, match_text, match_method.
     """
     sql = text(
-        "SELECT c.concept_id, c.concept_name, c.domain_id, c.vocabulary_id, "
-        "       s.concept_synonym_name "
-        "FROM omop_concept_synonym s "
-        "JOIN omop_concept c ON s.concept_id = c.concept_id "
+        "SELECT c.concept_id, c.concept_name, c.domain_id, "
+        "       c.vocabulary_id, s.concept_synonym_name "
+        "FROM concept_synonym s "
+        "JOIN concept c ON s.concept_id = c.concept_id "
         "WHERE c.standard_concept = 'S' "
         "  AND c.domain_id = :domain_id "
         "  AND s.concept_synonym_name ILIKE :pattern "
@@ -264,7 +302,7 @@ def _query_synonym_table(
 def _sync_lookup(entity_text: str, domain_id: str) -> OmopLookupResult:
     """Synchronous OMOP lookup — runs inside run_in_executor.
 
-    Queries both omop_concept and omop_concept_synonym tables, deduplicates
+    Queries both concept and concept_synonym tables, deduplicates
     candidates by concept_id (preferring concept_name match), scores them,
     and returns the best match above the threshold.
 
@@ -275,31 +313,15 @@ def _sync_lookup(entity_text: str, domain_id: str) -> OmopLookupResult:
     Returns:
         OmopLookupResult with best match, or empty result if nothing found
         or all candidates score below OMOP_MIN_MATCH_SCORE.
+
+    Raises:
+        RuntimeError: If OMOP_VOCAB_URL is not configured.
+        Exception: Database errors are propagated, not swallowed.
     """
-    # Lazy import to avoid circular dependency at module load
-    from api_service.storage import engine
+    engine = _get_omop_engine()
 
-    empty_result = OmopLookupResult()
-
-    try:
-        concept_candidates = _query_concept_table(engine, entity_text, domain_id)
-        synonym_candidates = _query_synonym_table(engine, entity_text, domain_id)
-    except Exception as e:
-        error_msg = str(e).lower()
-        if "does not exist" in error_msg or "undefined table" in error_msg:
-            logger.warning(
-                "OMOP vocabulary tables not found in database. "
-                "Run data/omop_vocab/load_omop_vocab.sql to load them. "
-                "Error: %s",
-                e,
-            )
-        else:
-            logger.error(
-                "Database error during OMOP lookup for '%s': %s",
-                entity_text[:50],
-                e,
-            )
-        return empty_result
+    concept_candidates = _query_concept_table(engine, entity_text, domain_id)
+    synonym_candidates = _query_synonym_table(engine, entity_text, domain_id)
 
     # Deduplicate by concept_id — prefer concept_name match over synonym
     seen: dict[str, dict[str, Any]] = {}
@@ -317,7 +339,7 @@ def _sync_lookup(entity_text: str, domain_id: str) -> OmopLookupResult:
             entity_text[:50],
             domain_id,
         )
-        return empty_result
+        return OmopLookupResult()
 
     # Score and sort
     scored = _score_candidates(entity_text, all_candidates)
@@ -331,7 +353,7 @@ def _sync_lookup(entity_text: str, domain_id: str) -> OmopLookupResult:
             best["score"],
             OMOP_MIN_MATCH_SCORE,
         )
-        return empty_result
+        return OmopLookupResult()
 
     logger.info(
         "OMOP match for '%s': concept_id=%s, name='%s', score=%.3f, method=%s",
@@ -360,13 +382,15 @@ def _sync_lookup(entity_text: str, domain_id: str) -> OmopLookupResult:
 async def lookup_omop_concept(entity_text: str, entity_type: str) -> OmopLookupResult:
     """Look up the best OMOP standard concept for a medical entity.
 
-    Maps the entity type to an OMOP domain filter, queries the omop_concept
-    and omop_concept_synonym tables for candidate matches, scores them with
-    fuzzy string matching, and returns the best result above the minimum
-    similarity threshold.
+    Maps the entity type to an OMOP domain filter, queries the concept
+    and concept_synonym tables in the OMOP vocabulary database, scores
+    candidates with fuzzy string matching, and returns the best result
+    above the minimum similarity threshold.
 
     The synchronous database I/O is executed in a thread-pool executor to
     avoid blocking the async event loop.
+
+    Requires OMOP_VOCAB_URL to be set. Raises RuntimeError if not configured.
 
     Args:
         entity_text: The medical entity text to look up (e.g. "metformin",
@@ -378,15 +402,13 @@ async def lookup_omop_concept(entity_text: str, entity_type: str) -> OmopLookupR
 
     Returns:
         OmopLookupResult with the best-matching OMOP concept, or an empty
-        result if no match is found above the similarity threshold or if
-        the OMOP tables are not available.
+        result if no match is found above the similarity threshold.
+
+    Raises:
+        RuntimeError: If OMOP_VOCAB_URL is not set.
     """
     if not entity_text or not entity_text.strip():
-        logger.warning(
-            "Empty entity_text passed to lookup_omop_concept"
-            " — returning empty result"
-        )
-        return OmopLookupResult()
+        raise ValueError("Empty entity_text passed to lookup_omop_concept")
 
     domain_id = _get_domain_filter(entity_type)
 

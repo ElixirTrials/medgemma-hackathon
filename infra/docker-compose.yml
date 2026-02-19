@@ -71,7 +71,7 @@ services:
       POSTGRES_DB: omop_vocab
     volumes:
       - omop_vocab_data:/var/lib/postgresql/data
-      - ./data/omop-vocab:/vocab-data:ro
+      - ../data/omop_vocab:/vocab-data:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s

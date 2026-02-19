@@ -63,15 +63,11 @@ class TestFieldMappingConceptIds:
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"})
     @patch("langchain_google_genai.ChatGoogleGenerativeAI")
-    async def test_mappings_include_concept_ids(
-        self, mock_chat_cls: MagicMock
-    ) -> None:
+    async def test_mappings_include_concept_ids(self, mock_chat_cls: MagicMock) -> None:
         """Mapping dicts should contain all three concept ID keys."""
         response = FieldMappingResponse(
             mappings=[
-                FieldMappingItem(
-                    entity="HbA1c", relation="<", value="7", unit="%"
-                )
+                FieldMappingItem(entity="HbA1c", relation="<", value="7", unit="%")
             ]
         )
         mock_chain = MagicMock()
@@ -97,15 +93,11 @@ class TestFieldMappingConceptIds:
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"})
     @patch("langchain_google_genai.ChatGoogleGenerativeAI")
-    async def test_mappings_with_null_omop(
-        self, mock_chat_cls: MagicMock
-    ) -> None:
+    async def test_mappings_with_null_omop(self, mock_chat_cls: MagicMock) -> None:
         """Missing omop_concept_id yields None in mapping."""
         response = FieldMappingResponse(
             mappings=[
-                FieldMappingItem(
-                    entity="eGFR", relation=">", value="30", unit="mL/min"
-                )
+                FieldMappingItem(entity="eGFR", relation=">", value="30", unit="mL/min")
             ]
         )
         mock_chain = MagicMock()
@@ -122,9 +114,7 @@ class TestFieldMappingConceptIds:
             omop_concept_id=None,
         )
 
-        mappings = await generate_field_mappings(
-            entity, "eGFR > 30 mL/min"
-        )
+        mappings = await generate_field_mappings(entity, "eGFR > 30 mL/min")
 
         assert len(mappings) == 1
         assert mappings[0]["entity_concept_id"] == "C0017654"
@@ -133,15 +123,11 @@ class TestFieldMappingConceptIds:
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"})
     @patch("langchain_google_genai.ChatGoogleGenerativeAI")
-    async def test_mappings_with_null_code(
-        self, mock_chat_cls: MagicMock
-    ) -> None:
+    async def test_mappings_with_null_code(self, mock_chat_cls: MagicMock) -> None:
         """No selected_code means concept ID fields are None."""
         response = FieldMappingResponse(
             mappings=[
-                FieldMappingItem(
-                    entity="BMI", relation="<", value="40", unit="kg/m2"
-                )
+                FieldMappingItem(entity="BMI", relation="<", value="40", unit="kg/m2")
             ]
         )
         mock_chain = MagicMock()
@@ -181,9 +167,7 @@ class TestCriterionIdLookup:
         )
 
         mock_session = MagicMock()
-        mock_criterion = _make_criteria_mock(
-            id="crit-direct", conditions=None
-        )
+        mock_criterion = _make_criteria_mock(id="crit-direct", conditions=None)
         mock_session.get.return_value = mock_criterion
 
         result = _find_criterion_and_update_mappings(
@@ -210,9 +194,7 @@ class TestCriterionIdLookup:
 
         mock_session = MagicMock()
         mock_criterion = _make_criteria_mock(id="crit-fallback")
-        mock_session.exec.return_value.all.return_value = [
-            mock_criterion
-        ]
+        mock_session.exec.return_value.all.return_value = [mock_criterion]
 
         result = _find_criterion_and_update_mappings(
             session=mock_session,
@@ -242,9 +224,7 @@ class TestCriterionIdLookup:
         mock_session.get.return_value = None
         # Substring fallback finds a match
         mock_criterion = _make_criteria_mock(id="crit-substr")
-        mock_session.exec.return_value.all.return_value = [
-            mock_criterion
-        ]
+        mock_session.exec.return_value.all.return_value = [mock_criterion]
 
         result = _find_criterion_and_update_mappings(
             session=mock_session,
@@ -319,9 +299,7 @@ class TestFieldMappingAccumulation:
             _find_criterion_and_update_mappings,
         )
 
-        mock_criterion = _make_criteria_mock(
-            id="crit-new", conditions={}
-        )
+        mock_criterion = _make_criteria_mock(id="crit-new", conditions={})
         mock_session = MagicMock()
         mock_session.get.return_value = mock_criterion
 
@@ -352,27 +330,22 @@ class TestFieldMappingAccumulation:
             _find_criterion_and_update_mappings,
         )
 
-        mock_criterion = _make_criteria_mock(
-            id="crit-multi", conditions={}
-        )
+        mock_criterion = _make_criteria_mock(id="crit-multi", conditions={})
         mock_session = MagicMock()
         mock_session.get.return_value = mock_criterion
 
         entities_and_mappings = [
             (
                 "HbA1c",
-                [{"entity": "HbA1c", "relation": "<",
-                  "value": "7", "unit": "%"}],
+                [{"entity": "HbA1c", "relation": "<", "value": "7", "unit": "%"}],
             ),
             (
                 "eGFR",
-                [{"entity": "eGFR", "relation": ">",
-                  "value": "30", "unit": "mL/min"}],
+                [{"entity": "eGFR", "relation": ">", "value": "30", "unit": "mL/min"}],
             ),
             (
                 "BMI",
-                [{"entity": "BMI", "relation": "<",
-                  "value": "40", "unit": "kg/m2"}],
+                [{"entity": "BMI", "relation": "<", "value": "40", "unit": "kg/m2"}],
             ),
         ]
 
