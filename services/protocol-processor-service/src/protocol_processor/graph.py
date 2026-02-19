@@ -144,8 +144,9 @@ async def get_graph() -> Any:
     if _graph is None:
         try:
             checkpointer = await _get_checkpointer_async()
-        except (KeyError, Exception):
-            # DATABASE_URL not set (e.g. unit tests) — compile without checkpointer
+        except Exception:
+            # KeyError: DATABASE_URL not set; psycopg.OperationalError: DB
+            # unreachable (e.g. unit tests). Compile without checkpointer.
             checkpointer = None
         _graph = create_graph(checkpointer=checkpointer)
     return _graph

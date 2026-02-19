@@ -25,6 +25,10 @@ from protocol_processor.tools.ordinal_resolver import (
     resolve_ordinal_candidates,
 )
 
+# Use table columns for SQL expressions so mypy sees ColumnElement, not Python types
+_atomic = AtomicCriterion.__table__.c
+_criteria = Criteria.__table__.c
+
 logger = logging.getLogger(__name__)
 
 
@@ -63,15 +67,14 @@ def _query_candidates(
     Returns:
         List of matching AtomicCriterion records.
     """
-    on_clause = AtomicCriterion.criterion_id == Criteria.id
     stmt = (
         select(AtomicCriterion)
-        .join(Criteria, on_clause)
+        .join(Criteria, _atomic.criterion_id == _criteria.id)
         .where(
-            Criteria.batch_id == batch_id,
-            AtomicCriterion.unit_concept_id.is_(None),
-            AtomicCriterion.value_numeric.isnot(None),
-            AtomicCriterion.unit_text.is_(None),
+            _criteria.batch_id == batch_id,
+            _atomic.unit_concept_id.is_(None),
+            _atomic.value_numeric.isnot(None),
+            _atomic.unit_text.is_(None),
         )
     )
     return list(session.exec(stmt).all())

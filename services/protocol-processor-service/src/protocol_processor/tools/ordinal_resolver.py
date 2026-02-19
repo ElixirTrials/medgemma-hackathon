@@ -48,7 +48,7 @@ async def resolve_ordinal_candidates(
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
         gemini = ChatGoogleGenerativeAI(
             model=gemini_model_name,
             google_api_key=google_api_key,

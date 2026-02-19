@@ -513,7 +513,6 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
             for (idx, entity), (result, error) in zip(entities_to_ground, outcomes):
                 entity_text = entity.get("text", "")
                 criterion_id = entity.get("criterion_id", "")
-                entity.get("criterion_text") or entity.get("text", "")
 
                 if result is not None:
                     # Log grounding decision to AuditLog

@@ -1,13 +1,13 @@
 """Persist node: commit grounding results and update protocol status.
 
-This is the final node in the protocol processing pipeline:
-ingest -> extract -> parse -> ground -> persist
+5th node in the protocol processing pipeline:
+ingest -> extract -> parse -> ground -> persist -> structure -> ordinal_resolve
 
 Per user decisions:
 - Partial success: some entities succeeded + some failed -> pending_review
 - Total failure: ALL entities failed -> grounding_failed
 - Field mappings stored in Criteria.conditions JSONB under 'field_mappings' key
-- Protocol status updated to 'pending_review' on success (final state)
+- Protocol status updated to 'pending_review' on success
 
 Architecture note: Graph nodes ARE allowed to import from api-service for DB.
 """
@@ -138,6 +138,8 @@ def _find_criterion_and_update_mappings(
     # Preferred path: direct ID lookup (Gap 3 fix)
     if criterion_id:
         criterion = session.get(Criteria, criterion_id)
+        if criterion and criterion.batch_id != batch_id:
+            criterion = None
 
     # Fallback: substring search (legacy behavior)
     if criterion is None:

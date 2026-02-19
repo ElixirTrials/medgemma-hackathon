@@ -51,6 +51,9 @@ class EntityResponse(BaseModel):
     hpo_code: str | None
     grounding_system: str | None
     grounding_error: str | None
+    # Phase 1a: dual grounding fields
+    omop_concept_id: str | None
+    reconciliation_status: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -225,6 +228,10 @@ def _entity_to_response(entity: Entity) -> EntityResponse:
         hpo_code=getattr(entity, "hpo_code", None),
         grounding_system=getattr(entity, "grounding_system", None),
         grounding_error=getattr(entity, "grounding_error", None),
+        omop_concept_id=getattr(entity, "omop_concept_id", None),
+        reconciliation_status=getattr(
+            entity, "reconciliation_status", None
+        ),
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )

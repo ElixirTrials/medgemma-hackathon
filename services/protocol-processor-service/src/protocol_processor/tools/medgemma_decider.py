@@ -150,7 +150,7 @@ def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
     Returns:
         GroundingDecision with selected code and confidence.
     """
-    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
     google_api_key = os.getenv("GOOGLE_API_KEY")
 
     if not google_api_key:
@@ -296,7 +296,7 @@ def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningResult:
     Returns:
         AgenticReasoningResult with structured 3-question answers.
     """
-    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
     google_api_key = os.getenv("GOOGLE_API_KEY")
 
     if not google_api_key:

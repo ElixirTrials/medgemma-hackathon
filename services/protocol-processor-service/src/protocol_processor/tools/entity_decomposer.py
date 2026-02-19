@@ -78,7 +78,7 @@ async def decompose_entities_from_criterion(
     """
     try:
         gemini = ChatGoogleGenerativeAI(
-            model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash"),
+            model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
         structured = gemini.with_structured_output(DecomposedEntityList)

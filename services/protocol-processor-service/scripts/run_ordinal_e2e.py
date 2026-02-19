@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any
+from typing import Any, TypedDict
 
 from api_service.storage import engine
 from shared.models import (
@@ -31,13 +31,36 @@ from protocol_processor.nodes.ordinal_resolve import (
 from protocol_processor.tools.structure_builder import (
     build_expression_tree,
 )
+
+# Table columns for join so mypy sees ColumnElement
+_atomic_c = AtomicCriterion.__table__.c
+_criteria_c = Criteria.__table__.c
+from protocol_processor.state import PipelineState
 from protocol_processor.tools.unit_normalizer import (
     normalize_ordinal_value,
 )
 
+
+class _FieldMapping(TypedDict, total=False):
+    """One field mapping for build_expression_tree."""
+
+    entity: str
+    relation: str
+    value: str
+    unit: str | None
+
+
+class _CriterionDef(TypedDict):
+    """One test criterion with text, label, and mappings."""
+
+    text: str
+    label: str
+    mappings: list[_FieldMapping]
+
+
 # ── Test criteria: mix of known, unknown, and non-ordinal ─────────
 
-CRITERIA = [
+CRITERIA: list[_CriterionDef] = [
     {
         "text": "ECOG performance status <= 2",
         "label": "ECOG (known ordinal)",
@@ -217,11 +240,8 @@ def _phase3_verify(batch_id: str) -> None:
     with Session(engine) as session:
         atomics = session.exec(
             select(AtomicCriterion)
-            .join(
-                Criteria,
-                AtomicCriterion.criterion_id == Criteria.id,
-            )
-            .where(Criteria.batch_id == batch_id)
+            .join(Criteria, _atomic_c.criterion_id == _criteria_c.id)
+            .where(_criteria_c.batch_id == batch_id)
         ).all()
 
         print(f"AtomicCriteria in batch: {len(atomics)}\n")
@@ -271,14 +291,17 @@ async def main() -> None:
 
     _sep("PHASE 2: Run ordinal_resolve_node (REAL Gemini)")
 
-    state = {
+    state: PipelineState = {
         "protocol_id": protocol_id,
+        "file_uri": "",
+        "title": "ORDINAL-E2E-LIVE",
         "batch_id": batch_id,
         "error": None,
         "errors": [],
+        "status": "processing",
     }
 
-    result = await ordinal_resolve_node(state)  # type: ignore[arg-type]
+    result = await ordinal_resolve_node(state)
 
     print(f"Status: {result.get('status')}")
     print(f"Errors: {result.get('errors', [])}")

@@ -82,7 +82,7 @@ async def detect_logic_structure(
     try:
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
         gemini = ChatGoogleGenerativeAI(
             model=gemini_model_name,
             google_api_key=google_api_key,
@@ -374,7 +374,7 @@ async def build_expression_tree(
     Returns:
         StructuredCriterionTree for JSONB storage in criteria.structured_criterion.
     """
-    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.0-flash")
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
     # Create AtomicCriterion records for each field_mapping
     atomic_records: list[AtomicCriterion] = []
