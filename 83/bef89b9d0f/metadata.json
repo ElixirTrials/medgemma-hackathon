@@ -3,7 +3,7 @@
   "checkpoint_id": "83bef89b9d0f",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     ".planning/ROADMAP.md",
     ".planning/STATE.md",
@@ -30,13 +30,20 @@
       "context": "/83/bef89b9d0f/2/context.md",
       "content_hash": "/83/bef89b9d0f/2/content_hash.txt",
       "prompt": "/83/bef89b9d0f/2/prompt.txt"
+    },
+    {
+      "metadata": "/83/bef89b9d0f/3/metadata.json",
+      "transcript": "/83/bef89b9d0f/3/full.jsonl",
+      "context": "/83/bef89b9d0f/3/context.md",
+      "content_hash": "/83/bef89b9d0f/3/content_hash.txt",
+      "prompt": "/83/bef89b9d0f/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 229,
-    "cache_creation_tokens": 318520,
-    "cache_read_tokens": 17273576,
-    "output_tokens": 16615,
-    "api_call_count": 205
+    "input_tokens": 272,
+    "cache_creation_tokens": 452117,
+    "cache_read_tokens": 20416004,
+    "output_tokens": 23058,
+    "api_call_count": 238
   }
 }
