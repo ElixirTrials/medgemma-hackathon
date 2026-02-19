@@ -53,6 +53,7 @@ export interface Protocol {
     metadata_: Record<string, unknown>;
     created_at: string;
     updated_at: string;
+    version_count?: number;  // Present when deduplicate=true
 }
 
 export interface ProtocolListResponse {
@@ -71,7 +72,7 @@ export interface UploadResponse {
 
 // --- Hooks ---
 
-export function useProtocolList(page: number, pageSize: number, status?: string) {
+export function useProtocolList(page: number, pageSize: number, status?: string, deduplicate?: boolean) {
     const params = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
@@ -79,9 +80,12 @@ export function useProtocolList(page: number, pageSize: number, status?: string)
     if (status) {
         params.set('status', status);
     }
+    if (deduplicate) {
+        params.set('deduplicate', 'true');
+    }
 
     return useQuery({
-        queryKey: ['protocols', page, pageSize, status],
+        queryKey: ['protocols', page, pageSize, status, deduplicate],
         queryFn: () => fetchApi<ProtocolListResponse>(`/protocols?${params.toString()}`),
     });
 }
@@ -113,12 +117,8 @@ export function useUploadProtocol() {
                 }),
             });
 
-            // Step 2: Upload file. Use same-origin as API for /local-upload/ to avoid "Failed to fetch".
-            const putUrl =
-                new URL(uploadResp.upload_url).pathname.startsWith('/local-upload/')
-                    ? `${API_BASE_URL}${new URL(uploadResp.upload_url).pathname}`
-                    : uploadResp.upload_url;
-            const putResp = await fetch(putUrl, {
+            // Step 2: Upload file directly to GCS via signed URL
+            const putResp = await fetch(uploadResp.upload_url, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/pdf' },
                 body: file,
@@ -196,6 +196,19 @@ export function useReExtractProtocol() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['protocols'] });
             queryClient.invalidateQueries({ queryKey: ['review-batches'] });
+        },
+    });
+}
+
+export function useArchiveProtocol() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (protocolId: string) =>
+            fetchApi<Protocol>(`/protocols/${protocolId}/archive`, {
+                method: 'POST',
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['protocols'] });
         },
     });
 }

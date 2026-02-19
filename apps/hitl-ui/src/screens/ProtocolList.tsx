@@ -1,10 +1,11 @@
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import * as AlertDialog from '@radix-ui/react-alert-dialog';
+import { Archive, ChevronLeft, ChevronRight, Loader2, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { ProtocolUploadDialog } from '../components/ProtocolUploadDialog';
 import { Button } from '../components/ui/Button';
-import { useProtocolList } from '../hooks/useProtocols';
+import { useArchiveProtocol, useProtocolList, useRetryProtocol } from '../hooks/useProtocols';
 import type { Protocol } from '../hooks/useProtocols';
 import { cn } from '../lib/utils';
 
@@ -104,14 +105,73 @@ function formatRelativeTime(dateStr: string): string {
     return date.toLocaleDateString();
 }
 
+function RetryInlineButton({ protocolId }: { protocolId: string }) {
+    const retryMutation = useRetryProtocol();
+    return (
+        <Button
+            variant="outline"
+            size="sm"
+            disabled={retryMutation.isPending}
+            onClick={(e) => {
+                e.stopPropagation();
+                retryMutation.mutate(protocolId);
+            }}
+        >
+            <RotateCcw className="h-3.5 w-3.5 mr-1" />
+            Retry
+        </Button>
+    );
+}
+
+function ArchiveInlineButton({ protocolId }: { protocolId: string }) {
+    const archiveMutation = useArchiveProtocol();
+    return (
+        <AlertDialog.Root>
+            <AlertDialog.Trigger asChild>
+                <Button variant="outline" size="sm" onClick={(e) => e.stopPropagation()}>
+                    <Archive className="h-3.5 w-3.5 mr-1" />
+                    Archive
+                </Button>
+            </AlertDialog.Trigger>
+            <AlertDialog.Portal>
+                <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
+                <AlertDialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-sm translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg">
+                    <AlertDialog.Title className="text-lg font-semibold">Archive this protocol?</AlertDialog.Title>
+                    <AlertDialog.Description className="text-sm text-muted-foreground">
+                        It will be hidden from the default list view. You can show it again using the &quot;Show Archived&quot; filter.
+                    </AlertDialog.Description>
+                    <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
+                        <AlertDialog.Cancel asChild>
+                            <Button variant="outline">Cancel</Button>
+                        </AlertDialog.Cancel>
+                        <AlertDialog.Action asChild>
+                            <Button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    archiveMutation.mutate(protocolId);
+                                }}
+                                disabled={archiveMutation.isPending}
+                            >
+                                Archive
+                            </Button>
+                        </AlertDialog.Action>
+                    </div>
+                </AlertDialog.Content>
+            </AlertDialog.Portal>
+        </AlertDialog.Root>
+    );
+}
+
 export default function ProtocolList() {
     const [page, setPage] = useState(1);
     const [pageSize] = useState(20);
     const [statusFilter, setStatusFilter] = useState<string | undefined>(undefined);
     const [uploadOpen, setUploadOpen] = useState(false);
+    const [showArchived, setShowArchived] = useState(false);
 
     const navigate = useNavigate();
-    const { data, isLoading, error } = useProtocolList(page, pageSize, statusFilter);
+    const effectiveStatus = showArchived ? 'archived' : statusFilter;
+    const { data, isLoading, error } = useProtocolList(page, pageSize, effectiveStatus, !showArchived);
 
     const handleRowClick = (protocol: Protocol) => {
         navigate(`/protocols/${protocol.id}`);
@@ -135,11 +195,12 @@ export default function ProtocolList() {
                             type="button"
                             className={cn(
                                 'rounded-full px-3 py-1 text-sm font-medium transition-colors border',
-                                isActive
+                                isActive && !showArchived
                                     ? 'bg-primary text-primary-foreground border-primary'
                                     : 'bg-background text-foreground border-input hover:bg-accent'
                             )}
                             onClick={() => {
+                                setShowArchived(false);
                                 setStatusFilter(opt === 'All' ? undefined : opt);
                                 setPage(1);
                             }}
@@ -148,6 +209,18 @@ export default function ProtocolList() {
                         </button>
                     );
                 })}
+                <button
+                    type="button"
+                    className={cn(
+                        'rounded-full px-3 py-1 text-sm font-medium transition-colors border',
+                        showArchived
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background text-foreground border-input hover:bg-accent'
+                    )}
+                    onClick={() => { setShowArchived((v) => !v); setPage(1); }}
+                >
+                    {showArchived ? 'Hide Archived' : 'Show Archived'}
+                </button>
             </div>
 
             {/* Loading state */}
@@ -199,38 +272,64 @@ export default function ProtocolList() {
                                 <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
                                     Uploaded
                                 </th>
+                                <th className="px-4 py-3 text-left text-sm font-medium text-muted-foreground">
+                                    Actions
+                                </th>
                             </tr>
                         </thead>
                         <tbody>
-                            {data.items.map((protocol) => (
-                                <tr
-                                    key={protocol.id}
-                                    className="border-b last:border-b-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                                    onClick={() => handleRowClick(protocol)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' || e.key === ' ') {
-                                            handleRowClick(protocol);
-                                        }
-                                    }}
-                                    tabIndex={0}
-                                >
-                                    <td className="px-4 py-3 text-sm font-medium text-foreground">
-                                        {protocol.title}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <StatusBadge status={protocol.status} />
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                                        {protocol.page_count ?? '--'}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <QualityIndicator score={protocol.quality_score} />
-                                    </td>
-                                    <td className="px-4 py-3 text-sm text-muted-foreground">
-                                        {formatRelativeTime(protocol.created_at)}
-                                    </td>
-                                </tr>
-                            ))}
+                            {data.items.map((protocol) => {
+                                const isActionable = ['dead_letter', 'extraction_failed', 'grounding_failed'].includes(protocol.status);
+                                return (
+                                    <tr
+                                        key={protocol.id}
+                                        className={cn(
+                                            'border-b last:border-b-0 cursor-pointer transition-colors',
+                                            isActionable
+                                                ? 'bg-red-50/50 hover:bg-red-100/50 border-l-2 border-l-red-400'
+                                                : 'hover:bg-muted/30'
+                                        )}
+                                        onClick={() => handleRowClick(protocol)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter' || e.key === ' ') {
+                                                handleRowClick(protocol);
+                                            }
+                                        }}
+                                        tabIndex={0}
+                                    >
+                                        <td className="px-4 py-3 text-sm font-medium text-foreground">
+                                            <span className="flex items-center gap-1.5">
+                                                {protocol.title}
+                                                {(protocol.version_count ?? 1) > 1 && (
+                                                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-xs font-medium text-muted-foreground">
+                                                        v{protocol.version_count}
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <StatusBadge status={protocol.status} />
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                                            {protocol.page_count ?? '--'}
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <QualityIndicator score={protocol.quality_score} />
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-muted-foreground">
+                                            {formatRelativeTime(protocol.created_at)}
+                                        </td>
+                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                            {isActionable && (
+                                                <div className="flex items-center gap-1.5">
+                                                    <RetryInlineButton protocolId={protocol.id} />
+                                                    <ArchiveInlineButton protocolId={protocol.id} />
+                                                </div>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>

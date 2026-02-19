@@ -2,6 +2,7 @@ import { Search as SearchIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
+import { ActivityFeed } from '../features/dashboard/ActivityFeed';
 import { DashboardCard } from '../features/dashboard/DashboardCard';
 import { useHealthCheck } from '../hooks/useApi';
 import { usePendingSummary } from '../hooks/useReviews';
@@ -96,7 +97,7 @@ export default function Dashboard() {
                     title="Recent Activity"
                     description="Latest approvals and rejections"
                 >
-                    <p className="text-muted-foreground">No recent activity</p>
+                    <ActivityFeed />
                 </DashboardCard>
             </div>
         </div>
