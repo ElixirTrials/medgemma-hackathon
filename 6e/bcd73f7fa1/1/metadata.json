@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6ebcd73f7fa1",
+  "session_id": "8dbcec95-91ef-4b3f-a202-82acc3a9d333",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T20:37:14.996099Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py",
+    "services/protocol-processor-service/tests/test_phase3_integration.py",
+    "services/protocol-processor-service/tests/test_phase3b_e2e.py",
+    "services/protocol-processor-service/tests/test_unit_normalizer.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "cd2e70be7a63",
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 109768,
+    "cache_read_tokens": 3343939,
+    "output_tokens": 11124,
+    "api_call_count": 47
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T20:37:14.629326Z",
+    "agent_lines": 955,
+    "human_added": 1806,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2761,
+    "agent_percentage": 34.58891705903658
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/8dbcec95-91ef-4b3f-a202-82acc3a9d333.jsonl"
+}
