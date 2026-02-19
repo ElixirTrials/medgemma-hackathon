@@ -7,7 +7,18 @@ from enum import Enum
 from typing import Any, Dict
 from uuid import uuid4
 
-from sqlalchemy import JSON, Column, DateTime, String, Text, func
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    Index,
+    Integer,
+    String,
+    Text,
+    func,
+)
 from sqlmodel import Field, SQLModel
 
 
@@ -92,6 +103,10 @@ class Criteria(SQLModel, table=True):
     source_section: str | None = Field(default=None)
     page_number: int | None = Field(default=None)
     review_status: str | None = Field(default=None)
+    # Phase 2: expression tree JSONB
+    structured_criterion: Dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSON)
+    )
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
 
@@ -164,6 +179,98 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=True)
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
+
+
+class AtomicCriterion(SQLModel, table=True):
+    """Leaf node in a criterion expression tree.
+
+    Represents a single atomic condition (e.g. "HbA1c >= 7%") decomposed
+    from a criterion's field_mappings. Links to the parent Criteria record
+    and carries the OMOP concept ID for direct CDM joins.
+
+    Table: atomic_criteria
+    """
+
+    __tablename__ = "atomic_criteria"  # type: ignore[assignment]
+    __table_args__ = (
+        Index("ix_atomic_proto_incl", "protocol_id", "inclusion_exclusion"),
+    )
+
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    criterion_id: str = Field(foreign_key="criteria.id", index=True)
+    protocol_id: str = Field(foreign_key="protocol.id", index=True)
+    inclusion_exclusion: str = Field()
+    entity_concept_id: str | None = Field(default=None, index=True)
+    entity_concept_system: str | None = Field(default=None)
+    omop_concept_id: str | None = Field(default=None, index=True)
+    entity_domain: str | None = Field(default=None)
+    relation_operator: str | None = Field(default=None)
+    value_numeric: float | None = Field(
+        default=None, sa_column=Column(Float, nullable=True)
+    )
+    value_text: str | None = Field(default=None)
+    unit_text: str | None = Field(default=None)
+    negation: bool = Field(default=False, sa_column=Column(Boolean, default=False))
+    temporal_constraint: Dict[str, Any] | None = Field(
+        default=None, sa_column=Column(JSON)
+    )
+    original_text: str | None = Field(default=None)
+    confidence_score: float | None = Field(default=None)
+    human_verified: bool = Field(
+        default=False, sa_column=Column(Boolean, default=False)
+    )
+    human_modified: bool = Field(
+        default=False, sa_column=Column(Boolean, default=False)
+    )
+    created_at: datetime = Field(sa_column=_ts_col())
+    updated_at: datetime = Field(sa_column=_ts_col_update())
+
+
+class CompositeCriterion(SQLModel, table=True):
+    """Branch node in a criterion expression tree.
+
+    Represents a logical operator (AND/OR/NOT) that combines child nodes.
+    Supports nested composition via parent_criterion_id self-reference.
+
+    Table: composite_criteria
+    """
+
+    __tablename__ = "composite_criteria"  # type: ignore[assignment]
+
+    id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
+    criterion_id: str = Field(foreign_key="criteria.id", index=True)
+    protocol_id: str = Field(foreign_key="protocol.id", index=True)
+    inclusion_exclusion: str = Field()
+    logic_operator: str = Field()
+    parent_criterion_id: str | None = Field(default=None, index=True)
+    original_text: str | None = Field(default=None)
+    human_verified: bool = Field(
+        default=False, sa_column=Column(Boolean, default=False)
+    )
+    created_at: datetime = Field(sa_column=_ts_col())
+    updated_at: datetime = Field(sa_column=_ts_col_update())
+
+
+class CriterionRelationship(SQLModel, table=True):
+    """Edge in a criterion expression tree.
+
+    Links a parent CompositeCriterion to a child (atomic or composite)
+    via polymorphic FK. child_type discriminates between the two tables.
+    child_sequence preserves operand order.
+
+    Table: criterion_relationships
+    """
+
+    __tablename__ = "criterion_relationships"  # type: ignore[assignment]
+
+    parent_criterion_id: str = Field(
+        foreign_key="composite_criteria.id", primary_key=True
+    )
+    child_criterion_id: str = Field(primary_key=True)
+    child_type: str = Field()
+    child_sequence: int = Field(
+        default=0, sa_column=Column(Integer, default=0, nullable=False)
+    )
 
 
 class OutboxEvent(SQLModel, table=True):
