@@ -19,8 +19,11 @@ Architecture note: Graph nodes ARE allowed to import from api-service for DB acc
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import os
+import time
 from typing import Any
 
 from api_service.storage import engine
@@ -247,6 +250,68 @@ async def _ground_entity_with_retry(
     return result
 
 
+async def _ground_entity_parallel(
+    entity: dict[str, Any],
+    router: TerminologyRouter,
+    criterion_text: str,
+    entity_num: int,
+    total: int,
+    semaphore: asyncio.Semaphore,
+) -> tuple[EntityGroundingResult | None, str | None]:
+    """Ground a single entity with concurrency control and timing.
+
+    Acquires the semaphore before grounding to cap concurrent API calls.
+    Returns a (result, error) tuple for error isolation -- one entity failure
+    does not crash others in the asyncio.gather batch.
+
+    Args:
+        entity: Entity dict with text, entity_type, criterion_id.
+        router: TerminologyRouter singleton for API dispatch.
+        criterion_text: Full criterion text for context.
+        entity_num: 1-based index for logging.
+        total: Total entity count for logging.
+        semaphore: Concurrency limiter (Semaphore(4)).
+
+    Returns:
+        (EntityGroundingResult, None) on success, or (None, error_message) on failure.
+    """
+    async with semaphore:
+        entity_text = entity.get("text", "")[:50]
+        entity_type = entity.get("entity_type", "")
+        start = time.monotonic()
+        logger.info(
+            "Grounding entity %d/%d: '%s' (type=%s) — start",
+            entity_num,
+            total,
+            entity_text,
+            entity_type,
+        )
+        try:
+            result = await _ground_entity_with_retry(entity, router, criterion_text)
+            elapsed = time.monotonic() - start
+            logger.info(
+                "Entity %d/%d '%s' grounded in %.1fs: code=%s, conf=%.2f",
+                entity_num,
+                total,
+                entity_text,
+                elapsed,
+                result.selected_code or "N/A",
+                result.confidence,
+            )
+            return (result, None)
+        except Exception as e:
+            elapsed = time.monotonic() - start
+            logger.error(
+                "Entity %d/%d '%s' failed in %.1fs: %s",
+                entity_num,
+                total,
+                entity_text,
+                elapsed,
+                e,
+            )
+            return (None, str(e))
+
+
 async def ground_node(state: PipelineState) -> dict[str, Any]:
     """Ground entities via TerminologyRouter + MedGemma.
 
@@ -279,7 +344,7 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
             if not entities_json:
                 span.set_outputs({"error": "No entities_json in state"})
                 return {
-                    "error": "No entities_json in state — parse node may have failed"
+                    "error": "No entities_json in state — parse node may have failed",
                 }
 
             entity_items: list[dict[str, Any]] = json.loads(entities_json)
@@ -302,53 +367,74 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
             accumulated_errors: list[str] = list(state.get("errors") or [])
             grounding_results: list[dict[str, Any]] = []
 
+            # Pre-process: handle consent entities synchronously (skip grounding)
+            entities_to_ground: list[tuple[int, dict[str, Any]]] = []
             for idx, entity in enumerate(entity_items, 1):
                 entity_text = entity.get("text", "")
                 entity_type = entity.get("entity_type", "")
+
+                if entity_type == "Consent":
+                    logger.info(
+                        "Entity '%s' (type=Consent) skipped — consent/participation"
+                        " criteria are not groundable to terminology codes",
+                        entity_text[:50],
+                    )
+                    consent_result = EntityGroundingResult(
+                        entity_text=entity_text,
+                        entity_type=entity_type,
+                        selected_code=None,
+                        selected_system=None,
+                        preferred_term=None,
+                        confidence=0.0,
+                        candidates=[],
+                        reasoning=(
+                            "Consent/participation criterion — not groundable"
+                            " to medical terminology codes"
+                        ),
+                    )
+                    grounding_results.append(consent_result.model_dump())
+                else:
+                    entities_to_ground.append((idx, entity))
+
+            # Dev/debug knob: truncate entity list for faster pipeline runs
+            _max_entities = int(os.getenv("PIPELINE_MAX_ENTITIES", "0"))
+            if _max_entities > 0:
+                entities_to_ground = entities_to_ground[:_max_entities]
+                logger.info(
+                    "PIPELINE_MAX_ENTITIES=%d: truncated to %d entities",
+                    _max_entities,
+                    len(entities_to_ground),
+                )
+
+            # Parallel grounding with asyncio.gather + semaphore
+            # Semaphore created here (not module-level) to bind to current event loop
+            semaphore = asyncio.Semaphore(4)
+
+            tasks = [
+                _ground_entity_parallel(
+                    entity,
+                    router,
+                    entity.get("criterion_text") or entity.get("text", ""),
+                    idx,
+                    len(entity_items),
+                    semaphore,
+                )
+                for idx, entity in entities_to_ground
+            ]
+
+            outcomes = await asyncio.gather(*tasks)
+
+            # Process outcomes
+            for (idx, entity), (result, error) in zip(entities_to_ground, outcomes):
+                entity_text = entity.get("text", "")
                 criterion_id = entity.get("criterion_id", "")
                 criterion_text = entity.get("criterion_text") or entity.get("text", "")
 
-                logger.info(
-                    "Grounding entity %d/%d: '%s' (type=%s, criterion=%s)",
-                    idx,
-                    len(entity_items),
-                    entity_text[:50],
-                    entity_type,
-                    criterion_id[:12] if criterion_id else "unknown",
-                )
-
-                try:
-                    # Consent skip: consent/participation criteria are not groundable
-                    if entity_type == "Consent":
-                        logger.info(
-                            "Entity '%s' (type=Consent) skipped — consent/participation"
-                            " criteria are not groundable to terminology codes",
-                            entity_text[:50],
-                        )
-                        result = EntityGroundingResult(
-                            entity_text=entity_text,
-                            entity_type=entity_type,
-                            selected_code=None,
-                            selected_system=None,
-                            preferred_term=None,
-                            confidence=0.0,
-                            candidates=[],
-                            reasoning=(
-                                "Consent/participation criterion — not groundable"
-                                " to medical terminology codes"
-                            ),
-                        )
-                        grounding_results.append(result.model_dump())
-                        continue
-
-                    # Ground with agentic retry (3 attempts; expert_review on failure)
-                    result = await _ground_entity_with_retry(
-                        entity, router, criterion_text
-                    )
-
+                if result is not None:
                     # Generate field mappings for this entity
                     field_mappings = await generate_field_mappings(
-                        result, criterion_text
+                        result,
+                        criterion_text,
                     )
                     result.field_mappings = field_mappings if field_mappings else None
 
@@ -365,33 +451,22 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                             )
                             session.commit()
                     except Exception as audit_error:
-                        # Audit log failures should not block grounding
                         logger.warning(
                             "Failed to write AuditLog for entity '%s': %s",
                             entity_text[:50],
                             audit_error,
                         )
 
-                    # Collect result
                     grounding_results.append(result.model_dump())
-
-                    logger.info(
-                        "Grounded entity '%s': code=%s, conf=%.2f",
-                        entity_text[:50],
-                        result.selected_code,
-                        result.confidence,
-                    )
-
-                except Exception as e:
+                else:
+                    # Entity failed — create expert_review fallback
                     cid_short = criterion_id[:12] if criterion_id else "unknown"
                     error_msg = (
                         f"Entity grounding failed for '{entity_text[:50]}'"
-                        f" (criterion={cid_short}): {e}"
+                        f" (criterion={cid_short}): {error}"
                     )
-                    logger.error(error_msg, exc_info=True)
+                    logger.error(error_msg)
                     accumulated_errors.append(error_msg)
-                    # Continue with remaining entities (error accumulation)
-                    continue
 
             logger.info(
                 "Ground node complete for protocol %s: %d grounded, %d errors",
