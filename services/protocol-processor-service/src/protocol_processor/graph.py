@@ -1,14 +1,15 @@
 """LangGraph workflow definition for the consolidated protocol processor.
 
-Defines a 5-node StateGraph for the unified protocol processing pipeline:
-START -> ingest -> extract -> parse -> ground -> persist -> END
+Defines a 6-node StateGraph for the unified protocol processing pipeline:
+START -> ingest -> extract -> parse -> ground -> persist -> structure -> END
 
 Error routing:
 - After ingest, extract, parse: conditional edges route to END on error
 - After ground: always proceeds to persist (ground uses error accumulation)
 - Persist handles partial/total failures internally
+- Structure uses error accumulation (same as ground)
 
-Per user decision (v2.0 Architecture): "Flat 5-node LangGraph pipeline"
+Per user decision (v2.0 Architecture): "Flat pipeline with expression tree phase"
 """
 
 import os
@@ -21,6 +22,7 @@ from protocol_processor.nodes.ground import ground_node
 from protocol_processor.nodes.ingest import ingest_node
 from protocol_processor.nodes.parse import parse_node
 from protocol_processor.nodes.persist import persist_node
+from protocol_processor.nodes.structure import structure_node
 from protocol_processor.state import PipelineState
 
 
@@ -37,13 +39,14 @@ def should_continue(state: PipelineState) -> str:
 
 
 def create_graph(checkpointer: Any = None) -> Any:
-    """Create and compile the 5-node protocol processing workflow graph.
+    """Create and compile the 6-node protocol processing workflow graph.
 
     The graph follows this flow:
-    START -> ingest -> extract -> parse -> ground -> persist -> END
+    START -> ingest -> extract -> parse -> ground -> persist -> structure -> END
 
     Conditional error routing after ingest, extract, and parse.
     Ground always proceeds to persist (ground uses error accumulation).
+    Structure uses error accumulation (same pattern as ground).
 
     Args:
         checkpointer: Optional LangGraph checkpointer for fault-tolerant execution.
@@ -56,12 +59,13 @@ def create_graph(checkpointer: Any = None) -> Any:
     """
     workflow = StateGraph(PipelineState)
 
-    # Add all 5 nodes
+    # Add all 6 nodes
     workflow.add_node("ingest", ingest_node)
     workflow.add_node("extract", extract_node)
     workflow.add_node("parse", parse_node)
     workflow.add_node("ground", ground_node)
     workflow.add_node("persist", persist_node)
+    workflow.add_node("structure", structure_node)
 
     # Entry point
     workflow.add_edge(START, "ingest")
@@ -80,7 +84,9 @@ def create_graph(checkpointer: Any = None) -> Any:
 
     # Ground always proceeds to persist (error accumulation handles partials)
     workflow.add_edge("ground", "persist")
-    workflow.add_edge("persist", END)
+    # Persist proceeds to structure (expression tree building)
+    workflow.add_edge("persist", "structure")
+    workflow.add_edge("structure", END)
 
     return workflow.compile(checkpointer=checkpointer)
 
