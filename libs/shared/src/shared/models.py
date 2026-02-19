@@ -119,6 +119,9 @@ class Entity(SQLModel, table=True):
     hpo_code: str | None = Field(default=None, index=True)
     grounding_system: str | None = Field(default=None)
     grounding_error: str | None = Field(default=None)
+    # OMOP dual grounding columns (Phase 1a)
+    omop_concept_id: str | None = Field(default=None, index=True)
+    reconciliation_status: str | None = Field(default=None)
     created_at: datetime = Field(sa_column=_ts_col())
     updated_at: datetime = Field(sa_column=_ts_col_update())
 

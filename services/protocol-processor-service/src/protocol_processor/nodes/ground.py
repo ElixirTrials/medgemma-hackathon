@@ -37,6 +37,10 @@ from protocol_processor.tools.medgemma_decider import (
     agentic_reasoning_loop,
     medgemma_decide,
 )
+from protocol_processor.tools.omop_mapper import (
+    OmopLookupResult,
+    lookup_omop_concept,
+)
 from protocol_processor.tools.terminology_router import TerminologyRouter
 
 logger = logging.getLogger(__name__)
@@ -51,6 +55,59 @@ def _get_router() -> TerminologyRouter:
     if _router is None:
         _router = TerminologyRouter()
     return _router
+
+
+def _reconcile_dual_grounding(
+    result: EntityGroundingResult,
+    omop_result: OmopLookupResult,
+) -> EntityGroundingResult:
+    """Reconcile TerminologyRouter + OMOP mapper results.
+
+    Sets omop_concept_id and reconciliation_status on the result:
+    - Both succeed → "agree" (high confidence) or "disagreement"
+    - Only TerminologyRouter → "omop_missing"
+    - Only OMOP → "tooluniverse_missing"
+    - Neither → no change (existing expert_review behavior)
+
+    Agreement is checked by comparing the OMOP concept_name against
+    the ToolUniverse preferred_term (fuzzy match).
+
+    Args:
+        result: EntityGroundingResult from TerminologyRouter path.
+        omop_result: OmopLookupResult from OMOP mapper path.
+
+    Returns:
+        The same EntityGroundingResult, mutated with OMOP fields.
+    """
+    tu_ok = result.selected_code is not None
+    omop_ok = omop_result.omop_concept_id is not None
+
+    if tu_ok and omop_ok:
+        result.omop_concept_id = omop_result.omop_concept_id
+        # Simple agreement check: do the preferred terms overlap?
+        tu_term = (result.preferred_term or "").lower()
+        omop_term = (omop_result.omop_concept_name or "").lower()
+        if tu_term and omop_term and (
+            tu_term in omop_term or omop_term in tu_term
+        ):
+            result.reconciliation_status = "agree"
+        else:
+            result.reconciliation_status = "disagreement"
+        logger.info(
+            "Dual grounding for '%s': TU=%s, OMOP=%s, status=%s",
+            result.entity_text[:50],
+            result.selected_code,
+            omop_result.omop_concept_id,
+            result.reconciliation_status,
+        )
+    elif tu_ok and not omop_ok:
+        result.reconciliation_status = "omop_missing"
+    elif not tu_ok and omop_ok:
+        result.omop_concept_id = omop_result.omop_concept_id
+        result.reconciliation_status = "tooluniverse_missing"
+    # else: neither — leave as-is (expert_review path)
+
+    return result
 
 
 def _log_grounding_audit(
@@ -98,6 +155,8 @@ def _log_grounding_audit(
             "preferred_term": result.preferred_term,
             "confidence": result.confidence,
             "reasoning": result.reasoning,
+            "omop_concept_id": result.omop_concept_id,
+            "reconciliation_status": result.reconciliation_status,
         },
     )
     session.add(audit)
@@ -287,20 +346,45 @@ async def _ground_entity_parallel(
             entity_type,
         )
         try:
-            result = await _ground_entity_with_retry(entity, router, criterion_text)
+            # Dual grounding: run TerminologyRouter + OMOP mapper
+            # in parallel per entity (Phase 1a)
+            full_entity_text = entity.get("text", "")
+            tu_task = _ground_entity_with_retry(
+                entity, router, criterion_text
+            )
+            omop_task = lookup_omop_concept(
+                full_entity_text, entity_type
+            )
+            result, omop_result = await asyncio.gather(
+                tu_task, omop_task
+            )
 
-            # Generate field mappings in parallel (same semaphore slot)
-            field_mappings = await generate_field_mappings(result, criterion_text)
-            result.field_mappings = field_mappings if field_mappings else None
+            # Reconcile dual grounding results
+            result = _reconcile_dual_grounding(result, omop_result)
+
+            # Thread criterion_id from parse into result
+            criterion_id = entity.get("criterion_id")
+            if criterion_id:
+                result.criterion_id = criterion_id
+
+            # Generate field mappings (same semaphore slot)
+            field_mappings = await generate_field_mappings(
+                result, criterion_text
+            )
+            result.field_mappings = (
+                field_mappings if field_mappings else None
+            )
 
             elapsed = time.monotonic() - start
             logger.info(
-                "Entity %d/%d '%s' grounded in %.1fs: code=%s, conf=%.2f",
+                "Entity %d/%d '%s' grounded in %.1fs:"
+                " code=%s, omop=%s, conf=%.2f",
                 entity_num,
                 total,
                 entity_text,
                 elapsed,
                 result.selected_code or "N/A",
+                result.omop_concept_id or "N/A",
                 result.confidence,
             )
             return (result, None)
@@ -399,6 +483,7 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                             "Consent/participation criterion — not groundable"
                             " to medical terminology codes"
                         ),
+                        criterion_id=entity.get("criterion_id"),
                     )
                     grounding_results.append(consent_result.model_dump())
                 else:
