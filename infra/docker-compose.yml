@@ -1,4 +1,4 @@
-# Deployment stack: API, UI, Postgres, MLflow, Pub/Sub emulator.
+# Deployment stack: API, UI, Postgres, MLflow, Pub/Sub emulator, OMOP Vocabulary.
 # Run from repo root: docker-compose -f infra/docker-compose.yml up --build
 services:
   api:
@@ -9,6 +9,7 @@ services:
       - "${API_PORT:-8000}:8000"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+      - OMOP_VOCAB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@omop-vocab:5432/omop_vocab
       - MLFLOW_TRACKING_URI=http://mlflow:5000
     depends_on:
       db:
@@ -48,6 +49,27 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  omop-vocab:
+    build:
+      context: ..
+      dockerfile: infra/omop-vocab/Dockerfile
+    ports:
+      - "${OMOP_VOCAB_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: omop_vocab
+    volumes:
+      - omop_vocab_data:/var/lib/postgresql/data
+      - ./data/omop-vocab:/vocab-data:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - omop
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v3.9.0
@@ -104,6 +126,7 @@ services:
       - "8002:8002"
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
+      - OMOP_VOCAB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@omop-vocab:5432/omop_vocab
     depends_on:
       db:
         condition: service_healthy
@@ -112,5 +135,6 @@ services:
 
 volumes:
   postgres_data:
+  omop_vocab_data:
   mlflow_data:
   pubsub_data:
