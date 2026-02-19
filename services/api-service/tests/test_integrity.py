@@ -110,7 +110,7 @@ class TestIntegrityDetection:
     """Tests that each issue category is correctly detected."""
 
     def test_detects_orphaned_entity(self, test_client: TestClient, db_session) -> None:
-        """Entity with non-existent criteria_id is flagged as orphaned_entity error."""
+        """Orphaned entity (bad criteria_id) is flagged."""
         # Create entity with a made-up criteria_id (no corresponding Criteria row)
         orphan = Entity(
             criteria_id="nonexistent-criteria-id-000",
@@ -136,7 +136,7 @@ class TestIntegrityDetection:
     def test_detects_missing_audit_before_after(
         self, test_client: TestClient, db_session
     ) -> None:
-        """AuditLog review_action missing before/after_value flagged as audit_log."""
+        """Incomplete audit log is flagged as warning."""
         protocol = _make_protocol(db_session)
         batch = _make_batch(db_session, protocol.id)
         criterion = _make_criteria(db_session, batch.id)
@@ -162,7 +162,7 @@ class TestIntegrityDetection:
     def test_detects_ungrounded_entity(
         self, test_client: TestClient, db_session
     ) -> None:
-        """Entity with no codes and no grounding_error flagged as entity_grounding."""
+        """Ungrounded entity is flagged as warning."""
         protocol = _make_protocol(db_session)
         batch = _make_batch(db_session, protocol.id)
         criterion = _make_criteria(db_session, batch.id)
@@ -191,7 +191,7 @@ class TestIntegrityDetection:
     def test_detects_review_without_audit(
         self, test_client: TestClient, db_session
     ) -> None:
-        """Criteria with review_status but no AuditLog flagged as criteria_state."""
+        """Review without audit trail is flagged."""
         protocol = _make_protocol(db_session)
         batch = _make_batch(db_session, protocol.id)
 

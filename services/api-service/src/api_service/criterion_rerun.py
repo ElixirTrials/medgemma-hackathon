@@ -169,14 +169,9 @@ Return ONLY valid JSON with these fields:
     revised: SingleCriterionResult | None = None
     try:
         if hasattr(response, "parsed") and response.parsed is not None:
-            raw = response.parsed
-            revised = (
-                raw
-                if isinstance(raw, SingleCriterionResult)
-                else SingleCriterionResult.model_validate(raw)
-            )
-        elif response.text:
-            revised = SingleCriterionResult.model_validate_json(response.text)
+            revised = response.parsed  # type: ignore[assignment]
+        else:
+            revised = SingleCriterionResult.model_validate_json(response.text)  # type: ignore[arg-type]
     except Exception as e:
         logger.warning(
             "Failed to parse Gemini response for criterion %s: %s",

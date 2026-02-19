@@ -62,15 +62,14 @@ def compute_quality_score(pdf_bytes: bytes) -> QualityResult:
     pages_with_text = 0
     pages_with_images = 0
 
-    for i in range(len(doc)):
-        page = doc[i]
-        # Check for extractable text (pymupdf Page API)
-        text = page.get_text("text").strip()  # type: ignore[attr-defined]
+    for page in doc:
+        # Check for extractable text
+        text = page.get_text("text").strip()
         if text:
             pages_with_text += 1
 
         # Check for embedded images
-        images = page.get_images()  # type: ignore[attr-defined]
+        images = page.get_images()
         if images:
             pages_with_images += 1
 

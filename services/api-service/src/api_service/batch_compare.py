@@ -193,12 +193,13 @@ def compare_batches(
     for b_item in b_items:
         if not b_item["matched"]:
             added_count += 1
-            crit_b = cast(Criteria, b_item["criterion"])
             rows.append(
                 CriterionCompareRow(
                     status="added",
                     batch_a_criterion=None,
-                    batch_b_criterion=_criterion_dict(crit_b),
+                    batch_b_criterion=_criterion_dict(
+                        cast(Criteria, b_item["criterion"])
+                    ),
                     match_score=None,
                 )
             )
