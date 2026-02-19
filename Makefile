@@ -30,10 +30,16 @@ run-dev:
 	echo "  API on port $$API_PORT (UI will use VITE_API_URL=http://localhost:$$API_PORT)"; \
 	export VITE_API_URL="http://localhost:$$API_PORT"; \
 	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads}"; \
-	trap 'kill 0' EXIT; \
+	cleanup() { kill $$MLFLOW_PID $$API_PID $$UI_PID 2>/dev/null; kill 0 2>/dev/null; }; \
+	trap 'cleanup; exit 130' SIGINT; \
+	trap 'cleanup; exit 143' SIGTERM; \
+	trap cleanup EXIT; \
 	uv run mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri sqlite:///.mlflow/mlflow.db --artifacts-destination .mlflow/artifacts & \
+	MLFLOW_PID=$$!; \
 	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src & \
+	API_PID=$$!; \
 	cd apps/hitl-ui && npm run dev & \
+	UI_PID=$$!; \
 	wait
 
 run-infra:
