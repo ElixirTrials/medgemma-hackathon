@@ -1,7 +1,10 @@
-"""Pipeline state definition for the consolidated 5-node protocol processor.
+"""Pipeline state definition for the 7-node protocol processor.
 
 Minimal flat state using JSON strings for complex data to minimize token usage
 during LangGraph state serialization between nodes.
+
+Pipeline: ingest -> extract -> parse -> ground -> persist -> structure
+  -> ordinal_resolve
 """
 
 from typing import Literal
