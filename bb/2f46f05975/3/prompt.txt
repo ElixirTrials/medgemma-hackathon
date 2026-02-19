@@ -1,0 +1,221 @@
+<objective>
+Execute all plans in a phase using wave-based parallel execution.
+
+Orchestrator stays lean: discover plans, analyze dependencies, group into waves, spawn subagents, collect results. Each subagent loads the full execute-plan context and handles its own plan.
+
+Context budget: ~15% orchestrator, 100% fresh per subagent.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/execute-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase: 43
+
+**Flags:**
+- `--gaps-only` — Execute only gap closure plans (plans with `gap_closure: true` in frontmatter). Use after verify-work creates fix plans.
+
+@.planning/ROADMAP.md
+@.planning/STATE.md
+</context>
+
+<process>
+Execute the execute-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/execute-phase.md end-to-end.
+Preserve all workflow gates (wave execution, checkpoint handling, verification, state updates, routing).
+</process>
+
+---
+
+<objective>
+Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.
+
+**Default flow:** Research (if needed) → Plan → Verify → Done
+
+**Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase number: 43 (optional — auto-detects next unplanned phase if omitted)
+
+**Flags:**
+- `--research` — Force re-research even if RESEARCH.md exists
+- `--skip-research` — Skip research, go straight to planning
+- `--gaps` — Gap closure mode (reads VERIFICATION.md, skips research)
+- `--skip-verify` — Skip verification loop
+
+Normalize phase input in step 2 before any directory lookups.
+</context>
+
+<process>
+Execute the plan-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md end-to-end.
+Preserve all workflow gates (validation, research, planning, verification loop, routing).
+</process>
+
+---
+
+<objective>
+Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
+
+**How it works:**
+1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+2. Present gray areas — user selects which to discuss
+3. Deep-dive each selected area until satisfied
+4. Create CONTEXT.md with decisions that guide research and planning
+
+**Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/discuss-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/context.md
+</execution_context>
+
+<context>
+Phase number: 43 (required)
+
+**Load project state:**
+@.planning/STATE.md
+
+**Load roadmap:**
+@.planning/ROADMAP.md
+</context>
+
+<process>
+1. Validate phase number (error if missing or not in roadmap)
+2. Check if CONTEXT.md exists (offer update/view/skip if yes)
+3. **Analyze phase** — Identify domain and generate phase-specific gray areas
+4. **Present gray areas** — Multi-select: which to discuss? (NO skip option)
+5. **Deep-dive each area** — 4 questions per area, then offer more/next
+6. **Write CONTEXT.md** — Sections match areas discussed
+7. Offer next steps (research or plan)
+
+**CRITICAL: Scope guardrail**
+- Phase boundary from ROADMAP.md is FIXED
+- Discussion clarifies HOW to implement, not WHETHER to add more
+- If user suggests new capabilities: "That's its own phase. I'll note it for later."
+- Capture deferred ideas — don't lose them, don't act on them
+
+**Domain-aware gray areas:**
+Gray areas depend on what's being built. Analyze the phase goal:
+- Something users SEE → layout, density, interactions, states
+- Something users CALL → responses, errors, auth, versioning
+- Something users RUN → output format, flags, modes, error handling
+- Something users READ → structure, tone, depth, flow
+- Something being ORGANIZED → criteria, grouping, naming, exceptions
+
+Generate 3-4 **phase-specific** gray areas, not generic categories.
+
+**Probing depth:**
+- Ask 4 questions per area before checking
+- "More questions about [area], or move to next?"
+- If more → ask 4 more, check again
+- After all areas → "Ready to create context?"
+
+**Do NOT ask about (Claude handles these):**
+- Technical implementation
+- Architecture choices
+- Performance concerns
+- Scope expansion
+</process>
+
+<success_criteria>
+- Gray areas identified through intelligent analysis
+- User chose which areas to discuss
+- Each selected area explored until satisfied
+- Scope creep redirected to deferred ideas
+- CONTEXT.md captures decisions, not vague vision
+- User knows next steps
+</success_criteria>
+
+---
+
+<objective>
+Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.
+
+**Default flow:** Research (if needed) → Plan → Verify → Done
+
+**Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase number: 43 (optional — auto-detects next unplanned phase if omitted)
+
+**Flags:**
+- `--research` — Force re-research even if RESEARCH.md exists
+- `--skip-research` — Skip research, go straight to planning
+- `--gaps` — Gap closure mode (reads VERIFICATION.md, skips research)
+- `--skip-verify` — Skip verification loop
+
+Normalize phase input in step 2 before any directory lookups.
+</context>
+
+<process>
+Execute the plan-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md end-to-end.
+Preserve all workflow gates (validation, research, planning, verification loop, routing).
+</process>
+
+---
+
+<task-notification>
+<task-id>a4cbded</task-id>
+<status>completed</status>
+<summary>Agent "Research Phase 43" completed</summary>
+<result>---
+
+## RESEARCH COMPLETE
+
+**Phase:** 43 - dashboard-protocol-list-ux
+**Confidence:** HIGH
+
+### Key Findings
+
+- **All three fixes are purely additive.** No existing code is deleted. Every new component composes from existing primitives already in the codebase (Radix Collapsible, AlertDialog, TanStack Query mutations, lucide-react icons).
+
+- **useAuditLog hook already fully implemented.** `GET /reviews/audit-log` endpoint exists, is paginated, and the TypeScript hook is in `useReviews.ts`. The only missing piece is wiring it into the Dashboard and emitting `protocol_status_change` AuditLog entries from the backend persist node.
+
+- **Critical correction on error_reason:** CONTEXT.md says "ProtocolResponse model is missing `error_reason`" but the frontend `Protocol` interface already has `error_reason: string | null`. Only the backend `ProtocolResponse` Pydantic model (lines 75-87 of protocols.py) is missing it — a 1-line fix.
+
+- **Protocol deduplication requires backend subquery.** Client-side dedup would break pagination. The correct approach is a SQLModel subquery: find `MAX(created_at) per title` group, join back for full rows. A `version_count` field must be added to `ProtocolResponse`.
+
+- **stopPropagation is critical for inline table row buttons.** The ProtocolList table rows fire `handleRowClick` on click. Any Retry/Archive button inside a row MUST call `e.stopPropagation()` — exact pattern already exists in `ProtocolDetail.tsx`'s `RetryButton`.
+
+### File Created
+`/Users/noahdolevelixir/Code/medgemma-hackathon/.REDACTED.md`
+
+### Confidence Assessment
+| Area | Level | Reason |
+|------|-------|--------|
+| Standard Stack | HIGH | Verified from package.json and all source imports |
+| Architecture Patterns | HIGH | Code examples lifted directly from existing files |
+| Backend Changes | HIGH | SQLModel/FastAPI patterns confirmed from existing endpoints |
+| Pitfalls | HIGH | Identified from reading actual code paths (not from general knowledge) |
+| Activity feed navigation | LOW | No `/criteria/{id}` route exists — requires planner decision |
+
+### Open Questions
+1. Where should clicking a review_action audit log entry navigate? No direct criterion route exists. Recommend navigating to `/reviews` (queue) for review actions and `/protocols/{id}` for pipeline events.
+2. Should `deduplicate` default to `true` on the backend or require explicit frontend opt-in? Recommend explicit frontend opt-in (`deduplicate=False` default) to avoid breaking existing callers.
+3. Should the "Actions" table column always appear or only when dead-letter protocols are in the result set?
+
+### Ready for Planning
+Research complete. Planner can now create PLAN.md files for all three requirements.</result>
+<usage>total_tokens: 96375
+tool_uses: 92
+duration_ms: 438579</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/a4cbded.output
+
+---
+
+proceed
