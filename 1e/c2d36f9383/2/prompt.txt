@@ -1,0 +1,153 @@
+Implement the following plan:
+
+# Phase 2: Expression Tree + Normalized Tables
+
+## Context
+
+Phase 1 (dual grounding) is complete and verified. Entities now carry OMOP concept IDs, field mappings include concept IDs, criterion_id threading and accumulation work. The gap closure plan requires Phase 1b to be in QA before Phase 2 begins — that gate is passed.
+
+Phase 2 builds the next layer: structured expression trees that capture AND/OR/NOT logic from criteria text, backed by normalized `atomic_criteria`/`composite_criteria` tables that enable direct SQL joins for cohort evaluation and CIRCE export.
+
+## Files to Create
+
+| File | Description |
+|------|-------------|
+| `services/api-service/alembic/versions/42_01_add_expression_tree_tables.py` | Migration: 3 new tables + `structured_criterion` column on `criteria` |
+| `services/protocol-processor-service/src/protocol_processor/schemas/structure.py` | Pydantic schemas: `LogicNode`, `LogicDetectionResponse`, `ExpressionNode`, `StructuredCriterionTree` |
+| `services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py` | Gemini-based logic detection + tree builder (follows `field_mapper.py` pattern) |
+| `services/protocol-processor-service/src/protocol_processor/nodes/structure.py` | Pipeline node: reads persisted criteria from DB, builds trees, writes normalized tables |
+| `services/protocol-processor-service/tests/test_phase2_structure.py` | Tests: schemas, logic detection, tree building, node behavior |
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `libs/shared/src/shared/models.py` | Add `AtomicCriterion`, `CompositeCriterion`, `CriterionRelationship` models + `Criteria.structured_criterion` column |
+| `services/protocol-processor-service/src/protocol_processor/graph.py` | Add `structure` node, change `persist→END` to `persist→structure→END` |
+| `services/protocol-processor-service/src/protocol_processor/nodes/__init__.py` | Update docstring |
+| `services/protocol-processor-service/tests/test_graph.py` | Update node count 5→6, add structure edge assertion |
+
+## Implementation Steps (in order)
+
+### Step 1: Database Models (`libs/shared/src/shared/models.py`)
+
+Add `structured_criterion` JSONB column to existing `Criteria` class:
+```python
+structured_criterion: Dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))
+```
+
+Add three new SQLModel classes:
+
+**`AtomicCriterion`** (table `atomic_criteria`) — leaf nodes:
+- `id` (PK), `criterion_id` (FK→criteria, indexed), `protocol_id` (FK→protocol, indexed)
+- `inclusion_exclusion` ("inclusion"/"exclusion")
+- `entity_concept_id`, `entity_concept_system`, `omop_concept_id` (all indexed)
+- `entity_domain` (Condition/Measurement/Drug/Procedure)
+- `relation_operator` (>=, <=, =, has, is, NOT, within)
+- `value_numeric` (float), `value_text` (string) — one populated based on parsing
+- `unit_text`, `negation` (bool), `temporal_constraint` (JSON)
+- `original_text`, `confidence_score`, `human_verified`, `human_modified`
+- Composite index: `(protocol_id, inclusion_exclusion)`
+
+**`CompositeCriterion`** (table `composite_criteria`) — branch nodes:
+- `id` (PK), `criterion_id` (FK→criteria, indexed), `protocol_id` (FK→protocol, indexed)
+- `inclusion_exclusion`, `logic_operator` ("AND"/"OR"/"NOT")
+- `parent_criterion_id` (nullable, indexed — NULL = root)
+- `original_text`, `human_verified`
+
+**`CriterionRelationship`** (table `criterion_relationships`) — edges:
+- `parent_criterion_id` (FK→composite_criteria, PK part 1)
+- `child_criterion_id` (PK part 2) — polymorphic FK (atomic OR composite)
+- `child_type` ("atomic"/"composite") — discriminator
+- `child_sequence` (int) — preserves operand order
+
+### Step 2: Alembic Migration (`42_01_add_expression_tree_tables.py`)
+
+- Revision: `42_01_expression_tree`, down_revision: `41_01_entity_omop_cols`
+- Add `structured_criterion` column to `criteria` (with idempotency guard)
+- Create all three tables with indexes
+- Use `batch_alter_table` pattern and `inspector.get_table_names()` guards
+
+### Step 3: Pydantic Schemas (`schemas/structure.py`)
+
+**LLM output schemas:**
+- `LogicNode`: `node_type` (AND/OR/NOT/ATOMIC), `field_mapping_index` (for ATOMIC), `children`
+- `LogicDetectionResponse`: `root` (LogicNode tree), `reasoning` (string)
+
+**JSONB storage schemas:**
+- `ExpressionNode`: `type`, `atomic_criterion_id`, `entity`, `relation`, `value`, `unit`, `omop_concept_id`, `children`
+- `StructuredCriterionTree`: `root` (ExpressionNode), `structure_confidence` (llm/fallback), `structure_model`
+
+### Step 4: Structure Builder Tool (`tools/structure_builder.py`)
+
+Follows `field_mapper.py` pattern exactly.
+
+**`detect_logic_structure(criterion_text, field_mappings) → LogicDetectionResponse | None`**
+- Skip LLM call if only 1 field_mapping (just return ATOMIC)
+- Use `ChatGoogleGenerativeAI.with_structured_output(LogicDetectionResponse)`
+- Validate all `field_mapping_index` values are in range
+- Return `None` on any failure (triggers fallback)
+
+**`build_expression_tree(criterion_text, field_mappings, criterion_id, protocol_id, inclusion_exclusion, session) → StructuredCriterionTree`**
+1. Call `detect_logic_structure()` — Pass 1 (LLM)
+2. If None, fall back to AND-of-all-atomics — Pass 2 (fallback)
+3. Parse values: `try float()` → `value_numeric`, else → `value_text`
+4. Create `AtomicCriterion` records (one per field_mapping)
+5. Create `CompositeCriterion` + `CriterionRelationship` records from tree
+6. Return `StructuredCriterionTree` for JSONB storage
+
+### Step 5: Structure Node (`nodes/structure.py`)
+
+Pipeline node that runs after persist. Reads from DB, writes to DB.
+
+**Flow:**
+1. Early exit if `state["error"]` is set
+2. Query all Criteria in `batch_id` that have non-empty `field_mappings` in `conditions`
+3. For each qualifying criterion:
+   - Extract `field_mappings` from `criterion.conditions["field_mappings"]`
+   - Call `build_expression_tree()` with DB session
+   - Set `criterion.structured_criterion` to the tree JSONB
+   - On failure: accumulate error, continue
+4. Commit all records, write AuditLog
+5. Return `{"status": "completed", "errors": accumulated_errors}`
+
+**Error handling:** Same accumulation pattern as ground node. Individual criterion failures don't block others. Uses `asyncio.Semaphore(4)` for parallel LLM calls.
+
+### Step 6: Graph Wiring (`graph.py`)
+
+```python
+workflow.add_node("structure", structure_node)
+# Change: persist→END becomes persist→structure→END
+workflow.add_edge("persist", "structure")
+workflow.add_edge("structure", END)
+```
+
+No conditional edges needed — structure uses error accumulation like ground→persist.
+
+### Step 7: Tests (`test_phase2_structure.py`)
+
+**TestLogicDetectionSchemas** — Pydantic roundtrip tests for tree shapes
+**TestDetectLogicStructure** — Mock Gemini, test AND/OR/NOT detection + failure→None
+**TestBuildExpressionTree** — Mock session, verify AtomicCriterion/CompositeCriterion creation, value parsing, fallback behavior
+**TestStructureNode** — Mock DB queries, verify error accumulation, audit logging, skip-on-error
+
+Update `test_graph.py`: node count 5→6, verify `persist→structure` and `structure→END` edges.
+
+## Key Design Decisions
+
+1. **Structure node goes after persist** — it reads criteria from DB (already committed by persist), writes to new tables. Clean separation of concerns.
+2. **AND/OR/NOT from day one** — not AND-only. ~20% of criteria contain OR/NOT logic; building correctly once is cheaper than rewriting.
+3. **Polymorphic FK** in `criterion_relationships` — `child_type` discriminator ("atomic"/"composite") avoids complex multi-table FK constraints. Standard pattern for tree structures.
+4. **Single field_mapping → skip LLM** — no point asking Gemini about logic structure when there's only one atom.
+5. **PipelineState unchanged** — structure node reads/writes DB, doesn't need new state fields.
+
+## Verification
+
+1. `uv run alembic upgrade head` — tables and column exist
+2. `uv run ruff check .` — clean
+3. `uv run mypy .` — clean
+4. `uv run pytest` — all pass (existing 182 + new ~20)
+5. E2E: re-process a protocol, verify `atomic_criteria` and `criteria.structured_criterion` populated
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
