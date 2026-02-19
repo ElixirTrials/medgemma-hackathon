@@ -3,7 +3,7 @@
   "checkpoint_id": "1ec2d36f9383",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "libs/shared/src/shared/models.py",
     "services/api-service/alembic/versions/42_01_add_expression_tree_tables.py",
@@ -19,13 +19,20 @@
       "context": "/1e/c2d36f9383/0/context.md",
       "content_hash": "/1e/c2d36f9383/0/content_hash.txt",
       "prompt": "/1e/c2d36f9383/0/prompt.txt"
+    },
+    {
+      "metadata": "/1e/c2d36f9383/1/metadata.json",
+      "transcript": "/1e/c2d36f9383/1/full.jsonl",
+      "context": "/1e/c2d36f9383/1/context.md",
+      "content_hash": "/1e/c2d36f9383/1/content_hash.txt",
+      "prompt": "/1e/c2d36f9383/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 144,
-    "cache_creation_tokens": 155797,
-    "cache_read_tokens": 14024762,
-    "output_tokens": 12858,
-    "api_call_count": 130
+    "input_tokens": 756,
+    "cache_creation_tokens": 1003221,
+    "cache_read_tokens": 65592753,
+    "output_tokens": 67740,
+    "api_call_count": 674
   }
 }
