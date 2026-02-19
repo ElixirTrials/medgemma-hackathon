@@ -1,0 +1,138 @@
+Implement the following plan:
+
+# Phase 3: Value and Unit Normalization
+
+## Context
+
+Phase 2 (Expression Trees) is complete and verified (119/119 tests passing). The `atomic_criteria` table stores `unit_text` as raw free-text strings (e.g., "mg/dL", "%", "years") but has no `unit_concept_id` column. Per gap_closure_plan.md Phase 3 (Gap 7), we need a static UCUM lookup mapping ~50 common clinical trial units to OMOP `unit_concept_id` values, plus optional categorical value normalization ("positive"/"negative" → SNOMED qualifier concepts).
+
+This is a lightweight phase — no LLM calls needed, pure deterministic YAML-based lookup.
+
+## Files to Create
+
+| File | Description |
+|------|-------------|
+| `.../protocol_processor/config/ucum_mappings.yaml` | ~50 unit entries + ~6 value entries with UCUM codes and OMOP concept IDs |
+| `.../protocol_processor/tools/unit_normalizer.py` | `normalize_unit()` and `normalize_value()` — YAML lookup with alias expansion |
+| `services/api-service/alembic/versions/43_01_add_unit_value_concept_ids.py` | Migration: add `unit_concept_id` and `value_concept_id` columns to `atomic_criteria` |
+| `.../tests/test_unit_normalizer.py` | ~22 tests for normalizer (canonical, alias, case, whitespace, None, unrecognized) |
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `libs/shared/src/shared/models.py` | Add `unit_concept_id: int \| None` and `value_concept_id: int \| None` to `AtomicCriterion` |
+| `.../tools/structure_builder.py` | Import normalizer, call in `_create_atomic_from_mapping()` |
+| `.../tests/test_phase2_e2e.py` | Add `TestPhase3UnitNormalization` class + update column assertion |
+| `.../config/__init__.py` | Update docstring to mention ucum_mappings.yaml |
+
+## Implementation Steps
+
+### Step 1: UCUM Mappings YAML (`config/ucum_mappings.yaml`)
+
+Static YAML with two sections:
+
+**`units:`** — list of ~50 entries, each with:
+- `canonical`: UCUM code string (e.g., `"a"` for years, `"%"` for percent)
+- `omop_unit_concept_id`: integer OMOP concept ID
+- `aliases`: list of alternative spellings (e.g., `["years", "year", "yrs", "yr"]`)
+
+Key mappings: `%`→8554, `mg/dL`→8840, `years`→9448(canonical `a`), `kg/m2`→9531, `mL/min`→8795, `mmHg`→8876, `mmol/L`→8753, `mL/min/1.73m2`→720870, `10*3/uL`→8848, `10*9/L`→9444
+
+**`value_mappings:`** — ~6 categorical value entries:
+- `positive`→45884084, `negative`→45878583, `normal`→45884153, `abnormal`→45878745, `present`→45884084, `absent`→45878583
+
+### Step 2: Unit Normalizer Tool (`tools/unit_normalizer.py`)
+
+Follows existing tool patterns. Two public functions:
+
+```python
+def normalize_unit(unit_text: str | None) -> tuple[str | None, int | None]:
+    """Returns (ucum_code, omop_unit_concept_id) or (None, None)."""
+
+def normalize_value(value_text: str | None) -> tuple[str | None, int | None]:
+    """Returns (snomed_code, omop_value_concept_id) or (None, None)."""
+```
+
+- YAML loaded once via `@lru_cache(maxsize=1)` on internal `_load_ucum_mappings()`
+- Case-insensitive: `.strip().lower()` on all lookup keys
+- Config path: `Path(__file__).parent.parent / "config" / "ucum_mappings.yaml"` (same pattern as `terminology_router.py`)
+- Returns `(None, None)` for unrecognized inputs — never raises
+
+### Step 3: Database Model (`libs/shared/src/shared/models.py`)
+
+Add two fields to `AtomicCriterion` after `unit_text` (line 212):
+
+```python
+unit_concept_id: int | None = Field(
+    default=None, sa_column=Column(Integer, nullable=True)
+)
+value_concept_id: int | None = Field(
+    default=None, sa_column=Column(Integer, nullable=True)
+)
+```
+
+### Step 4: Alembic Migration (`43_01_add_unit_value_concept_ids.py`)
+
+- Revision: `43_01_unit_value_concept_ids`, down_revision: `42_01_expression_tree`
+- Adds `unit_concept_id` (Integer, nullable) and `value_concept_id` (Integer, nullable) to `atomic_criteria`
+- Uses `inspector.get_columns()` idempotency guard + `batch_alter_table()` pattern
+
+### Step 5: Integration (`tools/structure_builder.py`)
+
+Modify `_create_atomic_from_mapping()` (line 163-203):
+
+```python
+from protocol_processor.tools.unit_normalizer import normalize_unit, normalize_value
+
+# After existing _parse_value() call:
+raw_unit = fm.get("unit")
+_, unit_concept_id = normalize_unit(raw_unit)
+
+value_concept_id: int | None = None
+if value_text and value_numeric is None:
+    _, value_concept_id = normalize_value(value_text)
+
+# Pass to AtomicCriterion constructor:
+#   unit_concept_id=unit_concept_id,
+#   value_concept_id=value_concept_id,
+```
+
+Only calls `normalize_value()` when value is categorical (non-numeric).
+
+### Step 6: Tests
+
+**`test_unit_normalizer.py`** (~22 tests in 2 classes):
+- `TestNormalizeUnit` — canonical forms, aliases, case insensitivity, whitespace stripping, None/empty, unrecognized, common clinical units (%, mg/dL, years, mL/min, kg/m2, mmHg, mmol/L, mL/min/1.73m2)
+- `TestNormalizeValue` — positive, negative, normal, abnormal, aliases, case insensitivity, None, unrecognized
+
+**`test_phase2_e2e.py`** additions:
+- `TestPhase3UnitNormalization` class with 4 tests: column existence, unit persistence (% → 8554), value persistence (positive → 45884084), unrecognized unit → None
+- Update existing `test_atomic_criteria_columns` expected set
+
+## Key Design Decisions
+
+1. **`@lru_cache` not class** — lighter weight than a TerminologyRouter-style class for a pure lookup function
+2. **Integer type for concept IDs** — OMOP concept IDs are numeric; `int | None` is correct (differs from legacy `omop_concept_id: str | None` on entities)
+3. **No index on `unit_concept_id`** — not a join key; can add later if needed
+4. **Value normalization included now** — avoids a second migration; `value_concept_id` defaults to None so no breaking changes
+5. **pyyaml already in dependencies** — no new packages needed
+
+## Verification
+
+1. `uv run pytest services/protocol-processor-service/tests/test_unit_normalizer.py -v` — all pass
+2. `uv run pytest services/protocol-processor-service/tests/test_phase2_e2e.py -v` — existing + new pass
+3. `uv run pytest services/protocol-processor-service/tests/ -v` — full suite green
+4. `uv run ruff check .` — clean
+5. `uv run mypy .` — clean
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Can you run a few inclusion/exclusion criteria through the backend and see that it properly catches the entities, relations, values and units? Check that everything is working.
+
+---
+
+I think we should add units and unit_concept_ids for booleans (positive/negative) and some kind of unit concept for ECOG. For example in SNOMED there is a concept for each level. ECOG observation is bound to LOINC 89247-1 for ECOG performance. We should reference both LOINC answer list, SNOMED CT ECOG grade concepts somewhere. Consider schema's and where it's appropriate to map this.
