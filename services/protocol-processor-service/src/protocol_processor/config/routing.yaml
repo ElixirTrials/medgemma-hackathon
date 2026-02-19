@@ -16,8 +16,8 @@
 
 routing_rules:
   Medication:
-    - rxnorm
-    - umls
+    - rxnorm   # Specific drug names; drug class terms (e.g., "ACE inhibitor") may return no RXCUI
+    - umls     # Fallback for drug classes and broader medication concepts
 
   Condition:
     - icd10
@@ -46,6 +46,10 @@ routing_rules:
 
   Consent:
     skip: true  # Consent/participation criteria not groundable to terminology
+
+  # Non-groundable catch-all entities (e.g., ASA physical status, non-medical criteria).
+  # Empty list means no terminology APIs configured — entity gets expert_review routing.
+  Other: []
 
 api_configs:
   rxnorm:

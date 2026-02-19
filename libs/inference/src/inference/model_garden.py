@@ -11,7 +11,7 @@ import logging
 import time
 from typing import Any, Callable
 
-import requests
+import requests  # type: ignore[import-untyped]
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
