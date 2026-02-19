@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "406a98211bea",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/api-service/src/api_service/batch_compare.py",
+    "services/api-service/src/api_service/criterion_rerun.py",
+    "services/api-service/src/api_service/quality.py",
+    "services/api-service/tests/test_integrity.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/6a98211bea/0/metadata.json",
+      "transcript": "/40/6a98211bea/0/full.jsonl",
+      "context": "/40/6a98211bea/0/context.md",
+      "content_hash": "/40/6a98211bea/0/content_hash.txt",
+      "prompt": "/40/6a98211bea/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 134,
+    "cache_creation_tokens": 149454,
+    "cache_read_tokens": 12725180,
+    "output_tokens": 12227,
+    "api_call_count": 122
+  }
+}
