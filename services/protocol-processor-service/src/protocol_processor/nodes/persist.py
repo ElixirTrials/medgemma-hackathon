@@ -20,7 +20,7 @@ from typing import Any
 
 from api_service.protocols import _apply_review_inheritance
 from api_service.storage import engine
-from shared.models import Criteria, CriteriaBatch, Entity, Protocol
+from shared.models import AuditLog, Criteria, CriteriaBatch, Entity, Protocol
 from sqlmodel import Session
 
 from protocol_processor.state import PipelineState
@@ -138,6 +138,8 @@ def _find_criterion_and_update_mappings(
 
     if field_mappings:
         existing = criterion.conditions or {}
+        if not isinstance(existing, dict):
+            existing = {"original_conditions": existing}
         criterion.conditions = {**existing, "field_mappings": field_mappings}
         session.add(criterion)
 
@@ -198,6 +200,7 @@ def _update_batch_and_protocol(
 
     protocol = session.get(Protocol, protocol_id)
     if protocol:
+        old_status = protocol.status  # always "grounding" at this point
         if all_failed:
             protocol.status = "grounding_failed"
             protocol.error_reason = (
@@ -207,6 +210,20 @@ def _update_batch_and_protocol(
             protocol.status = "pending_review"
             protocol.error_reason = None
         session.add(protocol)
+
+        # Emit protocol_status_change audit log for both outcomes
+        audit_log = AuditLog(
+            event_type="protocol_status_change",
+            actor_id="system:pipeline",
+            target_type="protocol",
+            target_id=protocol_id,
+            details={
+                "old_status": old_status,
+                "new_status": protocol.status,
+                "protocol_title": protocol.title,
+            },
+        )
+        session.add(audit_log)
 
 
 def _persist_entities(

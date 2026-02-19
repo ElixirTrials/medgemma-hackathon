@@ -60,13 +60,22 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
             if not extraction_json:
                 span.set_outputs({"error": "No extraction_json in state"})
                 return {
-                    "error": (
-                        "No extraction_json in state — extract node may have failed"
-                    )
+                    "error": "No extraction_json in state"
+                    " — extract node may have failed"
                 }
 
             # Parse extraction JSON into Pydantic model
             extraction_result = ExtractionResult.model_validate_json(extraction_json)
+
+            # Dev/debug knob: truncate criteria for faster pipeline runs
+            _max_criteria = int(os.getenv("PIPELINE_MAX_CRITERIA", "0"))
+            if _max_criteria > 0:
+                extraction_result.criteria = extraction_result.criteria[:_max_criteria]
+                logger.info(
+                    "PIPELINE_MAX_CRITERIA=%d: truncated to %d criteria",
+                    _max_criteria,
+                    len(extraction_result.criteria),
+                )
 
             extraction_model = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
