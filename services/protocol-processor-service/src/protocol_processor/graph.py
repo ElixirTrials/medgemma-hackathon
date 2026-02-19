@@ -90,13 +90,17 @@ def create_graph(checkpointer: Any = None) -> Any:
 # reused across all invocations. Do NOT create per-invocation.
 _graph = None
 _checkpointer = None
+# Context manager for PostgresSaver; kept entered for app lifetime.
+_checkpointer_cm: Any = None
 
 
 def _get_checkpointer() -> Any:
     """Get or create the PostgresSaver checkpointer singleton.
 
-    Creates a PostgresSaver using DATABASE_URL from the environment.
-    Calls setup() on first creation to ensure checkpoint tables exist.
+    Creates a PostgresSaver using DATABASE_URL from the environment by
+    entering the context manager once. Calls setup() on the yielded
+    PostgresSaver to ensure checkpoint tables exist. The context is
+    kept open for the process lifetime so the connection stays valid.
 
     Returns:
         PostgresSaver instance configured with the application database.
@@ -104,12 +108,13 @@ def _get_checkpointer() -> Any:
     Raises:
         KeyError: If DATABASE_URL environment variable is not set.
     """
-    global _checkpointer  # noqa: PLW0603
+    global _checkpointer, _checkpointer_cm  # noqa: PLW0603
     if _checkpointer is None:
         from langgraph.checkpoint.postgres import PostgresSaver
 
         db_url = os.environ["DATABASE_URL"]
-        _checkpointer = PostgresSaver.from_conn_string(db_url)
+        _checkpointer_cm = PostgresSaver.from_conn_string(db_url)
+        _checkpointer = _checkpointer_cm.__enter__()
         _checkpointer.setup()  # Create checkpoint tables if they don't exist
     return _checkpointer
 

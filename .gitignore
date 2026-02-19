@@ -372,3 +372,6 @@ uploads/
 
 # Generated reports (keep directory via .gitkeep)
 reports/*.md
+
+.benchmarks/
+.claude/

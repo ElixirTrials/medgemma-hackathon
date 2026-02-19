@@ -18,11 +18,16 @@ run-dev:
 	@echo "3. Waiting for Postgres..."
 	@until docker compose -f infra/docker-compose.yml exec db pg_isready -U postgres 2>/dev/null; do sleep 1; done
 	@echo "4. Finding available ports and starting API + UI..."
+	@if [ ! -d "apps/hitl-ui/node_modules" ]; then \
+		echo "  Installing hitl-ui dependencies (npm install)..."; \
+		cd apps/hitl-ui && npm install && cd ../..; \
+	fi
 	@set -a && source .env && set +a && \
 	API_PORT=8000; \
 	while lsof -i :$$API_PORT >/dev/null 2>&1; do API_PORT=$$((API_PORT+1)); done; \
 	echo "  API on port $$API_PORT (UI will use VITE_API_URL=http://localhost:$$API_PORT)"; \
 	export VITE_API_URL="http://localhost:$$API_PORT"; \
+	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads}"; \
 	trap 'kill 0' EXIT; \
 	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src & \
 	cd apps/hitl-ui && npm run dev & \
@@ -43,6 +48,7 @@ run-api:
 	while lsof -i :$$API_PORT >/dev/null 2>&1; do API_PORT=$$((API_PORT+1)); done; \
 	echo "Starting API service on port $$API_PORT..."; \
 	set -a && source .env && set +a && \
+	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads}"; \
 	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src
 
 run-ui:
