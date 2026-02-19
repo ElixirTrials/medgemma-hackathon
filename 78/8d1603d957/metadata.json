@@ -3,7 +3,7 @@
   "checkpoint_id": "788d1603d957",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 3,
+  "checkpoints_count": 4,
   "files_touched": [
     "Makefile",
     "infra/README.md",
@@ -31,13 +31,20 @@
       "context": "/78/8d1603d957/1/context.md",
       "content_hash": "/78/8d1603d957/1/content_hash.txt",
       "prompt": "/78/8d1603d957/1/prompt.txt"
+    },
+    {
+      "metadata": "/78/8d1603d957/2/metadata.json",
+      "transcript": "/78/8d1603d957/2/full.jsonl",
+      "context": "/78/8d1603d957/2/context.md",
+      "content_hash": "/78/8d1603d957/2/content_hash.txt",
+      "prompt": "/78/8d1603d957/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 134,
-    "cache_creation_tokens": 235617,
-    "cache_read_tokens": 11807030,
-    "output_tokens": 9167,
-    "api_call_count": 120
+    "input_tokens": 229,
+    "cache_creation_tokens": 318520,
+    "cache_read_tokens": 17273576,
+    "output_tokens": 16615,
+    "api_call_count": 205
   }
 }
