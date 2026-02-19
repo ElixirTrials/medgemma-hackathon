@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "b2904e49eb32",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "infra/docker-compose.yml",
+    "infra/omop-vocab/create-indexes.sql",
+    "services/api-service/alembic/versions/41_01_add_entity_omop_columns.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/schemas/grounding.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py",
+    "services/protocol-processor-service/tests/test_omop_mapper.py",
+    "services/protocol-processor-service/tests/test_phase1b_wiring.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b2/904e49eb32/0/metadata.json",
+      "transcript": "/b2/904e49eb32/0/full.jsonl",
+      "context": "/b2/904e49eb32/0/context.md",
+      "content_hash": "/b2/904e49eb32/0/content_hash.txt",
+      "prompt": "/b2/904e49eb32/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
