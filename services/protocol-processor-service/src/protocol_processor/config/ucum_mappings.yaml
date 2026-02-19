@@ -206,6 +206,11 @@ units:
     omop_unit_concept_id: 8541
     aliases: ["breaths per minute", "breaths/minute"]
 
+  # --- Ordinal / Score ---
+  - canonical: "{score}"
+    omop_unit_concept_id: 8527
+    aliases: ["score", "points"]
+
 value_mappings:
   positive: 45884084
   negative: 45878583
@@ -213,3 +218,60 @@ value_mappings:
   abnormal: 45878745
   present: 45884084
   absent: 45878583
+
+ordinal_scales:
+  ecog:
+    entity_aliases:
+      - "ECOG"
+      - "ECOG performance status"
+      - "ECOG PS"
+      - "Eastern Cooperative Oncology Group"
+      - "WHO performance status"
+      - "Zubrod score"
+    loinc_code: "89247-1"
+    loinc_answer_list: "LL529-9"
+    unit_concept_id: 8527
+    values:
+      "0": {snomed_code: "425389002", loinc_answer: "LA9622-7", description: "Fully active"}
+      "1": {snomed_code: "422512005", loinc_answer: "LA9623-5", description: "Restricted"}
+      "2": {snomed_code: "422894000", loinc_answer: "LA9624-3", description: "Ambulatory, no work"}
+      "3": {snomed_code: "423053003", loinc_answer: "LA9625-0", description: "Limited selfcare"}
+      "4": {snomed_code: "423237006", loinc_answer: "LA9626-8", description: "Completely disabled"}
+      "5": {snomed_code: "423409001", loinc_answer: "LA9627-6", description: "Dead"}
+
+  karnofsky:
+    entity_aliases:
+      - "Karnofsky"
+      - "KPS"
+      - "Karnofsky performance status"
+      - "Karnofsky performance scale"
+    loinc_code: "89243-0"
+    loinc_answer_list: "LL4986-7"
+    unit_concept_id: 8527
+    values:
+      "100": {description: "Normal, no complaints"}
+      "90": {description: "Able to carry on normal activity"}
+      "80": {description: "Normal activity with effort"}
+      "70": {description: "Cares for self, unable to do active work"}
+      "60": {description: "Requires occasional assistance"}
+      "50": {description: "Requires considerable assistance"}
+      "40": {description: "Disabled, requires special care"}
+      "30": {description: "Severely disabled, hospitalization indicated"}
+      "20": {description: "Very sick, active supportive treatment"}
+      "10": {description: "Moribund"}
+      "0": {description: "Dead"}
+
+  nyha:
+    entity_aliases:
+      - "NYHA"
+      - "NYHA class"
+      - "NYHA functional class"
+      - "New York Heart Association"
+      - "NYHA classification"
+    loinc_code: "88020-3"
+    unit_concept_id: 8527
+    values:
+      "1": {snomed_code: "420300004", description: "No limitation"}
+      "2": {snomed_code: "421704003", description: "Slight limitation"}
+      "3": {snomed_code: "420913000", description: "Marked limitation"}
+      "4": {snomed_code: "422293003", description: "Unable without discomfort"}

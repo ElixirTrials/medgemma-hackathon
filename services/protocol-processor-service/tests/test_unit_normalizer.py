@@ -3,11 +3,18 @@
 Tests normalize_unit() and normalize_value() from the UCUM YAML lookup.
 Covers canonical forms, aliases, case insensitivity, whitespace, None/empty,
 and unrecognized inputs.
+
+Phase 3b: Tests for normalize_ordinal_value() and propose_ordinal_mappings().
 """
 
 from __future__ import annotations
 
-from protocol_processor.tools.unit_normalizer import normalize_unit, normalize_value
+from protocol_processor.tools.unit_normalizer import (
+    normalize_ordinal_value,
+    normalize_unit,
+    normalize_value,
+    propose_ordinal_mappings,
+)
 
 # ===========================================================================
 # normalize_unit() tests
@@ -191,3 +198,151 @@ class TestNormalizeValue:
     def test_unrecognized_value(self) -> None:
         """Unrecognized value returns (None, None)."""
         assert normalize_value("borderline") == (None, None)
+
+
+# ===========================================================================
+# normalize_ordinal_value() tests (Phase 3b)
+# ===========================================================================
+
+
+class TestNormalizeOrdinalValue:
+    """Tests for normalize_ordinal_value() — ordinal scale normalization."""
+
+    # --- Entity matching ---
+
+    def test_exact_alias_ecog(self) -> None:
+        """Exact alias 'ECOG' matches the ecog scale."""
+        result = normalize_ordinal_value("2", "ECOG")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_full_name_ecog(self) -> None:
+        """Full name 'ECOG performance status' matches."""
+        result = normalize_ordinal_value("1", "ECOG performance status")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_case_insensitive_ecog(self) -> None:
+        """Case-insensitive matching: 'ecog' matches."""
+        result = normalize_ordinal_value("0", "ecog")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_substring_ecog_ps(self) -> None:
+        """Substring match: 'ECOG PS' is an alias."""
+        result = normalize_ordinal_value("3", "ECOG PS")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_substring_entity_contains_alias(self) -> None:
+        """Entity text containing an alias: 'Patient ECOG status'."""
+        result = normalize_ordinal_value("1", "Patient ECOG status")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    # --- ECOG grade recognition ---
+
+    def test_ecog_grade_0(self) -> None:
+        """ECOG grade 0 returns unit_concept_id=8527."""
+        result = normalize_ordinal_value("0", "ECOG")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_ecog_grade_5(self) -> None:
+        """ECOG grade 5 returns unit_concept_id=8527."""
+        result = normalize_ordinal_value("5", "ECOG")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_ecog_all_grades_recognized(self) -> None:
+        """All 6 ECOG grades (0-5) are recognized."""
+        for grade in range(6):
+            result = normalize_ordinal_value(str(grade), "ECOG")
+            assert result is not None, f"ECOG grade {grade} not recognized"
+            _, unit_cid = result
+            assert unit_cid == 8527
+
+    # --- Value parsing edge cases ---
+
+    def test_float_normalization(self) -> None:
+        """'2.0' normalizes to '2' for grade lookup."""
+        result = normalize_ordinal_value("2.0", "ECOG")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_grade_prefix_strip(self) -> None:
+        """'Grade 2' strips prefix and matches grade 2."""
+        result = normalize_ordinal_value("Grade 2", "ECOG")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_class_prefix_strip(self) -> None:
+        """'Class 3' strips prefix for NYHA."""
+        result = normalize_ordinal_value("Class 3", "NYHA")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    def test_unknown_grade(self) -> None:
+        """Unknown ECOG grade 7 returns (None, 8527)."""
+        result = normalize_ordinal_value("7", "ECOG")
+        assert result is not None
+        value_cid, unit_cid = result
+        assert value_cid is None
+        assert unit_cid == 8527
+
+    # --- Non-ordinal entities ---
+
+    def test_non_ordinal_entity(self) -> None:
+        """Non-ordinal entity 'HbA1c' returns None (not a tuple)."""
+        result = normalize_ordinal_value("6.5", "HbA1c")
+        assert result is None
+
+    def test_none_entity(self) -> None:
+        """None entity returns None."""
+        result = normalize_ordinal_value("2", None)
+        assert result is None
+
+    def test_empty_entity(self) -> None:
+        """Empty entity returns None."""
+        result = normalize_ordinal_value("2", "")
+        assert result is None
+
+    # --- Karnofsky ---
+
+    def test_karnofsky_match(self) -> None:
+        """Karnofsky scale recognized with unit_concept_id=8527."""
+        result = normalize_ordinal_value("80", "KPS")
+        assert result is not None
+        _, unit_cid = result
+        assert unit_cid == 8527
+
+    # --- {score} unit via normalize_unit ---
+
+    def test_score_unit(self) -> None:
+        """'score' alias resolves to {score} / 8527."""
+        ucum, omop_id = normalize_unit("score")
+        assert ucum == "{score}"
+        assert omop_id == 8527
+
+    # --- propose_ordinal_mappings ---
+
+    def test_propose_returns_missing(self) -> None:
+        """propose_ordinal_mappings() returns entries without omop_value_concept_id."""
+        missing = propose_ordinal_mappings()
+        assert isinstance(missing, list)
+        assert len(missing) > 0
+        # All should have status 'needs_resolution'
+        for entry in missing:
+            assert entry["status"] == "needs_resolution"
+            assert "scale" in entry
+            assert "grade" in entry

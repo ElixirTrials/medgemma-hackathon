@@ -725,10 +725,10 @@ class TestStructureNodeE2e:
 
 
 class TestGraphCompilation:
-    """Verify the 6-node graph compiles correctly with structure node."""
+    """Verify the 7-node graph compiles correctly with structure + ordinal_resolve."""
 
-    def test_six_node_pipeline(self) -> None:
-        """Graph should have 6 user-defined nodes including structure."""
+    def test_seven_node_pipeline(self) -> None:
+        """Graph should have 7 user-defined nodes."""
         from protocol_processor.graph import create_graph
 
         graph = create_graph()
@@ -741,6 +741,7 @@ class TestGraphCompilation:
             "ground",
             "persist",
             "structure",
+            "ordinal_resolve",
         }
 
     def test_persist_to_structure_edge(self) -> None:
