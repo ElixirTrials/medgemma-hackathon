@@ -1,0 +1,359 @@
+Implement the following plan:
+
+# Ordinal Resolution LangGraph Node
+
+## Context
+
+Phase 3b static lookup is complete — ECOG, Karnofsky, and NYHA are recognized from the YAML config and get `unit_concept_id=8527`. But unknown ordinal scales (Child-Pugh, GCS, APACHE II, MELD, mRS, SOFA, etc.) silently pass through with `unit_concept_id=None`. Per the "Lookup → Agent → Approve → Persist" design, unknown ordinal entities should trigger an LLM agent node that proposes a mapping for human review.
+
+## Design
+
+Add a 7th LangGraph node `ordinal_resolve` after `structure`:
+
+```
+START → ingest → extract → parse → ground → persist → structure → ordinal_resolve → END
+```
+
+### Flow
+
+1. **Identify candidates**: Query AtomicCriterion records from the batch where `unit_concept_id IS NULL`, `value_numeric IS NOT NULL`, and `unit_text IS NULL`. This combination (numeric value + no unit) is a strong signal for unrecognized ordinal scales. Categorical values (HIV status = "positive") are excluded because they have `value_text` not `value_numeric`.
+
+2. **Batch LLM call**: Send all candidate entities to Gemini in a single structured-output call. Prompt asks: "For each entity, is this a clinical ordinal scoring system? If yes, propose YAML config." Uses Pydantic schema for structured output (same pattern as `detect_logic_structure()`).
+
+3. **Immediate update**: For entities the LLM confirms as ordinal, set `unit_concept_id=8527` on the AtomicCriterion record. This is safe — `{score}` is always the correct UCUM unit for ordinal scales.
+
+4. **Store proposals**: Write an AuditLog entry with `event_type="ordinal_scale_proposed"` containing the full proposed YAML mapping (entity aliases, LOINC codes, value ranges). This feeds the human approval workflow.
+
+5. **Graceful degradation**: If `GOOGLE_API_KEY` is missing or the LLM fails, skip silently (same pattern as `detect_logic_structure()`). Records stay with `unit_concept_id=None` — no worse than before.
+
+## Files to Create/Modify
+
+| File | Change |
+|------|--------|
+| `src/protocol_processor/schemas/ordinal.py` | **NEW** — Pydantic schemas for Gemini structured output |
+| `src/protocol_processor/tools/ordinal_resolver.py` | **NEW** — `resolve_ordinal_candidates()` LLM tool |
+| `src/protocol_processor/nodes/ordinal_resolve.py` | **NEW** — LangGraph node function |
+| `src/protocol_processor/state.py` | Add `ordinal_proposals_json: str | None` field |
+| `src/protocol_processor/graph.py` | Add node + edge: `structure → ordinal_resolve → END` |
+| `tests/test_ordinal_resolve.py` | **NEW** — Unit + E2E tests |
+| `tests/test_graph.py` | Update node count from 6 → 7 |
+
+## Step 1: Pydantic Schemas — `schemas/ordinal.py`
+
+```python
+class OrdinalValueProposal(BaseModel):
+    grade: str                    # e.g. "5", "A", "B"
+    snomed_code: str | None = None
+    loinc_answer: str | None = None
+    description: str | None = None
+
+class OrdinalScaleProposal(BaseModel):
+    entity_text: str              # original entity from AtomicCriterion
+    is_ordinal_scale: bool
+    confidence: float             # 0.0–1.0
+    scale_name: str | None = None # snake_case key, e.g. "child_pugh"
+    entity_aliases: list[str] = []
+    loinc_code: str | None = None
+    unit_concept_id: int = 8527   # always {score}
+    values: list[OrdinalValueProposal] = []
+    reasoning: str | None = None
+
+class OrdinalResolutionResponse(BaseModel):
+    proposals: list[OrdinalScaleProposal]
+```
+
+## Step 2: LLM Tool — `tools/ordinal_resolver.py`
+
+Follow the exact `detect_logic_structure()` pattern from `structure_builder.py`:
+
+```python
+async def resolve_ordinal_candidates(
+    candidates: list[dict[str, Any]],
+) -> OrdinalResolutionResponse | None:
+```
+
+- **Guard**: Return `None` if `GOOGLE_API_KEY` missing or candidates is empty
+- **LLM**: `ChatGoogleGenerativeAI` + `.with_structured_output(OrdinalResolutionResponse)`
+- **Prompt**: "You are a clinical terminology expert. For each entity below, determine if it is a clinical ordinal scoring system..." with indexed entity list + context (value, relation)
+- **Validation**: Filter proposals where `is_ordinal_scale=True` and `confidence >= 0.7`
+- **Return**: `None` on any failure
+
+## Step 3: Node Function — `nodes/ordinal_resolve.py`
+
+Follow the `structure_node` pattern exactly:
+
+```python
+async def ordinal_resolve_node(state: PipelineState) -> dict[str, Any]:
+```
+
+1. Guard: return `{}` if `state.get("error")` or no `batch_id`
+2. Open `Session(engine)`, query AtomicCriterion where `batch_id` matches, `unit_concept_id IS NULL`, `value_numeric IS NOT NULL`, `unit_text IS NULL`
+3. Deduplicate by entity text (multiple criteria may reference same scale)
+4. Call `resolve_ordinal_candidates()` with the candidate list
+5. For confirmed ordinals: `UPDATE atomic.unit_concept_id = 8527`
+6. Write AuditLog with `event_type="ordinal_scale_proposed"`, `details={"proposals": [...]}`
+7. Return `{"status": "completed", "errors": accumulated_errors, "ordinal_proposals_json": json.dumps(proposals)}`
+
+## Step 4: Wire Into Graph
+
+**`state.py`** — Add one field:
+```python
+ordinal_proposals_json: str | None  # Populated by ordinal_resolve
+```
+
+**`graph.py`** — Add node and replace final edge:
+```python
+from protocol_processor.nodes.ordinal_resolve import ordinal_resolve_node
+
+workflow.add_node("ordinal_resolve", ordinal_resolve_node)
+
+# Replace: workflow.add_edge("structure", END)
+# With:
+workflow.add_edge("structure", "ordinal_resolve")
+workflow.add_edge("ordinal_resolve", END)
+```
+
+## Step 5: Tests — `tests/test_ordinal_resolve.py`
+
+### Unit tests (mock LLM):
+- `test_no_candidates_skips_llm` — empty candidate list → no LLM call, returns empty proposals
+- `test_no_api_key_returns_none` — missing GOOGLE_API_KEY → graceful skip
+- `test_successful_resolution` — mock Gemini returns Child-Pugh as ordinal → unit_concept_id=8527 set on AtomicCriterion
+- `test_non_ordinal_rejected` — mock Gemini says "HIV status" is NOT ordinal → no update
+- `test_low_confidence_rejected` — confidence < 0.7 → no update
+- `test_llm_failure_graceful` — exception → no update, error accumulated
+
+### E2E tests (DB integration):
+- `test_child_pugh_gets_resolved` — Child-Pugh criterion through full backend with mocked LLM → unit_concept_id updated to 8527
+- `test_known_scales_not_rechecked` — ECOG (already 8527 from YAML) is NOT sent to LLM
+- `test_mixed_batch` — batch with ECOG + Child-Pugh + HbA1c → only Child-Pugh sent to LLM
+- `test_audit_log_written` — AuditLog entry with proposals is created
+- `test_proposals_in_state` — `ordinal_proposals_json` populated in returned state
+
+### Graph tests update:
+- `test_graph.py`: Update `test_graph_has_six_user_nodes` → 7 nodes, add "ordinal_resolve" to expected set
+
+## Step 6: Delete Test File
+
+Remove `tests/test_phase3b_unknown_scales.py` — its assertions (unknown scales get `None`) will no longer be true since the new node resolves them.
+
+## Verification
+
+1. `uv run pytest tests/test_ordinal_resolve.py -v` — all new tests pass
+2. `uv run pytest tests/test_graph.py -v` — updated node count passes
+3. `uv run pytest tests/ -v` — full suite green (192+ tests)
+4. `uv run ruff check .` — clean
+5. Manual: Child-Pugh, GCS, APACHE II criteria now get `unit_concept_id=8527` when LLM confirms they're ordinal scales
+6. AuditLog contains full YAML proposals for human review
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Now let's check end to end by running the free text of a criteria with an ordinal scale through. The first time, the node should be triggered and the outcome hardcoded. The next time we run the same criteria through it should trigger the hardcoding. (let's assume it is approved).
+
+---
+
+Run the test and report?
+
+---
+
+Show  me the results
+
+---
+
+No no, no mocking. Let's test for real. With our medgemma node and access to tooluniverse and OMOP, let's see if it works.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial request**: User provided a detailed implementation plan for an "Ordinal Resolution LangGraph Node" - a 7th node in the pipeline that uses Gemini LLM to identify unknown ordinal scales (Child-Pugh, GCS, APACHE II, etc.) and propose YAML configs for human review.
+
+2. **Exploration phase**: I used an Explore agent to understand the codebase patterns - state.py, graph.py, structure_node, structure_builder (detect_logic_structure), schemas, DB models (AtomicCriterion, AuditLog), test patterns.
+
+3. **Implementation phase**: Created 4 new files and modified several existing ones:
+   - schemas/ordinal.py (Pydantic schemas)
+   - tools/ordinal_resolver.py (LLM tool)
+   - nodes/ordinal_resolve.py (LangGraph node)
+   - tests/test_ordinal_resolve.py (14 tests)
+   - Modified state.py, graph.py, test_graph.py, test_phase2_e2e.py, nodes/__init__.py
+   - Deleted tests/test_phase3b_unknown_scales.py
+
+4. **Lint fixes**: Had to fix line lengths, import sorting, and complexity (C901) in ordinal_resolve.py by extracting helpers.
+
+5. **Mock patching fix**: Tests failed because `ChatGoogleGenerativeAI` is lazily imported inside the function. Had to change from patching `protocol_processor.tools.ordinal_resolver.ChatGoogleGenerativeAI` to `langchain_google_genai.ChatGoogleGenerativeAI`.
+
+6. **Mixed batch test fix**: The test checking "ECOG not in prompt_text" failed because ECOG appears in the prompt template as an example. Fixed by checking only the "Entities to evaluate:" section.
+
+7. **Additional test file found**: test_phase2_e2e.py also had a `test_six_node_pipeline` test that needed updating to 7 nodes.
+
+8. **User asked for full-cycle E2E test**: Created test_ordinal_full_cycle.py demonstrating the Lookup → Agent → Approve → Persist cycle.
+
+9. **User asked to run the test**: Ran it, showed results with verbose logging.
+
+10. **User asked to run for real, no mocking**: "No no, no mocking. Let's test for real. With our medgemma node and access to tooluniverse and OMOP, let's see if it works."
+
+11. **Real E2E attempt**: 
+    - Checked env vars - GOOGLE_API_KEY and DATABASE_URL both set
+    - Found DB schema was behind - missing `unit_concept_id` and `value_concept_id` columns on atomic_criteria
+    - Added those columns via ALTER TABLE
+    - Created scripts/run_ordinal_e2e.py for real E2E
+    - Failed again because `structured_criterion` column also missing from `criteria` table
+
+12. **Summary requested**: Before I could fix the remaining schema issues.
+
+Key technical details:
+- The project is at `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service`
+- DATABASE_URL points to `postgresql://postgres:***@localhost:5432/app`
+- GOOGLE_API_KEY is set
+- GEMINI_MODEL_NAME defaults to "gemini-2.0-flash"
+- The DB is behind the SQLModel definitions - needs multiple ALTER TABLE commands
+- The `.env` file is at the repo root `../../.env` relative to the service directory
+
+The immediate work when summary was requested: trying to run a real (non-mocked) E2E test against live Postgres + Gemini API, but blocked by missing DB columns.
+
+Summary:
+1. Primary Request and Intent:
+   - **Initial request**: Implement a detailed plan for an "Ordinal Resolution LangGraph Node" - a 7th node (`ordinal_resolve`) in the protocol processing pipeline that identifies unknown ordinal scoring systems (Child-Pugh, GCS, APACHE II, MELD, mRS, SOFA) via Gemini LLM and proposes YAML config entries for human review.
+   - **Follow-up request**: Write a full-cycle E2E test demonstrating the Lookup → Agent → Approve → Persist lifecycle.
+   - **Final request**: Run the ordinal resolution for real against live Postgres + live Gemini API (no mocking). The user explicitly said: "No no, no mocking. Let's test for real. With our medgemma node and access to tooluniverse and OMOP, let's see if it works."
+
+2. Key Technical Concepts:
+   - LangGraph StateGraph with 7 nodes: `START → ingest → extract → parse → ground → persist → structure → ordinal_resolve → END`
+   - PipelineState as TypedDict with JSON strings for complex data
+   - Gemini structured output via `ChatGoogleGenerativeAI.with_structured_output(PydanticModel)`
+   - Graceful degradation: return `None` on any LLM failure, never raise
+   - Error accumulation pattern: non-fatal errors in `errors` list, fatal errors in `error` field
+   - YAML-based static ordinal scale lookup with `@lru_cache`
+   - Ordinal candidate detection heuristic: `unit_concept_id IS NULL AND value_numeric IS NOT NULL AND unit_text IS NULL`
+   - AuditLog for human review workflow
+   - SQLModel with SQLite in-memory for tests, PostgreSQL for production
+   - `uv run` for all Python execution per CLAUDE.md instructions
+
+3. Files and Code Sections:
+
+   - **`src/protocol_processor/schemas/ordinal.py`** (NEW)
+     - Pydantic schemas for Gemini structured output: `OrdinalValueProposal`, `OrdinalScaleProposal`, `OrdinalResolutionResponse`
+     - All fields have `Field(description=...)` for LLM guidance
+     - `OrdinalScaleProposal.unit_concept_id` defaults to 8527 ({score})
+
+   - **`src/protocol_processor/tools/ordinal_resolver.py`** (NEW)
+     - `resolve_ordinal_candidates()` - follows `detect_logic_structure()` pattern exactly
+     - Guards: empty candidates → None, no GOOGLE_API_KEY → None
+     - Late import of `ChatGoogleGenerativeAI` inside try block
+     - Filters proposals where `is_ordinal_scale=True` and `confidence >= 0.7`
+     - Returns `None` on any exception
+
+   - **`src/protocol_processor/nodes/ordinal_resolve.py`** (NEW)
+     - `ordinal_resolve_node()` - follows `structure_node` pattern
+     - Helper functions extracted to reduce complexity: `_extract_entity_text()`, `_query_candidates()`, `_deduplicate_candidates()`, `_process_batch()`
+     - `_query_candidates()` joins AtomicCriterion → Criteria to filter by batch_id
+     - `_extract_entity_text()` parses original_text before relation_operator
+     - Updates confirmed ordinals with `unit_concept_id=8527`
+     - Writes AuditLog with `event_type="ordinal_scale_proposed"`
+     - Returns `ordinal_proposals_json` in state
+
+   - **`src/protocol_processor/state.py`** (MODIFIED)
+     - Added `ordinal_proposals_json: str | None` field between archived_reviewed_criteria and Output section
+
+   - **`src/protocol_processor/graph.py`** (MODIFIED)
+     - Updated docstrings from 6-node to 7-node
+     - Added import: `from protocol_processor.nodes.ordinal_resolve import ordinal_resolve_node`
+     - Added node: `workflow.add_node("ordinal_resolve", ordinal_resolve_node)`
+     - Replaced `workflow.add_edge("structure", END)` with `workflow.add_edge("structure", "ordinal_resolve")` + `workflow.add_edge("ordinal_resolve", END)`
+
+   - **`src/protocol_processor/nodes/__init__.py`** (MODIFIED)
+     - Updated docstring to list 7 nodes including `ordinal_resolve`
+
+   - **`tests/test_ordinal_resolve.py`** (NEW - 14 tests)
+     - Unit tests: `test_no_candidates_skips_llm`, `test_no_api_key_returns_none`, `test_successful_resolution`, `test_non_ordinal_rejected`, `test_low_confidence_rejected`, `test_llm_failure_graceful`
+     - E2E tests: `test_child_pugh_gets_resolved`, `test_known_scales_not_rechecked`, `test_mixed_batch`, `test_audit_log_written`, `test_proposals_in_state`, `test_no_candidates_no_llm_call`, `test_error_state_short_circuits`, `test_no_batch_id_skips`
+     - Mocks use `patch("langchain_google_genai.ChatGoogleGenerativeAI")` (NOT module-level)
+     - E2E tests patch `protocol_processor.nodes.ordinal_resolve.engine` with in-memory SQLite engine
+
+   - **`tests/test_ordinal_full_cycle.py`** (NEW - 1 test)
+     - Full Lookup → Agent → Approve → Persist cycle in a single test
+     - Phase 1: Static lookup misses Child-Pugh
+     - Phase 2: ordinal_resolve_node with mocked LLM confirms ordinal
+     - Phase 3: Simulate approval by patching `_load_ordinal_scales`
+     - Phase 4: New criterion resolves statically from config
+     - Phase 5: No LLM call needed (no candidates)
+
+   - **`tests/test_graph.py`** (MODIFIED)
+     - `test_graph_has_six_user_nodes` → `test_graph_has_seven_user_nodes` with "ordinal_resolve" in expected set
+     - `test_graph_node_names` updated to check for "ordinal_resolve"
+     - `_make_initial_state` helper updated with `ordinal_proposals_json: None`
+
+   - **`tests/test_phase2_e2e.py`** (MODIFIED)
+     - `test_six_node_pipeline` → `test_seven_node_pipeline` with "ordinal_resolve" in expected set
+
+   - **`tests/test_phase3b_unknown_scales.py`** (DELETED)
+     - Removed because its assertions (unknown scales get `unit_concept_id=None`) are no longer true
+
+   - **`scripts/run_ordinal_e2e.py`** (NEW)
+     - Real E2E script for live Gemini + live Postgres
+     - Creates protocol with 6 mixed criteria: ECOG, Child-Pugh, GCS, MELD, HbA1c, CrCl
+     - Runs build_expression_tree then ordinal_resolve_node
+     - Prints detailed results including Gemini proposals
+
+   - **`src/protocol_processor/config/ucum_mappings.yaml`** (READ ONLY)
+     - Contains ordinal_scales for ecog, karnofsky, nyha (known scales)
+     - Child-Pugh, GCS, MELD etc. are NOT in this config (unknown scales)
+
+   - **`src/protocol_processor/tools/unit_normalizer.py`** (READ ONLY)
+     - `_load_ordinal_scales()` with `@lru_cache(maxsize=1)` loads from YAML
+     - `_match_ordinal_scale()` uses exact match + bidirectional substring
+     - `normalize_ordinal_value()` returns `(value_concept_id, unit_concept_id)` or `None`
+
+   - **`src/protocol_processor/tools/structure_builder.py`** (READ ONLY)
+     - `_create_atomic_from_mapping()` calls `normalize_ordinal_value()` at line 201
+     - `detect_logic_structure()` is the pattern the ordinal_resolver follows
+
+4. Errors and Fixes:
+   - **Ruff lint: line too long (E501)**: Graph docstrings exceeded 88 chars. Fixed by wrapping the pipeline flow description across two lines.
+   - **Ruff lint: import sorting (I001)**: ordinal_resolve import was out of alphabetical order. Fixed with `ruff check --fix`.
+   - **Ruff lint: complexity (C901)**: `ordinal_resolve_node` had complexity 11 > 10. Fixed by extracting `_query_candidates()`, `_deduplicate_candidates()`, and `_process_batch()` helper functions.
+   - **Mock patching `ChatGoogleGenerativeAI`**: Patching `protocol_processor.tools.ordinal_resolver.ChatGoogleGenerativeAI` failed with `AttributeError` because it's lazily imported inside the function body. Fixed by patching `langchain_google_genai.ChatGoogleGenerativeAI` (the source module), matching existing test patterns in `test_phase2_structure.py`.
+   - **Mixed batch test "ECOG" assertion**: `assert "ECOG" not in prompt_text` failed because "ECOG" appears in the prompt template as an example scale. Fixed by extracting the "Entities to evaluate:" section and checking only that section.
+   - **test_phase2_e2e.py node count**: `test_six_node_pipeline` in test_phase2_e2e.py also checked for 6 nodes. Updated to `test_seven_node_pipeline` with 7 nodes.
+   - **DB schema behind (unit_concept_id)**: Live Postgres missing `unit_concept_id` and `value_concept_id` columns on `atomic_criteria`. Fixed with `ALTER TABLE atomic_criteria ADD COLUMN IF NOT EXISTS unit_concept_id INTEGER` and same for `value_concept_id`.
+   - **DB schema behind (structured_criterion)**: Live Postgres also missing `structured_criterion` column on `criteria` table. This was the **last error** before the summary was requested — NOT YET FIXED.
+
+5. Problem Solving:
+   - All mocked tests pass (207 total, 0 failures)
+   - Ruff lint is clean
+   - The real E2E against live Postgres is blocked by missing DB columns. Two were fixed (`unit_concept_id`, `value_concept_id` on atomic_criteria) but `structured_criterion` on `criteria` table still needs to be added. There may be additional missing columns on other tables.
+
+6. All User Messages:
+   - "Implement the following plan: [detailed ordinal resolution plan with 6 steps, file table, schemas, code snippets]"
+   - "Now let's check end to end by running the free text of a criteria with an ordinal scale through. The first time, the node should be triggered and the outcome hardcoded. The next time we run the same criteria through it should trigger the hardcoding. (let's assume it is approved)."
+   - "Run the test and report?"
+   - "Show me the results"
+   - "No no, no mocking. Let's test for real. With our medgemma node and access to tooluniverse and OMOP, let's see if it works."
+
+7. Pending Tasks:
+   - Fix remaining missing DB columns on live Postgres (at minimum `structured_criterion` on `criteria` table, potentially others)
+   - Successfully run `scripts/run_ordinal_e2e.py` against live Postgres + live Gemini API with real (non-mocked) LLM calls
+   - Show the user real results from the ordinal resolution node
+
+8. Current Work:
+   Attempting to run a real (non-mocked) E2E test of the ordinal resolution node against live Postgres and live Gemini API. The script `scripts/run_ordinal_e2e.py` was created and executed but failed because the live Postgres database schema is behind the SQLModel definitions — specifically the `criteria` table is missing the `structured_criterion` column (a JSONB column added in Phase 2). The `atomic_criteria` table was already fixed (added `unit_concept_id` and `value_concept_id` columns), but more columns may be missing on other tables.
+
+   The `.env` file is at `/Users/noahdolevelixir/Code/medgemma-hackathon/.env` and must be sourced before running: `set -a && source ../../.env && set +a`
+
+   Environment: `GOOGLE_API_KEY` is set, `DATABASE_URL=postgresql://postgres:***@localhost:5432/app`, `GEMINI_MODEL_NAME` not set (defaults to `gemini-2.0-flash`).
+
+9. Optional Next Step:
+   Sync the live Postgres schema with the SQLModel definitions by adding all missing columns. The immediate blocker is `structured_criterion` (JSON) on the `criteria` table. After that, re-run `scripts/run_ordinal_e2e.py` to get real Gemini results. The user's exact request was: "No no, no mocking. Let's test for real. With our medgemma node and access to tooluniverse and OMOP, let's see if it works."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Fix ruff, mypy and pytest. Commit and then proceed to the next phase.

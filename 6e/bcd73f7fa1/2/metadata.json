@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6ebcd73f7fa1",
+  "session_id": "ea6cc712-3363-4960-bd06-f2266321ef7f",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T20:37:15.704943Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "services/protocol-processor-service/scripts/run_ordinal_e2e.py",
+    "services/protocol-processor-service/src/protocol_processor/graph.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/__init__.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ordinal_resolve.py",
+    "services/protocol-processor-service/src/protocol_processor/schemas/ordinal.py",
+    "services/protocol-processor-service/src/protocol_processor/state.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/tests/test_graph.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py",
+    "services/protocol-processor-service/tests/test_ordinal_resolve.py",
+    "services/protocol-processor-service/tests/test_phase2_e2e.py",
+    "services/protocol-processor-service/tests/test_phase3b_e2e.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fa36ae0e463f",
+  "token_usage": {
+    "input_tokens": 119,
+    "cache_creation_tokens": 190248,
+    "cache_read_tokens": 9395187,
+    "output_tokens": 15044,
+    "api_call_count": 105
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T20:37:15.270134Z",
+    "agent_lines": 2146,
+    "human_added": 441,
+    "human_modified": 138,
+    "human_removed": 0,
+    "total_committed": 2723,
+    "agent_percentage": 78.81013587954462
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/ea6cc712-3363-4960-bd06-f2266321ef7f.jsonl"
+}
