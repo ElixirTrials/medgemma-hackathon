@@ -1,0 +1,21 @@
+You have mypy errors. Check that you don't have pytest failures.
+
+---
+
+In dev, we should be using a local mlflow rather from the docker so we can use claude mlflow assistant.
+
+---
+
+[Request interrupted by user]
+
+---
+
+Make run-dev is for local. when are we supposed to use make-infra? And for prod, how do we end up with the mlflow docker?
+
+---
+
+Make sure the local mlflow is using sql. Also, it seems like the whole graph is being traced as one one trace so we can't see the tool calls, gemini and medgemma traces as they come in. Is there a way to log each of these as seperate traces but group them by session?
+
+---
+
+Can you confirm we are running grounding in parallel and in batches?
