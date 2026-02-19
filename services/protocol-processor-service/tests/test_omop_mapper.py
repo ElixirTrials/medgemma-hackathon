@@ -4,6 +4,7 @@ Tests cover:
 - _score_candidates: fuzzy scoring with exact/substring bonuses
 - _get_domain_filter: entity type to OMOP domain mapping
 - lookup_omop_concept: async entry point with mocked DB layer
+- _get_omop_engine: engine creation and validation
 - _reconcile_dual_grounding: TerminologyRouter + OMOP reconciliation
 
 All tests run without a live database. DB calls are mocked/patched.
@@ -11,7 +12,7 @@ All tests run without a live database. DB calls are mocked/patched.
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -86,9 +87,7 @@ class TestScoreCandidates:
         # Verify by computing what the score would be without bonus
         from difflib import SequenceMatcher
 
-        base = SequenceMatcher(
-            None, "diabetes", "type 2 diabetes mellitus"
-        ).ratio()
+        base = SequenceMatcher(None, "diabetes", "type 2 diabetes mellitus").ratio()
         assert scored[0]["score"] == pytest.approx(base + 0.15, abs=1e-6)
 
     def test_non_matching_gets_only_base_score(self) -> None:
@@ -97,9 +96,7 @@ class TestScoreCandidates:
         scored = _score_candidates("metformin", candidates)
         from difflib import SequenceMatcher
 
-        expected_base = SequenceMatcher(
-            None, "metformin", "hypertension"
-        ).ratio()
+        expected_base = SequenceMatcher(None, "metformin", "hypertension").ratio()
         assert scored[0]["score"] == pytest.approx(expected_base, abs=1e-6)
 
     def test_candidates_sorted_descending(self) -> None:
@@ -174,8 +171,11 @@ class TestGetDomainFilter:
     def test_all_mapped_types_present(self) -> None:
         """All documented entity types must be present in the mapping dict."""
         expected_keys = {
-            "Condition", "Medication", "Lab_Value",
-            "Procedure", "Demographic",
+            "Condition",
+            "Medication",
+            "Lab_Value",
+            "Procedure",
+            "Demographic",
         }
         assert expected_keys == set(ENTITY_TYPE_TO_OMOP_DOMAIN.keys())
 
@@ -188,23 +188,21 @@ class TestGetDomainFilter:
 class TestLookupOmopConcept:
     """Tests for the async lookup_omop_concept entry point."""
 
-    async def test_empty_entity_text_returns_empty_result(self) -> None:
-        """Empty entity_text should short-circuit and return empty result."""
-        result = await lookup_omop_concept("", "Condition")
-        assert result.omop_concept_id is None
-        assert result.match_score == 0.0
+    async def test_empty_entity_text_raises_value_error(self) -> None:
+        """Empty entity_text should raise ValueError."""
+        with pytest.raises(ValueError, match="Empty entity_text"):
+            await lookup_omop_concept("", "Condition")
 
-    async def test_whitespace_entity_text_returns_empty_result(self) -> None:
-        """Whitespace-only entity_text should return empty result."""
-        result = await lookup_omop_concept("   ", "Condition")
-        assert result.omop_concept_id is None
-        assert result.match_score == 0.0
+    async def test_whitespace_entity_text_raises_value_error(self) -> None:
+        """Whitespace-only entity_text should raise ValueError."""
+        with pytest.raises(ValueError, match="Empty entity_text"):
+            await lookup_omop_concept("   ", "Condition")
 
     @patch("protocol_processor.tools.omop_mapper._sync_lookup")
     async def test_valid_lookup_returns_result(
-        self, mock_sync_lookup: AsyncMock
+        self, mock_sync_lookup: MagicMock
     ) -> None:
-        """A successful lookup should return the OmopLookupResult from _sync_lookup."""
+        """A successful lookup should return the OmopLookupResult."""
         expected = OmopLookupResult(
             omop_concept_id="201826",
             omop_concept_name="Type 2 diabetes mellitus",
@@ -220,12 +218,11 @@ class TestLookupOmopConcept:
         assert result.omop_concept_id == "201826"
         assert result.omop_concept_name == "Type 2 diabetes mellitus"
         assert result.match_score == 0.95
-        # Verify domain_id was correctly resolved and passed
         mock_sync_lookup.assert_called_once_with("type 2 diabetes", "Condition")
 
     @patch("protocol_processor.tools.omop_mapper._sync_lookup")
     async def test_medication_passes_drug_domain(
-        self, mock_sync_lookup: AsyncMock
+        self, mock_sync_lookup: MagicMock
     ) -> None:
         """Medication entity type should resolve to 'Drug' domain_id."""
         mock_sync_lookup.return_value = OmopLookupResult()
@@ -236,7 +233,7 @@ class TestLookupOmopConcept:
 
     @patch("protocol_processor.tools.omop_mapper._sync_lookup")
     async def test_unknown_type_passes_observation_domain(
-        self, mock_sync_lookup: AsyncMock
+        self, mock_sync_lookup: MagicMock
     ) -> None:
         """Unknown entity type should fall back to 'Observation' domain."""
         mock_sync_lookup.return_value = OmopLookupResult()
@@ -244,6 +241,55 @@ class TestLookupOmopConcept:
         await lookup_omop_concept("some entity", "WeirdType")
 
         mock_sync_lookup.assert_called_once_with("some entity", "Observation")
+
+
+# ===========================================================================
+# TestOmopEngineValidation
+# ===========================================================================
+
+
+class TestOmopEngineValidation:
+    """Tests that _get_omop_engine fails without OMOP_VOCAB_URL."""
+
+    @patch.dict("os.environ", {}, clear=False)
+    def test_missing_omop_vocab_url_raises(self) -> None:
+        """_get_omop_engine raises RuntimeError when OMOP_VOCAB_URL unset."""
+        import protocol_processor.tools.omop_mapper as mod
+
+        # Reset the cached engine
+        mod._omop_engine = None
+        # Remove the env var if present
+        import os
+
+        os.environ.pop("OMOP_VOCAB_URL", None)
+
+        with pytest.raises(RuntimeError, match="OMOP_VOCAB_URL"):
+            mod._get_omop_engine()
+
+    @patch("protocol_processor.tools.omop_mapper.create_engine")
+    @patch.dict(
+        "os.environ",
+        {"OMOP_VOCAB_URL": "postgresql://test:test@localhost:5433/omop"},
+    )
+    def test_creates_engine_when_url_set(self, mock_create_engine: MagicMock) -> None:
+        """_get_omop_engine creates engine from OMOP_VOCAB_URL."""
+        import protocol_processor.tools.omop_mapper as mod
+
+        mod._omop_engine = None  # Reset cached engine
+
+        mock_engine = MagicMock()
+        mock_create_engine.return_value = mock_engine
+
+        engine = mod._get_omop_engine()
+
+        assert engine is mock_engine
+        mock_create_engine.assert_called_once_with(
+            "postgresql://test:test@localhost:5433/omop",
+            pool_pre_ping=True,
+        )
+
+        # Cleanup
+        mod._omop_engine = None
 
 
 # ===========================================================================
@@ -255,7 +301,7 @@ class TestReconcileDualGrounding:
     """Tests for _reconcile_dual_grounding from ground.py."""
 
     def test_both_succeed_matching_terms_agree(self) -> None:
-        """Both TU and OMOP succeed with overlapping terms: status = 'agree'."""
+        """Both TU and OMOP succeed with overlapping terms: 'agree'."""
         result = _make_grounding_result(
             selected_code="C0011847",
             preferred_term="Type 2 Diabetes Mellitus",
@@ -272,7 +318,7 @@ class TestReconcileDualGrounding:
         assert reconciled.omop_concept_id == "201826"
 
     def test_both_succeed_substring_match_agree(self) -> None:
-        """Substring containment (TU term in OMOP term) counts as agreement."""
+        """Substring containment counts as agreement."""
         result = _make_grounding_result(
             selected_code="C0011847",
             preferred_term="Diabetes",
@@ -288,7 +334,7 @@ class TestReconcileDualGrounding:
         assert reconciled.reconciliation_status == "agree"
 
     def test_both_succeed_non_matching_terms_disagreement(self) -> None:
-        """Both succeed but terms don't overlap: status = 'disagreement'."""
+        """Both succeed but terms don't overlap: 'disagreement'."""
         result = _make_grounding_result(
             selected_code="C0011847",
             preferred_term="Type 2 Diabetes Mellitus",
@@ -305,7 +351,7 @@ class TestReconcileDualGrounding:
         assert reconciled.omop_concept_id == "999999"
 
     def test_only_tu_succeeds_omop_missing(self) -> None:
-        """Only TerminologyRouter succeeds: status = 'omop_missing'."""
+        """Only TerminologyRouter succeeds: 'omop_missing'."""
         result = _make_grounding_result(
             selected_code="C0011847",
             preferred_term="Type 2 Diabetes Mellitus",
@@ -318,7 +364,7 @@ class TestReconcileDualGrounding:
         assert reconciled.omop_concept_id is None
 
     def test_only_omop_succeeds_tooluniverse_missing(self) -> None:
-        """Only OMOP succeeds: status = 'tooluniverse_missing'."""
+        """Only OMOP succeeds: 'tooluniverse_missing'."""
         result = _make_grounding_result(
             selected_code=None,
             preferred_term=None,
@@ -348,7 +394,7 @@ class TestReconcileDualGrounding:
         assert reconciled.omop_concept_id is None
 
     def test_result_is_mutated_in_place(self) -> None:
-        """_reconcile_dual_grounding should mutate and return the same object."""
+        """_reconcile_dual_grounding mutates and returns the same object."""
         result = _make_grounding_result(
             selected_code="C0011847",
             preferred_term="Diabetes",

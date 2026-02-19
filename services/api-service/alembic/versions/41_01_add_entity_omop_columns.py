@@ -29,9 +29,7 @@ def upgrade() -> None:
             batch_op.add_column(
                 sa.Column("omop_concept_id", sa.String(), nullable=True)
             )
-            batch_op.create_index(
-                "ix_entity_omop_concept_id", ["omop_concept_id"]
-            )
+            batch_op.create_index("ix_entity_omop_concept_id", ["omop_concept_id"])
         if "reconciliation_status" not in existing:
             batch_op.add_column(
                 sa.Column("reconciliation_status", sa.String(), nullable=True)

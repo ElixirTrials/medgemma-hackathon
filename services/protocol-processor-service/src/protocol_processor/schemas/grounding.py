@@ -96,8 +96,7 @@ class EntityGroundingResult(BaseModel):
     criterion_id: str | None = Field(
         default=None,
         description=(
-            "FK to Criteria record this entity belongs to "
-            "(threaded from parse)."
+            "FK to Criteria record this entity belongs to (threaded from parse)."
         ),
     )
     omop_concept_id: str | None = Field(
