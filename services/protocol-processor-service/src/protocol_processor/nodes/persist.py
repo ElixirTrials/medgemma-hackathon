@@ -100,6 +100,8 @@ def _create_entity_record(grounding_result: dict[str, Any]) -> Entity:
         grounding_confidence=confidence,
         grounding_method=grounding_method,
         review_status=review_status,
+        omop_concept_id=grounding_result.get("omop_concept_id"),
+        reconciliation_status=grounding_result.get("reconciliation_status"),
     )
 
 
@@ -108,39 +110,67 @@ def _find_criterion_and_update_mappings(
     batch_id: str,
     entity_text: str,
     field_mappings: list[dict] | None,
+    criterion_id: str | None = None,
 ) -> str | None:
-    """Find the Criteria record for this entity and update field_mappings.
+    """Find the Criteria record and accumulate field_mappings.
 
-    Matches the entity text against criteria in the batch using a substring
-    search (best-effort). Updates conditions JSONB with field_mappings if any.
+    Uses criterion_id for direct lookup when available (threaded from
+    parse → ground → persist). Falls back to substring search only
+    when criterion_id is not provided.
+
+    Field mappings are **accumulated** (extend), not overwritten, so
+    multi-entity criteria preserve all entity decompositions.
 
     Args:
         session: Active SQLModel session.
         batch_id: CriteriaBatch ID to search within.
-        entity_text: Entity text to search for in criteria.
+        entity_text: Entity text (used for fallback search).
         field_mappings: Field mapping list from grounding, or None.
+        criterion_id: Direct Criteria ID from parse (preferred).
 
     Returns:
         Criteria ID if found, None otherwise.
     """
     from sqlmodel import select
 
-    stmt = (
-        select(Criteria)
-        .where(Criteria.batch_id == batch_id)
-        .where(Criteria.text.contains(entity_text[:50]))  # type: ignore[attr-defined]
-    )
-    criteria_records = session.exec(stmt).all()
-    if not criteria_records:
+    criterion = None
+
+    # Preferred path: direct ID lookup (Gap 3 fix)
+    if criterion_id:
+        criterion = session.get(Criteria, criterion_id)
+
+    # Fallback: substring search (legacy behavior)
+    if criterion is None:
+        stmt = (
+            select(Criteria)
+            .where(Criteria.batch_id == batch_id)
+            .where(
+                Criteria.text.contains(  # type: ignore[attr-defined]
+                    entity_text[:50]
+                )
+            )
+        )
+        criteria_records = session.exec(stmt).all()
+        if criteria_records:
+            criterion = criteria_records[0]
+
+    if criterion is None:
         return None
 
-    criterion = criteria_records[0]
-
+    # Gap 2 fix: ACCUMULATE field_mappings, don't overwrite
     if field_mappings:
         existing = criterion.conditions or {}
         if not isinstance(existing, dict):
             existing = {"original_conditions": existing}
-        criterion.conditions = {**existing, "field_mappings": field_mappings}
+        existing_mappings = existing.get("field_mappings", [])
+        if isinstance(existing_mappings, list):
+            existing_mappings.extend(field_mappings)
+        else:
+            existing_mappings = field_mappings
+        criterion.conditions = {
+            **existing,
+            "field_mappings": existing_mappings,
+        }
         session.add(criterion)
 
     return criterion.id
@@ -246,11 +276,17 @@ def _persist_entities(
     for result in grounding_results:
         entity_text = result.get("entity_text", "")
         field_mappings = result.get("field_mappings")
+        # criterion_id threaded from parse → ground (Phase 1b)
+        result_criterion_id = result.get("criterion_id")
         criterion_id = None
 
         if batch_id:
             criterion_id = _find_criterion_and_update_mappings(
-                session, batch_id, entity_text, field_mappings
+                session,
+                batch_id,
+                entity_text,
+                field_mappings,
+                criterion_id=result_criterion_id,
             )
             if not criterion_id:
                 criterion_id = _get_fallback_criterion_id(
