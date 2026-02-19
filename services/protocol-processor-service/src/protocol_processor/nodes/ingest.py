@@ -39,7 +39,7 @@ async def ingest_node(state: PipelineState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
-    with pipeline_span("ingest_node") as span:
+    with pipeline_span("ingest_node", protocol_id=state.get("protocol_id", "")) as span:
         span.set_inputs(
             {
                 "protocol_id": state.get("protocol_id", ""),

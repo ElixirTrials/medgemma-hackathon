@@ -354,6 +354,7 @@ scripts/tmp/
 mlflow.db
 mlruns/
 mlflow-artifacts/
+.mlflow/
 .npm-cache/
 
 .env.vertex

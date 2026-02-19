@@ -64,12 +64,12 @@ class TestCreateGraph:
                 f"Expected node '{expected}' not found in graph nodes: {all_nodes}"
             )
 
-    def test_get_graph_singleton(self):
+    async def test_get_graph_singleton(self):
         """get_graph() should return the same compiled instance each call."""
         from protocol_processor.graph import get_graph
 
-        graph1 = get_graph()
-        graph2 = get_graph()
+        graph1 = await get_graph()
+        graph2 = await get_graph()
         assert graph1 is graph2, "get_graph() should return a singleton"
 
     def test_graph_accepts_pipeline_state_shape(self):

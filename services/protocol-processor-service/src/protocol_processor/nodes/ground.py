@@ -336,7 +336,10 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
-    with pipeline_span("ground_node", span_type="TOOL") as span:
+    protocol_id = state.get("protocol_id", "")
+    with pipeline_span(
+        "ground_node", span_type="TOOL", protocol_id=protocol_id
+    ) as span:
         span.set_inputs({"protocol_id": state.get("protocol_id", "")})
 
         try:
