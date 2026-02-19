@@ -35,7 +35,7 @@ from functools import lru_cache
 from typing import Any
 
 import pybreaker
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 from shared.resilience import tu_breaker
 from tenacity import (
     before_sleep_log,
@@ -465,6 +465,9 @@ def _parse_result(  # noqa: C901
     elif system == "rxnorm":
         # RxNormTool: single result dict {rxcui, drug_name, names}
         # Returns ONE best match, not a list.
+        # RxNorm focuses on specific drug names, not drug classes.
+        # Drug class terms (e.g., "beta-blockers", "ACE inhibitors") may return
+        # no RXCUI — the TerminologyRouter falls through to UMLS for these.
         rxcui = raw.get("rxcui", "")
         if rxcui:
             candidates.append(
