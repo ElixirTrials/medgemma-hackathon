@@ -1,4 +1,4 @@
-"""Tests for the 5-node protocol processor graph.
+"""Tests for the 6-node protocol processor graph.
 
 Verifies graph compilation, node structure, edge routing, and
 PipelineState shape acceptance. Does not invoke live APIs or DB.
@@ -40,8 +40,8 @@ class TestCreateGraph:
         graph = create_graph()
         assert graph is not None
 
-    def test_graph_has_five_user_nodes(self):
-        """Compiled graph should have exactly 5 user-defined nodes."""
+    def test_graph_has_six_user_nodes(self):
+        """Compiled graph should have exactly 6 user-defined nodes."""
         from protocol_processor.graph import create_graph
 
         graph = create_graph()
@@ -49,17 +49,29 @@ class TestCreateGraph:
         # User nodes are those without leading underscores
         all_nodes = graph.nodes
         user_nodes = {name for name in all_nodes if not name.startswith("__")}
-        assert user_nodes == {"ingest", "extract", "parse", "ground", "persist"}, (
-            f"Expected 5 user nodes, got: {user_nodes}"
-        )
+        assert user_nodes == {
+            "ingest",
+            "extract",
+            "parse",
+            "ground",
+            "persist",
+            "structure",
+        }, f"Expected 6 user nodes, got: {user_nodes}"
 
     def test_graph_node_names(self):
-        """Graph should contain all 5 expected node names."""
+        """Graph should contain all 6 expected node names."""
         from protocol_processor.graph import create_graph
 
         graph = create_graph()
         all_nodes = graph.nodes
-        for expected in ("ingest", "extract", "parse", "ground", "persist"):
+        for expected in (
+            "ingest",
+            "extract",
+            "parse",
+            "ground",
+            "persist",
+            "structure",
+        ):
             assert expected in all_nodes, (
                 f"Expected node '{expected}' not found in graph nodes: {all_nodes}"
             )
@@ -81,6 +93,7 @@ class TestCreateGraph:
         # We verify by checking graph nodes (deep schema validation is runtime)
         assert "ingest" in graph.nodes
         assert "persist" in graph.nodes
+        assert "structure" in graph.nodes
 
 
 class TestShouldContinue:

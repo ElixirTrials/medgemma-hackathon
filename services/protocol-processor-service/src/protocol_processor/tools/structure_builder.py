@@ -23,6 +23,7 @@ from protocol_processor.schemas.structure import (
     LogicNode,
     StructuredCriterionTree,
 )
+from protocol_processor.tools.unit_normalizer import normalize_unit, normalize_value
 
 logger = logging.getLogger(__name__)
 
@@ -185,6 +186,13 @@ def _create_atomic_from_mapping(
     relation = fm.get("relation", "has")
     negation = relation.upper() == "NOT" if relation else False
 
+    raw_unit = fm.get("unit")
+    _, unit_concept_id = normalize_unit(raw_unit)
+
+    value_concept_id: int | None = None
+    if value_text and value_numeric is None:
+        _, value_concept_id = normalize_value(value_text)
+
     return AtomicCriterion(
         criterion_id=criterion_id,
         protocol_id=protocol_id,
@@ -196,7 +204,9 @@ def _create_atomic_from_mapping(
         relation_operator=relation,
         value_numeric=value_numeric,
         value_text=value_text,
-        unit_text=fm.get("unit"),
+        unit_text=raw_unit,
+        unit_concept_id=unit_concept_id,
+        value_concept_id=value_concept_id,
         negation=negation,
         original_text=criterion_text,
         confidence_score=fm.get("confidence_score"),

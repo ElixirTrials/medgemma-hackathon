@@ -1,0 +1,215 @@
+# UCUM unit mappings and categorical value mappings for OMOP CDM.
+#
+# Phase 3 (Gap 7): Static lookup for ~50 common clinical trial units
+# to OMOP unit_concept_id values, plus categorical value normalization.
+#
+# Sources:
+#   - UCUM: https://ucum.org/ucum
+#   - OMOP CDM unit concepts: vocabulary_id = 'UCUM'
+#   - Value concepts: SNOMED qualifier values
+
+units:
+  # --- Time ---
+  - canonical: "a"
+    omop_unit_concept_id: 9448
+    aliases: ["years", "year", "yrs", "yr"]
+  - canonical: "mo"
+    omop_unit_concept_id: 9434
+    aliases: ["months", "month", "mos"]
+  - canonical: "wk"
+    omop_unit_concept_id: 8512
+    aliases: ["weeks", "week", "wks"]
+  - canonical: "d"
+    omop_unit_concept_id: 8512
+    aliases: ["days", "day"]
+  - canonical: "h"
+    omop_unit_concept_id: 8505
+    aliases: ["hours", "hour", "hrs", "hr"]
+  - canonical: "min"
+    omop_unit_concept_id: 8550
+    aliases: ["minutes", "minute", "mins"]
+
+  # --- Mass / Weight ---
+  - canonical: "kg"
+    omop_unit_concept_id: 9529
+    aliases: ["kilograms", "kilogram"]
+  - canonical: "g"
+    omop_unit_concept_id: 8504
+    aliases: ["grams", "gram"]
+  - canonical: "mg"
+    omop_unit_concept_id: 8587
+    aliases: ["milligrams", "milligram"]
+  - canonical: "ug"
+    omop_unit_concept_id: 9655
+    aliases: ["mcg", "micrograms", "microgram"]
+
+  # --- Volume ---
+  - canonical: "L"
+    omop_unit_concept_id: 8519
+    aliases: ["liters", "liter", "litres", "litre"]
+  - canonical: "mL"
+    omop_unit_concept_id: 8587
+    aliases: ["milliliters", "milliliter", "millilitres", "millilitre", "ml"]
+  - canonical: "dL"
+    omop_unit_concept_id: 9585
+    aliases: ["deciliters", "deciliter", "decilitres", "decilitre", "dl"]
+  - canonical: "uL"
+    omop_unit_concept_id: 9667
+    aliases: ["microliters", "microliter", "microlitres", "microlitre"]
+
+  # --- Concentration ---
+  - canonical: "mg/dL"
+    omop_unit_concept_id: 8840
+    aliases: ["mg/dl"]
+  - canonical: "g/dL"
+    omop_unit_concept_id: 8713
+    aliases: ["g/dl", "gm/dl", "gm/dL"]
+  - canonical: "mmol/L"
+    omop_unit_concept_id: 8753
+    aliases: ["mmol/l", "mmol/liter"]
+  - canonical: "umol/L"
+    omop_unit_concept_id: 8749
+    aliases: ["umol/l", "micromol/l", "micromol/L"]
+  - canonical: "mEq/L"
+    omop_unit_concept_id: 9557
+    aliases: ["meq/l", "meq/L"]
+  - canonical: "ng/mL"
+    omop_unit_concept_id: 8842
+    aliases: ["ng/ml"]
+  - canonical: "pg/mL"
+    omop_unit_concept_id: 8845
+    aliases: ["pg/ml"]
+  - canonical: "mg/L"
+    omop_unit_concept_id: 8751
+    aliases: ["mg/l"]
+  - canonical: "g/L"
+    omop_unit_concept_id: 8636
+    aliases: ["g/l"]
+  - canonical: "IU/L"
+    omop_unit_concept_id: 8923
+    aliases: ["iu/l", "U/L", "u/l"]
+  - canonical: "IU/mL"
+    omop_unit_concept_id: 8985
+    aliases: ["iu/ml"]
+
+  # --- Pressure ---
+  - canonical: "mm[Hg]"
+    omop_unit_concept_id: 8876
+    aliases: ["mmHg", "mmhg", "mm Hg", "mm hg"]
+
+  # --- Rate / Renal ---
+  - canonical: "mL/min"
+    omop_unit_concept_id: 8795
+    aliases: ["ml/min", "mL/minute"]
+  - canonical: "mL/min/1.73m2"
+    omop_unit_concept_id: 720870
+    aliases:
+      - "ml/min/1.73m2"
+      - "mL/min/1.73 m2"
+      - "ml/min/1.73 m2"
+      - "mL/min per 1.73m2"
+      - "mL/min/1.73m^2"
+
+  # --- Body metrics ---
+  - canonical: "kg/m2"
+    omop_unit_concept_id: 9531
+    aliases: ["kg/m^2", "kg/m²"]
+  - canonical: "cm"
+    omop_unit_concept_id: 8582
+    aliases: ["centimeters", "centimeter", "centimetres", "centimetre"]
+  - canonical: "m"
+    omop_unit_concept_id: 9546
+    aliases: ["meters", "meter", "metres", "metre"]
+  - canonical: "[in_i]"
+    omop_unit_concept_id: 9327
+    aliases: ["inches", "inch", "in"]
+
+  # --- Percentage ---
+  - canonical: "%"
+    omop_unit_concept_id: 8554
+    aliases: ["percent", "pct"]
+
+  # --- Cell counts ---
+  - canonical: "10*3/uL"
+    omop_unit_concept_id: 8848
+    aliases:
+      - "10^3/uL"
+      - "x10^3/uL"
+      - "x10*3/uL"
+      - "thousand/uL"
+      - "K/uL"
+      - "10*3/ul"
+      - "cells/uL"
+  - canonical: "10*9/L"
+    omop_unit_concept_id: 9444
+    aliases:
+      - "10^9/L"
+      - "x10^9/L"
+      - "x10*9/L"
+      - "billion/L"
+      - "10*9/l"
+      - "G/L"
+  - canonical: "10*6/uL"
+    omop_unit_concept_id: 8815
+    aliases:
+      - "10^6/uL"
+      - "x10^6/uL"
+      - "million/uL"
+      - "M/uL"
+      - "10*6/ul"
+  - canonical: "10*12/L"
+    omop_unit_concept_id: 8734
+    aliases:
+      - "10^12/L"
+      - "x10^12/L"
+      - "T/L"
+      - "10*12/l"
+
+  # --- Dose / Pharmacy ---
+  - canonical: "mg/kg"
+    omop_unit_concept_id: 9562
+    aliases: ["mg/kilogram"]
+  - canonical: "mg/m2"
+    omop_unit_concept_id: 9200
+    aliases: ["mg/m^2", "mg/m²"]
+  - canonical: "ug/kg"
+    omop_unit_concept_id: 9692
+    aliases: ["mcg/kg", "ug/kilogram"]
+
+  # --- Ratio ---
+  - canonical: "mg/g"
+    omop_unit_concept_id: 8723
+    aliases: ["mg/gram"]
+  - canonical: "{ratio}"
+    omop_unit_concept_id: 8523
+    aliases: ["ratio", "INR"]
+
+  # --- Temperature ---
+  - canonical: "Cel"
+    omop_unit_concept_id: 586323
+    aliases: ["°C", "degrees C", "celsius", "degC"]
+  - canonical: "[degF]"
+    omop_unit_concept_id: 9289
+    aliases: ["°F", "degrees F", "fahrenheit", "degF"]
+
+  # --- Misc ---
+  - canonical: "/uL"
+    omop_unit_concept_id: 8785
+    aliases: ["per uL", "per microliter", "/ul", "cells/uL"]
+  - canonical: "s"
+    omop_unit_concept_id: 8555
+    aliases: ["seconds", "second", "sec", "secs"]
+  - canonical: "beats/min"
+    omop_unit_concept_id: 8541
+    aliases: ["bpm", "beats per minute", "beats/minute"]
+  - canonical: "breaths/min"
+    omop_unit_concept_id: 8541
+    aliases: ["breaths per minute", "breaths/minute"]
+
+value_mappings:
+  positive: 45884084
+  negative: 45878583
+  normal: 45884153
+  abnormal: 45878745
+  present: 45884084
+  absent: 45878583

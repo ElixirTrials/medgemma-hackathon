@@ -210,6 +210,12 @@ class AtomicCriterion(SQLModel, table=True):
     )
     value_text: str | None = Field(default=None)
     unit_text: str | None = Field(default=None)
+    unit_concept_id: int | None = Field(
+        default=None, sa_column=Column(Integer, nullable=True)
+    )
+    value_concept_id: int | None = Field(
+        default=None, sa_column=Column(Integer, nullable=True)
+    )
     negation: bool = Field(default=False, sa_column=Column(Boolean, default=False))
     temporal_constraint: Dict[str, Any] | None = Field(
         default=None, sa_column=Column(JSON)
