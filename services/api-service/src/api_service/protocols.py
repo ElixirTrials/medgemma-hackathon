@@ -84,6 +84,8 @@ class ProtocolResponse(BaseModel):
     metadata_: dict
     created_at: datetime
     updated_at: datetime
+    error_reason: str | None = None
+    version_count: int = 1
 
 
 class ProtocolListResponse(BaseModel):
@@ -174,19 +176,9 @@ def upload_protocol(
         status="uploaded",
     )
 
-    # Persist protocol + outbox event atomically
-    persist_with_outbox(
-        session=db,
-        entity=protocol,
-        event_type=DomainEventKind.PROTOCOL_UPLOADED,
-        aggregate_type="protocol",
-        aggregate_id=protocol.id,
-        payload={
-            "protocol_id": protocol.id,
-            "title": title,
-            "file_uri": gcs_path,
-        },
-    )
+    # Persist protocol record only — the ProtocolUploaded event is deferred
+    # to confirm-upload so the file actually exists when the processor runs.
+    db.add(protocol)
     db.commit()
 
     # Check circuit breaker states — if critical services are down,
@@ -260,7 +252,20 @@ def confirm_upload(
                 exc_info=True,
             )
 
-    db.add(protocol)
+    # Now that the file is confirmed uploaded, publish the outbox event
+    # to trigger the protocol processor pipeline.
+    persist_with_outbox(
+        session=db,
+        entity=protocol,
+        event_type=DomainEventKind.PROTOCOL_UPLOADED,
+        aggregate_type="protocol",
+        aggregate_id=protocol.id,
+        payload={
+            "protocol_id": protocol.id,
+            "title": protocol.title,
+            "file_uri": protocol.file_uri,
+        },
+    )
     db.commit()
     db.refresh(protocol)
 
@@ -297,24 +302,59 @@ async def retry_protocol(
             detail=f"Protocol is not in a retryable state (current: {protocol.status})",
         )
 
-    # Update status to processing
+    previous_status = protocol.status
     protocol.status = "processing"
     protocol.error_reason = None
     db.add(protocol)
     db.commit()
 
-    # Resume from checkpoint — await directly (no asyncio.run inside async endpoints)
     try:
         from protocol_processor.trigger import retry_from_checkpoint
 
         await retry_from_checkpoint(protocol_id)
     except Exception as e:
+        protocol.status = previous_status
         protocol.error_reason = str(e)[:500]
         db.add(protocol)
         db.commit()
         logger.error("Retry failed for protocol %s: %s", protocol_id, e)
 
     return RetryResponse(status="retry_started", protocol_id=protocol_id)
+
+
+@router.post("/{protocol_id}/archive", response_model=ProtocolResponse)
+def archive_protocol(
+    protocol_id: str,
+    db: Session = Depends(get_db),
+) -> ProtocolResponse:
+    """Archive a failed or dead-letter protocol.
+
+    Only protocols in dead_letter, extraction_failed, or grounding_failed
+    states may be manually archived. Returns 400 for non-archivable states.
+    """
+    protocol = db.get(Protocol, protocol_id)
+    if not protocol:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Protocol {protocol_id} not found",
+        )
+
+    archivable_states = {"dead_letter", "extraction_failed", "grounding_failed"}
+    if protocol.status not in archivable_states:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Protocol cannot be archived from state '{protocol.status}'. "
+                "Archivable states: " + ", ".join(sorted(archivable_states))
+            ),
+        )
+
+    protocol.status = "archived"
+    db.add(protocol)
+    db.commit()
+    db.refresh(protocol)
+
+    return _protocol_to_response(protocol)
 
 
 @router.post("/{protocol_id}/re-extract", response_model=ReExtractResponse)
@@ -439,6 +479,7 @@ def list_protocols(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
     status: str | None = Query(default=None),
+    deduplicate: bool = Query(default=False),
     db: Session = Depends(get_db),
 ) -> ProtocolListResponse:
     """List protocols with pagination and optional status filter.
@@ -446,7 +487,14 @@ def list_protocols(
     Returns a paginated list sorted by creation date (newest first).
     Includes total count, page number, page size, and total pages.
     Excludes archived protocols from default view unless explicitly filtered.
+
+    When deduplicate=True, returns one protocol per unique title (the latest
+    version) with a version_count field indicating how many versions exist.
+    Archived protocols are excluded from deduplication queries.
     """
+    if deduplicate:
+        return _list_protocols_deduplicated(page, page_size, status, db)
+
     # Build count query
     count_stmt = select(func.count()).select_from(Protocol)
     if status:
@@ -474,6 +522,75 @@ def list_protocols(
 
     return ProtocolListResponse(
         items=[_protocol_to_response(p) for p in protocols],
+        total=total,
+        page=page,
+        page_size=page_size,
+        pages=pages,
+    )
+
+
+def _list_protocols_deduplicated(
+    page: int,
+    page_size: int,
+    status: str | None,
+    db: Session,
+) -> ProtocolListResponse:
+    """Return one protocol per unique title (latest version) with version_count.
+
+    Excludes archived protocols. When status filter is provided, only titles
+    whose latest version matches that status are returned.
+    """
+    # Subquery: latest created_at per title (excluding archived)
+    latest_subq = (
+        select(Protocol.title, func.max(Protocol.created_at).label("max_created"))
+        .where(Protocol.status != "archived")
+        .group_by(Protocol.title)
+        .subquery()
+    )
+
+    # Count subquery: number of (non-archived) versions per title
+    count_subq = (
+        select(Protocol.title, func.count(col(Protocol.id)).label("version_count"))
+        .where(Protocol.status != "archived")
+        .group_by(Protocol.title)
+        .subquery()
+    )
+
+    # Join Protocol to latest_subq to get the canonical (newest) row per title
+    dedup_stmt = select(Protocol).join(
+        latest_subq,
+        (col(Protocol.title) == latest_subq.c.title)
+        & (col(Protocol.created_at) == latest_subq.c.max_created),
+    )
+
+    if status:
+        dedup_stmt = dedup_stmt.where(Protocol.status == status)
+
+    # Count total unique titles (for pagination)
+    count_stmt = select(func.count()).select_from(dedup_stmt.subquery())
+    total = db.exec(count_stmt).one()
+
+    # Apply pagination and ordering
+    dedup_stmt = (
+        dedup_stmt.order_by(Protocol.created_at.desc())  # type: ignore[attr-defined]
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+
+    protocols = db.exec(dedup_stmt).all()
+    pages = ceil(total / page_size) if total > 0 else 1
+
+    # Build version_count lookup from count subquery
+    version_counts: dict[str, int] = {
+        row[0]: row[1]
+        for row in db.exec(select(count_subq.c.title, count_subq.c.version_count)).all()
+    }
+
+    return ProtocolListResponse(
+        items=[
+            _protocol_to_response(p, version_count=version_counts.get(p.title, 1))
+            for p in protocols
+        ],
         total=total,
         page=page,
         page_size=page_size,
@@ -549,7 +666,7 @@ def list_protocol_batches(
 
     # Total criteria count per batch
     total_counts_stmt = (
-        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))  # type: ignore[arg-type]
+        select(Criteria.batch_id, func.count(col(Criteria.id)).label("cnt"))
         .where(col(Criteria.batch_id).in_(batch_ids))
         .group_by(Criteria.batch_id)
     )
@@ -559,7 +676,7 @@ def list_protocol_batches(
 
     # Reviewed criteria count per batch (review_status IS NOT NULL)
     reviewed_counts_stmt = (
-        select(Criteria.batch_id, func.count(Criteria.id).label("cnt"))  # type: ignore[arg-type]
+        select(Criteria.batch_id, func.count(col(Criteria.id)).label("cnt"))
         .where(
             col(Criteria.batch_id).in_(batch_ids),
             col(Criteria.review_status).isnot(None),
@@ -588,7 +705,9 @@ def list_protocol_batches(
 # --- Helpers ---
 
 
-def _protocol_to_response(protocol: Protocol) -> ProtocolResponse:
+def _protocol_to_response(
+    protocol: Protocol, version_count: int = 1
+) -> ProtocolResponse:
     """Convert a Protocol model to ProtocolResponse."""
     return ProtocolResponse(
         id=protocol.id,
@@ -600,6 +719,8 @@ def _protocol_to_response(protocol: Protocol) -> ProtocolResponse:
         metadata_=protocol.metadata_,
         created_at=protocol.created_at,
         updated_at=protocol.updated_at,
+        error_reason=protocol.error_reason,
+        version_count=version_count,
     )
 
 
