@@ -113,8 +113,12 @@ export function useUploadProtocol() {
                 }),
             });
 
-            // Step 2: Upload file directly to GCS via signed URL
-            const putResp = await fetch(uploadResp.upload_url, {
+            // Step 2: Upload file. Use same-origin as API for /local-upload/ to avoid "Failed to fetch".
+            const putUrl =
+                new URL(uploadResp.upload_url).pathname.startsWith('/local-upload/')
+                    ? `${API_BASE_URL}${new URL(uploadResp.upload_url).pathname}`
+                    : uploadResp.upload_url;
+            const putResp = await fetch(putUrl, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/pdf' },
                 body: file,

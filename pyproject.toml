@@ -184,6 +184,7 @@ markers = [
     "integration: marks tests as integration tests",
 ]
 filterwarnings = [
+    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
     "ignore:Inheritance class AiohttpClientSession.*:DeprecationWarning:google\\.genai\\._api_client",
     "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
     "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",

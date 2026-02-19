@@ -58,7 +58,8 @@ async def fetch_pdf_bytes(file_uri: str) -> bytes:
     Supports two URI schemes:
     - local:// : Reads from a local upload directory (for dev/test).
       The path after 'local://' is the relative blob path within
-      LOCAL_UPLOAD_DIR (env var, default './uploads').
+      LOCAL_UPLOAD_DIR (env var, default 'uploads'). Must match the API
+      service's LOCAL_UPLOAD_DIR so both resolve to the same protocols tree.
     - gs:// : Downloads from Google Cloud Storage.
 
     Args:
@@ -73,7 +74,7 @@ async def fetch_pdf_bytes(file_uri: str) -> bytes:
     """
     if file_uri.startswith("local://"):
         blob_path = file_uri[len("local://") :]
-        upload_dir = os.environ.get("LOCAL_UPLOAD_DIR", "./uploads")
+        upload_dir = os.environ.get("LOCAL_UPLOAD_DIR", "uploads")
         local_path = Path(upload_dir) / blob_path
         if not local_path.exists():
             raise FileNotFoundError(

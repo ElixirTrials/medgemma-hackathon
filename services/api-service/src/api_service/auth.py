@@ -37,6 +37,12 @@ oauth.register(
 # JWT secret from environment
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
 
+# Block redirects when OAuth is unconfigured or using a known-deleted client
+# (stops Cursor/IDE popups).
+DELETED_OAUTH_CLIENT_IDS = frozenset(
+    {"1015683497619-c7c8101v1pea8ji7u0a5jh94a8ha6ool.apps.googleusercontent.com"}
+)
+
 
 # --- Response models ---
 
@@ -64,9 +70,27 @@ class TokenResponse(BaseModel):
 async def login(request: Request) -> Dict[str, Any]:
     """Redirect to Google OAuth login page.
 
-    Initiates the OAuth flow by redirecting the user to Google's
-    authorization endpoint.
+    Returns 503 if OAuth is not configured or uses a known-deleted client ID,
+    so IDEs (e.g. Cursor) restoring a login tab do not trigger a redirect popup.
     """
+    client_id = (os.getenv("GOOGLE_CLIENT_ID") or "").strip()
+    client_secret = (os.getenv("GOOGLE_CLIENT_SECRET") or "").strip()
+    if not client_id or not client_secret:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Google OAuth is not configured. Set GOOGLE_CLIENT_ID and "
+                "GOOGLE_CLIENT_SECRET, or use Dev Login."
+            ),
+        )
+    if client_id in DELETED_OAUTH_CLIENT_IDS:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Google OAuth client is no longer valid. Create a new OAuth "
+                "client in Google Cloud Console or use Dev Login."
+            ),
+        )
     redirect_uri = request.url_for("auth_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
