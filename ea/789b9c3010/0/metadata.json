@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ea789b9c3010",
+  "session_id": "1469035a-af86-401d-8256-308e4bf695e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T19:03:56.085288Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/tests/test_phase2_e2e.py",
+    "services/protocol-processor-service/tests/test_phase2_structure.py",
+    "libs/shared/src/shared/models.py",
+    "services/protocol-processor-service/src/protocol_processor/config/__init__.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/__init__.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py",
+    "services/protocol-processor-service/tests/test_phase3_integration.py",
+    "services/protocol-processor-service/tests/test_unit_normalizer.py",
+    "docs/E2E-TEST-REPORT-2026-02-18.md",
+    "services/api-service/alembic/versions/43_01_add_unit_value_concept_ids.py",
+    "services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml",
+    "services/protocol-processor-service/src/protocol_processor/graph.py",
+    "services/protocol-processor-service/tests/test_graph.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2e0b3f3b8819",
+  "transcript_identifier_at_start": "4cff6080-c510-4b99-a2d6-8ac1bfc4c8a6",
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T19:03:55.652952Z",
+    "agent_lines": 2841,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 2841,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/1469035a-af86-401d-8256-308e4bf695e1.jsonl"
+}
