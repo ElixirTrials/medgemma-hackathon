@@ -31,6 +31,61 @@ from sqlmodel import Session
 logger = logging.getLogger(__name__)
 
 
+def _cleanup_orphan_traces() -> None:
+    """Close stale IN_PROGRESS MLflow traces from previous crashed runs.
+
+    Runs once at module import (service startup). Idempotent -- safe to
+    call multiple times. Only closes traces older than 1 hour to avoid
+    closing currently-running pipelines.
+    """
+    import time as _time
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not tracking_uri:
+        return
+    try:
+        import mlflow
+
+        client = mlflow.MlflowClient()
+        cutoff_ms = int((_time.time() - 3600) * 1000)  # 1 hour ago
+
+        # MLflow 3.x: search for traces with IN_PROGRESS status
+        try:
+            traces = client.search_traces(
+                experiment_ids=["0"],  # Default experiment
+                filter_string="status = 'IN_PROGRESS'",
+                max_results=50,
+            )
+        except (AttributeError, TypeError):
+            # search_traces may not exist or have different signature
+            logger.debug("MLflow search_traces API not available for orphan cleanup")
+            return
+
+        closed = 0
+        for trace in traces:
+            trace_ts = getattr(trace.info, "timestamp_ms", None) or 0
+            if trace_ts < cutoff_ms:
+                try:
+                    client.end_trace(
+                        request_id=trace.info.request_id,
+                        status="ERROR",
+                    )
+                    closed += 1
+                except Exception:
+                    pass  # Trace may have already been closed
+        if closed:
+            logger.info(
+                "Startup orphan cleanup: closed %d stale IN_PROGRESS trace(s)",
+                closed,
+            )
+    except Exception:
+        logger.debug("Orphan trace cleanup skipped (non-fatal)", exc_info=True)
+
+
+# Run once at startup to clean up orphaned traces from previous crashes
+_cleanup_orphan_traces()
+
+
 def _ensure_mlflow() -> bool:
     """Ensure MLflow tracking is configured in the current thread.
 
@@ -96,7 +151,7 @@ def _update_protocol_failed(
     error_category: str,
     exception_type: str,
 ) -> None:
-    """Update protocol status to pipeline_failed with error metadata.
+    """Update protocol status to extraction_failed with error metadata.
 
     Args:
         protocol_id: Protocol ID to update.
@@ -127,8 +182,23 @@ def _update_protocol_failed(
         )
 
 
+# KNOWN LIMITATION: MLflow ContextVar async boundary (Issue #8)
+#
+# MLflow's trace context uses Python ContextVars which do NOT propagate
+# across asyncio task boundaries created by asyncio.create_task() or
+# asyncio.gather(). This means:
+#   - The parent trace in trigger.py correctly wraps the full pipeline run
+#   - Child spans created inside LangGraph nodes are attached to the parent
+#     trace because LangGraph uses `await` (not create_task) for node calls
+#   - However, if future code uses asyncio.gather() for parallel node
+#     execution, child spans may detach from the parent trace
+#   - Workaround: Pass trace context explicitly via PipelineState if parallel
+#     node execution is added
+#
+# This is a known MLflow limitation, not a bug in our code.
+
+
 async def _run_pipeline(
-    graph: Any,
     initial_state: dict[str, Any],
     config: dict[str, Any],
     payload: dict[str, Any],
@@ -140,10 +210,14 @@ async def _run_pipeline(
     we initialize MLflow tracing HERE (inside asyncio.run) rather than
     in the sync caller.
     """
+    from protocol_processor.graph import get_graph
+
+    graph = await get_graph()
+
     if _ensure_mlflow():
         import mlflow
 
-        mlflow.langchain.autolog()
+        mlflow.langchain.autolog(run_tracer_inline=True)
 
         with mlflow.start_span(
             name="protocol_pipeline",
@@ -159,6 +233,7 @@ async def _run_pipeline(
                     "file_uri": payload.get("file_uri", ""),
                 }
             )
+            succeeded = False
             try:
                 result = await graph.ainvoke(initial_state, config)
                 span.set_outputs(
@@ -168,20 +243,22 @@ async def _run_pipeline(
                         "error_count": len(result.get("errors", [])),
                     }
                 )
+                succeeded = True
                 return result
             finally:
-                # Guarantee span closure — no-op if context manager already closed it.
-                if trace_id:
+                # Only force-close as ERROR on failure — let the context
+                # manager's __exit__ handle successful traces naturally.
+                if trace_id and not succeeded:
                     logger.warning(
-                        "Ensuring MLflow trace %s is closed (try/finally cleanup)",
+                        "Force-closing MLflow trace %s as ERROR (pipeline failed)",
                         trace_id,
                     )
                     try:
                         mlflow.MlflowClient().end_trace(trace_id, status="ERROR")
                     except Exception:
                         logger.warning(
-                            "Could not force-close MLflow trace %s — "
-                            "already closed or unavailable",
+                            "Could not force-close MLflow trace %s"
+                            " — already closed or unavailable",
                             trace_id,
                         )
 
@@ -252,14 +329,9 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
                 protocol_id,
             )
 
-        # Lazy import to avoid circular imports at module load time
-        from protocol_processor.graph import get_graph
-
-        graph = get_graph()
-
         config = {"configurable": {"thread_id": thread_id}}
 
-        asyncio.run(_run_pipeline(graph, initial_state, config, payload))
+        asyncio.run(_run_pipeline(initial_state, config, payload))
 
         logger.info(
             "Protocol pipeline completed for protocol %s",
@@ -303,7 +375,7 @@ async def retry_from_checkpoint(protocol_id: str) -> dict[str, Any]:
 
     from protocol_processor.graph import get_graph
 
-    graph = get_graph()
+    graph = await get_graph()
     config = {"configurable": {"thread_id": thread_id}}
     # Pass None as input — LangGraph resumes from last checkpoint
     result = await graph.ainvoke(None, config)
