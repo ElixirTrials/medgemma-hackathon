@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "37d6ecfa00e9",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/inference/src/inference/model_garden.py",
+    "services/protocol-processor-service/src/protocol_processor/config/routing.yaml",
+    "services/protocol-processor-service/src/protocol_processor/prompts/system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/37/d6ecfa00e9/0/metadata.json",
+      "transcript": "/37/d6ecfa00e9/0/full.jsonl",
+      "context": "/37/d6ecfa00e9/0/context.md",
+      "content_hash": "/37/d6ecfa00e9/0/content_hash.txt",
+      "prompt": "/37/d6ecfa00e9/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 121,
+    "cache_creation_tokens": 139818,
+    "cache_read_tokens": 10714660,
+    "output_tokens": 11046,
+    "api_call_count": 109
+  }
+}
