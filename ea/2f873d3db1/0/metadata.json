@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ea2f873d3db1",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T09:30:14.827356Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "infra/docker-compose.yml",
+    "infra/omop-vocab/create-indexes.sql",
+    "infra/omop-vocab/Dockerfile",
+    "infra/omop-vocab/init-vocab-schema.sql",
+    "infra/omop-vocab/load-vocab.sh",
+    "services/api-service/tests/test_integrity.py",
+    "services/protocol-processor-service/src/protocol_processor/tracing.py",
+    "tests/e2e/test_pipeline_full.py",
+    ".env.example",
+    "infra/.env.example"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "542bc98fd97c",
+  "checkpoint_transcript_start": 16,
+  "transcript_lines_at_start": 16,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T09:30:14.81246Z",
+    "agent_lines": 427,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 427,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".cursor/projects/Users-noahdolevelixir-Code-medgemma-hackathon/agent-transcripts/dd72dac5-37ad-4d5e-9c27-ea2443ebcafd/dd72dac5-37ad-4d5e-9c27-ea2443ebcafd.jsonl"
+}

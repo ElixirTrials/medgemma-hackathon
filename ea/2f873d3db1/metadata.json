@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ea2f873d3db1",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".env.example",
+    "infra/.env.example",
+    "infra/docker-compose.yml",
+    "infra/omop-vocab/Dockerfile",
+    "infra/omop-vocab/create-indexes.sql",
+    "infra/omop-vocab/init-vocab-schema.sql",
+    "infra/omop-vocab/load-vocab.sh",
+    "services/api-service/tests/test_integrity.py",
+    "services/protocol-processor-service/src/protocol_processor/tracing.py",
+    "tests/e2e/test_pipeline_full.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ea/2f873d3db1/0/metadata.json",
+      "transcript": "/ea/2f873d3db1/0/full.jsonl",
+      "context": "",
+      "content_hash": "/ea/2f873d3db1/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
