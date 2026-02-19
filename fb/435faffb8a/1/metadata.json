@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "fb435faffb8a",
+  "session_id": "9f29d3e2-c701-49ad-b40b-96f2faa4402f",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T11:23:11.592147Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useProtocols.ts",
+    "apps/hitl-ui/src/hooks/useReviews.ts",
+    "apps/hitl-ui/src/screens/Dashboard.tsx",
+    "apps/hitl-ui/src/screens/ProtocolList.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f0212c84321d",
+  "transcript_identifier_at_start": "a9534bb4-a559-4d9f-bc5e-7be8758867de",
+  "token_usage": {
+    "input_tokens": 104,
+    "cache_creation_tokens": 102307,
+    "cache_read_tokens": 5653989,
+    "output_tokens": 6624,
+    "api_call_count": 80
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T11:23:11.235607Z",
+    "agent_lines": 0,
+    "human_added": 114,
+    "human_modified": 42,
+    "human_removed": 0,
+    "total_committed": 114,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/9f29d3e2-c701-49ad-b40b-96f2faa4402f.jsonl"
+}
