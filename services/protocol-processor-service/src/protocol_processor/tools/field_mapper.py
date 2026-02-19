@@ -136,6 +136,9 @@ async def generate_field_mappings(
                 "relation": m.relation,
                 "value": m.value,
                 "unit": m.unit,
+                "entity_concept_id": entity.selected_code,
+                "entity_concept_system": entity.selected_system,
+                "omop_concept_id": entity.omop_concept_id,
             }
             for m in response.mappings
         ]
