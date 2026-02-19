@@ -9,7 +9,9 @@ entity + event writes in a single database transaction.
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any, Callable
 from uuid import uuid4
@@ -55,6 +57,9 @@ class OutboxProcessor:
         self.handlers: dict[str, list[Callable[..., Any]]] = handlers or {}
         self.poll_interval = poll_interval
         self.batch_size = batch_size
+        # Dedicated thread pool so pipeline handlers don't starve
+        # FastAPI's default executor (used for sync endpoints).
+        self._executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix="outbox")
         self._shutdown_event = asyncio.Event()
 
     def poll_and_process(self) -> int:
@@ -153,8 +158,13 @@ class OutboxProcessor:
         )
         while not self._shutdown_event.is_set():
             try:
-                count = await asyncio.get_event_loop().run_in_executor(
-                    None, self.poll_and_process
+                # Copy context so MLflow ContextVars propagate to the
+                # worker thread, avoiding "created in a different Context"
+                # warnings when autologging resets tokens.
+                loop = asyncio.get_event_loop()
+                ctx = contextvars.copy_context()
+                count = await loop.run_in_executor(
+                    self._executor, ctx.run, self.poll_and_process
                 )
                 if count > 0:
                     logger.info("Processed %d outbox events", count)
@@ -173,6 +183,7 @@ class OutboxProcessor:
         """Signal the processor to stop after current poll."""
         logger.info("Outbox processor shutdown requested")
         self._shutdown_event.set()
+        self._executor.shutdown(wait=False)
 
 
 def persist_with_outbox(
