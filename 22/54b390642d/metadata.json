@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "2254b390642d",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/22/54b390642d/0/metadata.json",
+      "transcript": "/22/54b390642d/0/full.jsonl",
+      "context": "/22/54b390642d/0/context.md",
+      "content_hash": "/22/54b390642d/0/content_hash.txt",
+      "prompt": "/22/54b390642d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
