@@ -9,10 +9,8 @@ Tests cover:
 
 from __future__ import annotations
 
-import pytest
 from fastapi.testclient import TestClient
 from shared.models import AuditLog, Criteria, CriteriaBatch, Entity, Protocol
-
 
 # --- Helpers ---
 

@@ -7,7 +7,7 @@ and falls back to a no-op when MLflow is not configured or installed.
 from __future__ import annotations
 
 import os
-from contextlib import contextmanager, nullcontext
+from contextlib import contextmanager
 from typing import Any
 
 

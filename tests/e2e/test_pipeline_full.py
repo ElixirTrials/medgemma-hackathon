@@ -22,7 +22,7 @@ from typing import Callable
 import httpx
 import pytest
 
-from .baseline import BASELINES, get_baseline
+from .baseline import get_baseline
 from .conftest import wait_for_pipeline
 
 # Default test PDF (smallest CRC protocol, ~90K)
