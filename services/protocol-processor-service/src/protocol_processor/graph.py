@@ -94,35 +94,34 @@ _checkpointer = None
 _checkpointer_cm: Any = None
 
 
-def _get_checkpointer() -> Any:
-    """Get or create the PostgresSaver checkpointer singleton.
+async def _get_checkpointer_async() -> Any:
+    """Get or create the AsyncPostgresSaver checkpointer singleton.
 
-    Creates a PostgresSaver using DATABASE_URL from the environment by
-    entering the context manager once. Calls setup() on the yielded
-    PostgresSaver to ensure checkpoint tables exist. The context is
-    kept open for the process lifetime so the connection stays valid.
+    Creates an AsyncPostgresSaver using DATABASE_URL from the environment.
+    Uses the async context manager and calls asetup() to ensure checkpoint
+    tables exist. The context is kept open for the process lifetime.
 
     Returns:
-        PostgresSaver instance configured with the application database.
+        AsyncPostgresSaver instance configured with the application database.
 
     Raises:
         KeyError: If DATABASE_URL environment variable is not set.
     """
     global _checkpointer, _checkpointer_cm  # noqa: PLW0603
     if _checkpointer is None:
-        from langgraph.checkpoint.postgres import PostgresSaver
+        from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
         db_url = os.environ["DATABASE_URL"]
-        _checkpointer_cm = PostgresSaver.from_conn_string(db_url)
-        _checkpointer = _checkpointer_cm.__enter__()
-        _checkpointer.setup()  # Create checkpoint tables if they don't exist
+        _checkpointer_cm = AsyncPostgresSaver.from_conn_string(db_url)
+        _checkpointer = await _checkpointer_cm.__aenter__()
+        await _checkpointer.asetup()  # Create checkpoint tables if they don't exist
     return _checkpointer
 
 
-def get_graph() -> Any:
+async def get_graph() -> Any:
     """Get or create the compiled graph singleton.
 
-    Compiles the graph with a PostgresSaver checkpointer if DATABASE_URL
+    Compiles the graph with an AsyncPostgresSaver checkpointer if DATABASE_URL
     is available. Falls back to no checkpointer if DATABASE_URL is not set
     (e.g. in unit tests).
 
@@ -132,7 +131,7 @@ def get_graph() -> Any:
     global _graph  # noqa: PLW0603
     if _graph is None:
         try:
-            checkpointer = _get_checkpointer()
+            checkpointer = await _get_checkpointer_async()
         except (KeyError, Exception):
             # DATABASE_URL not set (e.g. unit tests) — compile without checkpointer
             checkpointer = None

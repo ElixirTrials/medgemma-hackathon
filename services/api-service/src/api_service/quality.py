@@ -62,7 +62,8 @@ def compute_quality_score(pdf_bytes: bytes) -> QualityResult:
     pages_with_text = 0
     pages_with_images = 0
 
-    for page in doc:
+    for i in range(len(doc)):
+        page = doc.load_page(i)
         # Check for extractable text
         text = page.get_text("text").strip()
         if text:

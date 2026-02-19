@@ -31,7 +31,10 @@ async def extract_node(state: PipelineState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
-    with pipeline_span("extract_node", span_type="LLM") as span:
+    protocol_id = state.get("protocol_id", "")
+    with pipeline_span(
+        "extract_node", span_type="LLM", protocol_id=protocol_id
+    ) as span:
         span.set_inputs(
             {
                 "protocol_id": state.get("protocol_id", ""),

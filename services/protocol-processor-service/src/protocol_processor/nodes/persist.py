@@ -295,7 +295,8 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
     if state.get("error"):
         return {}
 
-    with pipeline_span("persist_node") as span:
+    protocol_id = state.get("protocol_id", "")
+    with pipeline_span("persist_node", protocol_id=protocol_id) as span:
         span.set_inputs({"protocol_id": state.get("protocol_id", "")})
 
         try:

@@ -1,7 +1,7 @@
 # Documentation Makefile for monorepo
 SHELL := /bin/bash
 
-.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-api run-ui setup-adc verify-gemini quality-eval quality-eval-fresh
+.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-mlflow run-api run-ui setup-adc verify-gemini quality-eval quality-eval-fresh
 
 run-dev:
 	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-dev"; exit 1; }
@@ -13,11 +13,13 @@ run-dev:
 	else \
 		echo "GCLOUD_PROFILE not set in .env, skipping"; \
 	fi
-	@echo "2. Starting DB and MLflow..."
-	docker compose -f infra/docker-compose.yml up -d db mlflow
+	@echo "2. Starting DB..."
+	docker compose -f infra/docker-compose.yml up -d db
 	@echo "3. Waiting for Postgres..."
 	@until docker compose -f infra/docker-compose.yml exec db pg_isready -U postgres 2>/dev/null; do sleep 1; done
-	@echo "4. Finding available ports and starting API + UI..."
+	@echo "4. Starting local MLflow server..."
+	@mkdir -p .mlflow
+	@echo "5. Finding available ports and starting API + UI + MLflow..."
 	@if [ ! -d "apps/hitl-ui/node_modules" ]; then \
 		echo "  Installing hitl-ui dependencies (npm install)..."; \
 		cd apps/hitl-ui && npm install && cd ../..; \
@@ -29,14 +31,24 @@ run-dev:
 	export VITE_API_URL="http://localhost:$$API_PORT"; \
 	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads}"; \
 	trap 'kill 0' EXIT; \
+	uv run mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri sqlite:///.mlflow/mlflow.db --artifacts-destination .mlflow/artifacts & \
 	uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src & \
 	cd apps/hitl-ui && npm run dev & \
 	wait
 
 run-infra:
-	@echo "Starting infrastructure services (DB, MLflow)..."
+	@echo "Starting infrastructure services (DB + local MLflow)..."
 	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-infra"; exit 1; }
-	docker compose -f infra/docker-compose.yml up -d db mlflow
+	docker compose -f infra/docker-compose.yml up -d db
+	@mkdir -p .mlflow
+	@echo "Starting local MLflow server on port 5001 (foreground)..."
+	@echo "  Use Ctrl+C to stop. DB will keep running in Docker."
+	uv run mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri sqlite:///.mlflow/mlflow.db --artifacts-destination .mlflow/artifacts
+
+run-mlflow:
+	@echo "Starting local MLflow server on port 5001..."
+	@mkdir -p .mlflow
+	uv run mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri sqlite:///.mlflow/mlflow.db --artifacts-destination .mlflow/artifacts
 
 run-api:
 	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env | cut -d= -f2); \
@@ -178,11 +190,15 @@ quality-eval-fresh:  ## Run quality evaluation with fresh pipeline runs
 help:
 	@echo "ElixirTrials  - Makefile Commands"
 	@echo ""
-	@echo "Development:"
-	@echo "  make run-dev   - Start infra + API + UI (all-in-one)"
-	@echo "  make run-infra - Start DB, MLflow only"
-	@echo "  make run-api   - Start API service (port 8000)"
-	@echo "  make run-ui    - Start UI dev server (port 3000)"
+	@echo "Development (local):"
+	@echo "  make run-dev     - Start DB + local MLflow + API + UI (all-in-one)"
+	@echo "  make run-infra   - Start DB + local MLflow (run API/UI separately)"
+	@echo "  make run-mlflow  - Start local MLflow only (port 5001)"
+	@echo "  make run-api     - Start API service (port 8000)"
+	@echo "  make run-ui      - Start UI dev server (port 3000)"
+	@echo ""
+	@echo "Production (Docker):"
+	@echo "  docker compose -f infra/docker-compose.yml up  - Full stack with Docker MLflow"
 	@echo ""
 	@echo "Code Quality:"
 	@echo "  make check           - Run linters, type checkers, and tests"

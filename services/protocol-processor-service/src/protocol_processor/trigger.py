@@ -182,22 +182,6 @@ def _update_protocol_failed(
         )
 
 
-# KNOWN LIMITATION: MLflow ContextVar async boundary (Issue #8)
-#
-# MLflow's trace context uses Python ContextVars which do NOT propagate
-# across asyncio task boundaries created by asyncio.create_task() or
-# asyncio.gather(). This means:
-#   - The parent trace in trigger.py correctly wraps the full pipeline run
-#   - Child spans created inside LangGraph nodes are attached to the parent
-#     trace because LangGraph uses `await` (not create_task) for node calls
-#   - However, if future code uses asyncio.gather() for parallel node
-#     execution, child spans may detach from the parent trace
-#   - Workaround: Pass trace context explicitly via PipelineState if parallel
-#     node execution is added
-#
-# This is a known MLflow limitation, not a bug in our code.
-
-
 async def _run_pipeline(
     initial_state: dict[str, Any],
     config: dict[str, Any],
@@ -209,6 +193,11 @@ async def _run_pipeline(
     LangGraph invocation. asyncio.run() creates an isolated context, so
     we initialize MLflow tracing HERE (inside asyncio.run) rather than
     in the sync caller.
+
+    Each pipeline node creates its own separate MLflow trace tagged with
+    protocol_id, so traces appear in the MLflow UI as they complete
+    rather than waiting for the entire pipeline. Filter by the
+    protocol_id tag to see all traces from a single pipeline run.
     """
     from protocol_processor.graph import get_graph
 
@@ -218,49 +207,6 @@ async def _run_pipeline(
         import mlflow
 
         mlflow.langchain.autolog(run_tracer_inline=True)
-
-        with mlflow.start_span(
-            name="protocol_pipeline",
-            span_type="CHAIN",
-        ) as span:
-            # Capture trace_id immediately so finally block can force-close
-            # orphaned traces on process-kill or unexpected exception.
-            trace_id = mlflow.get_active_trace_id()
-            span.set_inputs(
-                {
-                    "protocol_id": payload.get("protocol_id", ""),
-                    "title": payload.get("title", ""),
-                    "file_uri": payload.get("file_uri", ""),
-                }
-            )
-            succeeded = False
-            try:
-                result = await graph.ainvoke(initial_state, config)
-                span.set_outputs(
-                    {
-                        "status": result.get("status"),
-                        "error": result.get("error"),
-                        "error_count": len(result.get("errors", [])),
-                    }
-                )
-                succeeded = True
-                return result
-            finally:
-                # Only force-close as ERROR on failure — let the context
-                # manager's __exit__ handle successful traces naturally.
-                if trace_id and not succeeded:
-                    logger.warning(
-                        "Force-closing MLflow trace %s as ERROR (pipeline failed)",
-                        trace_id,
-                    )
-                    try:
-                        mlflow.MlflowClient().end_trace(trace_id, status="ERROR")
-                    except Exception:
-                        logger.warning(
-                            "Could not force-close MLflow trace %s"
-                            " — already closed or unavailable",
-                            trace_id,
-                        )
 
     return await graph.ainvoke(initial_state, config)
 
