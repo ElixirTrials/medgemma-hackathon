@@ -228,6 +228,7 @@ export function useAuditLog(
     return useQuery({
         queryKey: ['audit-log', page, pageSize, targetType, targetId, batchId],
         queryFn: () => fetchApi<AuditLogListResponse>(`/reviews/audit-log?${params.toString()}`),
+        staleTime: 30_000,
     });
 }
 
