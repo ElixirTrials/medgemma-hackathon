@@ -139,6 +139,7 @@ async def generate_field_mappings(
                 "entity_concept_id": entity.selected_code,
                 "entity_concept_system": entity.selected_system,
                 "omop_concept_id": entity.omop_concept_id,
+                "entity_type": entity.entity_type,
             }
             for m in response.mappings
         ]

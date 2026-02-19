@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, TypedDict
+from typing import Any, TypedDict, cast
 
 from api_service.storage import engine
 from shared.models import (
@@ -28,14 +28,10 @@ from sqlmodel import Session, select
 from protocol_processor.nodes.ordinal_resolve import (
     ordinal_resolve_node,
 )
+from protocol_processor.state import PipelineState
 from protocol_processor.tools.structure_builder import (
     build_expression_tree,
 )
-
-# Table columns for join so mypy sees ColumnElement
-_atomic_c = AtomicCriterion.__table__.c
-_criteria_c = Criteria.__table__.c
-from protocol_processor.state import PipelineState
 from protocol_processor.tools.unit_normalizer import (
     normalize_ordinal_value,
 )
@@ -173,7 +169,7 @@ async def _phase1_build(
 
         await build_expression_tree(
             criterion_text=crit_def["text"],
-            field_mappings=crit_def["mappings"],
+            field_mappings=cast(list[dict[str, Any]], crit_def["mappings"]),
             criterion_id=crit.id,
             protocol_id=protocol_id,
             inclusion_exclusion="inclusion",
@@ -238,10 +234,16 @@ def _print_proposals(result: dict[str, Any]) -> None:
 def _phase3_verify(batch_id: str) -> None:
     """Verify DB state after ordinal resolution."""
     with Session(engine) as session:
+        from sqlalchemy.sql.expression import ColumnElement
+
+        on_clause = cast(
+            ColumnElement[bool],
+            AtomicCriterion.criterion_id == Criteria.id,
+        )
         atomics = session.exec(
             select(AtomicCriterion)
-            .join(Criteria, _atomic_c.criterion_id == _criteria_c.id)
-            .where(_criteria_c.batch_id == batch_id)
+            .join(Criteria, on_clause)
+            .where(Criteria.batch_id == batch_id)
         ).all()
 
         print(f"AtomicCriteria in batch: {len(atomics)}\n")
@@ -296,9 +298,15 @@ async def main() -> None:
         "file_uri": "",
         "title": "ORDINAL-E2E-LIVE",
         "batch_id": batch_id,
+        "pdf_bytes": None,
+        "extraction_json": None,
+        "entities_json": None,
+        "grounded_entities_json": None,
+        "archived_reviewed_criteria": None,
+        "ordinal_proposals_json": None,
+        "status": "processing",
         "error": None,
         "errors": [],
-        "status": "processing",
     }
 
     result = await ordinal_resolve_node(state)
