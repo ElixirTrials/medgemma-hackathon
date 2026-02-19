@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "1ec2d36f9383",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/shared/src/shared/models.py",
+    "services/api-service/alembic/versions/42_01_add_expression_tree_tables.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/structure.py",
+    "services/protocol-processor-service/src/protocol_processor/schemas/structure.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/1e/c2d36f9383/0/metadata.json",
+      "transcript": "/1e/c2d36f9383/0/full.jsonl",
+      "context": "/1e/c2d36f9383/0/context.md",
+      "content_hash": "/1e/c2d36f9383/0/content_hash.txt",
+      "prompt": "/1e/c2d36f9383/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
