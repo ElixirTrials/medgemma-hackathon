@@ -179,10 +179,11 @@ def _score_candidates(
     # Sort by score desc, then by length similarity (prefer match_text
     # closest in length to entity_text) as tiebreaker.
     entity_len = len(entity_lower)
-    candidates.sort(
-        key=lambda c: (c["score"], -abs(len(c.get("match_text", "").strip()) - entity_len)),
-        reverse=True,
-    )
+    def _sort_key(c: dict[str, Any]) -> tuple[float, int]:
+        match_len = len(c.get("match_text", "").strip())
+        return (c["score"], -abs(match_len - entity_len))
+
+    candidates.sort(key=_sort_key, reverse=True)
     return candidates
 
 
