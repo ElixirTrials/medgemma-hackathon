@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6ebcd73f7fa1",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/scripts/run_ordinal_e2e.py",
+    "services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml",
+    "services/protocol-processor-service/src/protocol_processor/graph.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/__init__.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ordinal_resolve.py",
+    "services/protocol-processor-service/src/protocol_processor/schemas/ordinal.py",
+    "services/protocol-processor-service/src/protocol_processor/state.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py",
+    "services/protocol-processor-service/tests/test_graph.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py",
+    "services/protocol-processor-service/tests/test_ordinal_resolve.py",
+    "services/protocol-processor-service/tests/test_phase2_e2e.py",
+    "services/protocol-processor-service/tests/test_phase3_integration.py",
+    "services/protocol-processor-service/tests/test_phase3b_e2e.py",
+    "services/protocol-processor-service/tests/test_unit_normalizer.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6e/bcd73f7fa1/0/metadata.json",
+      "transcript": "/6e/bcd73f7fa1/0/full.jsonl",
+      "context": "/6e/bcd73f7fa1/0/context.md",
+      "content_hash": "/6e/bcd73f7fa1/0/content_hash.txt",
+      "prompt": "/6e/bcd73f7fa1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
