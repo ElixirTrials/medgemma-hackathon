@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f853de060c9d",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f8/53de060c9d/0/metadata.json",
+      "transcript": "/f8/53de060c9d/0/full.jsonl",
+      "context": "/f8/53de060c9d/0/context.md",
+      "content_hash": "/f8/53de060c9d/0/content_hash.txt",
+      "prompt": "/f8/53de060c9d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 93,
+    "cache_creation_tokens": 125744,
+    "cache_read_tokens": 6688268,
+    "output_tokens": 9024,
+    "api_call_count": 81
+  }
+}
