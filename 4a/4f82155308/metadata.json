@@ -1,0 +1,69 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4a4f82155308",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 4,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useProtocols.ts",
+    "apps/hitl-ui/src/hooks/useReviews.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4a/4f82155308/0/metadata.json",
+      "transcript": "/4a/4f82155308/0/full.jsonl",
+      "context": "/4a/4f82155308/0/context.md",
+      "content_hash": "/4a/4f82155308/0/content_hash.txt",
+      "prompt": "/4a/4f82155308/0/prompt.txt"
+    },
+    {
+      "metadata": "/4a/4f82155308/1/metadata.json",
+      "transcript": "/4a/4f82155308/1/full.jsonl",
+      "context": "/4a/4f82155308/1/context.md",
+      "content_hash": "/4a/4f82155308/1/content_hash.txt",
+      "prompt": "/4a/4f82155308/1/prompt.txt"
+    },
+    {
+      "metadata": "/4a/4f82155308/2/metadata.json",
+      "transcript": "/4a/4f82155308/2/full.jsonl",
+      "context": "/4a/4f82155308/2/context.md",
+      "content_hash": "/4a/4f82155308/2/content_hash.txt",
+      "prompt": "/4a/4f82155308/2/prompt.txt"
+    },
+    {
+      "metadata": "/4a/4f82155308/3/metadata.json",
+      "transcript": "/4a/4f82155308/3/full.jsonl",
+      "context": "/4a/4f82155308/3/context.md",
+      "content_hash": "/4a/4f82155308/3/content_hash.txt",
+      "prompt": "/4a/4f82155308/3/prompt.txt"
+    },
+    {
+      "metadata": "/4a/4f82155308/4/metadata.json",
+      "transcript": "/4a/4f82155308/4/full.jsonl",
+      "context": "/4a/4f82155308/4/context.md",
+      "content_hash": "/4a/4f82155308/4/content_hash.txt",
+      "prompt": "/4a/4f82155308/4/prompt.txt"
+    },
+    {
+      "metadata": "/4a/4f82155308/5/metadata.json",
+      "transcript": "/4a/4f82155308/5/full.jsonl",
+      "context": "/4a/4f82155308/5/context.md",
+      "content_hash": "/4a/4f82155308/5/content_hash.txt",
+      "prompt": "/4a/4f82155308/5/prompt.txt"
+    },
+    {
+      "metadata": "/4a/4f82155308/6/metadata.json",
+      "transcript": "/4a/4f82155308/6/full.jsonl",
+      "context": "",
+      "content_hash": "/4a/4f82155308/6/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2804,
+    "cache_creation_tokens": 1301334,
+    "cache_read_tokens": 57642490,
+    "output_tokens": 67927,
+    "api_call_count": 618
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "1943796ebf22",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 2,
+  "files_touched": [
+    ".planning/REQUIREMENTS.md",
+    ".planning/ROADMAP.md",
+    ".planning/STATE.md",
+    ".planning/phases/42-pipeline-stability-umls-resilience/42-01-SUMMARY.md"
+  ],
+  "sessions": [
+    {
+      "metadata": "/19/43796ebf22/0/metadata.json",
+      "transcript": "/19/43796ebf22/0/full.jsonl",
+      "context": "/19/43796ebf22/0/context.md",
+      "content_hash": "/19/43796ebf22/0/content_hash.txt",
+      "prompt": "/19/43796ebf22/0/prompt.txt"
+    },
+    {
+      "metadata": "/19/43796ebf22/1/metadata.json",
+      "transcript": "/19/43796ebf22/1/full.jsonl",
+      "context": "/19/43796ebf22/1/context.md",
+      "content_hash": "/19/43796ebf22/1/content_hash.txt",
+      "prompt": "/19/43796ebf22/1/prompt.txt"
+    },
+    {
+      "metadata": "/19/43796ebf22/2/metadata.json",
+      "transcript": "/19/43796ebf22/2/full.jsonl",
+      "context": "/19/43796ebf22/2/context.md",
+      "content_hash": "/19/43796ebf22/2/content_hash.txt",
+      "prompt": "/19/43796ebf22/2/prompt.txt"
+    },
+    {
+      "metadata": "/19/43796ebf22/3/metadata.json",
+      "transcript": "/19/43796ebf22/3/full.jsonl",
+      "context": "/19/43796ebf22/3/context.md",
+      "content_hash": "/19/43796ebf22/3/content_hash.txt",
+      "prompt": "/19/43796ebf22/3/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 2655,
+    "cache_creation_tokens": 1043963,
+    "cache_read_tokens": 44286957,
+    "output_tokens": 53871,
+    "api_call_count": 487
+  }
+}

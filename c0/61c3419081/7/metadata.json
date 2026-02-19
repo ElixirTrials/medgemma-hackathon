@@ -1,0 +1,24 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "c061c3419081",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T16:33:11.645712Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".planning/REQUIREMENTS.md",
+    ".planning/ROADMAP.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "53daf0164b9d",
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T16:33:11.640064Z",
+    "agent_lines": 0,
+    "human_added": 31,
+    "human_modified": 11,
+    "human_removed": 0,
+    "total_committed": 37,
+    "agent_percentage": 0
+  }
+}

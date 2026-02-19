@@ -1,0 +1,132 @@
+/gsd:plan-phase 44 --auto --research
+
+---
+
+<objective>
+Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.
+
+**Default flow:** Research (if needed) → Plan → Verify → Done
+
+**Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase number: 44 --auto --research (optional — auto-detects next unplanned phase if omitted)
+
+**Flags:**
+- `--research` — Force re-research even if RESEARCH.md exists
+- `--skip-research` — Skip research, go straight to planning
+- `--gaps` — Gap closure mode (reads VERIFICATION.md, skips research)
+- `--skip-verify` — Skip verification loop
+
+Normalize phase input in step 2 before any directory lookups.
+</context>
+
+<process>
+Execute the plan-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md end-to-end.
+Preserve all workflow gates (validation, research, planning, verification loop, routing).
+</process>
+
+---
+
+<task-notification>
+<task-id>bb631d6</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Force-add and commit phase 44 plans" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b9f4b6d</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit plan 44-01 with force-add for .planning" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>bc4b718</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit plan 44-02 changes" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>bd151c5</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit plan 44-03 changes" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b3b1810</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit SUMMARY files" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b618211</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit state and roadmap updates" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b8f25d7</task-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Commit phase completion" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<objective>
+Validate built features through conversational testing with persistent state.
+
+Purpose: Confirm what Claude built actually works from user's perspective. One test at a time, plain text responses, no interrogation. When issues are found, automatically diagnose, plan fixes, and prepare for execution.
+
+Output: {phase_num}-UAT.md tracking all test results. If issues found: diagnosed gaps, verified fix plans ready for /gsd:execute-phase
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/verify-work.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/UAT.md
+</execution_context>
+
+<context>
+Phase: 44 (optional)
+- If provided: Test specific phase (e.g., "4")
+- If not provided: Check for active sessions or prompt for phase
+
+@.planning/STATE.md
+@.planning/ROADMAP.md
+</context>
+
+<process>
+Execute the verify-work workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/verify-work.md end-to-end.
+Preserve all workflow gates (session management, test presentation, diagnosis, fix planning, routing).
+</process>

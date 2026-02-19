@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "788d1603d957",
+  "session_id": "ebfe3551-07f5-4dd7-9a67-91f22ac30bd4",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-19T08:52:32.499868Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "infra/README.md",
+    "infra/docker-compose.yml",
+    "libs/events-py/src/events_py/outbox.py",
+    "services/protocol-processor-service/pyproject.toml",
+    "Makefile",
+    "infra/docker-compose.dev.yml",
+    "pyproject.toml",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/src/api_service/protocols.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/pdf_parser.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6c6130ccb2c5",
+  "transcript_identifier_at_start": "1b906e98-6ee6-4819-8536-99a956896d56",
+  "token_usage": {
+    "input_tokens": 54,
+    "cache_creation_tokens": 196023,
+    "cache_read_tokens": 2874409,
+    "output_tokens": 2075,
+    "api_call_count": 33
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-19T08:52:31.902513Z",
+    "agent_lines": 139,
+    "human_added": 116,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 255,
+    "agent_percentage": 54.509803921568626
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/ebfe3551-07f5-4dd7-9a67-91f22ac30bd4.jsonl"
+}

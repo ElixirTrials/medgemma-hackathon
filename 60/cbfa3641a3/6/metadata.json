@@ -1,0 +1,25 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "60cbfa3641a3",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-18T15:29:02.086215Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".planning/ROADMAP.md",
+    ".planning/STATE.md",
+    ".planning/phases/43-dashboard-protocol-list-ux/43-01-SUMMARY.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "53daf0164b9d",
+  "initial_attribution": {
+    "calculated_at": "2026-02-18T15:29:02.080922Z",
+    "agent_lines": 0,
+    "human_added": 119,
+    "human_modified": 10,
+    "human_removed": 0,
+    "total_committed": 122,
+    "agent_percentage": 0
+  }
+}
