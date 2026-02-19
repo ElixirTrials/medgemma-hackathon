@@ -47,6 +47,9 @@ class PipelineState(TypedDict):
     # Re-extraction context (optional, only present during re-extraction)
     archived_reviewed_criteria: list[dict] | None
 
+    # Ordinal resolution (populated by ordinal_resolve node)
+    ordinal_proposals_json: str | None  # JSON of proposed ordinal scale configs
+
     # Output
     status: Literal["processing", "completed", "failed"]
     error: str | None

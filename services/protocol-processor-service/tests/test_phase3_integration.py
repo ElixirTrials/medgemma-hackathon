@@ -281,7 +281,23 @@ CRITERIA: list[dict[str, Any]] = [
             },
         ],
     },
-    # 12. WBC with 10*9/L
+    # 12. Karnofsky performance status (ordinal scale)
+    {
+        "text": "Karnofsky performance status >= 70",
+        "type": "inclusion",
+        "mappings": [
+            {
+                "entity": "Karnofsky performance status",
+                "relation": ">=",
+                "value": "70",
+                "unit": None,
+                "entity_concept_id": "C0206065",
+                "entity_concept_system": "umls",
+                "omop_concept_id": "4174245",
+            },
+        ],
+    },
+    # 13. WBC with 10*9/L
     {
         "text": "WBC >= 3.0 x 10^9/L",
         "type": "inclusion",
@@ -421,16 +437,25 @@ EXPECTED: list[dict[str, Any]] = [
         "unit_concept_id": 8753,
         "value_concept_id": None,
     },
-    # 11: ECOG <= 2 (no unit)
+    # 11: ECOG <= 2 (ordinal scale — unit_concept_id=8527 via Phase 3b)
     {
         "entity_concept_id": "C1520224",
         "relation_operator": "<=",
         "value_numeric": 2.0,
         "unit_text": None,
-        "unit_concept_id": None,
+        "unit_concept_id": 8527,
         "value_concept_id": None,
     },
-    # 12: WBC >= 3.0 10*9/L
+    # 12: Karnofsky >= 70 (ordinal scale — unit_concept_id=8527 via Phase 3b)
+    {
+        "entity_concept_id": "C0206065",
+        "relation_operator": ">=",
+        "value_numeric": 70.0,
+        "unit_text": None,
+        "unit_concept_id": 8527,
+        "value_concept_id": None,
+    },
+    # 13: WBC >= 3.0 10*9/L
     {
         "entity_concept_id": "C0023508",
         "relation_operator": ">=",
@@ -562,8 +587,8 @@ class TestPhase3RealisticCriteria:
 
         # Criteria 7 and 8 are exclusion (1 mapping each = 2 atomics)
         assert len(exclusion_atomics) == 2
-        # All others are inclusion (13 mappings total)
-        assert len(inclusion_atomics) == 13
+        # All others are inclusion (14 mappings total)
+        assert len(inclusion_atomics) == 14
 
     async def test_unit_coverage_summary(self, session) -> None:
         """Print a coverage summary of all units processed."""
@@ -602,9 +627,11 @@ class TestPhase3RealisticCriteria:
         value_resolved = [a for a in all_atomics if a.value_concept_id is not None]
 
         # Verify we got good coverage
-        # 12 mappings have recognized units (%, years, mL/min/1.73m2,
-        # kg/m2, mmHg, 10*3/uL, mg/dL, mmol/L, 10*9/L)
-        assert len(resolved) == 12
+        # 14 mappings have unit_concept_id (12 explicit units +
+        # ECOG {score} + Karnofsky {score} via ordinal normalizer)
+        assert len(resolved) == 14
         assert len(unresolved_with_unit) == 0  # no unrecognized units
-        assert len(no_unit) == 3  # HIV, HBsAg (None), ECOG (None)
+        # 4 with unit_text=None: HIV, HBsAg, ECOG, Karnofsky
+        # (ECOG/Karnofsky get unit_concept_id from ordinal dispatch, not unit_text)
+        assert len(no_unit) == 4
         assert len(value_resolved) == 2  # positive + negative

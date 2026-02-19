@@ -1,4 +1,4 @@
-"""Tests for the 6-node protocol processor graph.
+"""Tests for the 7-node protocol processor graph.
 
 Verifies graph compilation, node structure, edge routing, and
 PipelineState shape acceptance. Does not invoke live APIs or DB.
@@ -22,6 +22,7 @@ def _make_initial_state(**overrides) -> dict:
         "extraction_json": None,
         "entities_json": None,
         "grounded_entities_json": None,
+        "ordinal_proposals_json": None,
         "status": "processing",
         "error": None,
         "errors": [],
@@ -40,8 +41,8 @@ class TestCreateGraph:
         graph = create_graph()
         assert graph is not None
 
-    def test_graph_has_six_user_nodes(self):
-        """Compiled graph should have exactly 6 user-defined nodes."""
+    def test_graph_has_seven_user_nodes(self):
+        """Compiled graph should have exactly 7 user-defined nodes."""
         from protocol_processor.graph import create_graph
 
         graph = create_graph()
@@ -56,10 +57,11 @@ class TestCreateGraph:
             "ground",
             "persist",
             "structure",
-        }, f"Expected 6 user nodes, got: {user_nodes}"
+            "ordinal_resolve",
+        }, f"Expected 7 user nodes, got: {user_nodes}"
 
     def test_graph_node_names(self):
-        """Graph should contain all 6 expected node names."""
+        """Graph should contain all 7 expected node names."""
         from protocol_processor.graph import create_graph
 
         graph = create_graph()
@@ -71,6 +73,7 @@ class TestCreateGraph:
             "ground",
             "persist",
             "structure",
+            "ordinal_resolve",
         ):
             assert expected in all_nodes, (
                 f"Expected node '{expected}' not found in graph nodes: {all_nodes}"
@@ -94,6 +97,7 @@ class TestCreateGraph:
         assert "ingest" in graph.nodes
         assert "persist" in graph.nodes
         assert "structure" in graph.nodes
+        assert "ordinal_resolve" in graph.nodes
 
 
 class TestShouldContinue:
