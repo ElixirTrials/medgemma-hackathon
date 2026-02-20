@@ -2,7 +2,7 @@ import type { Criterion } from '../hooks/useReviews';
 
 interface FieldMappingBadgesProps {
     criterion: Criterion;
-    onEditClick: () => void;
+    onEditClick?: () => void;
 }
 
 function formatMappingValue(value: Record<string, unknown>): string {
@@ -42,26 +42,44 @@ export default function FieldMappingBadges({ criterion, onEditClick }: FieldMapp
                                 <div className="flex-1 border-t border-dashed border-muted" />
                             </div>
                         )}
-                        <button
-                            onClick={onEditClick}
-                            className="w-full text-left flex items-center gap-2 rounded-md border bg-blue-50/50 border-blue-200 px-3 py-2 text-sm hover:bg-blue-100/50 transition-colors cursor-pointer"
-                            title="Click to edit field mappings"
-                            type="button"
-                        >
-                            <span className="font-semibold text-blue-900">
-                                {mapping.entity || '—'}
-                            </span>
-                            {mapping.relation && (
-                                <>
-                                    <span className="text-blue-600 font-mono text-xs">
-                                        {mapping.relation}
-                                    </span>
-                                    <span className="text-blue-800">
-                                        {formatMappingValue(mapping.value)}
-                                    </span>
-                                </>
-                            )}
-                        </button>
+                        {onEditClick ? (
+                            <button
+                                onClick={onEditClick}
+                                className="w-full text-left flex items-center gap-2 rounded-md border bg-blue-50/50 border-blue-200 px-3 py-2 text-sm hover:bg-blue-100/50 transition-colors cursor-pointer"
+                                title="Click to edit field mappings"
+                                type="button"
+                            >
+                                <span className="font-semibold text-blue-900">
+                                    {mapping.entity || '—'}
+                                </span>
+                                {mapping.relation && (
+                                    <>
+                                        <span className="text-blue-600 font-mono text-xs">
+                                            {mapping.relation}
+                                        </span>
+                                        <span className="text-blue-800">
+                                            {formatMappingValue(mapping.value)}
+                                        </span>
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            <div className="w-full flex items-center gap-2 rounded-md border bg-blue-50/50 border-blue-200 px-3 py-2 text-sm">
+                                <span className="font-semibold text-blue-900">
+                                    {mapping.entity || '—'}
+                                </span>
+                                {mapping.relation && (
+                                    <>
+                                        <span className="text-blue-600 font-mono text-xs">
+                                            {mapping.relation}
+                                        </span>
+                                        <span className="text-blue-800">
+                                            {formatMappingValue(mapping.value)}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                        )}
                     </div>
                 ))}
             </div>

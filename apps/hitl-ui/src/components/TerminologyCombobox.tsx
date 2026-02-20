@@ -82,7 +82,7 @@ export function TerminologyCombobox({
                 </Popover.Trigger>
                 <Popover.Portal>
                     <Popover.Content
-                        className="z-50 w-[var(--radix-popover-trigger-width)] rounded-md border bg-popover p-0 shadow-md outline-none"
+                        className="z-[60] w-[var(--radix-popover-trigger-width)] rounded-md border bg-popover p-0 shadow-md outline-none"
                         align="start"
                         sideOffset={4}
                     >

@@ -364,6 +364,7 @@ export default function ReviewPage() {
                                                         isSubmitting={reviewAction.isPending}
                                                         onCriterionClick={handleCriterionClick}
                                                         isActive={activeCriterion?.id === c.id}
+                                                        pdfUrl={pdfData?.url}
                                                     />
                                                 ))}
                                             </div>
@@ -387,6 +388,7 @@ export default function ReviewPage() {
                                                         isSubmitting={reviewAction.isPending}
                                                         onCriterionClick={handleCriterionClick}
                                                         isActive={activeCriterion?.id === c.id}
+                                                        pdfUrl={pdfData?.url}
                                                     />
                                                 ))}
                                             </div>
@@ -410,6 +412,7 @@ export default function ReviewPage() {
                                                         isSubmitting={reviewAction.isPending}
                                                         onCriterionClick={handleCriterionClick}
                                                         isActive={activeCriterion?.id === c.id}
+                                                        pdfUrl={pdfData?.url}
                                                     />
                                                 ))}
                                             </div>
