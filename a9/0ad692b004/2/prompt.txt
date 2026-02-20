@@ -1,0 +1,2691 @@
+Go over this code review: instructions/CODE_REVIEW_REPORT_4_PHASES.md. Perform one of your own. Then after due consideration, fix the issues you deem appropriate
+
+---
+
+<task-notification>
+<task-id>a2aad45</task-id>
+<tool-use-id>toolu_01BHdcDBow3ShJkFw2d4r871</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore codebase structure" completed</summary>
+<result>Perfect! Now I have enough information to provide a comprehensive exploration report. Let me compile the findings:
+
+## Comprehensive Codebase Exploration Report
+
+### Project Overview
+**MedGemma Hackathon** - An advanced clinical trial protocol processing system using AI agents, LangGraph workflows, and Human-in-the-Loop (HITL) review. This is a monorepo combining Python backend services, LangGraph AI agents, and a React/Vite frontend into a unified architecture for extracting and grounding clinical trial eligibility criteria.
+
+---
+
+## 1. Full Directory Tree Structure
+
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/
+├── apps/                                    # Frontend applications
+│   └── hitl-ui/                            # React/Vite HITL Dashboard
+│       ├── src/
+│       │   ├── components/                 # UI Components
+│       │   │   ├── structured-editor/      # Expression tree editor
+│       │   │   ├── AgreementMetrics.tsx
+│       │   │   ├── BatchCompareView.tsx
+│       │   │   ├── CriterionCard.tsx
+│       │   │   ├── EntityCard.tsx
+│       │   │   ├── PdfViewer.tsx
+│       │   │   ├── ProtocolUploadDialog.tsx
+│       │   │   └── TerminologyCombobox.tsx
+│       │   ├── screens/                    # Page components
+│       │   │   ├── Dashboard.tsx
+│       │   │   ├── EntityList.tsx
+│       │   │   ├── LoginPage.tsx
+│       │   │   ├── ProtocolDetail.tsx
+│       │   │   ├── ProtocolList.tsx
+│       │   │   ├── ReviewPage.tsx
+│       │   │   ├── ReviewQueue.tsx
+│       │   │   └── SearchPage.tsx
+│       │   ├── hooks/                      # Custom React hooks
+│       │   │   ├── useApi.ts
+│       │   │   ├── useAuth.ts
+│       │   │   ├── useCorpus.ts
+│       │   │   ├── useEntities.ts
+│       │   │   ├── useProtocols.ts
+│       │   │   ├── useReviews.ts
+│       │   │   ├── useSearch.ts
+│       │   │   └── useTerminologySearch.ts
+│       │   ├── stores/                     # State management
+│       │   │   ├── authStore.ts
+│       │   │   └── useAppStore.ts
+│       │   ├── features/                   # Feature modules
+│       │   ├── test/                       # Unit & integration tests
+│       │   ├── App.tsx                     # Root component
+│       │   └── main.tsx                    # Entry point
+│       ├── e2e/                            # Playwright e2e tests
+│       ├── package.json                    # npm dependencies
+│       ├── vite.config.ts                  # Vite configuration
+│       ├── tsconfig.json
+│       └── playwright.config.ts
+│
+├── services/                                # Microservices
+│   ├── api-service/                        # FastAPI Orchestrator
+│   │   ├── src/api_service/
+│   │   │   ├── main.py                     # FastAPI app entry point
+│   │   │   ├── auth.py                     # JWT authentication
+│   │   │   ├── protocols.py                # Protocol CRUD endpoints
+│   │   │   ├── reviews.py                  # Review management
+│   │   │   ├── entities.py                 # Entity endpoints
+│   │   │   ├── exports.py                  # Export endpoints (CIRCE, FHIR, SQL)
+│   │   │   ├── batch_compare.py            # Batch comparison logic
+│   │   │   ├── criterion_rerun.py          # Re-extraction endpoints
+│   │   │   ├── terminology_search.py       # UMLS/OMOP search
+│   │   │   ├── search.py                   # Full-text search
+│   │   │   ├── quality.py                  # Quality metrics
+│   │   │   ├── integrity.py                # Data integrity checks
+│   │   │   ├── storage.py                  # Database setup
+│   │   │   ├── gcs.py                      # Google Cloud Storage
+│   │   │   ├── fuzzy_matching.py           # Entity fuzzy matching
+│   │   │   ├── dependencies.py             # FastAPI dependencies
+│   │   │   ├── middleware.py               # MLflow middleware
+│   │   │   └── exporters/                  # Export builders
+│   │   │       ├── circe_builder.py        # CIRCE export format
+│   │   │       ├── fhir_group_builder.py   # FHIR Group export
+│   │   │       └── evaluation_sql_builder.py
+│   │   ├── tests/                          # Test suite
+│   │   ├── alembic/                        # Database migrations
+│   │   │   └── versions/
+│   │   ├── scripts/                        # Utility scripts
+│   │   ├── pyproject.toml
+│   │   └── Dockerfile
+│   │
+│   └── protocol-processor-service/         # LangGraph Pipeline
+│       ├── src/protocol_processor/
+│       │   ├── main.py                     # Module entrypoint
+│       │   ├── graph.py                    # LangGraph StateGraph definition
+│       │   ├── state.py                    # Pipeline state TypedDict
+│       │   ├── trigger.py                  # Outbox event handler
+│       │   ├── tracing.py                  # MLflow integration
+│       │   │
+│       │   ├── nodes/                      # 7-node LangGraph pipeline
+│       │   │   ├── ingest.py               # Node 1: Load PDF from GCS
+│       │   │   ├── extract.py              # Node 2: Gemini-powered extraction
+│       │   │   ├── parse.py                # Node 3: JSON parsing & entity extraction
+│       │   │   ├── ground.py               # Node 4: Entity grounding (MedGemma + UMLS)
+│       │   │   ├── persist.py              # Node 5: Save to database
+│       │   │   ├── structure.py            # Node 6: Build expression trees
+│       │   │   └── ordinal_resolve.py      # Node 7: Detect ordinal scales
+│       │   │
+│       │   ├── tools/                      # Specialized tools for nodes
+│       │   │   ├── pdf_parser.py           # PyMuPDF parsing
+│       │   │   ├── gemini_extractor.py     # Gemini API integration
+│       │   │   ├── entity_decomposer.py    # Entity extraction logic
+│       │   │   ├── medgemma_decider.py     # MedGemma entity classification
+│       │   │   ├── omop_mapper.py          # OMOP concept mapping
+│       │   │   ├── terminology_router.py   # Multi-terminology routing
+│       │   │   ├── field_mapper.py         # Structured data mapping
+│       │   │   ├── structure_builder.py    # Expression tree building
+│       │   │   ├── ordinal_resolver.py     # Scale detection
+│       │   │   ├── unit_normalizer.py      # UCUM unit normalization
+│       │   │   ├── tooluniverse_client.py  # Unit lookup service
+│       │   │
+│       │   ├── schemas/                    # Pydantic models for each node
+│       │   │   ├── extraction.py
+│       │   │   ├── grounding.py
+│       │   │   ├── structure.py
+│       │   │   └── ordinal.py
+│       │   │
+│       │   ├── prompts/                    # Jinja2 prompt templates
+│       │   │   ├── system.jinja2
+│       │   │   ├── user.jinja2
+│       │   │   ├── grounding_system.jinja2
+│       │   │   ├── grounding_reasoning.jinja2
+│       │   │   ├── grounding_evaluate.jinja2
+│       │   │   └── entity_decompose.jinja2
+│       │   │
+│       │   ├── config/                     # Configuration files
+│       │   │   ├── routing.yaml            # Terminology routing config
+│       │   │   └── ucum_mappings.yaml      # Unit mappings
+│       │
+│       ├── tests/                          # Test suite
+│       │   ├── test_graph.py
+│       │   ├── test_phase2_structure.py
+│       │   ├── test_phase3_integration.py
+│       │   ├── test_ordinal_resolve.py
+│       │   └── test_terminology_router.py
+│       │
+│       ├── scripts/
+│       ├── pyproject.toml
+│
+├── libs/                                    # Shared libraries
+│   ├── shared/                              # Core models & utilities
+│   │   ├── src/shared/
+│   │   │   ├── models.py                   # SQLModel domain objects
+│   │   │   │   ├── Protocol
+│   │   │   │   ├── CriteriaBatch
+│   │   │   │   ├── Criteria
+│   │   │   │   ├── Entity
+│   │   │   │   ├── Review
+│   │   │   │   ├── User
+│   │   │   │   ├── ExpressionTreeNode (Phase 42)
+│   │   │   │   ├── CompositeExpression (Phase 42)
+│   │   │   │   └── AtomicCriteria (Phase 42)
+│   │   │   ├── lazy_cache.py               # Disk caching
+│   │   │   ├── resilience.py               # Retry patterns
+│   │   │   └── templates/                  # Jinja2 templates
+│   │   ├── pyproject.toml
+│   │
+│   ├── inference/                           # AI model loading & inference
+│   │   ├── src/inference/
+│   │   │   ├── config.py                   # Model configuration
+│   │   │   ├── factory.py                  # Agent factory patterns
+│   │   │   ├── loaders.py                  # Model loaders
+│   │   │   └── model_garden.py             # Model registry
+│   │   ├── pyproject.toml
+│   │
+│   ├── events-py/                          # Python event models & outbox
+│   │   ├── src/events_py/
+│   │   │   ├── models.py                   # Event Pydantic models
+│   │   │   └── outbox.py                   # Outbox processor (event-driven)
+│   │   ├── events_py_tests/
+│   │   ├── pyproject.toml
+│   │
+│   ├── events-ts/                          # TypeScript event models
+│   │   ├── src/
+│   │   │   ├── index.ts
+│   │   │   ├── types.ts
+│   │   │   └── utils.ts
+│   │   ├── package.json
+│   │
+│   ├── shared-ts/                          # TypeScript utilities
+│   │   ├── src/
+│   │   ├── package.json
+│   │
+│   ├── data-pipeline/                      # ETL & data ingestion
+│   │   ├── src/data_pipeline/
+│   │   ├── pyproject.toml
+│   │
+│   ├── evaluation/                         # Quality metrics & evaluation
+│   │   ├── src/evaluation/
+│   │   ├── pyproject.toml
+│   │
+│   └── model-training/                     # LoRA fine-tuning & training
+│       ├── src/model_training/
+│       ├── pyproject.toml
+│
+├── data/                                    # Sample data
+│   ├── protocols/                           # Sample protocol PDFs
+│   │   ├── clinicaltrials/                 # ClinicalTrials.gov protocols
+│   │   ├── dac/                            # DAC protocols (HIV, MAL, TB, etc.)
+│   │   └── isrctn/                         # ISRCTN protocols
+│   └── omop_vocab/                         # OMOP vocabulary data
+│       ├── CONCEPT.csv
+│       ├── CONCEPT_RELATIONSHIP.csv
+│       ├── CONCEPT_ANCESTOR.csv
+│       ├── DRUG_STRENGTH.csv
+│       └── load_omop_vocab.sql
+│
+├── infra/                                   # Deployment & infrastructure
+│   ├── docker-compose.yml                  # Local development stack
+│   ├── omop-vocab/                         # OMOP vocabulary Docker setup
+│   └── README.md
+│
+├── docs/                                    # Documentation
+│   ├── index.md
+│   ├── onboarding.md
+│   ├── testing-guide.md
+│   ├── jinja2-prompts.md
+│   ├── openapi.json
+│   ├── architecture/
+│   │   ├── index.md
+│   │   ├── system-architecture.md
+│   │   └── data-models.md
+│   ├── development/
+│   │   └── gemini-vertex-auth.md
+│   ├── diagrams/
+│   │   ├── agent-flow.md
+│   │   ├── hitl-flow.md
+│   │   └── langgraph-architecture.md
+│   ├── journeys/
+│   │   ├── index.md
+│   │   ├── upload-extraction.md
+│   │   └── grounding-review.md
+│   ├── components/
+│   └── code-tour/
+│
+├── scripts/                                 # Development utilities
+│   ├── create-service.sh                   # Scaffold new service
+│   ├── build_docs.py                       # Documentation builder
+│   ├── check-all.sh                        # CI/CD checks
+│   ├── quality_eval.py                     # Quality evaluation
+│   ├── verify_gemini_access.py             # API validation
+│   ├── setup-gcloud-adc.sh                 # GCP auth setup
+│   └── clear_mlflow_traces.py              # MLflow cleanup
+│
+├── tests/                                   # Root-level tests
+│   └── e2e/                                # End-to-end tests
+│       ├── test_infrastructure_smoke.py
+│       ├── test_pipeline_full.py
+│       └── conftest.py
+│
+├── instructions/                           # Internal planning docs
+│   ├── plan_architecture.md
+│   ├── code_review.md
+│   ├── E2E-TEST-REPORT-2026-02-18-phase42.md
+│   ├── Refactoring/
+│   └── PROMPTS.md
+│
+├── reports/                                # Generated reports
+├── mkdocs.yml                              # Documentation config
+├── pyproject.toml                          # Root workspace config
+├── Makefile                                # Development commands
+├── README.md
+└── uv.lock                                 # Dependency lock file
+```
+
+---
+
+## 2. Main Entry Points
+
+### FastAPI API Service
+**Location:** `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/main.py`
+
+```python
+# Main entry point for the API service
+# Start with: uv run uvicorn api_service.main:app --host 0.0.0.0 --port 8000
+# From: services/api-service/src directory
+
+Key Components:
+- FastAPI application with CORS middleware
+- SQLModel ORM with Alembic migrations
+- JWT authentication (auth.py)
+- Event-driven architecture with Outbox pattern
+- Protocol upload → triggers LangGraph pipeline
+- MLflow integration for tracing agent runs
+```
+
+**Registered Routers:**
+- `auth_router` - JWT token generation, user management
+- `protocols_router` - Upload, list, retrieve protocols
+- `reviews_router` - Human review submission
+- `entities_router` - Entity management and viewing
+- `exports_router` - Export to CIRCE, FHIR, SQL formats
+- `batch_compare_router` - Compare extraction batches
+- `criterion_rerun_router` - Re-extract specific criteria
+- `search_router` - Full-text search
+- `terminology_search_router` - UMLS/OMOP concept search
+- `integrity_router` - Data integrity checks
+- `quality_router` - Quality metrics
+
+### Protocol Processor Service
+**Location:** `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/graph.py`
+
+```python
+# LangGraph StateGraph definition
+# 7-node pipeline: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+
+Invoked by: Outbox processor in api_service/main.py
+Handler: protocol_processor.trigger.handle_protocol_uploaded()
+```
+
+### React HITL UI
+**Location:** `/Users/noahdolevelixir/Code/medgemma-hackathon/apps/hitl-ui/src/main.tsx`
+
+```typescript
+// Vite + React application
+// Start with: npm run dev (from apps/hitl-ui)
+// Connects to API service (VITE_API_URL environment variable)
+```
+
+---
+
+## 3. Key Configuration Files
+
+| File | Purpose |
+|------|---------|
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/pyproject.toml` | Root workspace configuration, dependency groups, pytest/mypy/ruff settings |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/pyproject.toml` | API service dependencies and build config |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/pyproject.toml` | Protocol processor dependencies (LangGraph, Google AI, LangChain) |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/Makefile` | Development commands (run-dev, lint, test, db-migrate, docs-build) |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/infra/docker-compose.yml` | Local dev stack: PostgreSQL, MLflow (optional) |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/.env.example` | Environment variable template |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/mkdocs.yml` | MkDocs documentation site config |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/apps/hitl-ui/package.json` | npm dependencies (React, TypeScript, Vite, Vitest, Playwright) |
+| `/Users/noahdolevelixir/Code/medgemma-hackathon/apps/hitl-ui/vite.config.ts` | Vite build and dev server config |
+
+---
+
+## 4. Overall Architecture
+
+### System Overview
+**ElixirTrials** is a monorepo for clinical trial protocol processing that combines:
+
+1. **PDF Ingestion → AI Extraction → Grounding → HITL Review → Export**
+
+### Architecture Layers
+
+#### Presentation Layer
+- **HITL UI** (React/Vite)
+  - Dashboard with protocol management
+  - Review queue for AI-extracted criteria
+  - Entity grounding review with terminology search
+  - Batch comparison and re-extraction workflow
+  - Structured expression tree editor
+
+#### Application Layer
+- **API Service** (FastAPI)
+  - Central orchestrator exposing RESTful endpoints
+  - Database persistence (PostgreSQL with SQLModel ORM)
+  - Authentication (JWT)
+  - GCS integration for PDF storage
+  - Outbox pattern for event-driven architecture
+  
+- **Protocol Processor Service** (LangGraph)
+  - Unified 7-node pipeline for protocol processing
+  - Integrated extraction + grounding workflow
+  - MLflow tracing for observability
+
+#### Data Layer
+- **PostgreSQL Database**
+  - Protocol, CriteriaBatch, Criteria, Entity, Review, User tables
+  - Expression tree nodes and composite criteria (Phase 42)
+  - Full-text search indices
+  
+- **Google Cloud Storage (GCS)**
+  - PDF document storage
+  - File versioning
+
+- **OMOP Vocabulary Database**
+  - Concept hierarchy and relationships
+  - Drug strength information
+  - CPT-4 code mappings
+
+#### Shared Libraries
+- **shared** - Domain models (SQLModel), caching, resilience patterns
+- **inference** - Model loading, prompt management (Jinja2), agent factories
+- **events-py** - Event models, Outbox processor
+- **data-pipeline** - ETL utilities
+- **evaluation** - Quality metrics, benchmarking
+- **model-training** - LoRA fine-tuning, distillation
+
+### 7-Node LangGraph Pipeline
+
+```
+START → ingest → extract → parse → ground → persist → structure → ordinal_resolve → END
+```
+
+**Node 1: Ingest**
+- Load PDF from GCS/local path using PyMuPDF
+- Extract raw text with page numbers
+
+**Node 2: Extract**
+- Use Google Gemini API for structured criterion extraction
+- Output: JSON with inclusion/exclusion criteria
+
+**Node 3: Parse**
+- Parse extraction JSON
+- Extract medical entities (diseases, drugs, conditions, measurements)
+- Create CriteriaBatch record
+
+**Node 4: Ground**
+- Use MedGemma for entity type classification
+- Query UMLS MCP Server for concept mapping
+- Map to SNOMED, RxNorm, ICD-10, LOINC, HPO codes
+- Error accumulation: partial failures preserved
+
+**Node 5: Persist**
+- Save batch, criteria, and entities to database
+- Handle partial failures gracefully
+
+**Node 6: Structure**
+- Build expression trees from criteria
+- Decompose complex conditions into operators (AND, OR, NOT)
+- Create AtomicCriteria and CompositeExpression records
+
+**Node 7: Ordinal Resolve**
+- Detect ordinal scales (mild, moderate, severe, etc.)
+- Use Gemini + scale detection heuristics
+
+### Event-Driven Flow
+
+```
+User uploads PDF
+    ↓
+API stores in GCS + publishes ProtocolUploaded event
+    ↓
+Outbox processor picks up event
+    ↓
+Invokes protocol_processor.trigger.handle_protocol_uploaded()
+    ↓
+LangGraph executes 7-node pipeline asynchronously
+    ↓
+Errors trigger conditional routing or error accumulation
+    ↓
+Results saved to database
+    ↓
+HITL UI displays for review
+    ↓
+User approves/rejects → API updates status
+    ↓
+Export endpoints generate CIRCE/FHIR/SQL formats
+```
+
+### Export Formats
+
+**CIRCE Builder** (`exporters/circe_builder.py`)
+- Clinical Evidence to Expressions (OHDSI standard)
+- SQL generation for cohort definition
+
+**FHIR Group Builder** (`exporters/fhir_group_builder.py`)
+- FHIR ResearchStudy & Group resources
+- Machine-readable representation of inclusion/exclusion
+
+**Evaluation SQL Builder** (`exporters/evaluation_sql_builder.py`)
+- SQL for cohort analysis
+- Concept set definitions
+
+---
+
+## 5. Complete File Listing by Component
+
+### All Python Files
+**API Service** (20 modules):
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/
+├── __init__.py
+├── auth.py
+├── batch_compare.py
+├── criterion_rerun.py
+├── dependencies.py
+├── entities.py
+├── exports.py
+├── exporters/
+│   ├── __init__.py
+│   ├── circe_builder.py
+│   ├── evaluation_sql_builder.py
+│   └── fhir_group_builder.py
+├── fuzzy_matching.py
+├── gcs.py
+├── integrity.py
+├── main.py
+├── middleware.py
+├── protocols.py
+├── quality.py
+├── reviews.py
+├── search.py
+├── storage.py
+└── terminology_search.py
+```
+
+**Protocol Processor Service** (25+ modules):
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/
+├── __init__.py
+├── graph.py
+├── main.py
+├── state.py
+├── trigger.py
+├── tracing.py
+├── config/
+│   ├── __init__.py
+│   ├── routing.yaml
+│   └── ucum_mappings.yaml
+├── nodes/
+│   ├── __init__.py
+│   ├── extract.py
+│   ├── ground.py
+│   ├── ingest.py
+│   ├── ordinal_resolve.py
+│   ├── parse.py
+│   ├── persist.py
+│   └── structure.py
+├── prompts/
+│   ├── __init__.py
+│   ├── entity_decompose.jinja2
+│   ├── grounding_evaluate.jinja2
+│   ├── grounding_reasoning.jinja2
+│   ├── grounding_system.jinja2
+│   ├── system.jinja2
+│   └── user.jinja2
+├── schemas/
+│   ├── __init__.py
+│   ├── extraction.py
+│   ├── grounding.py
+│   ├── ordinal.py
+│   └── structure.py
+└── tools/
+    ├── __init__.py
+    ├── entity_decomposer.py
+    ├── field_mapper.py
+    ├── gemini_extractor.py
+    ├── medgemma_decider.py
+    ├── omop_mapper.py
+    ├── ordinal_resolver.py
+    ├── pdf_parser.py
+    ├── structure_builder.py
+    ├── terminology_router.py
+    ├── tooluniverse_client.py
+    └── unit_normalizer.py
+```
+
+**Shared Libraries:**
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/libs/shared/src/shared/
+├── __init__.py
+├── lazy_cache.py
+├── models.py
+├── resilience.py
+└── templates/
+    └── placeholder_system.j2
+
+/Users/noahdolevelixir/Code/medgemma-hackathon/libs/inference/src/inference/
+├── __init__.py
+├── config.py
+├── factory.py
+├── loaders.py
+└── model_garden.py
+
+/Users/noahdolevelixir/Code/medgemma-hackathon/libs/events-py/src/events_py/
+├── __init__.py
+├── models.py
+├── outbox.py
+└── py.typed
+```
+
+### TypeScript/React Files (70+ files in hitl-ui)
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/apps/hitl-ui/src/
+
+Screens (8):
+├── screens/
+│   ├── Dashboard.tsx
+│   ├── EntityList.tsx
+│   ├── LoginPage.tsx
+│   ├── ProtocolDetail.tsx
+│   ├── ProtocolList.tsx
+│   ├── ReviewPage.tsx
+│   ├── ReviewQueue.tsx
+│   └── SearchPage.tsx
+
+Components (20+):
+├── components/
+│   ├── ui/
+│   │   └── Button.tsx
+│   ├── AgreementMetrics.tsx
+│   ├── BatchCompareView.tsx
+│   ├── BatchTimeline.tsx
+│   ├── CriterionAuditHistory.tsx
+│   ├── CriterionCard.tsx
+│   ├── CriterionRerunPanel.tsx
+│   ├── EntityCard.tsx
+│   ├── FieldMappingBadges.tsx
+│   ├── PdfViewer.tsx
+│   ├── ProtocolUploadDialog.tsx
+│   ├── RejectDialog.tsx
+│   ├── TerminologyBadge.tsx
+│   ├── TerminologyCombobox.tsx
+│   └── structured-editor/ (4 files)
+
+Hooks (8):
+├── hooks/
+│   ├── useApi.ts
+│   ├── useAuth.ts
+│   ├── useCorpus.ts
+│   ├── useEntities.ts
+│   ├── useProtocols.ts
+│   ├── useReviews.ts
+│   ├── useSearch.ts
+│   └── useTerminologySearch.ts
+
+State & Utils:
+├── stores/
+│   ├── authStore.ts
+│   └── useAppStore.ts
+├── lib/
+│   └── utils.ts
+├── App.tsx
+└── main.tsx
+
+Tests:
+└── test/
+    ├── examples/
+    │   ├── Button.test.tsx
+    │   ├── useCounter.test.tsx
+    │   └── UserList.test.tsx
+    └── setup.ts
+```
+
+### Database Migrations (Alembic)
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/alembic/versions/
+├── 6bba3f92fdc1_initial_domain_models.py
+├── 91004fffe85d_initial_domain_models.py
+├── 07_01_protocol_status_enum.py
+├── 33_01_add_batch_is_archived.py
+├── 40_01_add_entity_grounding_columns.py
+├── 41_01_add_entity_omop_columns.py
+├── 42_01_add_expression_tree_tables.py
+├── 43_01_add_unit_value_concept_ids.py
+├── 44_01_add_export_indexes.py
+└── 47530bf7f47c_add_gin_index_for_fulltext_search.py
+```
+
+### Test Files (30+ test modules)
+```
+API Service Tests:
+├── test_auth_required.py
+├── test_exports.py
+├── test_integrity.py
+├── test_models.py
+├── test_protocol_api.py
+├── test_quality.py
+├── test_review_api.py
+├── test_schemas.py
+└── test_umls_clients.py
+
+Protocol Processor Tests:
+├── test_graph.py
+├── test_omop_mapper.py
+├── test_ordinal_full_cycle.py
+├── test_ordinal_resolve.py
+├── test_phase1b_wiring.py
+├── test_phase2_e2e.py
+├── test_phase2_structure.py
+├── test_phase3_integration.py
+├── test_phase3b_e2e.py
+├── test_sentence_extraction.py
+└── test_terminology_router.py
+
+Events Tests:
+└── events_py_tests/
+    ├── test_models.py
+    └── test_outbox.py
+
+Root E2E Tests:
+└── tests/e2e/
+    ├── test_infrastructure_smoke.py
+    └── test_pipeline_full.py
+```
+
+### Documentation Files (20+ docs)
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/docs/
+├── index.md
+├── onboarding.md
+├── testing-guide.md
+├── jinja2-prompts.md
+├── openapi.json
+├── architecture/
+│   ├── index.md
+│   ├── data-models.md
+│   └── system-architecture.md
+├── development/
+│   └── gemini-vertex-auth.md
+├── diagrams/
+│   ├── agent-flow.md
+│   ├── hitl-flow.md
+│   └── langgraph-architecture.md
+├── journeys/
+│   ├── index.md
+│   ├── upload-extraction.md
+│   └── grounding-review.md
+├── components/
+│   └── index.md
+├── code-tour/
+│   └── index.md
+└── status/
+    └── index.md
+```
+
+### Data Files
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/data/
+├── protocols/ (40+ sample PDFs)
+│   ├── clinicaltrials/ (17 PDFs)
+│   ├── dac/ (18 PDFs)
+│   └── isrctn/ (13 PDFs)
+└── omop_vocab/
+    ├── CONCEPT.csv
+    ├── CONCEPT_ANCESTOR.csv
+    ├── CONCEPT_CLASS.csv
+    ├── CONCEPT_CPT4.csv
+    ├── CONCEPT_RELATIONSHIP.csv
+    ├── CONCEPT_SYNONYM.csv
+    ├── DOMAIN.csv
+    ├── DRUG_STRENGTH.csv
+    ├── RELATIONSHIP.csv
+    ├── VOCABULARY.csv
+    ├── cpt.sh
+    ├── cpt.bat
+    ├── cpt4.jar
+    ├── readme.txt
+    └── load_omop_vocab.sql
+```
+
+### Scripts & Utilities (13 scripts)
+```
+/Users/noahdolevelixir/Code/medgemma-hackathon/scripts/
+├── create-service.sh
+├── build_docs.py
+├── check-all.sh
+├── clear_mlflow_traces.py
+├── generate_components_overview.py
+├── kill-running-processes.sh
+├── quality_eval.py
+├── quality_eval_config.py
+├── setup-gcloud-adc.sh
+├── update_root_navigation.py
+└── verify_gemini_access.py
+```
+
+---
+
+## 6. Technology Stack Summary
+
+### Backend (Python)
+- **Framework:** FastAPI (API), LangGraph (Agents), SQLModel (ORM)
+- **AI/LLM:** Google Gemini, Vertex AI (MedGemma), LangChain, LangGraph
+- **Database:** PostgreSQL (primary), SQLite (MLflow, cache)
+- **Cloud:** Google Cloud Storage (GCS), Vertex AI
+- **Tools:** Alembic (migrations), PyMuPDF (PDF parsing), Jinja2 (templates)
+- **Observability:** MLflow, structlog
+- **Package Manager:** uv (modern Python)
+
+### Frontend (TypeScript/JavaScript)
+- **Framework:** React 18 with Vite
+- **Build Tool:** Vite
+- **Testing:** Vitest (unit), Playwright (e2e)
+- **Styling:** Tailwind CSS (via config)
+- **State Management:** Zustand (useAppStore)
+- **Code Quality:** Biome, ESLint, TypeScript strict mode
+
+### Infrastructure
+- **Containerization:** Docker, Docker Compose
+- **CI/CD:** GitHub Actions (configured)
+- **Local Dev:** PostgreSQL (Docker), MLflow server (local)
+- **Deployment:** Kubernetes-ready (optional)
+
+### Key Dependencies
+```
+Python Core:
+- fastapi, uvicorn, sqlalchemy, sqlmodel, alembic
+- langgraph, langchain, langchain-google-genai, google-genai
+- google-cloud-storage, google-cloud-aiplatform, vertexai
+- pymupdf, pymupdf4llm, pyyaml, jinja2
+- psycopg, psycopg[binary]
+- mlflow, tenacity, structlog
+- httpx, aiohttp, authlib, PyJWT
+
+JavaScript Core:
+- react, react-dom, typescript
+- vite, vitest, playwright
+- tailwind, axios (via hooks)
+```
+
+---
+
+## 7. Current Git Status
+
+**Branch:** `feature/major-refactor-langgraph`
+
+**Recent Commits:**
+1. `713d9fd` - feat: add join-ready export endpoints (CIRCE, FHIR Group, Evaluation SQL)
+2. `0aa7c3e` - fix: address code review findings across pipeline
+3. `c6c4dd8` - feat: add ordinal resolution LangGraph node with Gemini-powered scale detection
+4. `699f766` - refactor: update protocol processing pipeline to include structure phase
+5. `0a7a31b` - feat: introduce atomic and composite criteria models for expression tree
+
+**Status:** Clean working directory (no uncommitted changes)
+
+---
+
+## Summary
+
+**MedGemma Hackathon** is a sophisticated clinical trial protocol processing system that:
+
+1. **Ingests** clinical trial PDFs from GCS or local storage
+2. **Extracts** inclusion/exclusion criteria using Google Gemini
+3. **Grounds** medical entities to standardized terminologies (SNOMED, RxNorm, ICD-10, LOINC, HPO)
+4. **Structures** criteria into expression trees for downstream analysis
+5. **Enables** human-in-the-loop review and approval via React UI
+6. **Exports** to clinical research standards (CIRCE, FHIR, SQL)
+
+The architecture uses **LangGraph** for orchestrating a 7-node AI pipeline, **FastAPI** for REST orchestration, **PostgreSQL** for persistence, and **React** for an interactive HITL interface. All code follows strict type-checking (mypy), linting (ruff), and testing (pytest/vitest) standards with comprehensive documentation.</result>
+<usage>total_tokens: 72033
+tool_uses: 25
+duration_ms: 97652</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/a2aad45.output
+
+---
+
+<task-notification>
+<task-id>acd587d</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore LLM and pipeline code" completed</summary>
+<result>Perfect! Now I have all the information I need. Let me compile my comprehensive analysis report.
+
+---
+
+## COMPREHENSIVE CODEBASE ANALYSIS REPORT
+
+Based on thorough exploration of `/Users/noahdolevelixir/Code/medgemma-hackathon`, here are my findings for the requested items:
+
+### 1. STRUCTURE_NODE (Function & File)
+
+**Files Found:**
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/nodes/structure.py` (Lines 81-206)
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/graph.py` (References at lines 28, 72, 94)
+
+**Key Code Sections:**
+
+**structure.py - async structure_node() [Lines 81-206]:**
+```python
+async def structure_node(state: PipelineState) -> dict[str, Any]:
+    """Build expression trees for all criteria in the batch."""
+    # Early exit if error flag set
+    if state.get("error"):
+        return {}
+    
+    # Main logic: query criteria, filter by field_mappings, process with semaphore
+    # Uses asyncio.Semaphore(4) for parallel LLM calls
+    # Error accumulation pattern (like ground node)
+    # Returns status='completed' with errors list
+```
+
+**structure.py - async _process_criterion() [Lines 28-78]:**
+```python
+async def _process_criterion(
+    criterion: Criteria,
+    protocol_id: str,
+    session: Session,
+    semaphore: asyncio.Semaphore,
+) -> str | None:
+    """Process single criterion: build expression tree and store it."""
+    # Returns None on success, error message string on failure
+```
+
+**Issues Found:**
+1. **Unused variable** (Line 152): Results from `asyncio.gather(*tasks)` are collected but then the same variable is used in counting errors:
+   ```python
+   results = await asyncio.gather(*tasks)  # Line 152
+   # Then later:
+   len([e for e in results if e is not None])  # Line 168, 179, 185
+   ```
+   This is fine, but inefficient - should compute error count once.
+
+2. **Redundant error counting** (Lines 168, 179, 185): Error count computed three times using same list comprehension.
+
+3. **No validation** of batch_id existence before querying - returns early at line 105-111 with warning but no logging of why it was missing.
+
+---
+
+### 2. PERSIST (File)
+
+**File Found:**
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/nodes/persist.py` (Lines 1-459)
+
+**Key Functions:**
+
+**persist_node() [Lines 314-459]:**
+- 5th node in pipeline
+- Handles partial/total failure logic:
+  - Success: marks protocol as "pending_review"
+  - Total failure (all entities failed): marks as "grounding_failed"
+  - Partial failure: still marks as "pending_review"
+  
+**Supporting Functions:**
+- `_create_entity_record()` [31-105]: Creates Entity DB records
+- `_find_criterion_and_update_mappings()` [108-179]: Find Criteria with direct ID lookup (preferred) or fallback substring search. **ACCUMULATES** field_mappings via `extend()`
+- `_get_fallback_criterion_id()` [181-207]: Fallback when criterion_id not provided
+- `_update_batch_and_protocol()` [209-259]: Updates status and emits audit logs
+- `_persist_entities()` [261-312]: Persists Entity records and updates Criteria
+
+**Issues Found:**
+
+1. **DRY Violation - system_field_map** [Lines 65-72]: Hard-coded system→field mapping appears redundant:
+   ```python
+   system_field_map = {
+       "umls": "umls_cui",
+       "snomed": "snomed_code",
+       "rxnorm": "rxnorm_code",
+       "icd10": "icd10_code",
+       "loinc": "loinc_code",
+       "hpo": "hpo_code",
+   }
+   # Then used with a chain of if/elif [74-87]
+   ```
+   Better approach: Use getattr() or a mapping function.
+
+2. **Inconsistent error handling** [Lines 429-431, 458]:
+   - Returns `{"status": "failed", "error": "All entities failed grounding"}` when all_failed
+   - Returns `{"status": "completed"}` for success
+   - But then if total failure occurs, BOTH the status update AND entity creation happened
+   - Creates confusing state where status="failed" but entities may be persisted
+
+3. **Exception handling in exception handler** [Lines 441-456]:
+   - Try/except nested inside exception handler for persist failure
+   - If protocol update fails, just logs exception without recovery
+   - Silent failure of review inheritance [Lines 403-409] - not propagated
+
+4. **Gap 2 fix comment** [Line 162]: References "Gap 2 fix" but this is implementation detail that should be documented in commit message, not code comment.
+
+5. **Type inconsistency** [Line 166]: Defensive check `if not isinstance(existing, dict)` wraps in `{"original_conditions": existing}` but this could hide data integrity issues - should fail fast if conditions is malformed.
+
+---
+
+### 3. CHATGOOGLEGENATIVEAI (All Occurrences)
+
+**Files Found (6 files total):**
+
+**File 1: medgemma_decider.py** [Line 19 - top-level import]
+- Lines 159-162, 305-308: Two usages
+- **Pattern**: Top-level import at line 19
+- **ISSUE**: Import at module level means GoogleGenerativeAI is always loaded, even if GOOGLE_API_KEY not set
+  - Functions `_structure_decision_with_gemini()` [144-174] and `_structure_reasoning_with_gemini()` [286-324] only called internally
+  - But import happens regardless
+
+**File 2: ordinal_resolver.py** [Line 49 - late import inside function]
+- Lines 49-55: Late import inside `resolve_ordinal_candidates()`
+- **Pattern**: Conditional late import (correct pattern)
+- Guards on GOOGLE_API_KEY before importing [Lines 43-46]
+
+**File 3: structure_builder.py** [Line 94 - late import inside function]
+- Lines 94-100: Late import inside `detect_logic_structure()`
+- **Pattern**: Conditional late import (correct pattern)
+- Guards on GOOGLE_API_KEY before importing [Lines 85-91]
+
+**File 4: entity_decomposer.py** [Line 19 - top-level import]
+- Lines 80-83: Usage in `decompose_entities_from_criterion()`
+- **ISSUE**: Top-level import at line 19, but function doesn't check GOOGLE_API_KEY before using
+  - Silent return of empty list on error [Line 97]
+  - No warning if GOOGLE_API_KEY not set
+
+**File 5: field_mapper.py** [Line 89 - late import inside function]
+- Lines 89-95: Late import inside `generate_field_mappings()`
+- **Pattern**: Conditional late import (correct pattern)
+- Guards on GOOGLE_API_KEY before importing [Lines 80-86]
+
+**Summary of GOOGLE_API_KEY handling:**
+
+| File | Import Type | API Key Guard | Pattern Quality |
+|------|-------------|---------------|-----------------|
+| medgemma_decider.py | Top-level | ✓ in 2 functions | Inconsistent - functions guard but import is eager |
+| ordinal_resolver.py | Late (conditional) | ✓ before import | ✓ Correct |
+| structure_builder.py | Late (conditional) | ✓ before import | ✓ Correct |
+| entity_decomposer.py | Top-level | ✗ Missing guard | ✗ Issue - no key guard |
+| field_mapper.py | Late (conditional) | ✓ before import | ✓ Correct |
+
+---
+
+### 4. _FIND_LAST_COMPOSITE_ID (Function)
+
+**File Found:**
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py` (Lines 338-363)
+
+**Function Code:**
+```python
+def _find_last_composite_id(
+    session: Session, criterion_id: str, logic_operator: str
+) -> str:
+    """Find the most recently added composite criterion ID."""
+    from sqlmodel import select
+
+    stmt = (
+        select(CompositeCriterion)
+        .where(CompositeCriterion.criterion_id == criterion_id)
+        .where(CompositeCriterion.logic_operator == logic_operator)
+        .order_by(CompositeCriterion.created_at.desc())
+    )
+    result = session.exec(stmt).first()
+    return result.id if result else ""
+```
+
+**Issues Found:**
+
+1. **Fragile lookup logic** [Lines 356-363]:
+   - Orders by `created_at DESC` and takes `.first()` assuming this is the "last created"
+   - But during recursive tree building in same session, multiple CompositeCriteria might be created
+   - **Race condition**: If two threads process same criterion_id simultaneously, both might get same ID or miss the correct one
+   - **No explicit ordering by insertion order** - relies on timestamps which could have collisions
+   
+2. **Silent failure** [Line 363]:
+   - Returns empty string `""` if not found
+   - String comparison downstream might pass but create broken relationships
+   - No logging of missing composite
+
+3. **Query inefficiency**:
+   - Filters by both `criterion_id` AND `logic_operator` but caller already knows this will match
+   - Should use more specific query or add created_at timestamp as tiebreaker
+
+4. **Called only from _build_tree_from_logic()** [Line 321]:
+   - Used during recursive tree construction to find just-created composite parent
+   - Comment [Lines 316-320] acknowledges the workaround nature
+   - Better approach: Return composite ID from _build_tree_from_logic() recursion instead of querying
+
+---
+
+### 5. PROTOCOLEXPORTDATA (Class)
+
+**File Found:**
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/exporters/__init__.py` (Lines 22-122)
+
+**Class Definition [Lines 22-36]:**
+```python
+@dataclass
+class ProtocolExportData:
+    """All structured criteria data needed by export builders."""
+    
+    protocol: Protocol
+    criteria: list[Criteria]
+    atomics: list[AtomicCriterion]
+    composites: list[CompositeCriterion]
+    relationships: list[CriterionRelationship]
+    atomics_by_id: dict[str, AtomicCriterion] = field(default_factory=dict)
+    composites_by_id: dict[str, CompositeCriterion] = field(default_factory=dict)
+    children_by_parent: dict[str, list[CriterionRelationship]] = field(
+        default_factory=dict
+    )
+    criteria_by_id: dict[str, Criteria] = field(default_factory=dict)
+```
+
+**Loader Function [Lines 39-122]:**
+```python
+def load_protocol_export_data(db: Session, protocol_id: str) -> ProtocolExportData | None:
+    """Load all export data for a protocol."""
+```
+
+**Key Points:**
+- Centralizes data loading for CIRCE, FHIR Group, and evaluation SQL builders
+- Builds lookup dicts: `atomics_by_id`, `composites_by_id`, `children_by_parent`, `criteria_by_id`
+- Sorts children by `child_sequence` [Lines 109-110]
+
+**Issues Found:**
+
+1. **Inefficient lookup initialization** [Lines 101-103]:
+   ```python
+   atomics_by_id = {a.id: a for a in atomics}
+   composites_by_id = {c.id: c for c in composites}
+   criteria_by_id = {c.id: c for c in criteria}
+   ```
+   These are rebuilt during __init__ for dataclass fields, creating duplicate work
+
+2. **No error handling**:
+   - Silent return None if batch not found [Line 63]
+   - Silent return None if criteria empty [Line 70]
+   - Should log which protocol_id failed lookup
+
+3. **Inconsistent child relationships**:
+   - Only loads relationships for composites [Lines 87-98]
+   - But never queries/validates that all child_criterion_ids actually exist in atomics/composites
+   - Could have dangling references
+
+4. **N+1 query patterns avoided** (good):
+   - Loads all data in single set of queries
+   - Builds lookup dicts to avoid repeated queries in exporters
+
+---
+
+### 6. CHILDREN_BY_PARENT & COMPOSITES_BY_ID (Lookup Dicts)
+
+**Primary Usage:**
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/exporters/__init__.py` (Lines 105-110)
+- Consumed by exporters: `fhir_group_builder.py`, `circe_builder.py`, `evaluation_sql_builder.py`
+
+**children_by_parent structure** [Lines 105-110]:
+```python
+children_by_parent: dict[str, list[CriterionRelationship]] = {}
+for rel in relationships:
+    children_by_parent.setdefault(rel.parent_criterion_id, []).append(rel)
+# Sort children by child_sequence
+for children in children_by_parent.values():
+    children.sort(key=lambda r: r.child_sequence)
+```
+
+**composites_by_id structure** [Line 102]:
+```python
+composites_by_id = {c.id: c for c in composites}
+```
+
+**Usage in Exporters:**
+
+**fhir_group_builder.py:**
+- Uses `atomics_by_id` [Line 136]
+- Not directly using `composites_by_id` or `children_by_parent`
+- Recursively calls `_build_characteristics_from_tree()` to walk tree
+
+**circe_builder.py:**
+- Uses `atomics_by_id` [Line 279]
+- Not directly using `composites_by_id` or `children_by_parent`
+- Recursively calls `_build_criteria_group()` to walk tree
+
+**evaluation_sql_builder.py:**
+- Doesn't use export data lookups directly [Lines 42-120]
+- Iterates over `data.atomics` directly [Line 60]
+- Doesn't reference composite structure
+
+**Issues Found:**
+
+1. **composites_by_id unused** in current exporters
+   - Loaded [Line 102] but never referenced in FHIR/CIRCE/SQL builders
+   - Could be removed to save memory
+
+2. **children_by_parent unused** in current exporters
+   - Built and sorted [Lines 105-110] but never referenced
+   - Exporters walk tree from `criterion.structured_criterion` JSONB directly
+   - This dict could be removed
+
+3. **Missing validation**:
+   - No verification that children referenced in `children_by_parent` actually exist in atomics/composites
+   - No check for cycles in composite relationships
+   - No validation of `child_sequence` uniqueness per parent
+
+4. **Query for relationships has no filtering** [Lines 89-98]:
+   ```python
+   if composite_ids:
+       relationships = list(
+           db.exec(
+               select(CriterionRelationship).where(
+                   CriterionRelationship.parent_criterion_id.in_(composite_ids)
+               )
+           ).all()
+       )
+   ```
+   This is correct - only gets relationships where parent is a composite in this protocol.
+
+---
+
+### 7. GRAPH.PY (LangGraph Pipeline Definition)
+
+**File Found:**
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/graph.py` (Lines 1-153)
+
+**Pipeline Architecture:**
+```
+START -> ingest -> extract -> parse -> ground -> persist -> structure -> ordinal_resolve -> END
+                    ↓         ↓        ↓
+                  (ERROR conditional edges to END)
+```
+
+**7-node workflow:**
+
+1. **ingest** - Load protocol/batch data
+2. **extract** - Extract sentences  
+3. **parse** - Parse criteria sentences
+4. **ground** - Ground entities to terminology
+5. **persist** - Persist entities to DB
+6. **structure** - Build expression trees
+7. **ordinal_resolve** - Identify ordinal scales
+
+**Error Handling Strategy:**
+
+| Node | Error Handling | Details |
+|------|----------------|---------|
+| ingest | Conditional | Error→END |
+| extract | Conditional | Error→END |
+| parse | Conditional | Error→END |
+| ground | Accumulation | Continues, errors in state |
+| persist | Accumulation | Continues, handles partial failures |
+| structure | Accumulation | Continues, errors in state |
+| ordinal_resolve | Accumulation | Continues, errors in state |
+
+**Key Code [Lines 32-41]:**
+```python
+def should_continue(state: PipelineState) -> str:
+    """Route to error END or continue to next node."""
+    return "error" if state.get("error") else "continue"
+```
+
+**Checkpointer Strategy [Lines 100-152]:**
+- Singleton pattern for checkpointer
+- Uses AsyncPostgresSaver for fault-tolerant execution
+- Falls back to no checkpointer if DATABASE_URL not set
+
+**Issues Found:**
+
+1. **Inconsistent error routing philosophy**:
+   - First 3 nodes (ingest/extract/parse) fail-fast to END
+   - Remaining 4 nodes (ground/persist/structure/ordinal_resolve) use error accumulation
+   - User comment says "Ground uses error accumulation" but inconsistency not documented clearly
+   - Should have explicit decision doc
+
+2. **Singleton pattern with async initialization** [Lines 109-130]:
+   - Global `_checkpointer`, `_checkpointer_cm` modified in async function
+   - `await _get_checkpointer_async()` called in get_graph() [Line 146]
+   - Race condition possible if get_graph() called concurrently
+   - Should use asyncio.Lock for thread-safe initialization
+
+3. **Silent fallback** [Lines 147-150]:
+   - If checkpointer init fails, silently falls back to None
+   - Exception caught but not logged
+   - Should at least log which exception caused fallback
+
+4. **Comments mention "v2.0 Architecture"** [Line 14]:
+   - References external architecture decision
+   - Should point to CONTEXT.md or design doc
+
+5. **Missing final error accumulation**:
+   - ordinal_resolve returns `{"status": "completed", "errors": []}` [Line 192]
+   - But final status not checked - if errors accumulated, should they block export?
+   - No post-pipeline validation
+
+---
+
+## SUMMARY OF ISSUES BY CATEGORY
+
+### Error Handling Issues:
+1. **entity_decomposer.py**: Missing GOOGLE_API_KEY guard before ChatGoogleGenerativeAI import
+2. **persist.py**: Inconsistent error status ("failed" vs "completed" logic)
+3. **persist.py**: Exception handling in exception handler (recovery not attempted)
+4. **graph.py**: Inconsistent error routing (fail-fast vs accumulation)
+5. **graph.py**: Silent fallback when checkpointer init fails
+6. **structure_builder.py::_find_last_composite_id()**: Silent failure (returns empty string)
+
+### DRY Violations:
+1. **persist.py**: Hard-coded system_field_map [Lines 65-72] + chain of if/elif [Lines 74-87]
+2. **structure.py**: Error count computed three times [Lines 168, 179, 185]
+3. **persist.py**: Gap 2 fix comment should be in commit message, not code
+
+### Unused Code:
+1. **composites_by_id**: Built in load_protocol_export_data() but never used in exporters
+2. **children_by_parent**: Built and sorted in load_protocol_export_data() but never used in exporters
+
+### Logic Issues:
+1. **structure_builder.py::_find_last_composite_id()**: Race condition in recursive tree building
+2. **persist.py**: Type inconsistency - wraps malformed conditions but should fail-fast
+3. **structure.py**: Redundant error counting in multiple log statements
+4. **graph.py**: Race condition in async singleton checkpointer initialization
+
+### Data Integrity Issues:
+1. **exporters/__init__.py**: No validation that child relationships reference existing atomics/composites
+2. **exporters/__init__.py**: No cycle detection in composite relationships
+3. **persist.py**: Silent loss of existing conditions data [Line 166]
+
+---
+
+## RECOMMENDATIONS
+
+**High Priority:**
+1. Add GOOGLE_API_KEY guard to entity_decomposer.py before ChatGoogleGenerativeAI import
+2. Fix async singleton race condition in graph.py with asyncio.Lock
+3. Add validation in load_protocol_export_data() for orphaned relationships
+4. Remove or log silent failures in _find_last_composite_id()
+
+**Medium Priority:**
+1. Consolidate system_field_map in persist.py into reusable function
+2. Remove unused composites_by_id and children_by_parent from ProtocolExportData
+3. Document inconsistent error routing strategy (fail-fast vs accumulation)
+4. Fix exception handling in persist.py exception handler
+
+**Low Priority:**
+1. Deduplicate error counting in structure.py
+2. Move Gap 2 fix comment to commit message
+3. Add cycle detection for composite relationships
+4. Log which exception caused checkpointer fallback in graph.py</result>
+<usage>total_tokens: 70253
+tool_uses: 27
+duration_ms: 71431</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/acd587d.output
+
+---
+
+<task-notification>
+<task-id>af9e787</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore exporter builders" completed</summary>
+<result>Perfect! Now let me generate a comprehensive analysis document:
+
+## COMPREHENSIVE FILE ANALYSIS REPORT
+
+I've thoroughly analyzed all requested files. Here's the detailed report:
+
+---
+
+### FILE SUMMARY
+
+| File | Path | Lines | Purpose |
+|------|------|-------|---------|
+| __init__.py | `/services/api-service/src/api_service/exporters/` | 122 | Shared data loader (ProtocolExportData) |
+| evaluation_sql_builder.py | `/services/api-service/src/api_service/exporters/` | 187 | OMOP CDM v5.4 SQL generator |
+| circe_builder.py | `/services/api-service/src/api_service/exporters/` | 290 | OHDSI CIRCE JSON builder |
+| fhir_group_builder.py | `/services/api-service/src/api_service/exporters/` | 265 | FHIR R4 Group resource builder |
+| exports.py | `/services/api-service/src/api_service/` | 114 | FastAPI export endpoints |
+| models.py | `/libs/shared/src/shared/` | 294 | SQLModel domain models |
+| structure_builder.py | `/services/protocol-processor-service/src/protocol_processor/tools/` | 481 | Expression tree builder (Phase 2) |
+| ordinal_resolver.py | `/services/protocol-processor-service/src/protocol_processor/tools/` | 113 | Ordinal scale resolution (Gemini) |
+| field_mapper.py | `/services/protocol-processor-service/src/protocol_processor/tools/` | 162 | Field mapping generation (Gemini) |
+| unit_normalizer.py | `/services/protocol-processor-service/src/protocol_processor/tools/` | 240 | Unit/value normalization (YAML lookup) |
+| graph.py | `/services/protocol-processor-service/src/protocol_processor/` | 152 | LangGraph workflow definition |
+| **TOTAL** | | **2,420** | |
+
+---
+
+### DETAILED FILE ANALYSIS
+
+#### 1. **exporters/__init__.py** (122 lines)
+**Purpose:** Shared data loader for all export builders
+
+**Imports:**
+- `dataclasses`, `typing`
+- `shared.models`: Protocol, Criteria, CriteriaBatch, AtomicCriterion, CompositeCriterion, CriterionRelationship
+- `sqlmodel`: Session, select
+
+**Classes:**
+- `ProtocolExportData` (dataclass)
+  - Fields: protocol, criteria, atomics, composites, relationships, atomics_by_id, composites_by_id, children_by_parent, criteria_by_id
+
+**Functions:**
+- `load_protocol_export_data(db: Session, protocol_id: str) -> ProtocolExportData | None`
+  - Loads active batch, criteria, atomics, composites, relationships
+  - Builds lookup dictionaries (atomics_by_id, composites_by_id, criteria_by_id, children_by_parent)
+  - Sorts children by child_sequence
+  - Returns None if protocol/batch/criteria missing
+
+**Issues:**
+- ✅ Clean, single-responsibility pattern
+- ✅ No unused code
+
+---
+
+#### 2. **exporters/evaluation_sql_builder.py** (187 lines)
+**Purpose:** Generate OMOP CDM v5.4 evaluation SQL
+
+**Imports:**
+- `shared.models`: AtomicCriterion
+- `api_service.exporters`: ProtocolExportData
+
+**Module-level Dicts:**
+```python
+_DOMAIN_TABLE: dict[str, tuple[str, str]] = {
+    "condition": ("condition_occurrence", "condition_concept_id"),
+    "measurement": ("measurement", "measurement_concept_id"),
+    "drug": ("drug_exposure", "drug_concept_id"),
+    "procedure": ("procedure_occurrence", "procedure_concept_id"),
+    "observation": ("observation", "observation_concept_id"),
+    "device": ("device_exposure", "device_concept_id"),
+    "visit": ("visit_occurrence", "visit_concept_id"),
+}
+
+_SQL_OP: dict[str, str] = {
+    ">": ">", ">=": ">=", "<": "<", "<=": "<=", "=": "=", "==": "=",
+    "!=": "!=", "gt": ">", "gte": ">=", "lt": "<", "lte": "<=", "eq": "=", "neq": "!=",
+}
+```
+
+**Functions:**
+- `build_evaluation_sql(data: ProtocolExportData) -> str`
+  - Builds CTEs for each atomic criterion
+  - Uses concept_ancestor for descendant expansion
+  - Generates inclusion/exclusion logic
+  - Returns SQL text
+  
+- `_get_valid_concept_id(atomic: AtomicCriterion) -> int | None`
+  - Prefers omop_concept_id, falls back to entity_concept_id
+  
+- `_build_atomic_cte(atomic: AtomicCriterion, concept_id: int, cte_name: str) -> str`
+  - Builds CTE SQL per atomic criterion
+  - Handles measurement value filters and unit_concept_id
+  - Special case for demographics (age)
+  
+- `_build_demographics_cte(atomic: AtomicCriterion, cte_name: str) -> str`
+  - Builds age filter CTE using EXTRACT(YEAR FROM CURRENT_DATE)
+
+**Issues:**
+- ✅ Minimal, focused implementation
+- ✅ No unused code
+
+---
+
+#### 3. **exporters/circe_builder.py** (290 lines)
+**Purpose:** Build OHDSI CIRCE CohortExpression JSON
+
+**Imports:**
+- `typing.Any`
+- `shared.models`: AtomicCriterion
+- `api_service.exporters`: ProtocolExportData
+
+**Module-level Dicts:**
+```python
+_DOMAIN_TO_CIRCE: dict[str, str] = {
+    "condition": "ConditionOccurrence",
+    "measurement": "Measurement",
+    "drug": "DrugExposure",
+    "procedure": "ProcedureOccurrence",
+    "observation": "Observation",
+    "device": "DeviceExposure",
+    "visit": "VisitOccurrence",
+}
+
+_OP_MAP: dict[str, str] = {
+    ">": "gt", ">=": "gte", "<": "lt", "<=": "lte", "=": "eq", "==": "eq",
+    "!=": "neq", "gt": "gt", "gte": "gte", "lt": "lt", "lte": "lte", "eq": "eq", "neq": "neq",
+}
+```
+
+**Functions:**
+- `build_circe_export(data: ProtocolExportData) -> dict[str, Any]`
+  - Builds CIRCE CohortExpression from criteria
+  - Separates inclusion and exclusion criteria
+  - Returns expression dict with ConceptSets, PrimaryCriteria, AdditionalCriteria, CensoringCriteria
+
+- `_get_concept_id(atomic: AtomicCriterion) -> int | None`
+  - Prefers omop_concept_id, falls back to entity_concept_id
+
+- `_ensure_concept_set(...) -> int | None`
+  - Creates or reuses ConceptSet entries
+  - Handles includeDescendants and includeMapped
+
+- `_build_demographic_criteria(atomic: AtomicCriterion) -> dict[str, Any] | None`
+  - Builds DemographicCriteria with Age range
+
+- `_build_atomic_criteria(...) -> dict[str, Any] | None`
+  - Builds CIRCE criteria entry from AtomicCriterion
+  - Handles negation via OccurrenceCount
+  - Adds ValueAsNumber for measurements
+
+- `_build_and_or_group(...) -> dict[str, Any] | None`
+  - Recursively builds AND/OR CriteriaGroup
+
+- `_build_not_group(...) -> dict[str, Any] | None`
+  - Negates inner criteria via OccurrenceCount = 0
+
+- `_build_criteria_group(...) -> dict[str, Any] | None`
+  - Dispatcher: handles ATOMIC, AND, OR, NOT node types
+
+**Issues:**
+- ✅ Well-structured recursive tree builder
+- ✅ No unused code
+
+---
+
+#### 4. **exporters/fhir_group_builder.py** (265 lines)
+**Purpose:** Build FHIR R4 Group resource with eligibility characteristics
+
+**Imports:**
+- `typing.Any`
+- `uuid.uuid4`
+- `shared.models`: AtomicCriterion
+- `api_service.exporters`: ProtocolExportData
+
+**Module-level Dicts:**
+```python
+_SYSTEM_URI_MAP: dict[str, str] = {
+    "snomed": "http://snomed.info/sct",
+    "snomedct": "http://snomed.info/sct",
+    "loinc": "http://loinc.org",
+    "rxnorm": "http://www.nlm.nih.gov/research/umls/rxnorm",
+    "icd10": "http://hl7.org/fhir/sid/icd-10",
+    "icd10cm": "http://hl7.org/fhir/sid/icd-10-cm",
+    "cpt": "http://www.ama-assn.org/go/cpt",
+    "hcpcs": "urn:oid:2.16.840.1.113883.6.285",
+    "omop": "http://ohdsi.org/omop/concept",
+}
+
+_COMPARATOR_MAP: dict[str, str] = {
+    ">": "gt", ">=": "ge", "<": "lt", "<=": "le",
+    "gt": "gt", "gte": "ge", "lt": "lt", "lte": "le",
+}
+```
+
+**Functions:**
+- `build_fhir_group_export(data: ProtocolExportData) -> dict[str, Any]`
+  - Builds FHIR Group resource with characteristics
+  - Recursively processes expression trees
+  - Sets characteristic-combination extension
+
+- `_build_or_characteristic(tree, data, exclude) -> list[dict[str, Any]]`
+  - Builds nested FHIR Group for OR logic
+  - Creates valueReference with nested group
+
+- `_build_characteristics_from_tree(tree, data, exclude) -> list[dict[str, Any]]`
+  - Recursive dispatcher for ATOMIC, AND, OR, NOT nodes
+
+- `_get_system_uri(system: str | None) -> str`
+  - Maps terminology system to FHIR URI
+
+- `_get_concept_code(atomic: AtomicCriterion) -> str | None`
+  - Prefers omop_concept_id, falls back to entity_concept_id
+
+- `_build_demographic_characteristic(atomic, exclude) -> dict[str, Any] | None`
+  - Builds age characteristic with quantity (unit=years)
+
+- `_build_characteristic(atomic, exclude) -> dict[str, Any] | None`
+  - Builds single FHIR characteristic
+  - Handles valueQuantity, valueCodeableConcept, valueBoolean
+
+**Issues:**
+- ✅ Well-structured tree processor
+- ✅ No unused code
+
+---
+
+#### 5. **exports.py** (114 lines)
+**Purpose:** FastAPI endpoint layer for exports
+
+**Imports:**
+- `typing.Any`
+- `fastapi`: APIRouter, Depends, HTTPException
+- `fastapi.responses`: PlainTextResponse
+- `pydantic`: BaseModel
+- `sqlmodel`: Session
+- `api_service.dependencies`: get_db
+- `api_service.exporters`: load_protocol_export_data, build_circe_export, build_evaluation_sql, build_fhir_group_export
+
+**Classes:**
+- `ExportStats(BaseModel)`: criteria_count, atomic_count, composite_count, relationship_count
+- `CirceExportResponse(BaseModel)`: expression, stats
+- `FhirGroupExportResponse(BaseModel)`: resource, stats
+
+**Functions:**
+- `_get_export_data_or_404(db, protocol_id)` -> ProtocolExportData
+  - Helper to load data or raise 404
+  
+- `_make_stats(data)` -> ExportStats
+  - Helper to compute stats from data
+
+- `export_circe(protocol_id, db)` -> CirceExportResponse
+  - GET /{protocol_id}/export/circe
+  
+- `export_fhir_group(protocol_id, db)` -> FhirGroupExportResponse
+  - GET /{protocol_id}/export/fhir-group
+  
+- `export_evaluation_sql(protocol_id, db)` -> PlainTextResponse
+  - GET /{protocol_id}/export/evaluation-sql
+
+**Issues:**
+- ✅ Clean API layer, single responsibility
+- ✅ No unused code
+
+---
+
+#### 6. **models.py** (294 lines)
+**Purpose:** SQLModel ORM domain models
+
+**Imports:**
+- `datetime.datetime`
+- `enum.Enum`
+- `typing`: Any, Dict
+- `uuid.uuid4`
+- `sqlalchemy`: JSON, Boolean, Column, DateTime, Float, Index, Integer, String, Text, func
+- `sqlmodel`: Field, SQLModel
+
+**Utility Functions:**
+- `_ts_col()` -> Column: created_at timestamp with server default
+- `_ts_col_update()` -> Column: updated_at timestamp with server default and onupdate
+
+**Enums:**
+- `ProtocolStatus(str, Enum)`: UPLOADED, PENDING, EXTRACTING, EXTRACTION_FAILED, GROUNDING, GROUNDING_FAILED, PENDING_REVIEW, COMPLETE, DEAD_LETTER, ARCHIVED
+
+**Models:**
+1. `Protocol(SQLModel, table=True)`
+   - id (PK), title, file_uri, status, page_count, quality_score, error_reason, metadata_, created_at, updated_at
+
+2. `CriteriaBatch(SQLModel, table=True)`
+   - id (PK), protocol_id (FK), status, extraction_model, created_at, updated_at, is_archived
+
+3. `Criteria(SQLModel, table=True)`
+   - id (PK), batch_id (FK), criteria_type, category, text (TEXT), temporal_constraint (JSON), conditions (JSON), numeric_thresholds (JSON), assertion_status, confidence, source_section, page_number, review_status, structured_criterion (JSON), created_at, updated_at
+
+4. `Entity(SQLModel, table=True)`
+   - id (PK), criteria_id (FK), entity_type, text, span_start, span_end, umls_cui, snomed_code, preferred_term, grounding_confidence, grounding_method, review_status, context_window (JSON), rxnorm_code, icd10_code, loinc_code, hpo_code, grounding_system, grounding_error, omop_concept_id, reconciliation_status, created_at, updated_at
+
+5. `Review(SQLModel, table=True)`
+   - id (PK), reviewer_id, target_type, target_id, action, before_value (JSON), after_value (JSON), comment, created_at
+
+6. `AuditLog(SQLModel, table=True)`
+   - id (PK), event_type, actor_id, target_type, target_id, details (JSON), created_at
+
+7. `User(SQLModel, table=True)`
+   - id (PK), email (unique), name, picture_url, is_active, created_at, updated_at
+
+8. `AtomicCriterion(SQLModel, table=True)` [Phase 2]
+   - id (PK), criterion_id (FK), protocol_id (FK), inclusion_exclusion, entity_concept_id, entity_concept_system, omop_concept_id, entity_domain, relation_operator, value_numeric (Float), value_text, unit_text, unit_concept_id (Integer), value_concept_id (Integer), negation (Boolean), temporal_constraint (JSON), original_text, confidence_score, human_verified, human_modified, created_at, updated_at
+   - Index: ix_atomic_proto_incl on (protocol_id, inclusion_exclusion)
+
+9. `CompositeCriterion(SQLModel, table=True)` [Phase 2]
+   - id (PK), criterion_id (FK), protocol_id (FK), inclusion_exclusion, logic_operator, parent_criterion_id (self-reference), original_text, human_verified, created_at, updated_at
+
+10. `CriterionRelationship(SQLModel, table=True)` [Expression Tree Edges]
+    - parent_criterion_id (FK to CompositeCriterion, PK), child_criterion_id (PK), child_type, child_sequence (Integer)
+
+11. `OutboxEvent(SQLModel, table=True)` [Transactional Outbox]
+    - id (PK), event_type, aggregate_type, aggregate_id, payload (JSON), idempotency_key (unique), status, retry_count, published_at, created_at
+
+**Issues:**
+- ✅ Well-designed relational schema
+- ✅ Proper use of JSON columns for nested data
+- ✅ Good index coverage
+- ✅ No unused code
+
+---
+
+#### 7. **structure_builder.py** (481 lines)
+**Purpose:** Build expression trees (Phase 2) using Gemini + fallback
+
+**Imports:**
+- `logging`, `os`, `typing.Any`
+- `shared.models`: AtomicCriterion, CompositeCriterion, CriterionRelationship
+- `sqlmodel`: Session
+- `protocol_processor.schemas.structure`: ExpressionNode, LogicDetectionResponse, LogicNode, StructuredCriterionTree
+- `protocol_processor.tools.unit_normalizer`: normalize_ordinal_value, normalize_unit, normalize_value
+
+**Module-level Dict:**
+```python
+_ENTITY_TYPE_TO_DOMAIN: dict[str, str] = {
+    "Condition": "condition",
+    "Medication": "drug",
+    "Lab_Value": "measurement",
+    "Procedure": "procedure",
+    "Demographic": "demographics",
+    "Other": "observation",
+}
+```
+
+**Functions:**
+1. `_parse_value(raw_value: str) -> tuple[float | None, str | None]`
+   - Tries float conversion; returns (numeric, None) or (None, text)
+
+2. `async def detect_logic_structure(criterion_text, field_mappings) -> LogicDetectionResponse | None`
+   - Skips if field_mappings <= 1 (single atom)
+   - Guards on GOOGLE_API_KEY
+   - Late imports: ChatGoogleGenerativeAI from langchain_google_genai
+   - Uses with_structured_output(LogicDetectionResponse)
+   - Validates logic tree indices
+   - Returns None on any failure (graceful degradation)
+
+3. `_validate_logic_tree(node: LogicNode, num_mappings: int) -> bool`
+   - Validates all field_mapping_index values in range
+
+4. `_create_atomic_from_mapping(fm, criterion_id, protocol_id, inclusion_exclusion, criterion_text) -> AtomicCriterion`
+   - Parses value (numeric/text)
+   - Detects negation from relation="NOT"
+   - Calls normalize_unit() and normalize_value()
+   - Calls normalize_ordinal_value() (entity-context-aware)
+   - Creates AtomicCriterion record
+
+5. `_build_tree_from_logic(node, field_mappings, atomic_records, criterion_id, protocol_id, inclusion_exclusion, session) -> ExpressionNode`
+   - Recursively builds ExpressionNode tree and DB records
+   - Creates CompositeCriterion and CriterionRelationship for branch nodes
+   - Uses _find_last_composite_id() to link composite children
+
+6. `_find_last_composite_id(session, criterion_id, logic_operator) -> str`
+   - Queries for most recent CompositeCriterion matching criteria
+
+7. `async def build_expression_tree(criterion_text, field_mappings, criterion_id, protocol_id, inclusion_exclusion, session) -> StructuredCriterionTree`
+   - Two-pass approach:
+     1. Call detect_logic_structure() for LLM detection
+     2. Fallback: AND-of-all-atomics or single ATOMIC
+   - Creates AtomicCriterion records first
+   - Builds tree from logic or fallback
+   - Returns StructuredCriterionTree for JSONB storage
+
+**Issues:**
+- ⚠️ **DRY VIOLATION**: `_create_atomic_from_mapping()` logic overlaps with other tools (unit_normalizer, field_mapper)
+- ⚠️ **Gemini Client Creation Pattern**: Repeated in ordinal_resolver.py and field_mapper.py:
+  ```python
+  # ALL THREE FILES:
+  google_api_key = os.getenv("GOOGLE_API_KEY")
+  if not google_api_key:
+      logger.warning(...)
+      return None
+  
+  try:
+      from langchain_google_genai import ChatGoogleGenerativeAI
+      gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+      gemini = ChatGoogleGenerativeAI(
+          model=gemini_model_name,
+          google_api_key=google_api_key,
+      )
+      structured_llm = gemini.with_structured_output(...)
+  ```
+  
+  **Recommendation**: Extract to shared utility function (e.g., `_create_gemini_client()`)
+
+- ⚠️ **Exception Handling Pattern**: All three use identical try-except with logging
+- ✅ No unused code detected
+- ✅ Good error accumulation pattern (graceful degradation)
+
+---
+
+#### 8. **ordinal_resolver.py** (113 lines)
+**Purpose:** Resolve ordinal scales (Child-Pugh, GCS, APACHE II, mRS, SOFA, etc.) using Gemini
+
+**Imports:**
+- `logging`, `os`, `typing.Any`
+- `protocol_processor.schemas.ordinal`: OrdinalResolutionResponse, OrdinalScaleProposal
+
+**Functions:**
+1. `async def resolve_ordinal_candidates(candidates: list[dict[str, Any]]) -> OrdinalResolutionResponse | None`
+   - Guards on GOOGLE_API_KEY
+   - Late imports: ChatGoogleGenerativeAI
+   - Uses with_structured_output(OrdinalResolutionResponse)
+   - Filters to is_ordinal_scale AND confidence >= 0.7
+   - Returns None on failure
+
+**Issues:**
+- ⚠️ **DRY VIOLATION**: Identical Gemini client creation pattern to structure_builder.py and field_mapper.py
+- ⚠️ **Repeated Exception Handling**: Same try-except-log pattern in all three
+- ✅ No unused code
+
+---
+
+#### 9. **field_mapper.py** (162 lines)
+**Purpose:** Generate suggested field mappings for grounded entities using Gemini
+
+**Imports:**
+- `logging`, `os`, `typing.Any`
+- `pydantic`: BaseModel, Field
+- `protocol_processor.schemas.grounding`: EntityGroundingResult
+
+**Classes:**
+- `FieldMappingItem(BaseModel)`
+  - entity, relation, value, unit (optional)
+
+- `FieldMappingResponse(BaseModel)`
+  - mappings: list[FieldMappingItem]
+
+**Functions:**
+1. `async def generate_field_mappings(entity: EntityGroundingResult, criterion_text: str) -> list[dict[str, Any]]`
+   - Guards on GOOGLE_API_KEY
+   - Late imports: ChatGoogleGenerativeAI
+   - Uses with_structured_output(FieldMappingResponse)
+   - Returns empty list on failure (not exception)
+   - Builds mappings dict with entity metadata (entity_concept_id, entity_concept_system, omop_concept_id, entity_type)
+
+**Issues:**
+- ⚠️ **DRY VIOLATION**: Identical Gemini client creation to structure_builder.py and ordinal_resolver.py
+- ⚠️ **Repeated Exception Handling**: Same try-except-log pattern
+- ⚠️ **Shared Pydantic Pattern**: FieldMappingItem/FieldMappingResponse could be extracted
+- ✅ No unused code
+
+---
+
+#### 10. **unit_normalizer.py** (240 lines)
+**Purpose:** Unit/value normalization from YAML lookup (no LLM)
+
+**Imports:**
+- `logging`, `re`, `functools.lru_cache`, `pathlib.Path`, `typing.Any`, `yaml`
+
+**Module-level:**
+- `_CONFIG_PATH`: Path to config/ucum_mappings.yaml
+- `_ORDINAL_PREFIX_RE`: Regex to strip ordinal prefixes (grade, stage, class, score, level)
+
+**Functions:**
+1. `@lru_cache(maxsize=1) _load_ucum_mappings() -> tuple[dict[str, tuple[str, int]], dict[str, int]]`
+   - Loads and indexes YAML file
+   - Returns (unit_lookup, value_lookup)
+   - unit_lookup: lowercased alias → (canonical, omop_id)
+   - value_lookup: lowercased text → omop_value_concept_id
+
+2. `normalize_unit(unit_text: str | None) -> tuple[str | None, int | None]`
+   - Lookup-based unit normalization
+   - Returns (ucum_code, omop_unit_concept_id)
+
+3. `normalize_value(value_text: str | None) -> tuple[str | None, int | None]`
+   - Lookup-based value normalization
+   - Returns (normalized_text, omop_value_concept_id)
+
+4. `@lru_cache(maxsize=1) _load_ordinal_scales() -> tuple[dict[str, str], dict[str, Any]]`
+   - Loads ordinal scale definitions
+   - Returns (alias_to_scale, scale_defs)
+
+5. `_match_ordinal_scale(entity_text: str) -> str | None`
+   - Matches entity text to ordinal scale key
+   - Three strategies: exact alias, entity in alias, alias in entity
+
+6. `normalize_ordinal_value(value_text: str | None, entity_text: str | None = None) -> tuple[int | None, int | None] | None`
+   - Entity-context-aware ordinal normalization
+   - Returns (value_concept_id, unit_concept_id) or None
+   - unit_concept_id is always 8527 ({score}) for ordinals
+
+7. `propose_ordinal_mappings() -> list[dict[str, Any]]`
+   - Scans ordinal_scales for entries missing omop_value_concept_id
+   - Returns list of dicts with scale, grade, snomed_code, loinc_answer, description, status
+
+**Issues:**
+- ✅ Pure static lookup, no LLM or external calls
+- ✅ Good use of @lru_cache for YAML loading
+- ✅ Well-designed fallback (returns (None, None) never raises)
+- ✅ No unused code
+- ⚠️ **Path Dependency**: Hard-coded relative path to config/ucum_mappings.yaml
+  - Should verify this file exists at expected location
+
+---
+
+#### 11. **graph.py** (152 lines)
+**Purpose:** LangGraph workflow definition for unified protocol processing pipeline
+
+**Imports:**
+- `os`, `typing.Any`
+- `langgraph.graph`: END, START, StateGraph
+- `protocol_processor.nodes.*`: extract_node, ground_node, ingest_node, ordinal_resolve_node, parse_node, persist_node, structure_node
+- `protocol_processor.state`: PipelineState
+
+**Functions:**
+1. `should_continue(state: PipelineState) -> str`
+   - Conditional edge function
+   - Returns "error" if state has error, "continue" otherwise
+
+2. `create_graph(checkpointer: Any = None) -> Any`
+   - Creates 7-node StateGraph
+   - Topology:
+     ```
+     START -> ingest -> extract -> parse -> ground -> persist
+                  ↓         ↓        ↓              -> structure
+             (conditional error routing)           -> ordinal_resolve -> END
+     ```
+   - Conditional error routing after ingest, extract, parse (halt on error)
+   - Ground, persist, structure, ordinal_resolve use error accumulation (no halt)
+   - Optional checkpointer for fault tolerance
+
+3. `async def _get_checkpointer_async() -> Any`
+   - Singleton lazy-loader for AsyncPostgresSaver
+   - Guards on DATABASE_URL
+   - Creates checkpoint tables via asetup()
+
+4. `async def get_graph() -> Any`
+   - Singleton lazy-getter for compiled graph
+   - Uses checkpointer if available; None otherwise
+
+**Module-level Singletons:**
+- `_graph`: Compiled StateGraph instance
+- `_checkpointer`: AsyncPostgresSaver instance
+- `_checkpointer_cm`: Context manager for PostgresSaver
+
+**Issues:**
+- ✅ Well-designed workflow graph
+- ✅ Good error routing (halt on extraction errors, accumulate in grounding/structure phases)
+- ✅ Singleton pattern with lazy initialization
+- ✅ Graceful fallback when DATABASE_URL unavailable (for unit tests)
+- ⚠️ **Global State**: Reliance on module-level globals (_graph, _checkpointer) is functional but could be refactored to class-based pattern
+- ✅ No unused code
+
+---
+
+## DRY VIOLATIONS & DUPLICATION SUMMARY
+
+### 1. **Gemini Client Creation Pattern** (CRITICAL)
+Appears in **3 files** with near-identical code:
+- `structure_builder.py` (lines 85-101)
+- `ordinal_resolver.py` (lines 43-56)
+- `field_mapper.py` (lines 80-96)
+
+**Duplicated Block:**
+```python
+google_api_key = os.getenv("GOOGLE_API_KEY")
+if not google_api_key:
+    logger.warning(...)
+    return None
+
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+    gemini = ChatGoogleGenerativeAI(
+        model=gemini_model_name,
+        google_api_key=google_api_key,
+    )
+    structured_llm = gemini.with_structured_output(...)
+```
+
+**Recommendation:** Extract to shared utility:
+```python
+# protocol_processor/gemini_utils.py
+async def create_gemini_client(response_schema):
+    """Create ChatGoogleGenerativeAI with structured output."""
+    google_api_key = os.getenv("GOOGLE_API_KEY")
+    if not google_api_key:
+        logger.warning("GOOGLE_API_KEY not set")
+        return None
+    
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+        gemini = ChatGoogleGenerativeAI(
+            model=gemini_model_name,
+            google_api_key=google_api_key,
+        )
+        return gemini.with_structured_output(response_schema)
+    except Exception as e:
+        logger.warning("Gemini client creation failed: %s", e)
+        return None
+```
+
+---
+
+### 2. **Concept ID Resolution Pattern** (HIGH)
+Appears in **4 files**:
+- `evaluation_sql_builder.py`: `_get_valid_concept_id()` (lines 123-131)
+- `circe_builder.py`: `_get_concept_id()` (lines 94-106)
+- `fhir_group_builder.py`: `_get_concept_code()` (lines 169-174)
+- `structure_builder.py`: Inline logic in `_create_atomic_from_mapping()` (lines 231-233)
+
+**Pattern:**
+```python
+# All prefer omop_concept_id, fallback to entity_concept_id
+for val in (atomic.omop_concept_id, atomic.entity_concept_id):
+    if val is not None:
+        try:
+            return int(val)  # or str(val)
+        except (ValueError, TypeError):
+            continue
+```
+
+**Recommendation:** Extract to shared models utility:
+```python
+# shared/concepts.py
+def get_concept_id(atomic: AtomicCriterion, as_int: bool = True) -> str | int | None:
+    """Get validated concept ID (omop_concept_id preferred)."""
+    for val in (atomic.omop_concept_id, atomic.entity_concept_id):
+        if val is not None:
+            try:
+                return int(val) if as_int else str(val)
+            except (ValueError, TypeError):
+                continue
+    return None
+```
+
+---
+
+### 3. **Operator Maps** (MEDIUM)
+Appears in **3 files** with slight variations:
+- `evaluation_sql_builder.py`: `_SQL_OP` (lines 25-39)
+  ```python
+  {">": ">", ">=": ">=", ..., "gt": ">", "gte": ">=", ...}
+  ```
+- `circe_builder.py`: `_OP_MAP` (lines 27-41)
+  ```python
+  {">": "gt", ">=": "gte", ..., "eq": "eq", "neq": "neq"}
+  ```
+- `fhir_group_builder.py`: `_COMPARATOR_MAP` (lines 30-39)
+  ```python
+  {">": "gt", ">=": "ge", ..., "lte": "le"}
+  ```
+
+**Difference:** Slight variations in target operator strings (SQL vs CIRCE vs FHIR).
+
+**Recommendation:** Centralize with target format parameter:
+```python
+# shared/operators.py
+_OPERATOR_FORMATS = {
+    "sql": {">": ">", ">=": ">=", "<": "<", ...},
+    "circe": {">": "gt", ">=": "gte", "<": "lt", ...},
+    "fhir": {">": "gt", ">=": "ge", "<": "lt", ...},
+}
+
+def normalize_operator(op: str, format: str = "sql") -> str:
+    """Normalize relation_operator to target format."""
+    mapping = _OPERATOR_FORMATS.get(format, _OPERATOR_FORMATS["sql"])
+    return mapping.get(op, "eq")
+```
+
+---
+
+### 4. **Domain Maps** (MEDIUM)
+Appears in **3 files**:
+- `evaluation_sql_builder.py`: `_DOMAIN_TABLE` (lines 14-22)
+  ```python
+  "condition": ("condition_occurrence", "condition_concept_id"), ...
+  ```
+- `circe_builder.py`: `_DOMAIN_TO_CIRCE` (lines 16-24)
+  ```python
+  "condition": "ConditionOccurrence", ...
+  ```
+- `fhir_group_builder.py`: (no direct map, uses SYSTEM_URI_MAP for coding systems)
+
+**Recommendation:** Centralize with format parameter:
+```python
+# shared/domains.py
+_DOMAIN_FORMATS = {
+    "omop": {
+        "condition": ("condition_occurrence", "condition_concept_id"),
+        "measurement": ("measurement", "measurement_concept_id"),
+        ...
+    },
+    "circe": {
+        "condition": "ConditionOccurrence",
+        "measurement": "Measurement",
+        ...
+    },
+}
+
+def get_domain_mapping(entity_domain: str, format: str = "omop"):
+    """Get domain mapping for target format."""
+    mapping = _DOMAIN_FORMATS.get(format, {})
+    return mapping.get(entity_domain.lower())
+```
+
+---
+
+### 5. **Exception Handling Pattern** (MEDIUM)
+All three Gemini-based tools use nearly identical try-except-log:
+```python
+except Exception as e:
+    logger.warning(
+        "Operation failed for ...: %s",
+        e,
+        exc_info=True,
+    )
+    return None
+```
+
+**Recommendation:** Use custom exceptions with standardized logging.
+
+---
+
+### 6. **Concept System URI Maps** (LOW)
+Only in `fhir_group_builder.py`: `_SYSTEM_URI_MAP` (lines 17-27)
+Could be shared if other builders support FHIR in future.
+
+---
+
+## SUMMARY TABLE
+
+| Violation | Severity | Files | Lines | Recommendation |
+|-----------|----------|-------|-------|-----------------|
+| Gemini Client Creation | CRITICAL | 3 | ~20 each | Extract to `gemini_utils.py` |
+| Concept ID Resolution | HIGH | 4 | ~10 each | Extract to `concepts.py` |
+| Operator Maps | MEDIUM | 3 | 15-20 each | Centralize to `operators.py` |
+| Domain Maps | MEDIUM | 3 | 10-15 each | Centralize to `domains.py` |
+| Exception Handling Pattern | MEDIUM | 3 | 5-7 each | Standardize or use custom exceptions |
+| Gemini Model Name Env Var | LOW | 3 | 1 each | Already reasonable |
+
+---
+
+## UNUSED CODE ANALYSIS
+
+**Finding:** No unused code detected in any analyzed files.
+- All module-level dicts are consumed
+- All functions are called
+- All imports are used
+- No orphaned variables or unreachable branches
+
+---
+
+## SCHEMA & ARCHITECTURE OBSERVATIONS
+
+1. **Expression Tree Design (models.py)**
+   - AtomicCriterion: Leaf nodes with OMOP mappings
+   - CompositeCriterion: Branch nodes with logic operators (AND/OR/NOT)
+   - CriterionRelationship: Polymorphic edges (child_type discriminates)
+   - Excellent normalized design for flexible expression trees
+
+2. **Export Builder Architecture**
+   - Unified ProtocolExportData loader
+   - Three specialized builders (CIRCE, FHIR, SQL) with single responsibility
+   - Clean pattern: data → builder → dict/string output
+   - Good separation of concerns
+
+3. **Phase 2 Structure (structure_builder.py)**
+   - Two-pass approach: LLM detection → fallback
+   - Graceful degradation on Gemini unavailability
+   - Creates atomics first, builds tree second
+   - Good error handling
+
+4. **LangGraph Pipeline (graph.py)**
+   - 7-node pipeline with clear phases
+   - Conditional error routing vs error accumulation (appropriate split)
+   - Lazy singleton checkpointer (good for fault tolerance)
+
+---
+
+## RECOMMENDATIONS
+
+### Immediate (Reduce Duplication)
+1. Extract Gemini client creation to shared utility
+2. Extract concept ID resolution to shared utility
+3. Centralize operator and domain maps
+
+### Short-term (Improve Maintainability)
+1. Standardize exception handling across tools
+2. Add integration tests for export builders
+3. Document YAML schema for ucum_mappings and ordinal_scales
+
+### Long-term (Architecture)
+1. Consider dependency injection for Gemini client
+2. Add validation for operator mappings
+3. Create reusable tree traversal utilities for expression trees
+
+---
+
+This completes a comprehensive analysis of all 11 files totaling 2,420 lines of code.</result>
+<usage>total_tokens: 59963
+tool_uses: 22
+duration_ms: 87962</usage>
+</task-notification>
+Full transcript available at: REDACTED.output
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **User's initial request**: The user asked me to:
+   - Read the code review report at `instructions/CODE_REVIEW_REPORT_4_PHASES.md`
+   - Perform my own code review
+   - After due consideration, fix the issues deemed appropriate
+
+2. **User's second request** (mid-work): "As part of your work, execute make run-dev and follow the console and the errors that pop up."
+
+3. **My approach**:
+   - Read the code review report
+   - Launched 3 parallel exploration agents to thoroughly understand the codebase
+   - Read all key source files mentioned in the review
+   - Created a task list of 5 items
+   - Implemented fixes for the most impactful issues
+   - Ran linting, type checking, and tests
+   - Ran `make run-dev` to verify runtime
+
+4. **Key files read**:
+   - `instructions/CODE_REVIEW_REPORT_4_PHASES.md` - the review report
+   - `services/api-service/src/api_service/exporters/__init__.py` - ProtocolExportData
+   - `services/api-service/src/api_service/exporters/circe_builder.py` - CIRCE builder
+   - `services/api-service/src/api_service/exporters/evaluation_sql_builder.py` - SQL builder
+   - `services/api-service/src/api_service/exporters/fhir_group_builder.py` - FHIR builder
+   - `services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py` - expression tree builder
+   - `services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py` - ordinal resolver
+   - `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py` - field mapper
+   - `services/protocol-processor-service/src/protocol_processor/graph.py` - LangGraph pipeline
+   - `services/protocol-processor-service/src/protocol_processor/nodes/structure.py` - structure node
+   - `services/protocol-processor-service/src/protocol_processor/nodes/ordinal_resolve.py` - ordinal resolve node
+   - `libs/shared/src/shared/models.py` - shared domain models
+   - `services/api-service/tests/test_exports.py` - export tests
+   - `services/api-service/scripts/demo_exports.py` - demo script
+   - `Makefile` - dev commands
+   - `services/api-service/pyproject.toml` - pytest config
+
+5. **Files created**:
+   - `services/api-service/src/api_service/exporters/concept_utils.py`
+   - `services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`
+
+6. **Files modified**:
+   - `circe_builder.py` - import shared helper, delegate `_get_concept_id`
+   - `evaluation_sql_builder.py` - import shared helper, delegate `_get_valid_concept_id`, add limitation docstring
+   - `fhir_group_builder.py` - import shared helper, delegate `_get_concept_code`
+   - `exporters/__init__.py` - remove `composites_by_id` and `children_by_parent`
+   - `structure_builder.py` - use gemini_utils, refactor `_build_tree_from_logic` to return tuple, delete `_find_last_composite_id`
+   - `ordinal_resolver.py` - use gemini_utils
+   - `field_mapper.py` - use gemini_utils
+   - `nodes/structure.py` - compute error count once
+   - `shared/models.py` - document `parent_criterion_id`
+   - `tests/test_exports.py` - remove deleted field references
+   - `scripts/demo_exports.py` - remove deleted field references
+
+7. **Errors encountered**:
+   - Running pytest directly failed with `ModuleNotFoundError: No module named 'shared'` - needed to run from api-service directory with correct pythonpath
+   - Running `pytest -p no:xdist` failed because `addopts = "-n auto"` in pyproject.toml - needed `--override-ini="addopts="`
+   - `make run-dev` first failed with "No rule to make target" because working directory was wrong - needed to cd to project root first
+   - MLflow port 5001 was already in use (pre-existing, non-fatal)
+
+8. **Verification results**:
+   - Ruff: all checks passed
+   - mypy: only 3 pre-existing errors (events_py import stubs)
+   - Tests: 36/36 export tests pass
+   - `make run-dev`: starts cleanly
+
+9. **All tasks completed**. No pending work.
+
+10. The failed task notification `b4722fe` was the first `make run-dev` attempt that ran from the wrong directory. The successful one was `b23109b`.
+
+Summary:
+1. Primary Request and Intent:
+   The user asked me to:
+   - Read the existing code review report at `instructions/CODE_REVIEW_REPORT_4_PHASES.md`
+   - Perform my own independent code review of the codebase
+   - After due consideration, fix the issues deemed appropriate
+   - Execute `make run-dev` and follow the console for errors (requested mid-work)
+
+2. Key Technical Concepts:
+   - **MedGemma Hackathon / ElixirTrials**: A clinical trial protocol processing system using AI agents, LangGraph, FastAPI, React
+   - **7-node LangGraph pipeline**: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+   - **Expression trees**: AtomicCriterion (leaf), CompositeCriterion (branch AND/OR/NOT), CriterionRelationship (edges)
+   - **Export builders**: CIRCE (OHDSI), FHIR R4 Group, OMOP CDM evaluation SQL
+   - **Gemini structured output**: `ChatGoogleGenerativeAI.with_structured_output()` pattern used in 3 tools
+   - **DRY violations**: Concept ID resolution, Gemini client creation, structured output parsing duplicated across files
+   - **`_find_last_composite_id` fragility**: Querying by `created_at DESC` to find just-created records during recursive tree building
+   - **Unused ProtocolExportData fields**: `composites_by_id` and `children_by_parent` built but never consumed by any exporter
+   - **Evaluation SQL limitation**: Uses flat AND/OR model, ignoring expression tree's nested structure
+   - Branch: `feature/major-refactor-langgraph`, main branch: `main`
+
+3. Files and Code Sections:
+
+   - **`services/api-service/src/api_service/exporters/concept_utils.py`** (CREATED)
+     - Centralizes concept ID resolution used by all 3 exporters
+     ```python
+     def get_concept_id(atomic: AtomicCriterion) -> int | None:
+         for val in (atomic.omop_concept_id, atomic.entity_concept_id):
+             if val is not None:
+                 try:
+                     return int(val)
+                 except (ValueError, TypeError):
+                     continue
+         return None
+
+     def get_concept_code(atomic: AtomicCriterion) -> str | None:
+         for val in (atomic.omop_concept_id, atomic.entity_concept_id):
+             if val is not None:
+                 return str(val)
+         return None
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`** (CREATED)
+     - Centralizes Gemini LLM client creation and structured output parsing
+     ```python
+     def create_structured_llm(output_schema: type[T]) -> Any | None:
+         google_api_key = os.getenv("GOOGLE_API_KEY")
+         if not google_api_key:
+             logger.warning("GOOGLE_API_KEY not set — skipping Gemini call")
+             return None
+         try:
+             from langchain_google_genai import ChatGoogleGenerativeAI
+             gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+             gemini = ChatGoogleGenerativeAI(model=gemini_model_name, google_api_key=google_api_key)
+             return gemini.with_structured_output(output_schema)
+         except Exception as e:
+             logger.warning("Failed to create Gemini client: %s", e)
+             return None
+
+     def parse_structured_output(result: Any, model: type[T]) -> T:
+         if isinstance(result, dict):
+             return model.model_validate(result)
+         return result
+     ```
+
+   - **`services/api-service/src/api_service/exporters/circe_builder.py`** (MODIFIED)
+     - Added `from api_service.exporters.concept_utils import get_concept_id`
+     - Simplified `_get_concept_id` to delegate to shared helper
+
+   - **`services/api-service/src/api_service/exporters/evaluation_sql_builder.py`** (MODIFIED)
+     - Added limitation docstring about flat AND/OR model
+     - Added `from api_service.exporters.concept_utils import get_concept_id`
+     - Simplified `_get_valid_concept_id` to delegate to shared helper
+
+   - **`services/api-service/src/api_service/exporters/fhir_group_builder.py`** (MODIFIED)
+     - Added `from api_service.exporters.concept_utils import get_concept_code`
+     - Simplified `_get_concept_code` to delegate to shared helper
+
+   - **`services/api-service/src/api_service/exporters/__init__.py`** (MODIFIED)
+     - Removed `composites_by_id` and `children_by_parent` fields from `ProtocolExportData` dataclass
+     - Removed construction of these dicts in `load_protocol_export_data()`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py`** (MODIFIED)
+     - Added imports for `create_structured_llm` and `parse_structured_output` from `gemini_utils`
+     - Replaced inline Gemini client creation in `detect_logic_structure()` with `create_structured_llm()`
+     - Replaced inline `isinstance(result, dict)` parsing with `parse_structured_output()`
+     - **Major refactor**: Changed `_build_tree_from_logic()` return type from `ExpressionNode` to `tuple[ExpressionNode, str]` (node + DB record ID)
+     - Eliminated `_find_last_composite_id()` entirely — child composite IDs now returned directly from recursion
+     - Updated call site in `build_expression_tree()` to unpack: `root_expr, _ = _build_tree_from_logic(...)`
+     ```python
+     def _build_tree_from_logic(...) -> tuple[ExpressionNode, str]:
+         if node.node_type == "ATOMIC":
+             # ...
+             return expr, atomic.id
+         # Branch node
+         composite = CompositeCriterion(...)
+         session.add(composite)
+         session.flush()
+         for seq, child in enumerate(node.children or []):
+             child_expr, child_db_id = _build_tree_from_logic(...)
+             children_nodes.append(child_expr)
+             child_type = "atomic" if child.node_type == "ATOMIC" else "composite"
+             rel = CriterionRelationship(
+                 parent_criterion_id=composite.id,
+                 child_criterion_id=child_db_id,
+                 child_type=child_type,
+                 child_sequence=seq,
+             )
+             session.add(rel)
+         return expr, composite.id
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py`** (MODIFIED)
+     - Removed `import os`, added imports from `gemini_utils`
+     - Replaced inline Gemini client creation with `create_structured_llm()`
+     - Replaced inline parsing with `parse_structured_output()`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`** (MODIFIED)
+     - Removed `import os`, added imports from `gemini_utils`
+     - Replaced inline Gemini client creation with `create_structured_llm()`
+     - Replaced inline parsing with `parse_structured_output()`
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/structure.py`** (MODIFIED)
+     - Fixed triple error count computation — now computed once and reused:
+     ```python
+     new_errors = [e for e in results if e is not None]
+     accumulated_errors.extend(new_errors)
+     error_count = len(new_errors)
+     # Used in audit log, logger.info, and span.set_outputs
+     ```
+
+   - **`libs/shared/src/shared/models.py`** (MODIFIED)
+     - Added documentation comment on `CompositeCriterion.parent_criterion_id`:
+     ```python
+     # Reserved for future HITL use. Tree parent-child relationships are
+     # stored in CriterionRelationship; this field is intentionally unused
+     # by the automated pipeline.
+     parent_criterion_id: str | None = Field(default=None, index=True)
+     ```
+
+   - **`services/api-service/tests/test_exports.py`** (MODIFIED)
+     - Removed all `composites_by_id={}` and `children_by_parent={}` from ProtocolExportData instantiations (11 occurrences at two indentation levels)
+
+   - **`services/api-service/scripts/demo_exports.py`** (MODIFIED)
+     - Removed `composites_by_id` and `children_by_parent` from ProtocolExportData construction
+
+4. Errors and fixes:
+   - **pytest direct run failed** with `ModuleNotFoundError: No module named 'shared'`:
+     - Fix: Run from `services/api-service/` directory which has `pythonpath` configured in `pyproject.toml`
+   - **pytest `-p no:xdist` failed** with `unrecognized arguments: -n`:
+     - The `addopts = "-n auto"` in pyproject.toml was still being applied
+     - Fix: Used `--override-ini="addopts="` to clear the default addopts
+   - **First `make run-dev` failed** with "No rule to make target":
+     - Working directory had changed to `services/api-service/` from the pytest run
+     - Fix: Explicitly `cd /Users/noahdolevelixir/Code/medgemma-hackathon && make run-dev`
+   - **MLflow port 5001 already in use**: Pre-existing issue, non-fatal for dev stack startup
+   - **Removing `composites_by_id`/`children_by_parent`** from tests required two passes:
+     - First `replace_all` only caught the 8-space indented instances
+     - Second `replace_all` caught the 12-space indented instances
+     - Verified with grep that all references were removed
+
+5. Problem Solving:
+   - Identified and prioritized issues from code review report, cross-referencing with independent findings from 3 parallel exploration agents
+   - Chose to fix high-impact issues (DRY violations, fragile `_find_last_composite_id`, unused fields) while documenting lower-priority items (evaluation SQL limitation, `parent_criterion_id`)
+   - The `_find_last_composite_id` fix was the most architecturally significant: changed function signature to return a tuple, propagating the composite ID up through recursion instead of querying the DB
+   - All 36 export tests pass after changes; ruff passes; mypy shows only pre-existing errors; `make run-dev` starts cleanly
+
+6. All user messages:
+   - "Go over this code review: instructions/CODE_REVIEW_REPORT_4_PHASES.md. Perform one of your own. Then after due consideration, fix the issues you deem appropriate"
+   - "As part of your work, execute make run-dev and follow the console and the errors that pop up."
+   - "Your task is to create a detailed summary of the conversation so far..." (current message)
+
+7. Pending Tasks:
+   - None. All 5 tasks were completed:
+     1. ✅ Extract shared concept ID helpers
+     2. ✅ Extract shared Gemini client utility
+     3. ✅ Fix `_find_last_composite_id` ambiguity
+     4. ✅ Remove unused ProtocolExportData fields and fix structure_node error count
+     5. ✅ Run linting and type checks to verify all changes
+   - `make run-dev` was also run successfully (API on port 8001, UI on port 3000, DB running)
+
+8. Current Work:
+   All work has been completed. The code review was read, an independent review was performed, fixes were applied, linting/tests pass, and `make run-dev` runs cleanly. The conversation is at a natural stopping point.
+
+9. Optional Next Step:
+   No next steps required — all explicit user requests have been fulfilled. If the user wants to continue, potential follow-ups from the review report that were intentionally deferred include:
+   - Consolidating operator maps (`_OP_MAP`, `_SQL_OP`, `_COMPARATOR_MAP`) into a shared module
+   - Consolidating domain maps (`_DOMAIN_TABLE`, `_DOMAIN_TO_CIRCE`, `_ENTITY_TYPE_TO_DOMAIN`) into a shared config
+   - Implementing tree-aware SQL generation in evaluation_sql_builder.py (currently documented as a limitation)
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Go over the docs and adjust them to fit into our new codebase using these instructions: instructions/doc_improvements.md . To be finished, make docs-build and make docs-serve must work and the docs must be comprehensive
+
+---
+
+I think you need to update the dependency: uv run python scripts/build_docs.py build -f mkdocs.yml
+
+ │ ⚠ WARNING – MkDocs 2.0 is incompatible with Material for MkDocs
+ │ 
+ │   MkDocs 1.x is unmaintained. We recommend switching to Zensical, our
+ │   new static site generator, as soon as possible. We're providing an
+ │   analysis of the situation in this article:
+ │   
+ │   https://squidfunk.github.io/mkdocs-material/blog/2026/02/18/mkdocs-2.0/
+
+---
+
+No, that's a terrible solution. Let's use the most recent mkdocs and we don't necessarily need material. Instead we can bring over the logo and elixirtrial brand palete from /Users/noahdolevelixir/Code/landingpage
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. **Context from previous session**: The conversation was continued from a previous session where code review fixes were applied to the medgemma-hackathon codebase. Key files were already read and modified (concept_utils.py, gemini_utils.py, structure_builder.py, etc.). All 5 previous tasks were completed.
+
+2. **User's first request**: "Go over the docs and adjust them to fit into our new codebase using these instructions: instructions/doc_improvements.md. To be finished, make docs-build and make docs-serve must work and the docs must be comprehensive"
+
+3. **My approach**:
+   - Read `instructions/doc_improvements.md` - detailed instructions for documentation overhaul
+   - Found no `docs/` directory existed
+   - Read `mkdocs.yml` - had stale references to extraction-service, grounding-service
+   - Read `Makefile` - docs-build depends on 3 scripts that didn't exist
+   - Read all source files referenced in the instructions (main.py, protocols.py, graph.py, trigger.py, state.py, ProtocolUploadDialog.tsx, ReviewPage.tsx)
+   - Read docker-compose.yml, .env.example, pyproject.toml
+   - Explored pipeline nodes via subagent
+   - Checked existing sub-package mkdocs.yml files
+
+4. **Created build scripts** (Task #7):
+   - `scripts/build_docs.py` - proxies to mkdocs CLI
+   - `scripts/generate_components_overview.py` - auto-generates components table
+   - `scripts/update_root_navigation.py` - validates nav references
+
+5. **Updated mkdocs.yml** (Task #8):
+   - Removed stale extraction-service, grounding-service, events-ts, shared-ts references
+   - Added protocol-processor-service
+   - Added missing markdown extensions (admonition, pymdownx.details, pymdownx.tabbed, tables, toc)
+   - Changed site_dir from `site/docs` to `site`
+
+6. **Created protocol-processor-service docs**:
+   - `services/protocol-processor-service/mkdocs.yml`
+   - `services/protocol-processor-service/docs/api/index.md`
+
+7. **Created 15 documentation pages** (Task #9):
+   - docs/index.md, onboarding.md, architecture/index.md, architecture/system-architecture.md, architecture/data-models.md, journeys/index.md, journeys/upload-extraction.md, journeys/grounding-review.md, diagrams/hitl-flow.md, diagrams/agent-flow.md, diagrams/langgraph-architecture.md, status/index.md, code-tour/index.md, testing-guide.md, development/gemini-vertex-auth.md
+
+8. **Verification** (Task #10):
+   - `make docs-build` succeeded (27 HTML pages)
+   - `make docs-serve` served correctly at localhost:8000
+   - Browser verification confirmed Material theme rendering, navigation, tables, Mermaid fences
+
+9. **Errors encountered**:
+   - Write tool failed for new files ("File has not been read yet") - fixed by using Bash heredocs
+   - `update_root_navigation.py` regex matched labels not file paths - fixed regex to `r":\s+(\S+\.md)\s*$"` with MULTILINE
+   - `site_dir: site/docs` caused docs to be nested under /docs/ path when served - fixed to `site_dir: site`
+   - Port 8000 conflict during serve test - non-critical, previous server still held port
+
+10. **User's second message**: "I think you need to update the dependency:" followed by the MkDocs 2.0 warning
+
+11. **My approach to the warning**:
+    - Checked current versions (mkdocs 1.6.1, mkdocs-material 9.7.2)
+    - Fetched the blog post - learned MkDocs 2.0 is incompatible with Material
+    - Tried downgrading to mkdocs-material 9.6.23 - warning persisted
+    - Found the warning source in `material/plugins/__init__.py` - silenceable with `NO_MKDOCS_2_WARNING=1`
+    - Added `NO_MKDOCS_2_WARNING=1` to Makefile docs-build command
+    - Build succeeded without warning
+
+12. **User's third message (critical feedback)**: "No, that's a terrible solution. Let's use the most recent mkdocs and we don't necessarily need material. Instead we can bring over the logo and elixirtrial brand palette from /Users/noahdolevelixir/Code/landingpage"
+
+13. **My approach**:
+    - Launched subagent to explore landing page branding (found comprehensive brand colors, logo, favicon, fonts)
+    - Searched for MkDocs 2.0 info - found it's pre-release, TOML config, no plugins, not usable
+    - Determined the plan: drop mkdocs-material, use built-in mkdocs theme + custom CSS with ElixirTrials branding
+    - Started copying logo/favicon but got an error (docs/assets/ directory didn't exist)
+
+14. **Where it stopped**: The `cp` command failed because `docs/assets/` directory didn't exist. The user then requested this summary.
+
+Key brand assets discovered from landing page:
+- Logo: `/Users/noahdolevelixir/Code/landingpage/elixirtrials/public/et_illustration_transparent.png`
+- Favicon: `/Users/noahdolevelixir/Code/landingpage/elixirtrials/src/app/favicon.ico`
+- Primary teal: `#0FA897`, dark: `#0D8A7A`, darkest: `#0B7366`, light: `#14C9B3`
+- Accent orange: `#F97316`
+- Secondary blue: `#0B5394`
+- Font: Inter
+- Dark mode background: `#111827`
+
+Summary:
+1. Primary Request and Intent:
+   The user asked for three things across the conversation:
+   
+   **Request 1**: "Go over the docs and adjust them to fit into our new codebase using these instructions: instructions/doc_improvements.md. To be finished, make docs-build and make docs-serve must work and the docs must be comprehensive." This was completed.
+   
+   **Request 2**: The user pointed out the MkDocs 2.0 warning during `make docs-build` and said "I think you need to update the dependency."
+   
+   **Request 3 (most recent, active)**: The user rejected the `NO_MKDOCS_2_WARNING=1` env var hack: "No, that's a terrible solution. Let's use the most recent mkdocs and we don't necessarily need material. Instead we can bring over the logo and elixirtrial brand palette from /Users/noahdolevelixir/Code/landingpage". The user wants to:
+   - Drop `mkdocs-material` entirely (it's the source of the warning)
+   - Use a non-material theme/approach
+   - Apply ElixirTrials branding (logo, colors, fonts) from their landing page codebase
+
+2. Key Technical Concepts:
+   - **MkDocs 1.6.1** — current version, latest stable. MkDocs 2.0 is pre-release and incompatible (TOML config, no plugins, no themes).
+   - **mkdocs-material 9.7.2** — source of the MkDocs 2.0 warning, to be REMOVED per user request
+   - **mkdocs-monorepo-plugin** — handles `!include` syntax for sub-package docs, independent of theme
+   - **mkdocstrings** — Python API docs generator, independent of theme
+   - **pymdownx.superfences** — Mermaid diagram rendering via custom fences (markdown extension, not material-specific)
+   - **ElixirTrials brand palette** from landing page: Teal primary `#0FA897`, Orange accent `#F97316`, Blue secondary `#0B5394`, Inter font
+   - **Built-in mkdocs themes**: `mkdocs` (default) and `readthedocs` — both are basic but work without material
+   - **LangGraph 7-node pipeline**: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+   - **Transactional outbox pattern**: `protocol_uploaded` event triggers pipeline
+
+3. Files and Code Sections:
+
+   **Created — Build Scripts:**
+   - `scripts/build_docs.py` — Proxies to mkdocs CLI. Created because Makefile `docs-build` target references it.
+   - `scripts/generate_components_overview.py` — Scans services/libs/apps directories, generates `docs/components/index.md` table.
+   - `scripts/update_root_navigation.py` — Validates mkdocs.yml nav references resolve to actual files.
+
+   **Created — Protocol Processor Service Docs:**
+   - `services/protocol-processor-service/mkdocs.yml` — Monorepo sub-config for the processor service.
+   - `services/protocol-processor-service/docs/api/index.md` — Placeholder API reference page.
+
+   **Modified — `mkdocs.yml`:**
+   - Removed stale `extraction-service`, `grounding-service`, `events-ts`, `shared-ts` nav entries
+   - Added `protocol-processor-service` monorepo include
+   - Changed `site_dir` from `site/docs` to `site`
+   - Added markdown extensions: admonition, pymdownx.details, pymdownx.tabbed, tables, toc
+   - Current state still has `theme: name: material` — NEEDS TO BE CHANGED per user's latest request
+
+   **Modified — `Makefile` (line 104):**
+   - Changed `uv run python scripts/build_docs.py build -f mkdocs.yml` to `NO_MKDOCS_2_WARNING=1 uv run python scripts/build_docs.py build -f mkdocs.yml`
+   - **This change needs to be REVERTED** — user rejected this approach
+
+   **Created — 15 Documentation Pages (all in `docs/`):**
+   - `docs/index.md` — Home page with Mermaid architecture diagram, quick start, doc map
+   - `docs/onboarding.md` — Prerequisites, setup, project structure, common commands
+   - `docs/architecture/index.md` — Core principles, runtime components, shared libraries
+   - `docs/architecture/system-architecture.md` — Container diagram, HTTP/event paths, auth, error handling
+   - `docs/architecture/data-models.md` — ER diagram, all tables, protocol lifecycle statediagram, pipeline state
+   - `docs/journeys/index.md` — Journey map overview
+   - `docs/journeys/upload-extraction.md` — Full sequence diagram, step-by-step with file paths
+   - `docs/journeys/grounding-review.md` — Grounding sequence, dual grounding, agentic retry, HITL review, exports
+   - `docs/diagrams/hitl-flow.md` — HITL review flowchart
+   - `docs/diagrams/agent-flow.md` — Agentic grounding flowchart
+   - `docs/diagrams/langgraph-architecture.md` — Pipeline graph, node responsibilities, checkpointing
+   - `docs/status/index.md` — Maturity matrix (18 components), known limitations, test coverage, top 5 risks
+   - `docs/code-tour/index.md` — 10-slide walkthrough from upload through all nodes to review
+   - `docs/testing-guide.md` — Test commands, structure, fixtures, code quality
+   - `docs/development/gemini-vertex-auth.md` — Gemini API, Vertex AI, ADC, OAuth, env reference
+
+   **Read — Source Files (for documentation content):**
+   - `instructions/doc_improvements.md` — Documentation instructions
+   - `services/api-service/src/api_service/main.py` — FastAPI app, outbox wiring, middleware
+   - `services/api-service/src/api_service/protocols.py` — Upload/confirm/retry/re-extract endpoints
+   - `services/protocol-processor-service/src/protocol_processor/graph.py` — 7-node StateGraph definition
+   - `services/protocol-processor-service/src/protocol_processor/trigger.py` — Outbox handler, asyncio.run bridge
+   - `services/protocol-processor-service/src/protocol_processor/state.py` — PipelineState TypedDict
+   - `apps/hitl-ui/src/components/ProtocolUploadDialog.tsx` — Upload dialog component
+   - `apps/hitl-ui/src/screens/ReviewPage.tsx` — Split-pane review UI
+   - `infra/docker-compose.yml` — Docker stack definition
+   - `.env.example` — Environment configuration template
+   - `pyproject.toml` — Dependencies and workspace config
+   - `libs/shared/src/shared/models.py` — All SQLModel domain models
+
+   **Branding Assets Discovered (from landing page, NOT YET COPIED):**
+   - Logo: `/Users/noahdolevelixir/Code/landingpage/elixirtrials/public/et_illustration_transparent.png` (1.6MB PNG)
+   - Favicon: `/Users/noahdolevelixir/Code/landingpage/elixirtrials/src/app/favicon.ico` (multi-resolution)
+   - Brand colors source: `/Users/noahdolevelixir/Code/landingpage/elixirtrials/src/lib/brand-colors.ts`
+   - CSS variables: `/Users/noahdolevelixir/Code/landingpage/instructions/brand-colors.css`
+   - Key colors: Teal `#0FA897` (primary), `#14C9B3` (light), `#0D8A7A` (dark), `#0B7366` (darkest); Orange `#F97316` (accent); Blue `#0B5394` (secondary); Dark bg `#111827`
+   - Font: Inter (Google Font)
+
+4. Errors and fixes:
+   - **Write tool on new files**: "File has not been read yet" error when trying to Write to files that don't exist. Fixed by using `Bash` with heredocs (`cat > file << 'EOF'`).
+   - **Nav validation regex**: `update_root_navigation.py` matched `- Home: index.md` (label + path) instead of just `index.md`. Fixed regex from `r":\s+([^\s!][^\n]*\.md)"` to `r":\s+(\S+\.md)\s*$"` with `re.MULTILINE`.
+   - **Nested site directory**: `site_dir: site/docs` in mkdocs.yml caused `docs-serve` to show a directory listing instead of docs at root. Fixed by changing to `site_dir: site`.
+   - **Port 8000 conflict**: During serve testing, port was still held by previous test. Non-critical, second test on port 8888 worked.
+   - **NO_MKDOCS_2_WARNING hack**: Added `NO_MKDOCS_2_WARNING=1` env var to Makefile. **User rejected this**: "No, that's a terrible solution." This needs to be reverted.
+   - **`mkdir -p docs/assets` missing**: Final command `cp logo.png docs/assets/logo.png` failed because `docs/assets/` didn't exist. Not yet fixed — this is where work stopped.
+
+5. Problem Solving:
+   - Successfully created the entire documentation infrastructure from scratch (build scripts, mkdocs config, 15 content pages)
+   - Verified `make docs-build` produces 27 HTML pages and `make docs-serve` serves them correctly
+   - Confirmed rendering via Playwright browser: Material theme, navigation, tables, Mermaid fences all working
+   - The current problem being solved: replacing mkdocs-material with a non-material theme + ElixirTrials branding
+
+6. All user messages:
+   - "Go over the docs and adjust them to fit into our new codebase using these instructions: instructions/doc_improvements.md . To be finished, make docs-build and make docs-serve must work and the docs must be comprehensive"
+   - "I think you need to update the dependency: uv run python scripts/build_docs.py build -f mkdocs.yml [followed by the MkDocs 2.0 warning text]"
+   - "No, that's a terrible solution. Let's use the most recent mkdocs and we don't necessarily need material. Instead we can bring over the logo and elixirtrial brand palete from /Users/noahdolevelixir/Code/landingpage"
+
+7. Pending Tasks:
+   - **Drop mkdocs-material entirely** — remove from pyproject.toml dependencies, remove material-specific config from mkdocs.yml
+   - **Revert the NO_MKDOCS_2_WARNING hack** in Makefile line 104
+   - **Set up a non-material theme** — use built-in `mkdocs` theme or alternative, with custom CSS
+   - **Copy branding assets** — logo (`et_illustration_transparent.png`), favicon from landing page to `docs/assets/`
+   - **Create custom CSS** — apply ElixirTrials brand palette (teal `#0FA897`, orange `#F97316`, blue `#0B5394`, Inter font)
+   - **Handle Mermaid rendering** — without material, need `extra_javascript` CDN include for mermaid.js
+   - **Update mkdocs.yml** — switch theme, add custom_dir/extra_css/extra_javascript, remove material-specific features
+   - **Update pyproject.toml** — remove mkdocs-material dependency
+   - **Run `uv sync`** to update lockfile
+   - **Verify `make docs-build` and `make docs-serve`** still work with new theme
+
+8. Current Work:
+   I was in the middle of replacing mkdocs-material with a custom-branded non-material theme. I had:
+   1. Explored the landing page branding via subagent (found all colors, logo, favicon, fonts)
+   2. Researched MkDocs 2.0 (confirmed it's pre-release and unusable)
+   3. Attempted to copy the logo and favicon but the command failed because `docs/assets/` directory didn't exist:
+   ```
+   cp /Users/noahdolevelixir/Code/landingpage/elixirtrials/public/et_illustration_transparent.png /Users/noahdolevelixir/Code/medgemma-hackathon/docs/assets/logo.png
+   # Error: No such file or directory
+   ```
+   
+   The next steps were going to be:
+   - `mkdir -p docs/assets` then copy logo + favicon
+   - Remove `mkdocs-material` from `pyproject.toml` dependencies
+   - Update `mkdocs.yml` to use built-in theme with custom CSS
+   - Create custom CSS file with ElixirTrials brand colors
+   - Add mermaid.js via extra_javascript
+   - Revert the `NO_MKDOCS_2_WARNING=1` hack in Makefile
+   - Rebuild and verify
+
+9. Optional Next Step:
+   Continue the in-progress task of replacing mkdocs-material with ElixirTrials-branded docs. The user's exact words were: **"Let's use the most recent mkdocs and we don't necessarily need material. Instead we can bring over the logo and elixirtrial brand palette from /Users/noahdolevelixir/Code/landingpage"**
+   
+   The immediate next action is:
+   1. `mkdir -p docs/assets` and copy logo + favicon
+   2. Remove `mkdocs-material` from `pyproject.toml`
+   3. Create custom CSS with ElixirTrials branding (teal `#0FA897`, orange `#F97316`, Inter font)
+   4. Update `mkdocs.yml` to use built-in theme + custom CSS + mermaid JS
+   5. Revert the `NO_MKDOCS_2_WARNING=1` Makefile hack
+   6. `uv sync` and verify `make docs-build` / `make docs-serve`
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+<task-notification>
+<task-id>bbcda9d</task-id>
+<tool-use-id>toolu_01QE1ktGmzCyzdSeSntG969a</tool-use-id>
+<output-file>/private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/bbcda9d.output</output-file>
+<status>completed</status>
+<summary>Background command "Start docs server on port 8888 for visual check" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/bbcda9d.output
+
+---
+
+Can you run ruff, mypy and pytest. Also lint, type, format the frontend.
+
+---
+
+Can you fix or remove those tests and then can you please update the readme docs so they are suitable for a public repo.
+
+---
+
+Can you add the log from our landing page repo and add to our docs and readme
