@@ -52,7 +52,6 @@ def _cleanup_orphan_traces() -> None:
         # MLflow 3.x: search for traces with IN_PROGRESS status
         try:
             traces = client.search_traces(
-                experiment_ids=["0"],  # Default experiment
                 filter_string="status = 'IN_PROGRESS'",
                 max_results=50,
             )
