@@ -181,6 +181,7 @@ norecursedirs = ["site", "docs", ".venv", "venv", ".uv_cache", "node_modules", "
 markers = [
     "e2e: end-to-end API workflow tests",
     "integration: marks tests as integration tests",
+    "slow: marks tests that run the full extraction-grounding loop (deselect with -m 'not slow')",
 ]
 filterwarnings = [
     "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
