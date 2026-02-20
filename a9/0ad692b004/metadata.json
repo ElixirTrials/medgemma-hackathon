@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a90ad692b004",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml",
+    "libs/shared/src/shared/omop_client.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a9/0ad692b004/0/metadata.json",
+      "transcript": "/a9/0ad692b004/0/full.jsonl",
+      "context": "/a9/0ad692b004/0/context.md",
+      "content_hash": "/a9/0ad692b004/0/content_hash.txt",
+      "prompt": "/a9/0ad692b004/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
