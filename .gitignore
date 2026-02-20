@@ -377,3 +377,6 @@ reports/*.md
 .benchmarks/
 .claude/
 .entire/
+
+# Session/checkpoint blob dirs at repo root (avoid committing full.jsonl with secrets)
+/[0-9a-f][0-9a-f]/
