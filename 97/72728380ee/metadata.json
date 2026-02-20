@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9772728380ee",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/api-service/alembic/versions/42_01_add_expression_tree_tables.py",
+    "services/api-service/src/api_service/auth.py",
+    "services/api-service/src/api_service/criterion_rerun.py",
+    "services/api-service/src/api_service/exporters/evaluation_sql_builder.py",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/src/api_service/protocols.py",
+    "services/protocol-processor-service/src/protocol_processor/graph.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/extract.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/97/72728380ee/0/metadata.json",
+      "transcript": "/97/72728380ee/0/full.jsonl",
+      "context": "/97/72728380ee/0/context.md",
+      "content_hash": "/97/72728380ee/0/content_hash.txt",
+      "prompt": "/97/72728380ee/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
