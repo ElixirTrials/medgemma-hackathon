@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0a707194e390",
+  "session_id": "dfc9fdff-09ef-4844-9253-3710905a26a2",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T21:33:32.416149Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/components/TerminologyCombobox.tsx",
+    "apps/hitl-ui/src/components/TextBoundaryAdjuster.tsx",
+    "docs-home.png",
+    "docs-langgraph.png",
+    "apps/hitl-ui/src/components/CriterionCard.tsx",
+    "apps/hitl-ui/src/components/CriterionModifyDialog.tsx",
+    "apps/hitl-ui/src/components/EntityCard.tsx",
+    "apps/hitl-ui/src/components/EntityModifyDialog.tsx",
+    "apps/hitl-ui/src/components/FieldMappingBadges.tsx",
+    "apps/hitl-ui/src/screens/ReviewPage.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "778c0d6ca7e0",
+  "transcript_identifier_at_start": "1c4c6fd9-46e8-4cee-a750-2253311bb7f4",
+  "checkpoint_transcript_start": 1154,
+  "transcript_lines_at_start": 1154,
+  "token_usage": {
+    "input_tokens": 5802,
+    "cache_creation_tokens": 442475,
+    "cache_read_tokens": 20793045,
+    "output_tokens": 32226,
+    "api_call_count": 197
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T21:33:31.406397Z",
+    "agent_lines": 1025,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 1025,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/dfc9fdff-09ef-4844-9253-3710905a26a2.jsonl"
+}
