@@ -266,19 +266,22 @@ async def _ground_entity_with_retry(
                 entity_text[:50],
                 attempt,
             )
-            return (EntityGroundingResult(
-                entity_text=entity_text,
-                entity_type=entity_type,
-                selected_code=None,
-                selected_system=None,
-                preferred_term=None,
-                confidence=0.0,
-                candidates=[],
-                reasoning=(
-                    f"Skipped by agentic reasoning (attempt {attempt}): "
-                    f"{reasoning_result.reasoning}"
+            return (
+                EntityGroundingResult(
+                    entity_text=entity_text,
+                    entity_type=entity_type,
+                    selected_code=None,
+                    selected_system=None,
+                    preferred_term=None,
+                    confidence=0.0,
+                    candidates=[],
+                    reasoning=(
+                        f"Skipped by agentic reasoning (attempt {attempt}): "
+                        f"{reasoning_result.reasoning}"
+                    ),
                 ),
-            ), attempt)
+                attempt,
+            )
 
         new_query = (
             reasoning_result.rephrased_query
@@ -301,19 +304,22 @@ async def _ground_entity_with_retry(
             result = await medgemma_decide(retry_entity, new_candidates, criterion_text)
             if result.selected_code and result.confidence >= 0.5:
                 # Success — preserve original entity_text
-                return (EntityGroundingResult(
-                    entity_text=entity_text,
-                    entity_type=result.entity_type,
-                    selected_code=result.selected_code,
-                    selected_system=result.selected_system,
-                    preferred_term=result.preferred_term,
-                    confidence=result.confidence,
-                    candidates=result.candidates,
-                    reasoning=(
-                        f"[Attempt {attempt}, query='{new_query}'] {result.reasoning}"
+                return (
+                    EntityGroundingResult(
+                        entity_text=entity_text,
+                        entity_type=result.entity_type,
+                        selected_code=result.selected_code,
+                        selected_system=result.selected_system,
+                        preferred_term=result.preferred_term,
+                        confidence=result.confidence,
+                        candidates=result.candidates,
+                        reasoning=(
+                            f"[Attempt {attempt}, query='{new_query}'] {result.reasoning}"
+                        ),
+                        field_mappings=result.field_mappings,
                     ),
-                    field_mappings=result.field_mappings,
-                ), attempt)
+                    attempt,
+                )
 
     # Route to expert_review if all attempts exhausted without success
     if result.selected_code is None and attempt >= 2:
@@ -324,20 +330,23 @@ async def _ground_entity_with_retry(
             entity_type,
             attempt,
         )
-        return (EntityGroundingResult(
-            entity_text=result.entity_text,
-            entity_type=result.entity_type,
-            selected_code=result.selected_code,
-            selected_system=result.selected_system,
-            preferred_term=result.preferred_term,
-            confidence=result.confidence,
-            candidates=result.candidates,
-            reasoning=(
-                f"[expert_review] Routed to expert review after "
-                f"{attempt} failed grounding attempts. "
-                f"Last reasoning: {result.reasoning}"
+        return (
+            EntityGroundingResult(
+                entity_text=result.entity_text,
+                entity_type=result.entity_type,
+                selected_code=result.selected_code,
+                selected_system=result.selected_system,
+                preferred_term=result.preferred_term,
+                confidence=result.confidence,
+                candidates=result.candidates,
+                reasoning=(
+                    f"[expert_review] Routed to expert review after "
+                    f"{attempt} failed grounding attempts. "
+                    f"Last reasoning: {result.reasoning}"
+                ),
             ),
-        ), attempt)
+            attempt,
+        )
 
     return (result, attempt)
 
@@ -533,11 +542,14 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
             # Pre-flight warmup: absorb MedGemma cold-start latency before
             # the parallel batch. Non-fatal — if warmup fails, entities proceed.
             try:
-                from protocol_processor.tools.medgemma_decider import _get_medgemma_model
-                from langchain_core.messages import HumanMessage as _HM
+                from langchain_core.messages import HumanMessage as HumanMessageType
+
+                from protocol_processor.tools.medgemma_decider import (
+                    _get_medgemma_model,
+                )
 
                 warmup_model = _get_medgemma_model()
-                await warmup_model.ainvoke([_HM(content="ready")])
+                await warmup_model.ainvoke([HumanMessageType(content="ready")])
                 logger.info("MedGemma warmup succeeded")
             except Exception as warmup_err:
                 logger.info("MedGemma warmup skipped: %s", warmup_err)
@@ -601,7 +613,11 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                 {
                     "grounded_count": len(grounding_results),
                     "error_count": len(accumulated_errors),
-                    "avg_entity_ms": round(sum(entity_times) / len(entity_times)) if entity_times else 0,
+                    "avg_entity_ms": (
+                        round(sum(entity_times) / len(entity_times))
+                        if entity_times
+                        else 0
+                    ),
                     "max_entity_ms": round(max(entity_times)) if entity_times else 0,
                     "retry_count": total_retry_count,
                 }
