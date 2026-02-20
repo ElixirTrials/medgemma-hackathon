@@ -167,7 +167,7 @@ class TestResolveOrdinalCandidatesUnit:
             with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
                 mock_model = mock_cls.return_value
                 mock_structured = mock_model.with_structured_output.return_value
-                mock_structured.invoke.return_value = mock_response
+                mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
                 result = await resolve_ordinal_candidates(
                     [candidate],
@@ -196,7 +196,7 @@ class TestResolveOrdinalCandidatesUnit:
             with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
                 mock_model = mock_cls.return_value
                 mock_structured = mock_model.with_structured_output.return_value
-                mock_structured.invoke.return_value = mock_response
+                mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
                 candidate = {
                     "entity_text": "HIV status",
@@ -233,7 +233,7 @@ class TestResolveOrdinalCandidatesUnit:
             with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
                 mock_model = mock_cls.return_value
                 mock_structured = mock_model.with_structured_output.return_value
-                mock_structured.invoke.return_value = mock_response
+                mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
                 result = await resolve_ordinal_candidates(
                     [candidate],
@@ -254,7 +254,7 @@ class TestResolveOrdinalCandidatesUnit:
             with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
                 mock_model = mock_cls.return_value
                 mock_structured = mock_model.with_structured_output.return_value
-                mock_structured.invoke.side_effect = RuntimeError("API down")
+                mock_structured.ainvoke = AsyncMock(side_effect=RuntimeError("API down"))
 
                 result = await resolve_ordinal_candidates(
                     [candidate],
@@ -314,7 +314,7 @@ class TestOrdinalResolveNodeE2E:
         ):
             mock_model = mock_cls.return_value
             mock_structured = mock_model.with_structured_output.return_value
-            mock_structured.invoke.return_value = mock_response
+            mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
             result = await ordinal_resolve_node(state)  # type: ignore[arg-type]
 
@@ -435,7 +435,7 @@ class TestOrdinalResolveNodeE2E:
         ):
             mock_model = mock_cls.return_value
             mock_structured = mock_model.with_structured_output.return_value
-            mock_structured.invoke.return_value = mock_response
+            mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
             result = await ordinal_resolve_node(state)  # type: ignore[arg-type]
 
@@ -448,7 +448,7 @@ class TestOrdinalResolveNodeE2E:
         assert updated.unit_concept_id == 8527
 
         # Verify the LLM was called with only the Child-Pugh entity
-        call_args = mock_structured.invoke.call_args
+        call_args = mock_structured.ainvoke.call_args
         prompt_text = call_args[0][0]
         assert "Child-Pugh score" in prompt_text
         # Extract the entities section (after "Entities to evaluate:")
@@ -502,7 +502,7 @@ class TestOrdinalResolveNodeE2E:
         ):
             mock_model = mock_cls.return_value
             mock_structured = mock_model.with_structured_output.return_value
-            mock_structured.invoke.return_value = mock_response
+            mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
             await ordinal_resolve_node(state)  # type: ignore[arg-type]
 
@@ -562,7 +562,7 @@ class TestOrdinalResolveNodeE2E:
         ):
             mock_model = mock_cls.return_value
             mock_structured = mock_model.with_structured_output.return_value
-            mock_structured.invoke.return_value = mock_response
+            mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
             result = await ordinal_resolve_node(state)  # type: ignore[arg-type]
 

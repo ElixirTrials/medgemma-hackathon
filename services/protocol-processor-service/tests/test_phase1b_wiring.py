@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.field_mapper import (
@@ -71,7 +71,7 @@ class TestFieldMappingConceptIds:
             ]
         )
         mock_chain = MagicMock()
-        mock_chain.invoke.return_value = response
+        mock_chain.ainvoke = AsyncMock(return_value=response)
         mock_instance = MagicMock()
         mock_instance.with_structured_output.return_value = mock_chain
         mock_chat_cls.return_value = mock_instance
@@ -101,7 +101,7 @@ class TestFieldMappingConceptIds:
             ]
         )
         mock_chain = MagicMock()
-        mock_chain.invoke.return_value = response
+        mock_chain.ainvoke = AsyncMock(return_value=response)
         mock_instance = MagicMock()
         mock_instance.with_structured_output.return_value = mock_chain
         mock_chat_cls.return_value = mock_instance
@@ -131,7 +131,7 @@ class TestFieldMappingConceptIds:
             ]
         )
         mock_chain = MagicMock()
-        mock_chain.invoke.return_value = response
+        mock_chain.ainvoke = AsyncMock(return_value=response)
         mock_instance = MagicMock()
         mock_instance.with_structured_output.return_value = mock_chain
         mock_chat_cls.return_value = mock_instance

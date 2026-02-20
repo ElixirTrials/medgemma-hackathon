@@ -236,7 +236,7 @@ class TestOrdinalFullCycle:
         ):
             mock_model = mock_cls.return_value
             mock_structured = mock_model.with_structured_output.return_value
-            mock_structured.invoke.return_value = mock_response
+            mock_structured.ainvoke = AsyncMock(return_value=mock_response)
 
             result = await ordinal_resolve_node(
                 state,  # type: ignore[arg-type]

@@ -114,7 +114,7 @@ async def generate_field_mappings(
             " relation='has', value='confirmed'"
         )
 
-        result = structured_llm.invoke(prompt)
+        result = await structured_llm.ainvoke(prompt)
         response = parse_structured_output(result, FieldMappingResponse)
 
         mappings = [
