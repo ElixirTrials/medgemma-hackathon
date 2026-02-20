@@ -10,10 +10,9 @@ import {
 import { useState } from 'react';
 
 import type { EntityActionRequest, EntityResponse } from '../hooks/useEntities';
-import type { TerminologySearchResult } from '../hooks/useTerminologySearch';
 import { cn } from '../lib/utils';
+import EntityModifyDialog from './EntityModifyDialog';
 import { ErrorBadge, TerminologyBadge } from './TerminologyBadge';
-import { TerminologyCombobox } from './TerminologyCombobox';
 import { Button } from './ui/Button';
 
 interface EntityCardProps {
@@ -22,7 +21,7 @@ interface EntityCardProps {
     isSubmitting: boolean;
 }
 
-function EntityTypeBadge({ type }: { type: string }) {
+export function EntityTypeBadge({ type }: { type: string }) {
     const typeConfig: Record<string, { label: string; colorClass: string }> = {
         Condition: { label: 'Condition', colorClass: 'bg-blue-100 text-blue-800' },
         Medication: { label: 'Medication', colorClass: 'bg-purple-100 text-purple-800' },
@@ -46,7 +45,7 @@ function EntityTypeBadge({ type }: { type: string }) {
     );
 }
 
-function GroundingConfidenceBadge({ confidence }: { confidence: number | null }) {
+export function GroundingConfidenceBadge({ confidence }: { confidence: number | null }) {
     if (confidence === null) {
         return (
             <span className="inline-flex items-center rounded-full bg-gray-100 text-gray-800 px-2.5 py-0.5 text-xs font-medium">
@@ -84,7 +83,7 @@ function GroundingConfidenceBadge({ confidence }: { confidence: number | null })
     );
 }
 
-function ReviewStatusBadge({ status }: { status: string | null }) {
+export function ReviewStatusBadge({ status }: { status: string | null }) {
     const statusConfig: Record<string, { label: string; colorClass: string }> = {
         approved: { label: 'Approved', colorClass: 'bg-green-100 text-green-800' },
         rejected: { label: 'Rejected', colorClass: 'bg-red-100 text-red-800' },
@@ -108,7 +107,7 @@ function ReviewStatusBadge({ status }: { status: string | null }) {
 }
 
 /** Determine which systems are relevant for a given entity type. */
-function getRelevantSystems(entityType: string): string[] {
+export function getRelevantSystems(entityType: string): string[] {
     switch (entityType) {
         case 'Medication':
             return ['rxnorm', 'umls'];
@@ -124,20 +123,10 @@ function getRelevantSystems(entityType: string): string[] {
 }
 
 export default function EntityCard({ entity, onAction, isSubmitting }: EntityCardProps) {
-    const [isEditing, setIsEditing] = useState(false);
+    const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
     const [contextOpen, setContextOpen] = useState(false);
 
-    // Edit state for all code fields
-    const [editCui, setEditCui] = useState(entity.umls_cui ?? '');
-    const [editSnomed, setEditSnomed] = useState(entity.snomed_code ?? '');
-    const [editPreferredTerm, setEditPreferredTerm] = useState(entity.preferred_term ?? '');
-    const [editRxnorm, setEditRxnorm] = useState(entity.rxnorm_code ?? '');
-    const [editIcd10, setEditIcd10] = useState(entity.icd10_code ?? '');
-    const [editLoinc, setEditLoinc] = useState(entity.loinc_code ?? '');
-    const [editHpo, setEditHpo] = useState(entity.hpo_code ?? '');
-
     const isLowConfidence = (entity.grounding_confidence ?? 0) < 0.7;
-    const relevantSystems = getRelevantSystems(entity.entity_type);
 
     // Check if entity has any codes
     const hasCodes =
@@ -160,32 +149,6 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
             action: 'reject',
             reviewer_id: 'current-user',
         });
-    }
-
-    function handleModifySave() {
-        onAction(entity.id, {
-            action: 'modify',
-            reviewer_id: 'current-user',
-            modified_umls_cui: editCui || undefined,
-            modified_snomed_code: editSnomed || undefined,
-            modified_preferred_term: editPreferredTerm || undefined,
-            modified_rxnorm_code: editRxnorm || undefined,
-            modified_icd10_code: editIcd10 || undefined,
-            modified_loinc_code: editLoinc || undefined,
-            modified_hpo_code: editHpo || undefined,
-        });
-        setIsEditing(false);
-    }
-
-    function handleModifyCancel() {
-        setEditCui(entity.umls_cui ?? '');
-        setEditSnomed(entity.snomed_code ?? '');
-        setEditPreferredTerm(entity.preferred_term ?? '');
-        setEditRxnorm(entity.rxnorm_code ?? '');
-        setEditIcd10(entity.icd10_code ?? '');
-        setEditLoinc(entity.loinc_code ?? '');
-        setEditHpo(entity.hpo_code ?? '');
-        setIsEditing(false);
     }
 
     const contextText = entity.context_window?.text as string | undefined;
@@ -249,145 +212,6 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                 )}
             </div>
 
-            {/* Edit mode */}
-            {isEditing && (
-                <div className="space-y-3 mb-3 border-t pt-3">
-                    {/* Per-system comboboxes for relevant systems */}
-                    {relevantSystems.includes('rxnorm') && (
-                        <div>
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                RxNorm
-                            </span>
-                            <TerminologyCombobox
-                                system="rxnorm"
-                                value={editRxnorm}
-                                onChange={(val) => setEditRxnorm(val)}
-                                onSelect={(result: TerminologySearchResult) => {
-                                    setEditRxnorm(result.code);
-                                }}
-                            />
-                        </div>
-                    )}
-                    {relevantSystems.includes('icd10') && (
-                        <div>
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                ICD-10
-                            </span>
-                            <TerminologyCombobox
-                                system="icd10"
-                                value={editIcd10}
-                                onChange={(val) => setEditIcd10(val)}
-                                onSelect={(result: TerminologySearchResult) => {
-                                    setEditIcd10(result.code);
-                                }}
-                            />
-                        </div>
-                    )}
-                    {relevantSystems.includes('snomed') && (
-                        <div>
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                SNOMED
-                            </span>
-                            <TerminologyCombobox
-                                system="snomed"
-                                value={editSnomed}
-                                onChange={(val) => setEditSnomed(val)}
-                                onSelect={(result: TerminologySearchResult) => {
-                                    setEditSnomed(result.code);
-                                    if (result.display) setEditPreferredTerm(result.display);
-                                }}
-                            />
-                        </div>
-                    )}
-                    {relevantSystems.includes('loinc') && (
-                        <div>
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                LOINC
-                            </span>
-                            <TerminologyCombobox
-                                system="loinc"
-                                value={editLoinc}
-                                onChange={(val) => setEditLoinc(val)}
-                                onSelect={(result: TerminologySearchResult) => {
-                                    setEditLoinc(result.code);
-                                }}
-                            />
-                        </div>
-                    )}
-                    {relevantSystems.includes('hpo') && (
-                        <div>
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                HPO
-                            </span>
-                            <TerminologyCombobox
-                                system="hpo"
-                                value={editHpo}
-                                onChange={(val) => setEditHpo(val)}
-                                onSelect={(result: TerminologySearchResult) => {
-                                    setEditHpo(result.code);
-                                }}
-                            />
-                        </div>
-                    )}
-                    {/* UMLS always shown */}
-                    <div>
-                        <span className="block text-xs font-medium text-muted-foreground mb-1">
-                            UMLS
-                        </span>
-                        <TerminologyCombobox
-                            system="umls"
-                            value={editPreferredTerm}
-                            onChange={(val) => setEditPreferredTerm(val)}
-                            onSelect={(result: TerminologySearchResult) => {
-                                setEditCui(result.code);
-                                setEditPreferredTerm(result.display);
-                            }}
-                        />
-                    </div>
-                    {/* Manual CUI input fallback */}
-                    <div className="grid grid-cols-2 gap-2">
-                        <label className="block">
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                CUI (manual)
-                            </span>
-                            <input
-                                type="text"
-                                value={editCui}
-                                onChange={(e) => setEditCui(e.target.value)}
-                                className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            />
-                        </label>
-                        <label className="block">
-                            <span className="block text-xs font-medium text-muted-foreground mb-1">
-                                SNOMED (manual)
-                            </span>
-                            <input
-                                type="text"
-                                value={editSnomed}
-                                onChange={(e) => setEditSnomed(e.target.value)}
-                                className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                            />
-                        </label>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button size="sm" onClick={handleModifySave} disabled={isSubmitting}>
-                            {isSubmitting ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                            ) : null}
-                            Save
-                        </Button>
-                        <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleModifyCancel}
-                            disabled={isSubmitting}
-                        >
-                            Cancel
-                        </Button>
-                    </div>
-                </div>
-            )}
-
             {/* Context window (collapsible) */}
             {contextText && (
                 <div className="border-t pt-3 mb-3">
@@ -412,48 +236,60 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
             )}
 
             {/* Action buttons */}
-            {!isEditing && (
-                <div className="flex items-center gap-2 pt-2 border-t">
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-green-700 border-green-300 hover:bg-green-50"
-                        onClick={handleApprove}
-                        disabled={isSubmitting || entity.review_status === 'approved'}
-                    >
-                        {isSubmitting ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                        ) : (
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                        )}
-                        Approve
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-red-700 border-red-300 hover:bg-red-50"
-                        onClick={handleReject}
-                        disabled={isSubmitting || entity.review_status === 'rejected'}
-                    >
-                        {isSubmitting ? (
-                            <Loader2 className="h-4 w-4 animate-spin mr-1" />
-                        ) : (
-                            <XCircle className="h-4 w-4 mr-1" />
-                        )}
-                        Reject
-                    </Button>
-                    <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-blue-700 border-blue-300 hover:bg-blue-50"
-                        onClick={() => setIsEditing(true)}
-                        disabled={isSubmitting}
-                    >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Modify
-                    </Button>
-                </div>
-            )}
+            <div className="flex items-center gap-2 pt-2 border-t">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-green-700 border-green-300 hover:bg-green-50"
+                    onClick={handleApprove}
+                    disabled={isSubmitting || entity.review_status === 'approved'}
+                >
+                    {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                    )}
+                    Approve
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-red-700 border-red-300 hover:bg-red-50"
+                    onClick={handleReject}
+                    disabled={isSubmitting || entity.review_status === 'rejected'}
+                >
+                    {isSubmitting ? (
+                        <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                    ) : (
+                        <XCircle className="h-4 w-4 mr-1" />
+                    )}
+                    Reject
+                </Button>
+                <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-blue-700 border-blue-300 hover:bg-blue-50"
+                    onClick={() => setModifyDialogOpen(true)}
+                    disabled={isSubmitting}
+                >
+                    <Pencil className="h-4 w-4 mr-1" />
+                    Modify
+                </Button>
+            </div>
+
+            <EntityModifyDialog
+                open={modifyDialogOpen}
+                onOpenChange={setModifyDialogOpen}
+                entity={entity}
+                onSave={(payload) => {
+                    onAction(entity.id, {
+                        action: 'modify',
+                        reviewer_id: 'current-user',
+                        ...payload,
+                    });
+                }}
+                isSubmitting={isSubmitting}
+            />
         </div>
     );
 }
