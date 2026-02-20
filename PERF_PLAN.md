@@ -2,335 +2,218 @@
 
 **Branch:** `feature/perf-test-limits-and-async-grounding`
 **Merges into:** `feature/major-refactor-langgraph`
-**Motivation:** Ground node consumes 94–95% of pipeline time. Tests run full
-extraction-grounding loops (50–80 entities) against live APIs with no limiting,
-causing 3–20 minute test durations. Synchronous Gemini `.invoke()` calls inside
-async tasks block the event loop, nullifying the `Semaphore(4)` parallelism.
+**Motivation:** Ground node consumes 94–95% of pipeline time. Synchronous
+Gemini `.invoke()` calls inside async tasks block the event loop, nullifying
+the `Semaphore(4)` parallelism. MedGemma Vertex AI endpoint cold-starts cause
+308s outliers due to `min_replica_count=0` and per-call `Endpoint` reinstantiation.
 
 ---
 
-## Phase 1 — Investigation
+## Phase 1 — Investigation (COMPLETED)
 
-**Goal:** Produce precise measurements and a confirmed list of every offending
-call site before touching production code.
+### 1.1 Sync `.invoke()` Audit — 5 Confirmed Call Sites
 
-### 1.1 Audit all sync LLM calls inside async paths
+| # | File | Line | Function | Async? | Fix |
+|---|---|---|---|---|---|
+| 1 | `tools/medgemma_decider.py` | 171 | `_structure_decision_with_gemini` | No (called from async) | Make async, `await .ainvoke()` |
+| 2 | `tools/medgemma_decider.py` | 321 | `_structure_reasoning_with_gemini` | No (called from async) | Make async, `await .ainvoke()` |
+| 3 | `tools/field_mapper.py` | 117 | `generate_field_mappings` | Yes | `await .ainvoke()` directly |
+| 4 | `tools/structure_builder.py` | 124 | `detect_logic_structure` | Yes | `await .ainvoke()` directly |
+| 5 | `tools/ordinal_resolver.py` | 87 | `resolve_ordinal_candidates` | Yes | `await .ainvoke()` directly |
 
-Search the codebase for `.invoke(` calls made inside async functions or tasks.
-Every `structured_llm.invoke(...)` and `ChatGoogleGenerativeAI(...).invoke(...)`
-that runs within `asyncio.gather` or `async with semaphore` is a confirmed
-event-loop blocker.
+**Structural issue:** `ModelGardenChatModel` in `libs/inference/src/inference/model_garden.py`
+has no `_agenerate` — `ainvoke` falls back to sync-in-thread via `run_in_executor`.
+Additionally, `aiplatform.Endpoint` is reinstantiated on every `_generate()` call
+(line 188), preventing connection reuse.
 
-**Files to audit:**
-- `services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py`
-  — `_structure_decision_with_gemini()` (line ~171)
-  — `_structure_reasoning_with_gemini()` (line ~321)
-- `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`
-  — `generate_field_mappings()` (line ~117)
-- `services/protocol-processor-service/src/protocol_processor/nodes/ground.py`
-  — confirm no other sync calls are hidden inside `_ground_entity_parallel`
-- `libs/inference/src/inference/` — confirm `ModelGardenChatModel` exposes
-  `ainvoke` and that it is truly non-blocking
+### 1.2 Baseline Test Durations
 
-**Output of 1.1:** A table listing each call site with:
-- file + line number
-- current form (`invoke` vs `ainvoke`)
-- whether LangChain's `ChatGoogleGenerativeAI` supports `ainvoke` for this
-  use case (structured output)
+All 109 tests pass in **~12s total**. Tests use mocked DBs (SQLite in-memory)
+and patched-out API keys — they do NOT hit live APIs. The 3–20 minute durations
+from the root cause report come from **production pipeline runs** (LangGraph
+traces in MLflow), not from the pytest suite.
 
-### 1.2 Measure baseline test durations
+| Test file | Tests | Duration |
+|---|---|---|
+| `test_ordinal_full_cycle.py` | 1 | 2.66s |
+| `test_phase1b_wiring.py` | 13 | 2.59s |
+| `test_phase2_e2e.py` | 22 | 2.42s |
+| `test_graph.py` | 12 | 2.23s |
+| `test_omop_mapper.py` | 30 | 1.85s |
+| `test_phase3_integration.py` | 3 | 0.19s |
+| `test_phase3b_e2e.py` | 17 | 0.19s |
+| `test_terminology_router.py` | 11 | 0.05s |
 
-Run the slowest test files individually and capture wall-clock time:
+**Impact on Phase 2:** The env var limits are a guardrail for future live-API
+integration tests and production runtime, not for existing tests.
 
-```bash
-uv run pytest services/protocol-processor-service/tests/test_phase2_e2e.py -v --tb=short 2>&1 | tee /tmp/baseline_phase2.txt
-uv run pytest services/protocol-processor-service/tests/test_phase3_integration.py -v --tb=short 2>&1 | tee /tmp/baseline_phase3.txt
-uv run pytest services/protocol-processor-service/tests/test_phase1b_wiring.py -v --tb=short 2>&1 | tee /tmp/baseline_phase1b.txt
-```
+### 1.3 Env Var Behaviour — Confirmed Safe
 
-Record per-test duration from pytest output. These are the before numbers for
-the regression check after Phase 2 and Phase 3.
+Both `PIPELINE_MAX_CRITERIA` (parse.py:71) and `PIPELINE_MAX_ENTITIES`
+(ground.py:518) are read via `os.getenv()` **inside the function body** on
+every call. Truncation happens **before** any `asyncio.gather` dispatch.
+`os.environ.setdefault()` in conftest.py will work with no caveats.
 
-### 1.3 Confirm `PIPELINE_MAX_CRITERIA` / `PIPELINE_MAX_ENTITIES` behaviour
+### 1.4 `ainvoke` Compatibility — Confirmed
 
-Read `services/protocol-processor-service/src/protocol_processor/nodes/parse.py`
-(around line 71) and `nodes/ground.py` (around line 518) to confirm:
-- The env vars are read at node entry time (not at import time).
-- Setting them in `conftest.py` via `os.environ` will take effect without
-  process restart.
-- The truncation happens before any API calls, not after.
+`ChatGoogleGenerativeAI.with_structured_output()` returns a `RunnableSequence`
+with a genuine `ainvoke` coroutine function. Safe to replace `.invoke()` with
+`await .ainvoke()` in all 5 call sites.
 
-**Output of 1.3:** Confirmed yes/no + any caveats (e.g. env var is read once
-at module level, requiring a different injection point).
+### 1.5 MedGemma Cold-Start — Root Cause Confirmed
 
-### 1.4 Verify `ChatGoogleGenerativeAI.with_structured_output` supports `ainvoke`
+- Endpoint is **user-deployed dedicated** via `VERTEX_ENDPOINT_ID`
+- **No `min_replica_count` configured anywhere** — defaults to 0 (cold-starts)
+- **`aiplatform.Endpoint` reinstantiated per `_generate()` call** (line 188) —
+  no connection pooling, no gRPC channel reuse
+- 308s outlier = cold-start model weight loading (~8GB MedGemma-4b)
+- `MLFLOW_TRACE_TIMEOUT_SECONDS=300` < 308s — cold-start traces may be incomplete
 
-LangChain's `with_structured_output` wraps the model in a `RunnableSequence`.
-Confirm whether calling `.ainvoke()` on that sequence is safe and returns the
-same Pydantic model as `.invoke()`.
+**Ranked remediation options:**
+1. Set `min_replica_count=1` on GCP endpoint (~$0.05–0.15/hr)
+2. Move `aiplatform.Endpoint()` to constructor for connection reuse
+3. Add pre-flight warmup `ainvoke` before `asyncio.gather`
+4. Mock MedGemma in non-E2E tests (sidesteps entirely for test suite)
 
-```bash
-uv run python -c "
-from langchain_google_genai import ChatGoogleGenerativeAI
-from pydantic import BaseModel
-class T(BaseModel):
-    x: int
-import inspect
-chain = ChatGoogleGenerativeAI(model='gemini-2.5-flash', google_api_key='dummy').with_structured_output(T)
-print('has ainvoke:', hasattr(chain, 'ainvoke'))
-print('ainvoke is coroutine function:', inspect.iscoroutinefunction(chain.ainvoke))
-"
-```
+### 1.6 Agentic Retry Rate — Low, No Threshold Change Needed
 
-**Output of 1.4:** Confirmed that `ainvoke` exists and is async. If not,
-document the alternative (e.g. `asyncio.get_event_loop().run_in_executor`).
+Retry rate is **0–3.3%**, well below the 30% concern threshold. The
+`confidence < 0.5` cutoff is not too aggressive.
 
-### 1.5 Investigate MedGemma `ModelGardenChatModel` cold-start / keep-warm options
+| Trace | Entities | MedGemma calls | Est. retries | Rate |
+|---|---|---|---|---|
+| Run 1 (1214s) | 64 | 63 | 0 | 0% |
+| Run 2 (956s) | 53 | 56 | ~1.5 | 2.8% |
+| Run 3 (922s) | 51 | 53 | ~1.0 | 2.0% |
+| Run 4 (228s) | 13 | 11 | 0 | 0% |
+| Run 5 (184s) | 15 | 16 | ~0.5 | 3.3% |
+| Run 6 (181s) | 14 | 13 | 0 | 0% |
 
-From the MLflow data: 63 calls to `ModelGardenChatModel` produced a min of 1.3s,
-median of ~14s, and a **max of 308s** — a 230× variance that makes the pipeline
-unpredictable. The 308s outlier is almost certainly a cold-start or a queued slot
-on a shared Model Garden endpoint.
+MedGemma call duration distribution (212 calls):
+- <5s: 4% | 5–15s: 28% | 15–30s: 31% | 30–60s: 20% | 60–120s: 16% | >120s: 0.5%
+- Median: 23s, Mean: 33s. The 36% of calls >30s drives total ground node time.
 
-**Steps:**
+### Phase 1 — All Criteria Met
 
-1. Read `libs/inference/src/inference/model_garden.py` (and `config.py`,
-   `factory.py`) to understand how `create_model_loader` and `AgentConfig`
-   configure the Vertex AI endpoint. Specifically:
-   - Is it a shared public endpoint or a dedicated endpoint ID?
-   - Is there a `min_replica_count` > 0 keeping the model warm?
-   - Is `AgentConfig.from_env()` reading an endpoint resource name, or using
-     the default Model Garden serving path?
-
-2. Check the Vertex AI console (or `gcloud ai endpoints list`) to verify
-   whether the endpoint has `min_replica_count=0` (causes cold-starts).
-
-3. Determine available remedies:
-   - **Provisioned throughput**: Vertex AI allows reserving dedicated serving
-     capacity with guaranteed warm replicas. Document the quota/cost.
-   - **Dedicated endpoint with `min_replica_count=1`**: Keeps at least one
-     replica warm. Cost: ~$0.05–0.15/hr depending on accelerator.
-   - **Pre-flight warm-up call**: Send a single trivial inference call before
-     dispatching the entity batch. Adds ~2s overhead but eliminates the 308s
-     outlier for runs within the same process lifetime.
-   - **Skip MedGemma in tests**: Mock `medgemma_decide` entirely in unit and
-     integration tests; only call it in `@pytest.mark.slow` E2E tests. This
-     sidesteps the cold-start problem entirely for the test suite.
-
-**Output of 1.5:**
-- Confirmed endpoint type (shared vs dedicated) and `min_replica_count`
-- Ranked list of remedies with cost/complexity trade-offs
-- Recommendation for Phase 5: keep-warm call, dedicated endpoint, or test-only
-  mock — whichever is most appropriate given the deployment constraints
-
-### 1.6 Measure agentic retry trigger rate
-
-From MLflow trace data: Run 1 had 63 MedGemma calls and 158 Gemini structuring
-calls. With a baseline of 2 Gemini calls per entity (structure decision + field
-mapping), 158 calls for 63 entities implies ~32 extra Gemini calls — roughly
-**50% of entities** triggered at least one agentic retry cycle. This is far above
-the 30% threshold at which the `confidence < 0.5` cutoff should be reconsidered.
-
-**Steps:**
-
-1. Query the MLflow spans DB to count, per LangGraph trace, how many
-   `ModelGardenChatModel` calls exceed 1 per entity (retries):
-
-   ```python
-   # In the spans table, each ground_node run has N MedGemma calls.
-   # Baseline is 1 MedGemma call per entity (first evaluate attempt).
-   # Retry calls add 1 MedGemma (agentic_reasoning_loop) + 1 MedGemma
-   # (re-evaluate), so each retry cycle adds 2 MedGemma calls.
-   # retry_count = (total_medgemma_calls - entity_count) / 2
-   ```
-
-   Using the known entity counts from `span.set_inputs(entity_count=...)`:
-
-   | Trace | MedGemma calls | Entities | Est. retry cycles | Retry rate |
-   |---|---|---|---|---|
-   | Run 1 (1214s) | 63 | ~42 | ~10 | ~24% |
-   | Run 2 (956s) | 56 | ? | ? | ? |
-   | … | … | … | … | … |
-
-   The entity count is available in the `ground_node` span's content
-   (`inputs.entity_count`). Read it from the spans table and compute retry rate
-   for all 6 grounding runs.
-
-2. Cross-reference the AuditLog table (via the API DB, not MLflow) to see what
-   `confidence` scores entities received on their first attempt. This gives the
-   ground truth on how many fell below 0.5.
-
-3. Sample 10–20 AuditLog entries where `confidence < 0.5` and examine
-   `reasoning` to determine if they are:
-   - **Genuinely ambiguous** entities that need retry (retries are justified)
-   - **Ungroundable** entities (consent, demographics) that slip past the
-     pre-filter and waste API calls
-   - **Threshold too aggressive**: entities where MedGemma said confidence=0.4
-     but the selected code was actually correct (false negatives)
-
-**Output of 1.6:**
-- Retry rate per trace (table)
-- Breakdown of why entities fell below threshold (ambiguous / ungroundable /
-  threshold too tight)
-- Recommendation: keep `confidence < 0.5`, raise to `0.3`, or add entity-type
-  pre-filters before the retry loop kicks in
-
-### Phase 1 Completion Criteria
-
-- [ ] Table of all sync `.invoke()` call sites in async paths
-- [ ] Baseline test durations recorded (per-test wall-clock from pytest output)
-- [ ] Env-var injection confirmed safe for conftest.py
-- [ ] `ainvoke` compatibility confirmed for `ChatGoogleGenerativeAI.with_structured_output`
-- [ ] MedGemma endpoint type confirmed (shared vs dedicated), cold-start root
-  cause understood, and remediation options ranked
-- [ ] Agentic retry rate computed for all 6 grounding traces
-- [ ] Retry root-cause sampled from AuditLog (ambiguous vs ungroundable vs
-  threshold too tight)
-- [ ] Written summary: findings and recommended threshold / pre-filter changes
-  (feeds Phase 5 scope decision)
+- [x] Table of all sync `.invoke()` call sites (5 found, up from 3 expected)
+- [x] Baseline test durations recorded (all 109 tests, ~12s total)
+- [x] Env-var injection confirmed safe for conftest.py
+- [x] `ainvoke` compatibility confirmed for structured output chains
+- [x] MedGemma endpoint: dedicated, `min_replica_count=0`, cold-start confirmed
+- [x] Agentic retry rate: 0–3.3%, no threshold change needed
+- [x] Recommendation: keep `confidence < 0.5` threshold as-is
 
 ---
 
-## Phase 2 — Test Fixture Limits
+## Phase 2 — Test Fixture Limits & Slow Marker
 
-**Goal:** Cut test time by 80–90% by limiting the number of entities processed
-per test run. Zero production code changes. No mock additions — tests still
-exercise real API paths, just with fewer entities.
+**Goal:** Add guardrails so future live-API tests are bounded, and mark the
+`@pytest.mark.slow` convention for full-pipeline tests.
 
-### 2.1 Add env vars to root conftest.py
+### 2.1 Add env vars to protocol-processor conftest.py
 
 Edit `services/protocol-processor-service/tests/conftest.py`:
 
 ```python
-# Limit grounding to 3 criteria and 5 entities in all tests.
+# Limit grounding to 3 criteria and 5 entities in tests.
 # Override with PIPELINE_MAX_CRITERIA=0 to run full pipeline.
 os.environ.setdefault("PIPELINE_MAX_CRITERIA", "3")
 os.environ.setdefault("PIPELINE_MAX_ENTITIES", "5")
 ```
 
-Use `setdefault` so individual tests or CI overrides can increase the limit
-(e.g. `PIPELINE_MAX_CRITERIA=0 pytest -m e2e`).
-
-### 2.2 Add an `@pytest.mark.slow` mark and guard for full-pipeline tests
-
-Any test that intentionally exercises the full extraction+grounding loop (e.g.
-true E2E protocol upload tests in `tests/e2e/`) should be marked:
-
-```python
-@pytest.mark.slow
-def test_full_pipeline_real_protocol():
-    ...
-```
+### 2.2 Add `slow` marker to pyproject.toml
 
 Add to `pyproject.toml` `[tool.pytest.ini_options]` markers:
 ```toml
 "slow: marks tests that run the full extraction-grounding loop (deselect with -m 'not slow')",
 ```
 
-CI runs the default suite (fast). A separate `make test-slow` or nightly job
-runs `pytest -m slow`.
-
-### 2.3 Re-run baseline tests and confirm speedup
+### 2.3 Verify all existing tests still pass
 
 ```bash
-uv run pytest services/protocol-processor-service/tests/ -v --tb=short 2>&1 | tee /tmp/after_phase2.txt
+uv run pytest services/protocol-processor-service/tests/ -v --tb=short -n0
 ```
-
-**Expected:** Tests that previously took 3–20 minutes now complete in under
-90 seconds.
 
 ### Phase 2 Completion Criteria
 
 - [ ] `PIPELINE_MAX_CRITERIA=3` and `PIPELINE_MAX_ENTITIES=5` set in conftest
-- [ ] `@pytest.mark.slow` applied to full-pipeline E2E tests
-- [ ] All existing tests still pass (no regressions)
-- [ ] Wall-clock reduction of ≥80% confirmed vs Phase 1 baseline
+- [ ] `slow` marker added to pyproject.toml
+- [ ] All 109 existing tests pass with no regressions
 
 ---
 
 ## Phase 3 — Async Gemini Calls (Event Loop Fix)
 
-**Goal:** Replace every synchronous `.invoke()` with `.ainvoke()` in code paths
-that run inside `asyncio.gather` tasks. This restores the intended 4× parallelism
-within the ground node and eliminates event loop starvation.
+**Goal:** Replace all 5 synchronous `.invoke()` calls with `.ainvoke()` in
+code paths that run inside `asyncio.gather` tasks. This restores the intended
+4× parallelism within the ground node.
 
 ### 3.1 Fix `_structure_decision_with_gemini` in `medgemma_decider.py`
 
-Change:
-```python
-result = structured_llm.invoke(prompt)
-```
-To:
-```python
-result = await structured_llm.ainvoke(prompt)
-```
-
-Make `_structure_decision_with_gemini` an async function and update its callers
-(`medgemma_decide` and `agentic_reasoning_loop`) which are already `async`.
+Make `_structure_decision_with_gemini` an `async def` function. Change
+`structured_llm.invoke(prompt)` → `await structured_llm.ainvoke(prompt)`.
+Update caller in `medgemma_decide` to `await`.
 
 ### 3.2 Fix `_structure_reasoning_with_gemini` in `medgemma_decider.py`
 
-Same pattern — make async, replace `.invoke()` with `await .ainvoke()`. Update
-`agentic_reasoning_loop` call site.
+Same pattern. Make async, replace `.invoke()` with `await .ainvoke()`.
+Update caller in `agentic_reasoning_loop` to `await`.
 
 ### 3.3 Fix `generate_field_mappings` in `field_mapper.py`
 
-`generate_field_mappings` is already `async def`. Change:
-```python
-result = structured_llm.invoke(prompt)
-```
-To:
-```python
-result = await structured_llm.ainvoke(prompt)
-```
+Already `async def`. Change `structured_llm.invoke(prompt)` →
+`await structured_llm.ainvoke(prompt)`.
 
-No caller changes needed (callers already `await` it).
+### 3.4 Fix `detect_logic_structure` in `structure_builder.py`
 
-### 3.4 Verify no other sync `.invoke()` calls remain in async paths
+Already `async def`. Change `structured_llm.invoke(prompt)` →
+`await structured_llm.ainvoke(prompt)`.
+
+### 3.5 Fix `resolve_ordinal_candidates` in `ordinal_resolver.py`
+
+Already `async def`. Change `structured_llm.invoke(prompt)` →
+`await structured_llm.ainvoke(prompt)`.
+
+### 3.6 Update unit tests that mock `.invoke()`
+
+Tests in `test_phase1b_wiring.py` mock `mock_chain.invoke.return_value`.
+Update these to use `mock_chain.ainvoke = AsyncMock(return_value=response)`.
+
+### 3.7 Verify no other sync `.invoke()` calls remain
 
 ```bash
-uv run grep -rn "\.invoke(" services/protocol-processor-service/src/ \
-  --include="*.py" | grep -v "ainvoke" | grep -v "model.invoke\|run\.invoke"
+rg "\.invoke\(" services/protocol-processor-service/src/ --type py | grep -v ainvoke
 ```
 
-Review each remaining hit and confirm it is either:
-- Not inside an async function, or
-- Not inside a `asyncio.gather` / semaphore path
+Review each hit and confirm it is not inside an async gather/semaphore path.
 
-### 3.5 Update unit tests that mock `.invoke()`
+### 3.8 Run full test suite
 
-Tests in `test_phase1b_wiring.py` mock `mock_chain.invoke.return_value`. Update
-these mocks to also set `mock_chain.ainvoke = AsyncMock(return_value=response)`
-so the updated async paths are covered.
-
-### 3.6 Verify parallelism improvement
-
-With `PIPELINE_MAX_ENTITIES=20` (temporarily override for this measurement),
-run the ground node against a real protocol and compare wall-clock to cumulative
-API time. Expected: wall-clock ≈ cumulative_api_time / 4 (Semaphore slots).
+```bash
+uv run pytest services/protocol-processor-service/tests/ -v --tb=short -n0
+```
 
 ### Phase 3 Completion Criteria
 
-- [ ] `_structure_decision_with_gemini` is `async def` using `await .ainvoke()`
-- [ ] `_structure_reasoning_with_gemini` is `async def` using `await .ainvoke()`
-- [ ] `generate_field_mappings` uses `await .ainvoke()`
-- [ ] No remaining sync `.invoke()` calls inside async-path files (confirmed by grep)
-- [ ] All unit tests updated and passing
-- [ ] Observed ground node wall-clock is ≤ 30% of the pre-Phase-3 time for the same entity count
+- [ ] All 5 call sites converted to `await .ainvoke()`
+- [ ] `_structure_decision_with_gemini` is `async def`
+- [ ] `_structure_reasoning_with_gemini` is `async def`
+- [ ] Unit test mocks updated (`invoke` → `ainvoke`)
+- [ ] No remaining sync `.invoke()` in async-path files (grep confirms)
+- [ ] All tests pass
 
 ---
 
 ## Phase 4 — Per-Entity Tracing in Ground Node
 
 **Goal:** Add entity-level span data to the ground node's MLflow trace so
-future bottleneck investigations don't require log-grepping. This directly
-addresses the blind spot identified in Section 4 of the root cause report.
+future bottleneck investigations don't require log-grepping.
 
 ### 4.1 Add per-entity timing to ground node outputs
 
-In `ground_node` (`nodes/ground.py`), after the `asyncio.gather` resolves,
-collect per-entity timing from `_ground_entity_parallel`'s existing `elapsed`
-measurement and include a summary in `span.set_outputs()`:
+In `ground_node` (`nodes/ground.py`), after `asyncio.gather` resolves,
+collect per-entity elapsed time from `_ground_entity_parallel` and include
+in `span.set_outputs()`:
 
 ```python
 span.set_outputs({
@@ -338,50 +221,49 @@ span.set_outputs({
     "error_count": len(accumulated_errors),
     "avg_entity_ms": round(sum(entity_times) / len(entity_times)) if entity_times else 0,
     "max_entity_ms": round(max(entity_times)) if entity_times else 0,
-    "retry_count": retry_count,
+    "retry_count": total_retry_count,
 })
 ```
 
-Return the `elapsed` from `_ground_entity_parallel` alongside the result tuple
-so the ground node can accumulate it.
+Return `elapsed` from `_ground_entity_parallel` alongside the result tuple.
 
 ### 4.2 Log retry count per entity
 
-In `_ground_entity_with_retry`, pass back how many attempts were made in the
-return value (add `attempt_count` to `EntityGroundingResult` or return it
-alongside). Aggregate in `ground_node` and include in the span output.
+In `_ground_entity_with_retry`, track `attempt` count and return it alongside
+the result. Aggregate in `ground_node` and include in span output.
 
 ### 4.3 Add `protocol_id` tag to extract and parse node traces
 
-Currently only `ground_node` and `ordinal_resolve_node` tag traces with
-`protocol_id`. Confirm `extract_node` and `parse_node` also call
-`mlflow.update_current_trace(tags={"protocol_id": ...})` so all node traces
-for a single run can be grouped in the MLflow UI.
+Confirm all 7 pipeline nodes tag their trace with `protocol_id` so traces
+for a single pipeline run can be grouped in the MLflow UI.
 
 ### Phase 4 Completion Criteria
 
 - [ ] `ground_node` span outputs include `avg_entity_ms`, `max_entity_ms`, `retry_count`
 - [ ] All 7 pipeline nodes tag their trace with `protocol_id`
-- [ ] A test protocol run produces MLflow traces that identify which entities
-  were slow without needing to grep logs
+- [ ] All tests pass
 
 ---
 
-## Phase 5 — MedGemma Keep-Warm (If Warranted by Phase 1.5)
+## Phase 5 — MedGemma Endpoint Fixes
 
-**Goal:** Eliminate the 308s cold-start outlier on Vertex AI Model Garden by
-sending a lightweight keep-warm call before the ground node processes entities.
+**Goal:** Address the two confirmed issues: cold-start from `min_replica_count=0`
+and per-call `Endpoint` reinstantiation. Retry threshold tuning is NOT needed
+(Phase 1.6 confirmed 0–3.3% retry rate).
 
-**Proceed only if Phase 1.5 confirms that cold-start is the cause of the
-max-308s outlier.** If the root cause is rate limiting, skip this phase.
+### 5.1 Move `aiplatform.Endpoint` to constructor
 
-### 5.1 Add warm-up call before `asyncio.gather` in ground node
+In `ModelGardenChatModel.__init__()` (model_garden.py), instantiate the
+`Endpoint` object once and store as `self._endpoint`. In `_generate()`,
+use `self._endpoint` instead of creating a new one per call. This enables
+gRPC channel reuse.
 
-Before dispatching the entity tasks, send a single trivial inference call to
-ModelGardenChatModel to wake the endpoint:
+### 5.2 Add pre-flight warmup call in ground node
+
+Before `asyncio.gather(*tasks)` in `ground_node`, send a single lightweight
+inference call to absorb cold-start latency:
 
 ```python
-# Warm the Model Garden endpoint before parallel entity processing
 try:
     warmup_model = _get_medgemma_model()
     await warmup_model.ainvoke([HumanMessage(content="ready")])
@@ -389,16 +271,17 @@ except Exception:
     pass  # non-fatal
 ```
 
-### 5.2 Alternatively: dedicated keep-warm background task
+### 5.3 Document `min_replica_count` recommendation
 
-If the inference lib supports it, configure a background asyncio task that
-pings the endpoint every 5 minutes to keep it warm across pipeline runs.
+Add a note to the deployment docs recommending `min_replica_count=1` on the
+Vertex AI endpoint to avoid cold-starts (~$0.05–0.15/hr GPU cost).
 
 ### Phase 5 Completion Criteria
 
-- [ ] Warmup call added (if cold-start confirmed)
-- [ ] Max entity time drops below 60s in subsequent MLflow traces
-- [ ] No measurable impact on entities that were already fast
+- [ ] `Endpoint` instantiated once in constructor, not per `_generate()` call
+- [ ] Pre-flight warmup call added before entity batch processing
+- [ ] Documentation updated with `min_replica_count` recommendation
+- [ ] All tests pass
 
 ---
 
@@ -410,19 +293,22 @@ pings the endpoint every 5 minutes to keep it warm across pipeline runs.
    `feature/major-refactor-langgraph`.
 3. CI must pass full test suite. The `@pytest.mark.slow` tests are excluded
    from CI by default (add `-m 'not slow'` to CI addopts if needed).
-4. Phase 4 (tracing) and Phase 5 (keep-warm) can be added as follow-up
+4. Phase 4 (tracing) and Phase 5 (endpoint fixes) can be added as follow-up
    commits on the same branch before or after merge.
 
 ---
 
 ## Reference: Key Files
 
-| File | Relevance |
-|---|---|
-| `services/protocol-processor-service/tests/conftest.py` | Phase 2: add env vars |
-| `pyproject.toml` | Phase 2: add `slow` marker |
-| `services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py` | Phase 3: async fixes |
-| `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py` | Phase 3: async fix |
-| `services/protocol-processor-service/src/protocol_processor/nodes/ground.py` | Phase 4: entity timing |
-| `services/protocol-processor-service/src/protocol_processor/tracing.py` | Phase 4: protocol_id tags |
-| `services/protocol-processor-service/tests/test_phase1b_wiring.py` | Phase 3: mock updates |
+| File | Phase | Change |
+|---|---|---|
+| `services/protocol-processor-service/tests/conftest.py` | 2 | Add env vars |
+| `pyproject.toml` | 2 | Add `slow` marker |
+| `tools/medgemma_decider.py` | 3 | Async fixes (2 functions) |
+| `tools/field_mapper.py` | 3 | Async fix |
+| `tools/structure_builder.py` | 3 | Async fix |
+| `tools/ordinal_resolver.py` | 3 | Async fix |
+| `tests/test_phase1b_wiring.py` | 3 | Mock updates |
+| `nodes/ground.py` | 4 | Entity timing + retry count |
+| `tracing.py` | 4 | protocol_id tags |
+| `libs/inference/.../model_garden.py` | 5 | Endpoint constructor + warmup |
