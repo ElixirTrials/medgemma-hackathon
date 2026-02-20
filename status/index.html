@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials Team">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/status/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Overview - ElixirTrials — Clinical Trial Criteria Extraction</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">ElixirTrials — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href=".." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../architecture/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../architecture/system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../architecture/data-models/" class="dropdown-item">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../journeys/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../journeys/upload-extraction/" class="dropdown-item">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../journeys/grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../shared/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../diagrams/hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../diagrams/agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="../diagrams/langgraph-architecture/" class="dropdown-item">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../code-tour/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../diagrams/langgraph-architecture/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../code-tour/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/docs/status/index.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#implementation-status" class="nav-link">Implementation Status</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#maturity-matrix" class="nav-link">Maturity Matrix</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#known-limitations" class="nav-link">Known Limitations</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#evaluation-sql-builder-flat-model" class="nav-link">Evaluation SQL Builder (flat model)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#compositecriterionparent_criterion_id" class="nav-link">CompositeCriterion.parent_criterion_id</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#no-ui-tests" class="nav-link">No UI Tests</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#stale-workspace-members" class="nav-link">Stale Workspace Members</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#test-coverage" class="nav-link">Test Coverage</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#top-5-risks-for-maintainers" class="nav-link">Top 5 Risks for Maintainers</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#1-cross-service-import-coupling" class="nav-link">1. Cross-Service Import Coupling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#2-no-pipeline-node-tests" class="nav-link">2. No Pipeline Node Tests</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#3-outbox-polling-latency" class="nav-link">3. Outbox Polling Latency</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#4-gemini-api-rate-limits" class="nav-link">4. Gemini API Rate Limits</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#5-expression-tree-vs-flat-sql-mismatch" class="nav-link">5. Expression Tree vs Flat SQL Mismatch</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="implementation-status">Implementation Status<a class="headerlink" href="#implementation-status" title="Permanent link">&para;</a></h1>
+<p>Current state of ElixirTrials components as of the <code>feature/major-refactor-langgraph</code> branch.</p>
+<h2 id="maturity-matrix">Maturity Matrix<a class="headerlink" href="#maturity-matrix" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Status</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PDF upload + quality scoring</td>
+<td>Production-ready</td>
+<td>Signed URL flow, client-side validation, quality analysis</td>
+</tr>
+<tr>
+<td>Gemini criteria extraction</td>
+<td>Production-ready</td>
+<td>Structured output with Gemini 2.5 Flash</td>
+</tr>
+<tr>
+<td>Entity decomposition (parse)</td>
+<td>Production-ready</td>
+<td>Concurrent async decomposition</td>
+</tr>
+<tr>
+<td>UMLS grounding (TerminologyRouter)</td>
+<td>Production-ready</td>
+<td>Multi-vocab routing with caching</td>
+</tr>
+<tr>
+<td>OMOP concept mapping</td>
+<td>Production-ready</td>
+<td>Dual grounding with reconciliation</td>
+</tr>
+<tr>
+<td>Agentic retry loop</td>
+<td>Experimental</td>
+<td>MedGemma reasoning for low-confidence entities</td>
+</tr>
+<tr>
+<td>Expression tree structuring</td>
+<td>Production-ready</td>
+<td>Gemini logic detection, atomic/composite model</td>
+</tr>
+<tr>
+<td>Ordinal scale resolution</td>
+<td>Experimental</td>
+<td>Gemini-based detection, proposals for review</td>
+</tr>
+<tr>
+<td>HITL review UI</td>
+<td>Production-ready</td>
+<td>Split-pane PDF + criteria, filtering, audit trail</td>
+</tr>
+<tr>
+<td>Re-extraction with review inheritance</td>
+<td>Production-ready</td>
+<td>Fuzzy matching (&gt;90% threshold)</td>
+</tr>
+<tr>
+<td>CIRCE export</td>
+<td>Production-ready</td>
+<td>Full expression tree walking</td>
+</tr>
+<tr>
+<td>FHIR R4 Group export</td>
+<td>Production-ready</td>
+<td>Full expression tree walking</td>
+</tr>
+<tr>
+<td>OMOP evaluation SQL export</td>
+<td>Production-ready (limited)</td>
+<td>Flat AND/OR model only (see known limitations)</td>
+</tr>
+<tr>
+<td>LangGraph checkpointing</td>
+<td>Production-ready</td>
+<td>AsyncPostgresSaver with retry support</td>
+</tr>
+<tr>
+<td>Outbox event processing</td>
+<td>Production-ready</td>
+<td>At-least-once delivery, dead letter handling</td>
+</tr>
+<tr>
+<td>Google OAuth</td>
+<td>Production-ready</td>
+<td>JWT session with protected routes</td>
+</tr>
+<tr>
+<td>MLflow observability</td>
+<td>Production-ready</td>
+<td>Per-node traces, orphan cleanup</td>
+</tr>
+<tr>
+<td>Circuit breaker (Gemini)</td>
+<td>Production-ready</td>
+<td>pybreaker-based with UI warning</td>
+</tr>
+</tbody>
+</table>
+<h2 id="known-limitations">Known Limitations<a class="headerlink" href="#known-limitations" title="Permanent link">&para;</a></h2>
+<h3 id="evaluation-sql-builder-flat-model">Evaluation SQL Builder (flat model)<a class="headerlink" href="#evaluation-sql-builder-flat-model" title="Permanent link">&para;</a></h3>
+<p>The OMOP CDM evaluation SQL builder uses a flat AND/OR model: all inclusion atomics are combined with AND, all exclusion atomics use NOT EXISTS. The expression tree's nested AND/OR/NOT structure is <strong>not</strong> respected by the SQL builder.</p>
+<p>For example, "HbA1c &gt;= 7% OR fasting glucose &gt;= 126" is evaluated as requiring <strong>both</strong> rather than <strong>either</strong>.</p>
+<p>The CIRCE and FHIR Group builders correctly walk the expression tree.</p>
+<p><strong>File</strong>: <code>services/api-service/src/api_service/exporters/evaluation_sql_builder.py:1-13</code></p>
+<h3 id="compositecriterionparent_criterion_id">CompositeCriterion.parent_criterion_id<a class="headerlink" href="#compositecriterionparent_criterion_id" title="Permanent link">&para;</a></h3>
+<p>The <code>parent_criterion_id</code> column on <code>CompositeCriterion</code> is intentionally unused by the automated pipeline. Tree parent-child relationships are stored in <code>CriterionRelationship</code>. This field is reserved for future HITL use (manual tree restructuring).</p>
+<h3 id="no-ui-tests">No UI Tests<a class="headerlink" href="#no-ui-tests" title="Permanent link">&para;</a></h3>
+<p>The <code>apps/hitl-ui</code> directory has no test files. The React components are untested.</p>
+<h3 id="stale-workspace-members">Stale Workspace Members<a class="headerlink" href="#stale-workspace-members" title="Permanent link">&para;</a></h3>
+<p>Several workspace members in <code>pyproject.toml</code> exist as directories but have minimal functionality:</p>
+<ul>
+<li><code>libs/data-pipeline</code> — data loading helpers (limited)</li>
+<li><code>libs/evaluation</code> — quality evaluation framework (limited)</li>
+<li><code>libs/inference</code> — model inference utilities (limited)</li>
+<li><code>libs/model-training</code> — fine-tuning scripts (limited)</li>
+</ul>
+<p>These are scaffolded for future use but not actively consumed by the pipeline.</p>
+<h2 id="test-coverage">Test Coverage<a class="headerlink" href="#test-coverage" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Area</th>
+<th>Test files</th>
+<th>Count</th>
+<th>Runner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>API endpoints</td>
+<td><code>services/api-service/tests/test_protocol_api.py</code></td>
+<td>~15 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Review workflow</td>
+<td><code>services/api-service/tests/test_review_api.py</code></td>
+<td>~10 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Auth</td>
+<td><code>services/api-service/tests/test_auth_required.py</code></td>
+<td>~5 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Exports</td>
+<td><code>services/api-service/tests/test_exports.py</code></td>
+<td>36 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Data integrity</td>
+<td><code>services/api-service/tests/test_integrity.py</code></td>
+<td>~5 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Quality scoring</td>
+<td><code>services/api-service/tests/test_quality.py</code></td>
+<td>~5 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Models/schemas</td>
+<td><code>services/api-service/tests/test_models.py</code>, <code>test_schemas.py</code></td>
+<td>~10 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>UMLS clients</td>
+<td><code>services/api-service/tests/test_umls_clients.py</code></td>
+<td>~5 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Event contracts</td>
+<td><code>libs/events-py/tests/</code></td>
+<td>~5 tests</td>
+<td>pytest</td>
+</tr>
+<tr>
+<td>Pipeline nodes</td>
+<td>None</td>
+<td>0</td>
+<td>—</td>
+</tr>
+<tr>
+<td>UI components</td>
+<td>None</td>
+<td>0</td>
+<td>—</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Run all tests</strong>: <code>make test</code></p>
+<h2 id="top-5-risks-for-maintainers">Top 5 Risks for Maintainers<a class="headerlink" href="#top-5-risks-for-maintainers" title="Permanent link">&para;</a></h2>
+<h3 id="1-cross-service-import-coupling">1. Cross-Service Import Coupling<a class="headerlink" href="#1-cross-service-import-coupling" title="Permanent link">&para;</a></h3>
+<p>Pipeline nodes (<code>protocol-processor-service</code>) directly import from <code>api-service</code> for database access (<code>from api_service.storage import engine</code>). This creates a tight runtime coupling — the processor cannot run without the api-service package on the Python path.</p>
+<p><strong>Mitigation</strong>: The <code>pyproject.toml</code> pythonpath config handles this for dev. For production, both packages must be installed together.</p>
+<h3 id="2-no-pipeline-node-tests">2. No Pipeline Node Tests<a class="headerlink" href="#2-no-pipeline-node-tests" title="Permanent link">&para;</a></h3>
+<p>The 7 LangGraph nodes have zero test coverage. All testing is through the API layer. A change to a node could break the pipeline without any test failure.</p>
+<p><strong>Mitigation</strong>: Add integration tests that invoke individual nodes with mock LLM responses.</p>
+<h3 id="3-outbox-polling-latency">3. Outbox Polling Latency<a class="headerlink" href="#3-outbox-polling-latency" title="Permanent link">&para;</a></h3>
+<p>The outbox processor polls every 2 seconds. Under load, this could create a backlog. There's no back-pressure mechanism.</p>
+<p><strong>Mitigation</strong>: Monitor outbox table depth; consider reducing poll interval or switching to PostgreSQL LISTEN/NOTIFY.</p>
+<h3 id="4-gemini-api-rate-limits">4. Gemini API Rate Limits<a class="headerlink" href="#4-gemini-api-rate-limits" title="Permanent link">&para;</a></h3>
+<p>Multiple pipeline nodes call Gemini concurrently (semaphore=4 per node). A burst of protocol uploads could hit API rate limits.</p>
+<p><strong>Mitigation</strong>: The circuit breaker (<code>pybreaker</code>) handles transient failures. Consider adding global rate limiting.</p>
+<h3 id="5-expression-tree-vs-flat-sql-mismatch">5. Expression Tree vs Flat SQL Mismatch<a class="headerlink" href="#5-expression-tree-vs-flat-sql-mismatch" title="Permanent link">&para;</a></h3>
+<p>The CIRCE and FHIR exporters walk the expression tree correctly, but the SQL exporter uses a flat model. Users may get inconsistent results across export formats.</p>
+<p><strong>Mitigation</strong>: Document the limitation clearly (done). Future: implement tree-aware SQL generation using recursive CTE grouping.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../assets/mermaid-init.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

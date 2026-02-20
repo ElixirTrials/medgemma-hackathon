@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials Team">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/diagrams/langgraph-architecture/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>LangGraph Pipeline - ElixirTrials — Clinical Trial Criteria Extraction</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">ElixirTrials — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../architecture/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../architecture/system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../architecture/data-models/" class="dropdown-item">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../journeys/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../journeys/upload-extraction/" class="dropdown-item">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../../journeys/grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../shared/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../status/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../code-tour/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../agent-flow/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../status/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/docs/diagrams/langgraph-architecture.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#langgraph-pipeline-architecture" class="nav-link">LangGraph Pipeline Architecture</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#pipeline-graph" class="nav-link">Pipeline Graph</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#node-responsibilities" class="nav-link">Node Responsibilities</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-routing" class="nav-link">Error Routing</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#checkpointing" class="nav-link">Checkpointing</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#state-shape" class="nav-link">State Shape</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="langgraph-pipeline-architecture">LangGraph Pipeline Architecture<a class="headerlink" href="#langgraph-pipeline-architecture" title="Permanent link">&para;</a></h1>
+<p>The protocol processing pipeline is implemented as a 7-node LangGraph StateGraph.</p>
+<h2 id="pipeline-graph">Pipeline Graph<a class="headerlink" href="#pipeline-graph" title="Permanent link">&para;</a></h2>
+<div class="mermaid">graph LR
+    START((START)) --&gt; ingest
+    ingest --&gt;|ok| extract
+    ingest --&gt;|error| END1((END))
+    extract --&gt;|ok| parse
+    extract --&gt;|error| END2((END))
+    parse --&gt;|ok| ground
+    parse --&gt;|error| END3((END))
+    ground --&gt; persist
+    persist --&gt; structure
+    structure --&gt; ordinal_resolve
+    ordinal_resolve --&gt; END4((END))
+
+    style ingest fill:#3b82f6,color:#fff
+    style extract fill:#8b5cf6,color:#fff
+    style parse fill:#06b6d4,color:#fff
+    style ground fill:#10b981,color:#fff
+    style persist fill:#f59e0b,color:#fff
+    style structure fill:#ef4444,color:#fff
+    style ordinal_resolve fill:#ec4899,color:#fff</div>
+<h2 id="node-responsibilities">Node Responsibilities<a class="headerlink" href="#node-responsibilities" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Node</th>
+<th>Purpose</th>
+<th>Key tool</th>
+<th>Error strategy</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ingest</strong></td>
+<td>Fetch PDF bytes from storage</td>
+<td><code>fetch_pdf_bytes()</code></td>
+<td>Fatal → END</td>
+</tr>
+<tr>
+<td><strong>extract</strong></td>
+<td>LLM extraction of criteria from PDF</td>
+<td>Gemini structured output</td>
+<td>Fatal → END</td>
+</tr>
+<tr>
+<td><strong>parse</strong></td>
+<td>Create DB records, decompose entities</td>
+<td><code>decompose_entities_from_criterion()</code></td>
+<td>Fatal → END</td>
+</tr>
+<tr>
+<td><strong>ground</strong></td>
+<td>Link entities to SNOMED/LOINC/RxNorm/OMOP</td>
+<td>TerminologyRouter + OMOP Mapper</td>
+<td>Accumulate errors</td>
+</tr>
+<tr>
+<td><strong>persist</strong></td>
+<td>Write Entity records, update field_mappings</td>
+<td>Direct DB writes</td>
+<td>Accumulate errors</td>
+</tr>
+<tr>
+<td><strong>structure</strong></td>
+<td>Build expression trees from field_mappings</td>
+<td>Gemini logic detection</td>
+<td>Accumulate errors</td>
+</tr>
+<tr>
+<td><strong>ordinal_resolve</strong></td>
+<td>Identify ordinal scales, set unit_concept_id</td>
+<td>Gemini ordinal detection</td>
+<td>Accumulate errors</td>
+</tr>
+</tbody>
+</table>
+<h2 id="error-routing">Error Routing<a class="headerlink" href="#error-routing" title="Permanent link">&para;</a></h2>
+<p>The first three nodes (ingest, extract, parse) use <strong>conditional edges</strong> — a fatal error routes to END immediately:</p>
+<div class="highlight"><pre><span></span><code><span class="n">workflow</span><span class="o">.</span><span class="n">add_conditional_edges</span><span class="p">(</span>
+    <span class="n">source</span><span class="p">,</span>
+    <span class="n">should_continue</span><span class="p">,</span>    <span class="c1"># checks state[&quot;error&quot;]</span>
+    <span class="p">{</span><span class="s2">&quot;continue&quot;</span><span class="p">:</span> <span class="n">target</span><span class="p">,</span> <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="n">END</span><span class="p">},</span>
+<span class="p">)</span>
+</code></pre></div>
+<p>The remaining nodes (ground, persist, structure, ordinal_resolve) use <strong>error accumulation</strong> — individual item failures are appended to <code>state["errors"]</code> but the pipeline continues.</p>
+<h2 id="checkpointing">Checkpointing<a class="headerlink" href="#checkpointing" title="Permanent link">&para;</a></h2>
+<p>The graph is compiled with an <code>AsyncPostgresSaver</code> checkpointer that persists state after each node:</p>
+<ul>
+<li><strong>Initial runs</strong>: thread_id = <code>{protocol_id}:{uuid4}</code> (unique per run to prevent collision on re-extraction)</li>
+<li><strong>Retry</strong>: <code>retry_from_checkpoint(protocol_id)</code> looks up <code>pipeline_thread_id</code> from protocol metadata and resumes with <code>ainvoke(None, config)</code> — LangGraph replays from the last successful node</li>
+</ul>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/graph.py</code></p>
+<h2 id="state-shape">State Shape<a class="headerlink" href="#state-shape" title="Permanent link">&para;</a></h2>
+<p>See <a href="../../architecture/data-models/#pipeline-state">Data Models — Pipeline State</a> for the full <code>PipelineState</code> TypedDict.</p>
+<p>Key design decisions:</p>
+<ul>
+<li><strong>JSON strings</strong> over dicts for extraction/entity data — reduces checkpoint serialization size</li>
+<li><strong>pdf_bytes cleared</strong> after extract — prevents storing megabytes in every checkpoint</li>
+<li><strong>errors as list[str]</strong> — simple accumulation, no structured error objects</li>
+</ul></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../../assets/mermaid-init.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

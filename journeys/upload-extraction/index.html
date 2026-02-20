@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials Team">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/journeys/upload-extraction/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Upload & Extraction - ElixirTrials — Clinical Trial Criteria Extraction</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">ElixirTrials — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../architecture/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../architecture/system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../architecture/data-models/" class="dropdown-item">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../shared/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../diagrams/hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../diagrams/agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../diagrams/langgraph-architecture/" class="dropdown-item">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../status/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../code-tour/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../grounding-review/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/docs/journeys/upload-extraction.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#upload-extraction-journey" class="nav-link">Upload &amp; Extraction Journey</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#sequence-diagram" class="nav-link">Sequence Diagram</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#step-by-step" class="nav-link">Step-by-Step</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#1-upload-dialog-protocoluploaddialogtsx" class="nav-link">1. Upload Dialog (ProtocolUploadDialog.tsx)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#2-signed-url-generation-protocolspy" class="nav-link">2. Signed URL Generation (protocols.py)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#3-upload-confirmation-protocolspy" class="nav-link">3. Upload Confirmation (protocols.py)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#4-outbox-processing-events-pyoutboxpy" class="nav-link">4. Outbox Processing (events-py/outbox.py)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#5-ingest-node-nodesingestpy" class="nav-link">5. Ingest Node (nodes/ingest.py)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#6-extract-node-nodesextractpy" class="nav-link">6. Extract Node (nodes/extract.py)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#7-parse-node-nodesparsepy" class="nav-link">7. Parse Node (nodes/parse.py)</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#error-handling" class="nav-link">Error Handling</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#re-extraction" class="nav-link">Re-Extraction</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="upload-extraction-journey">Upload &amp; Extraction Journey<a class="headerlink" href="#upload-extraction-journey" title="Permanent link">&para;</a></h1>
+<p>How a protocol PDF goes from the researcher's browser to structured criteria in the database.</p>
+<h2 id="sequence-diagram">Sequence Diagram<a class="headerlink" href="#sequence-diagram" title="Permanent link">&para;</a></h2>
+<div class="mermaid">sequenceDiagram
+    actor User as Researcher
+    participant UI as hitl-ui
+    participant API as api-service
+    participant DB as PostgreSQL
+    participant GCS as Storage (GCS/local)
+    participant OBX as OutboxProcessor
+    participant IG as ingest node
+    participant EX as extract node
+    participant PA as parse node
+
+    User-&gt;&gt;UI: Drag &amp; drop protocol PDF
+    UI-&gt;&gt;API: POST /protocols/upload {filename, size}
+    API-&gt;&gt;DB: INSERT Protocol (status=uploaded)
+    API-&gt;&gt;GCS: Generate signed upload URL
+    API--&gt;&gt;UI: {protocol_id, upload_url}
+    UI-&gt;&gt;GCS: PUT file to signed URL
+    UI-&gt;&gt;API: POST /protocols/{id}/confirm-upload {pdf_bytes_base64}
+    API-&gt;&gt;API: compute_quality_score(pdf_bytes)
+    API-&gt;&gt;DB: persist_with_outbox(protocol, PROTOCOL_UPLOADED)
+    API--&gt;&gt;UI: ProtocolResponse
+
+    Note over OBX,DB: OutboxProcessor polls every 2s
+    OBX-&gt;&gt;DB: SELECT pending outbox events
+    OBX-&gt;&gt;IG: handle_protocol_uploaded(payload)
+
+    IG-&gt;&gt;GCS: fetch_pdf_bytes(file_uri)
+    GCS--&gt;&gt;IG: raw PDF bytes
+    IG-&gt;&gt;DB: UPDATE protocol.status = extracting
+
+    IG-&gt;&gt;EX: state with pdf_bytes
+    EX-&gt;&gt;EX: Gemini structured output extraction
+    Note over EX: Sends PDF to Gemini 2.5 Flash&lt;br/&gt;with JSON schema for criteria
+
+    EX-&gt;&gt;PA: state with extraction_json
+    PA-&gt;&gt;DB: INSERT CriteriaBatch + Criteria records
+    PA-&gt;&gt;PA: decompose_entities_from_criterion() x N
+    Note over PA: Async entity decomposition&lt;br/&gt;using Gemini (semaphore=4)
+    PA-&gt;&gt;PA: state with entities_json, batch_id</div>
+<h2 id="step-by-step">Step-by-Step<a class="headerlink" href="#step-by-step" title="Permanent link">&para;</a></h2>
+<h3 id="1-upload-dialog-protocoluploaddialogtsx">1. Upload Dialog (<code>ProtocolUploadDialog.tsx</code>)<a class="headerlink" href="#1-upload-dialog-protocoluploaddialogtsx" title="Permanent link">&para;</a></h3>
+<p>The user opens the upload dialog in the HITL UI. Client-side validation enforces:</p>
+<ul>
+<li>PDF content type only</li>
+<li>50 MB maximum file size</li>
+</ul>
+<p><strong>File</strong>: <code>apps/hitl-ui/src/components/ProtocolUploadDialog.tsx</code></p>
+<h3 id="2-signed-url-generation-protocolspy">2. Signed URL Generation (<code>protocols.py</code>)<a class="headerlink" href="#2-signed-url-generation-protocolspy" title="Permanent link">&para;</a></h3>
+<p>The API creates a <code>Protocol</code> record (status: <code>uploaded</code>) and returns a signed URL for direct browser-to-GCS upload. If the Gemini circuit breaker is open, the protocol is marked <code>pending</code> with a warning.</p>
+<p><strong>File</strong>: <code>services/api-service/src/api_service/protocols.py:136</code></p>
+<h3 id="3-upload-confirmation-protocolspy">3. Upload Confirmation (<code>protocols.py</code>)<a class="headerlink" href="#3-upload-confirmation-protocolspy" title="Permanent link">&para;</a></h3>
+<p>After the browser uploads the file, it calls <code>confirm-upload</code>. This endpoint:</p>
+<ol>
+<li>Optionally decodes <code>pdf_bytes_base64</code> and computes a quality score (page count, text extractability)</li>
+<li>Stores quality metadata on the GCS blob</li>
+<li>Writes the <code>PROTOCOL_UPLOADED</code> outbox event in the same transaction as the protocol update</li>
+</ol>
+<p><strong>File</strong>: <code>services/api-service/src/api_service/protocols.py:205</code></p>
+<h3 id="4-outbox-processing-events-pyoutboxpy">4. Outbox Processing (<code>events-py/outbox.py</code>)<a class="headerlink" href="#4-outbox-processing-events-pyoutboxpy" title="Permanent link">&para;</a></h3>
+<p>The <code>OutboxProcessor</code> runs as a background task inside <code>api-service</code>. It polls for pending events and dispatches them to registered handlers in a thread executor (to avoid blocking FastAPI).</p>
+<p><strong>File</strong>: <code>libs/events-py/src/events_py/outbox.py</code></p>
+<h3 id="5-ingest-node-nodesingestpy">5. Ingest Node (<code>nodes/ingest.py</code>)<a class="headerlink" href="#5-ingest-node-nodesingestpy" title="Permanent link">&para;</a></h3>
+<p>First pipeline node. Fetches the raw PDF bytes from GCS (or local storage) and updates the protocol status to <code>extracting</code>.</p>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/ingest.py</code></p>
+<h3 id="6-extract-node-nodesextractpy">6. Extract Node (<code>nodes/extract.py</code>)<a class="headerlink" href="#6-extract-node-nodesextractpy" title="Permanent link">&para;</a></h3>
+<p>Sends the PDF to Gemini 2.5 Flash with a structured output schema requesting:</p>
+<ul>
+<li>Criteria text (inclusion/exclusion)</li>
+<li>Category classification</li>
+<li>Confidence scores</li>
+</ul>
+<p>Returns a JSON string of extracted criteria. The PDF bytes are cleared from state after this step to reduce checkpoint size.</p>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/extract.py</code></p>
+<h3 id="7-parse-node-nodesparsepy">7. Parse Node (<code>nodes/parse.py</code>)<a class="headerlink" href="#7-parse-node-nodesparsepy" title="Permanent link">&para;</a></h3>
+<p>Converts extraction JSON into database records:</p>
+<ol>
+<li><strong>Phase A</strong>: Creates <code>CriteriaBatch</code> and <code>Criteria</code> records in the database</li>
+<li><strong>Phase B</strong>: Runs <code>decompose_entities_from_criterion()</code> concurrently (asyncio.gather with semaphore=4) to identify medical entities within each criterion</li>
+</ol>
+<p>Produces <code>entities_json</code> in state for the grounding phase.</p>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/parse.py</code></p>
+<h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Failure</th>
+<th>Response</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Invalid file type</td>
+<td>400 error at upload</td>
+</tr>
+<tr>
+<td>File too large (&gt;50MB)</td>
+<td>400 error at upload</td>
+</tr>
+<tr>
+<td>PDF quality too low</td>
+<td>Pipeline may fail at extract with <code>extraction_failed</code></td>
+</tr>
+<tr>
+<td>Gemini API down</td>
+<td>Circuit breaker opens; protocol queued as <code>pending</code></td>
+</tr>
+<tr>
+<td>Extraction LLM error</td>
+<td><code>extraction_failed</code> status; retryable via <code>/retry</code> endpoint</td>
+</tr>
+</tbody>
+</table>
+<h2 id="re-extraction">Re-Extraction<a class="headerlink" href="#re-extraction" title="Permanent link">&para;</a></h2>
+<p>The <code>POST /protocols/{id}/re-extract</code> endpoint allows re-running extraction without re-uploading:</p>
+<ol>
+<li>Archives all existing non-archived batches (preserves review history)</li>
+<li>Collects reviewed criteria from archived batches for fuzzy-match inheritance</li>
+<li>Triggers the same pipeline via a new <code>PROTOCOL_UPLOADED</code> outbox event</li>
+<li>New batch criteria inherit review decisions from archived criteria (&gt;90% text match, same type)</li>
+</ol>
+<p><strong>File</strong>: <code>services/api-service/src/api_service/protocols.py:360</code></p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../../assets/mermaid-init.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

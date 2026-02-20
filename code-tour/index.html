@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials Team">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/code-tour/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Overview - ElixirTrials — Clinical Trial Criteria Extraction</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">ElixirTrials — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href=".." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../architecture/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../architecture/system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../architecture/data-models/" class="dropdown-item">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../journeys/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../journeys/upload-extraction/" class="dropdown-item">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../journeys/grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../shared/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../diagrams/hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../diagrams/agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="../diagrams/langgraph-architecture/" class="dropdown-item">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../status/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../status/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../testing-guide/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/docs/code-tour/index.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#code-tour" class="nav-link">Code Tour</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#slide-1-upload-dialog" class="nav-link">Slide 1: Upload Dialog</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-2-protocol-upload-api" class="nav-link">Slide 2: Protocol Upload API</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-3-outbox-wiring" class="nav-link">Slide 3: Outbox Wiring</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-4-pipeline-trigger" class="nav-link">Slide 4: Pipeline Trigger</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-5-ingest-node" class="nav-link">Slide 5: Ingest Node</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-6-extract-node" class="nav-link">Slide 6: Extract Node</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-7-parse-node" class="nav-link">Slide 7: Parse Node</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-8-ground-node" class="nav-link">Slide 8: Ground Node</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-9-structure-node" class="nav-link">Slide 9: Structure Node</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#slide-10-review-page" class="nav-link">Slide 10: Review Page</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="code-tour">Code Tour<a class="headerlink" href="#code-tour" title="Permanent link">&para;</a></h1>
+<p>A linear walkthrough of the key code paths in ElixirTrials, from upload to review. Each "slide" covers one critical module.</p>
+<hr />
+<h2 id="slide-1-upload-dialog">Slide 1: Upload Dialog<a class="headerlink" href="#slide-1-upload-dialog" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As a researcher</strong>, I want to upload a protocol PDF so the system can extract its eligibility criteria.</p>
+</blockquote>
+<p><strong>File</strong>: <code>apps/hitl-ui/src/components/ProtocolUploadDialog.tsx</code></p>
+<div class="highlight"><pre><span></span><code><span class="kd">const</span><span class="w"> </span><span class="nx">uploadMutation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useUploadProtocol</span><span class="p">();</span>
+
+<span class="kd">const</span><span class="w"> </span><span class="nx">handleUpload</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nx">useCallback</span><span class="p">(</span><span class="k">async</span><span class="w"> </span><span class="p">()</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="nx">selectedFile</span><span class="p">)</span><span class="w"> </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="k">try</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">await</span><span class="w"> </span><span class="nx">uploadMutation</span><span class="p">.</span><span class="nx">mutateAsync</span><span class="p">({</span><span class="w"> </span><span class="nx">file</span><span class="o">:</span><span class="w"> </span><span class="kt">selectedFile</span><span class="w"> </span><span class="p">});</span>
+<span class="w">        </span><span class="nx">setSelectedFile</span><span class="p">(</span><span class="kc">null</span><span class="p">);</span>
+<span class="w">        </span><span class="nx">onOpenChange</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span><span class="w"> </span><span class="k">catch</span><span class="w"> </span><span class="p">(</span><span class="nx">err</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="nx">setError</span><span class="p">(</span><span class="nx">err</span><span class="w"> </span><span class="ow">instanceof</span><span class="w"> </span><span class="ne">Error</span><span class="w"> </span><span class="o">?</span><span class="w"> </span><span class="nx">err</span><span class="p">.</span><span class="nx">message</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="s1">&#39;Upload failed&#39;</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="p">},</span><span class="w"> </span><span class="p">[</span><span class="nx">selectedFile</span><span class="p">,</span><span class="w"> </span><span class="nx">uploadMutation</span><span class="p">,</span><span class="w"> </span><span class="nx">onOpenChange</span><span class="p">]);</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: The upload dialog is the entry point for all protocol processing. It validates PDF type and 50 MB size limit client-side before hitting the API. The <code>useUploadProtocol</code> hook handles the two-step signed URL flow (upload → confirm).</p>
+<hr />
+<h2 id="slide-2-protocol-upload-api">Slide 2: Protocol Upload API<a class="headerlink" href="#slide-2-protocol-upload-api" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the API</strong>, I create a protocol record and generate a signed URL for direct browser-to-storage upload.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/api-service/src/api_service/protocols.py:136</code></p>
+<div class="highlight"><pre><span></span><code><span class="nd">@router</span><span class="o">.</span><span class="n">post</span><span class="p">(</span><span class="s2">&quot;/upload&quot;</span><span class="p">,</span> <span class="n">response_model</span><span class="o">=</span><span class="n">UploadResponse</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">upload_protocol</span><span class="p">(</span><span class="n">body</span><span class="p">:</span> <span class="n">UploadRequest</span><span class="p">,</span> <span class="n">db</span><span class="p">:</span> <span class="n">Session</span> <span class="o">=</span> <span class="n">Depends</span><span class="p">(</span><span class="n">get_db</span><span class="p">)):</span>
+    <span class="n">signed_url</span><span class="p">,</span> <span class="n">gcs_path</span> <span class="o">=</span> <span class="n">generate_upload_url</span><span class="p">(</span>
+        <span class="n">filename</span><span class="o">=</span><span class="n">body</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">content_type</span><span class="o">=</span><span class="n">body</span><span class="o">.</span><span class="n">content_type</span><span class="p">,</span>
+    <span class="p">)</span>
+    <span class="n">protocol</span> <span class="o">=</span> <span class="n">Protocol</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span> <span class="n">file_uri</span><span class="o">=</span><span class="n">gcs_path</span><span class="p">,</span> <span class="n">status</span><span class="o">=</span><span class="s2">&quot;uploaded&quot;</span><span class="p">)</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">protocol</span><span class="p">)</span>
+    <span class="n">db</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="n">UploadResponse</span><span class="p">(</span><span class="n">protocol_id</span><span class="o">=</span><span class="n">protocol</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">upload_url</span><span class="o">=</span><span class="n">signed_url</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: The upload is a two-phase process. Phase 1 creates the DB record and returns a signed URL. Phase 2 (<code>confirm-upload</code>) triggers processing via the outbox. This prevents processing a file that was never actually uploaded.</p>
+<hr />
+<h2 id="slide-3-outbox-wiring">Slide 3: Outbox Wiring<a class="headerlink" href="#slide-3-outbox-wiring" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the API service</strong>, I connect the outbox processor to the pipeline trigger at startup.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/api-service/src/api_service/main.py:81-93</code></p>
+<div class="highlight"><pre><span></span><code><span class="n">processor</span> <span class="o">=</span> <span class="n">OutboxProcessor</span><span class="p">(</span>
+    <span class="n">engine</span><span class="o">=</span><span class="n">engine</span><span class="p">,</span>
+    <span class="n">handlers</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;protocol_uploaded&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">handle_protocol_uploaded</span><span class="p">],</span>
+    <span class="p">},</span>
+<span class="p">)</span>
+<span class="n">task</span> <span class="o">=</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">create_task</span><span class="p">(</span><span class="n">processor</span><span class="o">.</span><span class="n">start</span><span class="p">())</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: This is the bridge between the synchronous API world and the async pipeline. The outbox pattern ensures at-least-once delivery — if the API crashes after writing the outbox event but before the handler runs, the event will be picked up on restart. Note: <code>criteria_extracted</code> was removed in v2.0; <code>protocol_uploaded</code> is the only event.</p>
+<hr />
+<h2 id="slide-4-pipeline-trigger">Slide 4: Pipeline Trigger<a class="headerlink" href="#slide-4-pipeline-trigger" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the outbox processor</strong>, I dispatch events to the LangGraph pipeline.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/trigger.py:214</code></p>
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">handle_protocol_uploaded</span><span class="p">(</span><span class="n">payload</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+    <span class="n">thread_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">protocol_id</span><span class="si">}</span><span class="s2">:</span><span class="si">{</span><span class="n">uuid4</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">initial_state</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s2">&quot;protocol_id&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;protocol_id&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;file_uri&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;file_uri&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="n">payload</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">],</span>
+        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;processing&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;error&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>
+        <span class="s2">&quot;errors&quot;</span><span class="p">:</span> <span class="p">[],</span>
+        <span class="o">...</span>
+    <span class="p">}</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;configurable&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;thread_id&quot;</span><span class="p">:</span> <span class="n">thread_id</span><span class="p">}}</span>
+    <span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">_run_pipeline</span><span class="p">(</span><span class="n">initial_state</span><span class="p">,</span> <span class="n">config</span><span class="p">,</span> <span class="n">payload</span><span class="p">))</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: The trigger bridges sync (outbox handler) to async (LangGraph) via <code>asyncio.run()</code>. Each run gets a unique <code>thread_id</code> (protocol_id + uuid4) to prevent checkpoint collision on re-extraction. The thread_id is stored in protocol metadata for retry support.</p>
+<hr />
+<h2 id="slide-5-ingest-node">Slide 5: Ingest Node<a class="headerlink" href="#slide-5-ingest-node" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the first pipeline node</strong>, I fetch the PDF bytes from storage.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/ingest.py</code></p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">ingest_node</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">PipelineState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="n">pdf_bytes</span> <span class="o">=</span> <span class="k">await</span> <span class="n">fetch_pdf_bytes</span><span class="p">(</span><span class="n">state</span><span class="p">[</span><span class="s2">&quot;file_uri&quot;</span><span class="p">])</span>
+    <span class="c1"># Update protocol status in DB</span>
+    <span class="k">with</span> <span class="n">Session</span><span class="p">(</span><span class="n">engine</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+        <span class="n">protocol</span> <span class="o">=</span> <span class="n">session</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">Protocol</span><span class="p">,</span> <span class="n">state</span><span class="p">[</span><span class="s2">&quot;protocol_id&quot;</span><span class="p">])</span>
+        <span class="n">protocol</span><span class="o">.</span><span class="n">status</span> <span class="o">=</span> <span class="s2">&quot;extracting&quot;</span>
+        <span class="n">session</span><span class="o">.</span><span class="n">commit</span><span class="p">()</span>
+    <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;pdf_bytes&quot;</span><span class="p">:</span> <span class="n">pdf_bytes</span><span class="p">,</span> <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;processing&quot;</span><span class="p">}</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: Ingest is the first node with external I/O (storage fetch). If the file doesn't exist or storage is down, this is where it fails — with a clear <code>error</code> that routes the pipeline to END.</p>
+<hr />
+<h2 id="slide-6-extract-node">Slide 6: Extract Node<a class="headerlink" href="#slide-6-extract-node" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the extract node</strong>, I send the PDF to Gemini and get structured criteria back.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/extract.py</code></p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">extract_node</span><span class="p">(</span><span class="n">state</span><span class="p">:</span> <span class="n">PipelineState</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]:</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">extract_criteria_structured</span><span class="p">(</span>
+        <span class="n">pdf_bytes</span><span class="o">=</span><span class="n">state</span><span class="p">[</span><span class="s2">&quot;pdf_bytes&quot;</span><span class="p">],</span>
+        <span class="n">protocol_title</span><span class="o">=</span><span class="n">state</span><span class="p">[</span><span class="s2">&quot;title&quot;</span><span class="p">],</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="p">{</span>
+        <span class="s2">&quot;extraction_json&quot;</span><span class="p">:</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">result</span><span class="p">),</span>
+        <span class="s2">&quot;pdf_bytes&quot;</span><span class="p">:</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># Clear to reduce checkpoint size</span>
+        <span class="s2">&quot;status&quot;</span><span class="p">:</span> <span class="s2">&quot;processing&quot;</span><span class="p">,</span>
+    <span class="p">}</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: This is the core AI step — Gemini 2.5 Flash reads the PDF and returns structured JSON with inclusion/exclusion criteria, categories, and confidence scores. The <code>pdf_bytes</code> are explicitly cleared after extraction to keep LangGraph checkpoints small.</p>
+<hr />
+<h2 id="slide-7-parse-node">Slide 7: Parse Node<a class="headerlink" href="#slide-7-parse-node" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the parse node</strong>, I create database records and decompose criteria into entities.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/parse.py</code></p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Phase A: Create batch and criteria records</span>
+<span class="n">batch</span> <span class="o">=</span> <span class="n">CriteriaBatch</span><span class="p">(</span><span class="n">protocol_id</span><span class="o">=</span><span class="n">protocol_id</span><span class="p">)</span>
+<span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">batch</span><span class="p">)</span>
+<span class="k">for</span> <span class="n">item</span> <span class="ow">in</span> <span class="n">criteria_list</span><span class="p">:</span>
+    <span class="n">criterion</span> <span class="o">=</span> <span class="n">Criteria</span><span class="p">(</span><span class="n">batch_id</span><span class="o">=</span><span class="n">batch</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">text</span><span class="o">=</span><span class="n">item</span><span class="p">[</span><span class="s2">&quot;text&quot;</span><span class="p">],</span> <span class="o">...</span><span class="p">)</span>
+    <span class="n">session</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="n">criterion</span><span class="p">)</span>
+
+<span class="c1"># Phase B: Async entity decomposition (outside DB session)</span>
+<span class="n">tasks</span> <span class="o">=</span> <span class="p">[</span><span class="n">decompose_entities_from_criterion</span><span class="p">(</span><span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">criteria</span><span class="p">]</span>
+<span class="n">results</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span><span class="o">*</span><span class="n">tasks</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: Parse separates DB persistence (fast, transactional) from LLM decomposition (slow, parallelized). Entity decomposition runs with a semaphore of 4 to limit concurrent Gemini calls. The DB session is closed before LLM calls to avoid holding connections during I/O.</p>
+<hr />
+<h2 id="slide-8-ground-node">Slide 8: Ground Node<a class="headerlink" href="#slide-8-ground-node" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the ground node</strong>, I link entities to standard terminologies using dual grounding.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/ground.py</code></p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">_ground_entity_with_retry</span><span class="p">(</span><span class="n">entity</span><span class="p">,</span> <span class="n">semaphore</span><span class="p">):</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">semaphore</span><span class="p">:</span>
+        <span class="c1"># Dual grounding: UMLS + OMOP in parallel</span>
+        <span class="n">umls_result</span><span class="p">,</span> <span class="n">omop_result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">asyncio</span><span class="o">.</span><span class="n">gather</span><span class="p">(</span>
+            <span class="n">terminology_router</span><span class="o">.</span><span class="n">search</span><span class="p">(</span><span class="n">entity</span><span class="p">),</span>
+            <span class="n">omop_mapper</span><span class="o">.</span><span class="n">resolve</span><span class="p">(</span><span class="n">entity</span><span class="p">),</span>
+        <span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">_reconcile_dual_grounding</span><span class="p">(</span><span class="n">umls_result</span><span class="p">,</span> <span class="n">omop_result</span><span class="p">)</span>
+
+        <span class="c1"># Agentic retry if confidence &lt; 0.5</span>
+        <span class="k">if</span> <span class="n">result</span><span class="o">.</span><span class="n">confidence</span> <span class="o">&lt;</span> <span class="mf">0.5</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">attempt</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">3</span><span class="p">):</span>
+                <span class="c1"># MedGemma reasoning loop</span>
+                <span class="o">...</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: Grounding is the most complex node — dual sourcing, reconciliation, and agentic retries. Error accumulation means one failed entity doesn't block the others. This is where the system gets the SNOMED, LOINC, RxNorm, and OMOP codes needed for export.</p>
+<hr />
+<h2 id="slide-9-structure-node">Slide 9: Structure Node<a class="headerlink" href="#slide-9-structure-node" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As the structure node</strong>, I build expression trees from grounded criteria.</p>
+</blockquote>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/nodes/structure.py</code></p>
+<div class="highlight"><pre><span></span><code><span class="n">tree</span> <span class="o">=</span> <span class="k">await</span> <span class="n">build_expression_tree</span><span class="p">(</span>
+    <span class="n">criterion_text</span><span class="o">=</span><span class="n">criterion</span><span class="o">.</span><span class="n">text</span><span class="p">,</span>
+    <span class="n">field_mappings</span><span class="o">=</span><span class="n">field_mappings</span><span class="p">,</span>
+    <span class="n">criterion_id</span><span class="o">=</span><span class="n">criterion</span><span class="o">.</span><span class="n">id</span><span class="p">,</span>
+    <span class="n">protocol_id</span><span class="o">=</span><span class="n">protocol_id</span><span class="p">,</span>
+    <span class="n">inclusion_exclusion</span><span class="o">=</span><span class="n">inclusion_exclusion</span><span class="p">,</span>
+    <span class="n">session</span><span class="o">=</span><span class="n">session</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">criterion</span><span class="o">.</span><span class="n">structured_criterion</span> <span class="o">=</span> <span class="n">tree</span><span class="o">.</span><span class="n">model_dump</span><span class="p">()</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: Structure transforms flat criteria into queryable expression trees. Gemini detects AND/OR/NOT logic, then the builder creates <code>AtomicCriterion</code>, <code>CompositeCriterion</code>, and <code>CriterionRelationship</code> records. These trees power the CIRCE and FHIR exports.</p>
+<hr />
+<h2 id="slide-10-review-page">Slide 10: Review Page<a class="headerlink" href="#slide-10-review-page" title="Permanent link">&para;</a></h2>
+<blockquote>
+<p><strong>As a clinician</strong>, I review extracted criteria side-by-side with the source PDF.</p>
+</blockquote>
+<p><strong>File</strong>: <code>apps/hitl-ui/src/screens/ReviewPage.tsx</code></p>
+<div class="highlight"><pre><span></span><code><span class="p">&lt;</span><span class="nt">PanelGroup</span><span class="w"> </span><span class="na">direction</span><span class="o">=</span><span class="s">&quot;horizontal&quot;</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Panel</span><span class="w"> </span><span class="na">defaultSize</span><span class="o">=</span><span class="p">{</span><span class="mf">50</span><span class="p">}&gt;</span>
+<span class="w">        </span><span class="p">&lt;</span><span class="nt">PdfViewer</span>
+<span class="w">            </span><span class="na">url</span><span class="o">=</span><span class="p">{</span><span class="nx">pdfData</span><span class="p">.</span><span class="nx">url</span><span class="p">}</span>
+<span class="w">            </span><span class="na">targetPage</span><span class="o">=</span><span class="p">{</span><span class="nx">activeCriterion</span><span class="o">?</span><span class="p">.</span><span class="nx">page_number</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">null</span><span class="p">}</span>
+<span class="w">            </span><span class="na">highlightText</span><span class="o">=</span><span class="p">{</span><span class="nx">activeCriterion</span><span class="o">?</span><span class="p">.</span><span class="nx">text</span><span class="w"> </span><span class="o">??</span><span class="w"> </span><span class="kc">null</span><span class="p">}</span>
+<span class="w">        </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">Panel</span><span class="p">&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">PanelResizeHandle</span><span class="w"> </span><span class="p">/&gt;</span>
+<span class="w">    </span><span class="p">&lt;</span><span class="nt">Panel</span><span class="w"> </span><span class="na">defaultSize</span><span class="o">=</span><span class="p">{</span><span class="mf">50</span><span class="p">}&gt;</span>
+<span class="w">        </span><span class="p">{</span><span class="nx">inclusionCriteria</span><span class="p">.</span><span class="nx">map</span><span class="p">((</span><span class="nx">c</span><span class="p">)</span><span class="w"> </span><span class="p">=&gt;</span><span class="w"> </span><span class="p">(</span>
+<span class="w">            </span><span class="p">&lt;</span><span class="nt">CriterionCard</span>
+<span class="w">                </span><span class="na">criterion</span><span class="o">=</span><span class="p">{</span><span class="nx">c</span><span class="p">}</span>
+<span class="w">                </span><span class="na">onAction</span><span class="o">=</span><span class="p">{</span><span class="nx">handleAction</span><span class="p">}</span>
+<span class="w">                </span><span class="na">onCriterionClick</span><span class="o">=</span><span class="p">{</span><span class="nx">handleCriterionClick</span><span class="p">}</span>
+<span class="w">                </span><span class="na">isActive</span><span class="o">=</span><span class="p">{</span><span class="nx">activeCriterion</span><span class="o">?</span><span class="p">.</span><span class="nx">id</span><span class="w"> </span><span class="o">===</span><span class="w"> </span><span class="nx">c</span><span class="p">.</span><span class="nx">id</span><span class="p">}</span>
+<span class="w">            </span><span class="p">/&gt;</span>
+<span class="w">        </span><span class="p">))}</span>
+<span class="w">    </span><span class="p">&lt;/</span><span class="nt">Panel</span><span class="p">&gt;</span>
+<span class="p">&lt;/</span><span class="nt">PanelGroup</span><span class="p">&gt;</span>
+</code></pre></div>
+<p><strong>Why this matters</strong>: The review page is where human judgment meets AI output. Clicking a criterion scrolls the PDF to the source page and highlights the text. Criteria are grouped by inclusion/exclusion with pending items sorted first. The progress bar shows overall review completion.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../assets/mermaid-init.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

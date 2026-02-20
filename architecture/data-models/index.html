@@ -1,0 +1,911 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials Team">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/architecture/data-models/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>Data Models - ElixirTrials — Clinical Trial Criteria Extraction</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">ElixirTrials — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../journeys/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../journeys/upload-extraction/" class="dropdown-item">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../../journeys/grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../shared/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../diagrams/hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../diagrams/agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../diagrams/langgraph-architecture/" class="dropdown-item">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../status/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../code-tour/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../system-architecture/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../journeys/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/docs/architecture/data-models.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#data-models" class="nav-link">Data Models</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#entity-relationship-overview" class="nav-link">Entity-Relationship Overview</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#core-tables" class="nav-link">Core Tables</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#protocol" class="nav-link">Protocol</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#protocol-status-lifecycle" class="nav-link">Protocol Status Lifecycle</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#criteriabatch" class="nav-link">CriteriaBatch</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#criteria" class="nav-link">Criteria</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#entity" class="nav-link">Entity</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#atomiccriterion" class="nav-link">AtomicCriterion</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#compositecriterion" class="nav-link">CompositeCriterion</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#criterionrelationship" class="nav-link">CriterionRelationship</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#supporting-tables" class="nav-link">Supporting Tables</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#pipeline-state" class="nav-link">Pipeline State</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="data-models">Data Models<a class="headerlink" href="#data-models" title="Permanent link">&para;</a></h1>
+<p>All domain models live in <code>libs/shared/src/shared/models.py</code> using SQLModel (SQLAlchemy + Pydantic).</p>
+<h2 id="entity-relationship-overview">Entity-Relationship Overview<a class="headerlink" href="#entity-relationship-overview" title="Permanent link">&para;</a></h2>
+<div class="mermaid">erDiagram
+    Protocol ||--o{ CriteriaBatch : "has batches"
+    CriteriaBatch ||--o{ Criteria : "contains"
+    Criteria ||--o{ Entity : "has entities"
+    Criteria ||--o{ AtomicCriterion : "decomposes to"
+    Criteria ||--o{ CompositeCriterion : "groups via"
+    CompositeCriterion ||--o{ CriterionRelationship : "parent"
+    Protocol ||--o{ AtomicCriterion : "belongs to"
+    Protocol ||--o{ CompositeCriterion : "belongs to"
+    Review }o--|| Criteria : "reviews"
+    Review }o--|| Entity : "reviews"
+    OutboxEvent }o--|| Protocol : "triggers for"</div>
+<h2 id="core-tables">Core Tables<a class="headerlink" href="#core-tables" title="Permanent link">&para;</a></h2>
+<h3 id="protocol">Protocol<a class="headerlink" href="#protocol" title="Permanent link">&para;</a></h3>
+<p>Uploaded clinical trial protocol PDF. Central aggregate root.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID (str)</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>str</td>
+<td>From filename or user input</td>
+</tr>
+<tr>
+<td><code>file_uri</code></td>
+<td>str</td>
+<td>GCS URI (<code>gs://...</code>) or local path (<code>local://...</code>)</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>str</td>
+<td>Current processing state (see lifecycle below)</td>
+</tr>
+<tr>
+<td><code>page_count</code></td>
+<td>int?</td>
+<td>PDF page count from quality analysis</td>
+</tr>
+<tr>
+<td><code>quality_score</code></td>
+<td>float?</td>
+<td>0-1 score from PDF quality check</td>
+</tr>
+<tr>
+<td><code>error_reason</code></td>
+<td>str?</td>
+<td>Human-readable failure message</td>
+</tr>
+<tr>
+<td><code>metadata_</code></td>
+<td>JSON</td>
+<td>Quality details, pipeline_thread_id, error info</td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:59</code></p>
+<h3 id="protocol-status-lifecycle">Protocol Status Lifecycle<a class="headerlink" href="#protocol-status-lifecycle" title="Permanent link">&para;</a></h3>
+<div class="mermaid">stateDiagram-v2
+    [*] --&gt; uploaded: POST /upload
+    uploaded --&gt; extracting: confirm-upload (outbox)
+    extracting --&gt; extraction_failed: Fatal error
+    extracting --&gt; grounding: Pipeline progress
+    grounding --&gt; grounding_failed: All entities fail
+    grounding --&gt; pending_review: Pipeline success
+    pending_review --&gt; complete: All criteria reviewed
+    extraction_failed --&gt; extracting: retry / re-extract
+    grounding_failed --&gt; extracting: retry / re-extract
+    extraction_failed --&gt; dead_letter: Outbox exhausted (3 retries)
+    dead_letter --&gt; archived: Lazy archival (7+ days)
+    extraction_failed --&gt; archived: Manual archive
+    grounding_failed --&gt; archived: Manual archive
+    dead_letter --&gt; extracting: retry</div>
+<h3 id="criteriabatch">CriteriaBatch<a class="headerlink" href="#criteriabatch" title="Permanent link">&para;</a></h3>
+<p>A batch of criteria extracted from a protocol. Re-extraction creates a new batch and archives old ones.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID (str)</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>protocol_id</code></td>
+<td>FK → Protocol</td>
+<td>Parent protocol</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>str</td>
+<td>Batch review status</td>
+</tr>
+<tr>
+<td><code>extraction_model</code></td>
+<td>str?</td>
+<td>Model used for extraction</td>
+</tr>
+<tr>
+<td><code>is_archived</code></td>
+<td>bool</td>
+<td>Hidden from dashboard when True</td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:74</code></p>
+<h3 id="criteria">Criteria<a class="headerlink" href="#criteria" title="Permanent link">&para;</a></h3>
+<p>Individual inclusion/exclusion criterion extracted from a protocol.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID (str)</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>batch_id</code></td>
+<td>FK → CriteriaBatch</td>
+<td>Parent batch</td>
+</tr>
+<tr>
+<td><code>criteria_type</code></td>
+<td>str</td>
+<td><code>inclusion</code> or <code>exclusion</code></td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>text</td>
+<td>Original criterion text</td>
+</tr>
+<tr>
+<td><code>structured_criterion</code></td>
+<td>JSON?</td>
+<td>Expression tree (Phase 2)</td>
+</tr>
+<tr>
+<td><code>conditions</code></td>
+<td>JSON?</td>
+<td>Contains <code>field_mappings</code> from grounding</td>
+</tr>
+<tr>
+<td><code>confidence</code></td>
+<td>float</td>
+<td>Extraction confidence (0-1)</td>
+</tr>
+<tr>
+<td><code>review_status</code></td>
+<td>str?</td>
+<td>Human review decision</td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:86</code></p>
+<h3 id="entity">Entity<a class="headerlink" href="#entity" title="Permanent link">&para;</a></h3>
+<p>Medical entity extracted from a criterion (e.g., "Type 2 diabetes", "HbA1c").</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID (str)</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>criteria_id</code></td>
+<td>FK → Criteria</td>
+<td>Parent criterion</td>
+</tr>
+<tr>
+<td><code>entity_type</code></td>
+<td>str</td>
+<td><code>condition</code>, <code>measurement</code>, <code>drug</code>, etc.</td>
+</tr>
+<tr>
+<td><code>text</code></td>
+<td>str</td>
+<td>Entity surface text</td>
+</tr>
+<tr>
+<td><code>snomed_code</code></td>
+<td>str?</td>
+<td>SNOMED CT code</td>
+</tr>
+<tr>
+<td><code>rxnorm_code</code></td>
+<td>str?</td>
+<td>RxNorm code</td>
+</tr>
+<tr>
+<td><code>loinc_code</code></td>
+<td>str?</td>
+<td>LOINC code</td>
+</tr>
+<tr>
+<td><code>icd10_code</code></td>
+<td>str?</td>
+<td>ICD-10 code</td>
+</tr>
+<tr>
+<td><code>omop_concept_id</code></td>
+<td>str?</td>
+<td>OMOP CDM concept ID</td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:114</code></p>
+<h3 id="atomiccriterion">AtomicCriterion<a class="headerlink" href="#atomiccriterion" title="Permanent link">&para;</a></h3>
+<p>Leaf node in an expression tree. Represents a single testable condition (e.g., "HbA1c &gt;= 7%").</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID (str)</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>criterion_id</code></td>
+<td>FK → Criteria</td>
+<td>Parent criterion</td>
+</tr>
+<tr>
+<td><code>protocol_id</code></td>
+<td>FK → Protocol</td>
+<td>Owning protocol</td>
+</tr>
+<tr>
+<td><code>inclusion_exclusion</code></td>
+<td>str</td>
+<td><code>inclusion</code> or <code>exclusion</code></td>
+</tr>
+<tr>
+<td><code>entity_domain</code></td>
+<td>str?</td>
+<td><code>condition</code>, <code>measurement</code>, <code>drug</code>, <code>demographics</code>, etc.</td>
+</tr>
+<tr>
+<td><code>omop_concept_id</code></td>
+<td>str?</td>
+<td>OMOP concept ID for CDM joins</td>
+</tr>
+<tr>
+<td><code>entity_concept_id</code></td>
+<td>str?</td>
+<td>Source terminology code</td>
+</tr>
+<tr>
+<td><code>entity_concept_system</code></td>
+<td>str?</td>
+<td><code>snomed</code>, <code>loinc</code>, <code>rxnorm</code></td>
+</tr>
+<tr>
+<td><code>relation_operator</code></td>
+<td>str?</td>
+<td><code>&gt;=</code>, <code>&lt;=</code>, <code>=</code>, <code>&gt;</code>, <code>&lt;</code>, <code>!=</code></td>
+</tr>
+<tr>
+<td><code>value_numeric</code></td>
+<td>float?</td>
+<td>Numeric threshold</td>
+</tr>
+<tr>
+<td><code>value_text</code></td>
+<td>str?</td>
+<td>Text value (e.g., "Class III-IV")</td>
+</tr>
+<tr>
+<td><code>unit_text</code></td>
+<td>str?</td>
+<td>Unit label</td>
+</tr>
+<tr>
+<td><code>unit_concept_id</code></td>
+<td>int?</td>
+<td>OMOP unit concept ID</td>
+</tr>
+<tr>
+<td><code>negation</code></td>
+<td>bool</td>
+<td>True for negated conditions</td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:184</code><br />
+<strong>Table</strong>: <code>atomic_criteria</code></p>
+<h3 id="compositecriterion">CompositeCriterion<a class="headerlink" href="#compositecriterion" title="Permanent link">&para;</a></h3>
+<p>Branch node in an expression tree. Combines children with AND/OR/NOT logic.</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>id</code></td>
+<td>UUID (str)</td>
+<td>Primary key</td>
+</tr>
+<tr>
+<td><code>criterion_id</code></td>
+<td>FK → Criteria</td>
+<td>Parent criterion</td>
+</tr>
+<tr>
+<td><code>protocol_id</code></td>
+<td>FK → Protocol</td>
+<td>Owning protocol</td>
+</tr>
+<tr>
+<td><code>logic_operator</code></td>
+<td>str</td>
+<td><code>AND</code>, <code>OR</code>, <code>NOT</code></td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:235</code><br />
+<strong>Table</strong>: <code>composite_criteria</code></p>
+<h3 id="criterionrelationship">CriterionRelationship<a class="headerlink" href="#criterionrelationship" title="Permanent link">&para;</a></h3>
+<p>Edge in the expression tree. Links parent composite to child (atomic or composite).</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Type</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>parent_criterion_id</code></td>
+<td>FK → CompositeCriterion</td>
+<td>Parent (PK)</td>
+</tr>
+<tr>
+<td><code>child_criterion_id</code></td>
+<td>str</td>
+<td>Child ID (PK)</td>
+</tr>
+<tr>
+<td><code>child_type</code></td>
+<td>str</td>
+<td><code>atomic</code> or <code>composite</code></td>
+</tr>
+<tr>
+<td><code>child_sequence</code></td>
+<td>int</td>
+<td>Operand ordering</td>
+</tr>
+</tbody>
+</table>
+<p><strong>File</strong>: <code>libs/shared/src/shared/models.py:263</code><br />
+<strong>Table</strong>: <code>criterion_relationships</code></p>
+<h3 id="supporting-tables">Supporting Tables<a class="headerlink" href="#supporting-tables" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Purpose</th>
+<th>File line</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>review</code></td>
+<td>Human review actions with before/after JSON</td>
+<td><code>models.py:144</code></td>
+</tr>
+<tr>
+<td><code>auditlog</code></td>
+<td>Immutable log of all system events</td>
+<td><code>models.py:158</code></td>
+</tr>
+<tr>
+<td><code>user</code></td>
+<td>Authenticated user accounts (Google OAuth)</td>
+<td><code>models.py:170</code></td>
+</tr>
+<tr>
+<td><code>outboxevent</code></td>
+<td>Transactional outbox for event publishing</td>
+<td><code>models.py:285</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="pipeline-state">Pipeline State<a class="headerlink" href="#pipeline-state" title="Permanent link">&para;</a></h2>
+<p>The LangGraph pipeline passes state between nodes as a <code>PipelineState</code> TypedDict.</p>
+<p><strong>File</strong>: <code>services/protocol-processor-service/src/protocol_processor/state.py</code></p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Type</th>
+<th>Set by</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>protocol_id</code></td>
+<td>str</td>
+<td>Input (always present)</td>
+</tr>
+<tr>
+<td><code>file_uri</code></td>
+<td>str</td>
+<td>Input</td>
+</tr>
+<tr>
+<td><code>title</code></td>
+<td>str</td>
+<td>Input</td>
+</tr>
+<tr>
+<td><code>batch_id</code></td>
+<td>str?</td>
+<td>parse node</td>
+</tr>
+<tr>
+<td><code>pdf_bytes</code></td>
+<td>bytes?</td>
+<td>ingest node (cleared after extract)</td>
+</tr>
+<tr>
+<td><code>extraction_json</code></td>
+<td>str?</td>
+<td>extract node</td>
+</tr>
+<tr>
+<td><code>entities_json</code></td>
+<td>str?</td>
+<td>parse node</td>
+</tr>
+<tr>
+<td><code>grounded_entities_json</code></td>
+<td>str?</td>
+<td>ground node</td>
+</tr>
+<tr>
+<td><code>archived_reviewed_criteria</code></td>
+<td>list?</td>
+<td>Input (re-extraction only)</td>
+</tr>
+<tr>
+<td><code>ordinal_proposals_json</code></td>
+<td>str?</td>
+<td>ordinal_resolve node</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>str</td>
+<td>Each node</td>
+</tr>
+<tr>
+<td><code>error</code></td>
+<td>str?</td>
+<td>Fatal errors → routes to END</td>
+</tr>
+<tr>
+<td><code>errors</code></td>
+<td>list[str]</td>
+<td>Accumulated non-fatal errors</td>
+</tr>
+</tbody>
+</table>
+<p>State is serialized as JSON strings (not dicts) between nodes to minimize LangGraph checkpoint size.</p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../../assets/mermaid-init.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
