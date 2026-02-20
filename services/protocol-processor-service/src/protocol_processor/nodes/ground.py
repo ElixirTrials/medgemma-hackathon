@@ -314,7 +314,8 @@ async def _ground_entity_with_retry(
                         confidence=result.confidence,
                         candidates=result.candidates,
                         reasoning=(
-                            f"[Attempt {attempt}, query='{new_query}'] {result.reasoning}"
+                            f"[Attempt {attempt}, query='{new_query}'] "
+                            f"{result.reasoning}"
                         ),
                         field_mappings=result.field_mappings,
                     ),
