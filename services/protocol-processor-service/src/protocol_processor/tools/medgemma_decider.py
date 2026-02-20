@@ -141,7 +141,7 @@ def _get_medgemma_model() -> Any:
     return _model_loader()
 
 
-def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
+async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
     """Structure raw MedGemma output using Gemini with_structured_output.
 
     Args:
@@ -168,7 +168,7 @@ def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
         f" and reasoning.\n\n{raw_text}"
     )
 
-    result = structured_llm.invoke(prompt)
+    result = await structured_llm.ainvoke(prompt)
     if isinstance(result, dict):
         return GroundingDecision.model_validate(result)
     return result  # type: ignore[return-value]
@@ -243,7 +243,7 @@ async def medgemma_decide(
             raw_text[:200],
         )
 
-        decision = _structure_decision_with_gemini(raw_text)
+        decision = await _structure_decision_with_gemini(raw_text)
 
         logger.info(
             "Grounding decision for '%s': code=%s, system=%s, conf=%.2f",
@@ -283,7 +283,7 @@ async def medgemma_decide(
         )
 
 
-def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningResult:
+async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningResult:
     """Structure raw MedGemma reasoning output using Gemini with_structured_output.
 
     Gemini also acts as a collaborating agent here — it can add its own
@@ -318,7 +318,7 @@ def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningResult:
         f"{raw_text}"
     )
 
-    result = structured_llm.invoke(prompt)
+    result = await structured_llm.ainvoke(prompt)
     if isinstance(result, dict):
         return AgenticReasoningResult.model_validate(result)
     return result  # type: ignore[return-value]
@@ -390,7 +390,7 @@ async def agentic_reasoning_loop(
             raw_text[:300],
         )
 
-        result = _structure_reasoning_with_gemini(raw_text)
+        result = await _structure_reasoning_with_gemini(raw_text)
 
         logger.info(
             "Agentic reasoning result for '%s': skip=%s, derived=%s, "

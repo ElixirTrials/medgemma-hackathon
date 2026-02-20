@@ -121,7 +121,7 @@ async def detect_logic_structure(
             "- Each field_mapping index should appear exactly once\n"
         )
 
-        result = structured_llm.invoke(prompt)
+        result = await structured_llm.ainvoke(prompt)
         response = parse_structured_output(result, LogicDetectionResponse)
 
         # Validate all field_mapping_index values are in range

@@ -318,7 +318,7 @@ class TestDetectLogicStructure:
             reasoning="Both conditions must be met.",
         )
         mock_chain = MagicMock()
-        mock_chain.invoke.return_value = response
+        mock_chain.ainvoke = AsyncMock(return_value=response)
         mock_instance = MagicMock()
         mock_instance.with_structured_output.return_value = mock_chain
         mock_chat_cls.return_value = mock_instance
@@ -354,7 +354,7 @@ class TestDetectLogicStructure:
             reasoning="",
         )
         mock_chain = MagicMock()
-        mock_chain.invoke.return_value = response
+        mock_chain.ainvoke = AsyncMock(return_value=response)
         mock_instance = MagicMock()
         mock_instance.with_structured_output.return_value = mock_chain
         mock_chat_cls.return_value = mock_instance

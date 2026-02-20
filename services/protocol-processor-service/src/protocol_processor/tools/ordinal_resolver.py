@@ -84,7 +84,7 @@ async def resolve_ordinal_candidates(
             "- values: list of grades with descriptions\n"
         )
 
-        result = structured_llm.invoke(prompt)
+        result = await structured_llm.ainvoke(prompt)
         response = parse_structured_output(result, OrdinalResolutionResponse)
 
         # Filter to confirmed ordinals with sufficient confidence
