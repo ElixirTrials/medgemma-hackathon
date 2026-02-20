@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d802a6e098a4",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/shared/src/shared/models.py",
+    "services/api-service/scripts/demo_exports.py",
+    "services/api-service/src/api_service/exporters/__init__.py",
+    "services/api-service/src/api_service/exporters/circe_builder.py",
+    "services/api-service/src/api_service/exporters/concept_utils.py",
+    "services/api-service/src/api_service/exporters/evaluation_sql_builder.py",
+    "services/api-service/src/api_service/exporters/fhir_group_builder.py",
+    "services/api-service/tests/test_exports.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/structure.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/d8/02a6e098a4/0/metadata.json",
+      "transcript": "/d8/02a6e098a4/0/full.jsonl",
+      "context": "/d8/02a6e098a4/0/context.md",
+      "content_hash": "/d8/02a6e098a4/0/content_hash.txt",
+      "prompt": "/d8/02a6e098a4/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
