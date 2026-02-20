@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "2521bf651afa",
+  "session_id": "7d735052-1516-4ec9-8e2f-3eaf179499f4",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T22:16:25.874875Z",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useReviews.ts",
+    "apps/hitl-ui/src/components/CriterionCard.tsx",
+    "apps/hitl-ui/src/components/CriterionModifyDialog.tsx",
+    "apps/hitl-ui/src/components/FieldMappingBadges.tsx",
+    "apps/hitl-ui/src/components/structured-editor/StructuredFieldEditor.tsx",
+    "apps/hitl-ui/src/components/structured-editor/types.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fae51614200a",
+  "checkpoint_transcript_start": 498,
+  "transcript_lines_at_start": 498,
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 10046,
+    "cache_read_tokens": 697353,
+    "output_tokens": 302,
+    "api_call_count": 8
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T22:16:25.425661Z",
+    "agent_lines": 1529,
+    "human_added": 52294,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 53823,
+    "agent_percentage": 2.8407929695483345
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/7d735052-1516-4ec9-8e2f-3eaf179499f4.jsonl"
+}

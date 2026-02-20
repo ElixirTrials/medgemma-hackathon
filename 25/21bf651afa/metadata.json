@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "2521bf651afa",
+  "strategy": "manual-commit",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/components/CriterionCard.tsx",
+    "apps/hitl-ui/src/components/CriterionModifyDialog.tsx",
+    "apps/hitl-ui/src/components/FieldMappingBadges.tsx",
+    "apps/hitl-ui/src/components/structured-editor/StructuredFieldEditor.tsx",
+    "apps/hitl-ui/src/components/structured-editor/types.ts",
+    "apps/hitl-ui/src/hooks/useReviews.ts"
+  ],
+  "sessions": [
+    {
+      "metadata": "/25/21bf651afa/0/metadata.json",
+      "transcript": "/25/21bf651afa/0/full.jsonl",
+      "context": "/25/21bf651afa/0/context.md",
+      "content_hash": "/25/21bf651afa/0/content_hash.txt",
+      "prompt": "/25/21bf651afa/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 8,
+    "cache_creation_tokens": 10046,
+    "cache_read_tokens": 697353,
+    "output_tokens": 302,
+    "api_call_count": 8
+  }
+}
