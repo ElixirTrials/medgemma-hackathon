@@ -245,7 +245,7 @@ for a single pipeline run can be grouped in the MLflow UI.
 
 ---
 
-## Phase 5 — MedGemma Endpoint Fixes
+## Phase 5 — MedGemma Endpoint Fixes (COMPLETED)
 
 **Goal:** Address the two confirmed issues: cold-start from `min_replica_count=0`
 and per-call `Endpoint` reinstantiation. Retry threshold tuning is NOT needed
@@ -278,10 +278,10 @@ Vertex AI endpoint to avoid cold-starts (~$0.05–0.15/hr GPU cost).
 
 ### Phase 5 Completion Criteria
 
-- [ ] `Endpoint` instantiated once in constructor, not per `_generate()` call
-- [ ] Pre-flight warmup call added before entity batch processing
-- [ ] Documentation updated with `min_replica_count` recommendation
-- [ ] All tests pass
+- [x] `Endpoint` instantiated once in constructor via `model_post_init()`, not per `_generate()` call
+- [x] Pre-flight warmup call added before entity batch processing (non-fatal)
+- [x] Documentation: `min_replica_count=1` recommendation included in Phase 1.5 findings
+- [x] All 207 tests pass
 
 ---
 
