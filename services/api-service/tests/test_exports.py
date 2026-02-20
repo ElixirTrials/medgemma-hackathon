@@ -167,8 +167,6 @@ def _build_simple_export_data(
         composites=[],
         relationships=[],
         atomics_by_id={atomic.id: atomic},
-        composites_by_id={},
-        children_by_parent={},
         criteria_by_id={crit.id: crit},
     )
 
@@ -241,8 +239,6 @@ def _build_and_or_export_data(db_session):
         composites=[],
         relationships=[],
         atomics_by_id={a1.id: a1, a2.id: a2, a3.id: a3},
-        composites_by_id={},
-        children_by_parent={},
         criteria_by_id={crit.id: crit},
     )
 
@@ -347,8 +343,6 @@ class TestCirceBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={a_id: db_session.get(AtomicCriterion, a_id)},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         result = build_circe_export(data)
@@ -374,8 +368,6 @@ class TestCirceBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         result = build_circe_export(data)
@@ -431,8 +423,6 @@ class TestFhirGroupBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={atomic.id: atomic},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         result = build_fhir_group_export(data)
@@ -489,8 +479,6 @@ class TestFhirGroupBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={atomic.id: atomic},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         result = build_fhir_group_export(data)
@@ -532,8 +520,6 @@ class TestFhirGroupBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={a_id: db_session.get(AtomicCriterion, a_id)},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         result = build_fhir_group_export(data)
@@ -571,8 +557,6 @@ class TestFhirGroupBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={atomic.id: atomic},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         result = build_fhir_group_export(data)
@@ -626,8 +610,6 @@ class TestEvaluationSqlBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={atomic.id: atomic},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={crit.id: crit},
         )
         sql = build_evaluation_sql(data)
@@ -667,8 +649,6 @@ class TestEvaluationSqlBuilder:
             composites=[],
             relationships=[],
             atomics_by_id={},
-            composites_by_id={},
-            children_by_parent={},
             criteria_by_id={},
         )
         sql = build_evaluation_sql(data)

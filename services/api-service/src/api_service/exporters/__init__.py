@@ -29,10 +29,6 @@ class ProtocolExportData:
     composites: list[CompositeCriterion]
     relationships: list[CriterionRelationship]
     atomics_by_id: dict[str, AtomicCriterion] = field(default_factory=dict)
-    composites_by_id: dict[str, CompositeCriterion] = field(default_factory=dict)
-    children_by_parent: dict[str, list[CriterionRelationship]] = field(
-        default_factory=dict
-    )
     criteria_by_id: dict[str, Criteria] = field(default_factory=dict)
 
 
@@ -99,15 +95,7 @@ def load_protocol_export_data(
 
     # Build lookup dicts
     atomics_by_id = {a.id: a for a in atomics}
-    composites_by_id = {c.id: c for c in composites}
     criteria_by_id = {c.id: c for c in criteria}
-
-    children_by_parent: dict[str, list[CriterionRelationship]] = {}
-    for rel in relationships:
-        children_by_parent.setdefault(rel.parent_criterion_id, []).append(rel)
-    # Sort children by child_sequence
-    for children in children_by_parent.values():
-        children.sort(key=lambda r: r.child_sequence)
 
     return ProtocolExportData(
         protocol=protocol,
@@ -116,7 +104,5 @@ def load_protocol_export_data(
         composites=composites,
         relationships=relationships,
         atomics_by_id=atomics_by_id,
-        composites_by_id=composites_by_id,
-        children_by_parent=children_by_parent,
         criteria_by_id=criteria_by_id,
     )

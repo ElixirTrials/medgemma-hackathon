@@ -13,12 +13,15 @@ criterion text. These are best-effort suggestions — reviewer can edit in UI.
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from pydantic import BaseModel, Field
 
 from protocol_processor.schemas.grounding import EntityGroundingResult
+from protocol_processor.tools.gemini_utils import (
+    create_structured_llm,
+    parse_structured_output,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -77,24 +80,11 @@ async def generate_field_mappings(
     if not criterion_text:
         return []
 
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    if not google_api_key:
-        logger.warning(
-            "GOOGLE_API_KEY not set — skipping field mapping generation for '%s'",
-            entity.entity_text[:50],
-        )
+    structured_llm = create_structured_llm(FieldMappingResponse)
+    if structured_llm is None:
         return []
 
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
-        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        gemini = ChatGoogleGenerativeAI(
-            model=gemini_model_name,
-            google_api_key=google_api_key,
-        )
-        structured_llm = gemini.with_structured_output(FieldMappingResponse)
-
         # Build a context-rich prompt for field mapping generation
         grounded_term = entity.preferred_term or entity.entity_text
         code_context = ""
@@ -125,10 +115,7 @@ async def generate_field_mappings(
         )
 
         result = structured_llm.invoke(prompt)
-        if isinstance(result, dict):
-            response = FieldMappingResponse.model_validate(result)
-        else:
-            response = result  # type: ignore[assignment]
+        response = parse_structured_output(result, FieldMappingResponse)
 
         mappings = [
             {

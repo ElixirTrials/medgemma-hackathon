@@ -23,6 +23,10 @@ from protocol_processor.schemas.structure import (
     LogicNode,
     StructuredCriterionTree,
 )
+from protocol_processor.tools.gemini_utils import (
+    create_structured_llm,
+    parse_structured_output,
+)
 from protocol_processor.tools.unit_normalizer import (
     normalize_ordinal_value,
     normalize_unit,
@@ -82,24 +86,11 @@ async def detect_logic_structure(
     if len(field_mappings) <= 1:
         return None
 
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    if not google_api_key:
-        logger.warning(
-            "GOOGLE_API_KEY not set — skipping logic detection for '%s'",
-            criterion_text[:50],
-        )
+    structured_llm = create_structured_llm(LogicDetectionResponse)
+    if structured_llm is None:
         return None
 
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
-        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        gemini = ChatGoogleGenerativeAI(
-            model=gemini_model_name,
-            google_api_key=google_api_key,
-        )
-        structured_llm = gemini.with_structured_output(LogicDetectionResponse)
-
         # Build field mapping descriptions for context
         mapping_lines = []
         for i, fm in enumerate(field_mappings):
@@ -131,10 +122,7 @@ async def detect_logic_structure(
         )
 
         result = structured_llm.invoke(prompt)
-        if isinstance(result, dict):
-            response = LogicDetectionResponse.model_validate(result)
-        else:
-            response = result  # type: ignore[assignment]
+        response = parse_structured_output(result, LogicDetectionResponse)
 
         # Validate all field_mapping_index values are in range
         if not _validate_logic_tree(response.root, len(field_mappings)):
@@ -252,7 +240,7 @@ def _build_tree_from_logic(
     protocol_id: str,
     inclusion_exclusion: str,
     session: Session,
-) -> ExpressionNode:
+) -> tuple[ExpressionNode, str]:
     """Recursively build ExpressionNode tree and DB records from LogicNode.
 
     Creates CompositeCriterion and CriterionRelationship records for
@@ -269,13 +257,13 @@ def _build_tree_from_logic(
         session: Active SQLModel session.
 
     Returns:
-        ExpressionNode for JSONB storage.
+        Tuple of (ExpressionNode for JSONB storage, node's DB record ID).
     """
     if node.node_type == "ATOMIC":
         idx = node.field_mapping_index or 0
         atomic = atomic_records[idx]
         fm = field_mappings[idx]
-        return ExpressionNode(
+        expr = ExpressionNode(
             type="ATOMIC",
             atomic_criterion_id=atomic.id,
             entity=fm.get("entity"),
@@ -284,6 +272,7 @@ def _build_tree_from_logic(
             unit=fm.get("unit"),
             omop_concept_id=fm.get("omop_concept_id"),
         )
+        return expr, atomic.id
 
     # Branch node: create CompositeCriterion
     composite = CompositeCriterion(
@@ -297,7 +286,7 @@ def _build_tree_from_logic(
 
     children_nodes: list[ExpressionNode] = []
     for seq, child in enumerate(node.children or []):
-        child_expr = _build_tree_from_logic(
+        child_expr, child_db_id = _build_tree_from_logic(
             child,
             field_mappings,
             atomic_records,
@@ -308,59 +297,20 @@ def _build_tree_from_logic(
         )
         children_nodes.append(child_expr)
 
-        # Create relationship edge
-        if child.node_type == "ATOMIC":
-            child_id = child_expr.atomic_criterion_id or ""
-            child_type = "atomic"
-        else:
-            # For composite children, the CompositeCriterion was just
-            # created in the recursive call — we need its ID.
-            # We stored it in the ExpressionNode via a convention:
-            # non-ATOMIC nodes don't have atomic_criterion_id set.
-            # Query the last composite created for this criterion.
-            child_id = _find_last_composite_id(session, criterion_id, child.node_type)
-            child_type = "composite"
-
+        child_type = "atomic" if child.node_type == "ATOMIC" else "composite"
         rel = CriterionRelationship(
             parent_criterion_id=composite.id,
-            child_criterion_id=child_id,
+            child_criterion_id=child_db_id,
             child_type=child_type,
             child_sequence=seq,
         )
         session.add(rel)
 
-    return ExpressionNode(
+    expr = ExpressionNode(
         type=node.node_type,
         children=children_nodes,
     )
-
-
-def _find_last_composite_id(
-    session: Session, criterion_id: str, logic_operator: str
-) -> str:
-    """Find the most recently added composite criterion ID.
-
-    This is used during recursive tree building to link parent→child
-    composite relationships.
-
-    Args:
-        session: Active SQLModel session.
-        criterion_id: FK to criteria table.
-        logic_operator: Logic operator of the child composite.
-
-    Returns:
-        ID of the most recent CompositeCriterion matching the criteria.
-    """
-    from sqlmodel import select
-
-    stmt = (
-        select(CompositeCriterion)
-        .where(CompositeCriterion.criterion_id == criterion_id)
-        .where(CompositeCriterion.logic_operator == logic_operator)
-        .order_by(CompositeCriterion.created_at.desc())  # type: ignore[attr-defined]
-    )
-    result = session.exec(stmt).first()
-    return result.id if result else ""
+    return expr, composite.id
 
 
 async def build_expression_tree(
@@ -408,7 +358,7 @@ async def build_expression_tree(
 
     if logic_response is not None:
         # Build tree from LLM-detected structure
-        root_expr = _build_tree_from_logic(
+        root_expr, _ = _build_tree_from_logic(
             logic_response.root,
             field_mappings,
             atomic_records,

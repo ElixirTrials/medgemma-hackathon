@@ -248,6 +248,9 @@ class CompositeCriterion(SQLModel, table=True):
     protocol_id: str = Field(foreign_key="protocol.id", index=True)
     inclusion_exclusion: str = Field()
     logic_operator: str = Field()
+    # Reserved for future HITL use. Tree parent-child relationships are
+    # stored in CriterionRelationship; this field is intentionally unused
+    # by the automated pipeline.
     parent_criterion_id: str | None = Field(default=None, index=True)
     original_text: str | None = Field(default=None)
     human_verified: bool = Field(
