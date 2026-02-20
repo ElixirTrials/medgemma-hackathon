@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "b1c71b734dbe",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/events-py/src/events_py/outbox.py",
+    "services/api-service/src/api_service/storage.py",
+    "services/api-service/tests/conftest.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/b1/c71b734dbe/0/metadata.json",
+      "transcript": "/b1/c71b734dbe/0/full.jsonl",
+      "context": "/b1/c71b734dbe/0/context.md",
+      "content_hash": "/b1/c71b734dbe/0/content_hash.txt",
+      "prompt": "/b1/c71b734dbe/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
