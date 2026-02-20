@@ -105,7 +105,7 @@ MedGemma call duration distribution (212 calls):
 
 ---
 
-## Phase 2 — Test Fixture Limits & Slow Marker
+## Phase 2 — Test Fixture Limits & Slow Marker (COMPLETED)
 
 **Goal:** Add guardrails so future live-API tests are bounded, and mark the
 `@pytest.mark.slow` convention for full-pipeline tests.
@@ -136,13 +136,13 @@ uv run pytest services/protocol-processor-service/tests/ -v --tb=short -n0
 
 ### Phase 2 Completion Criteria
 
-- [ ] `PIPELINE_MAX_CRITERIA=3` and `PIPELINE_MAX_ENTITIES=5` set in conftest
-- [ ] `slow` marker added to pyproject.toml
-- [ ] All 109 existing tests pass with no regressions
+- [x] `PIPELINE_MAX_CRITERIA=3` and `PIPELINE_MAX_ENTITIES=5` set in conftest
+- [x] `slow` marker added to pyproject.toml
+- [x] All 207 existing tests pass with no regressions
 
 ---
 
-## Phase 3 — Async Gemini Calls (Event Loop Fix)
+## Phase 3 — Async Gemini Calls (Event Loop Fix) (COMPLETED)
 
 **Goal:** Replace all 5 synchronous `.invoke()` calls with `.ainvoke()` in
 code paths that run inside `asyncio.gather` tasks. This restores the intended
@@ -195,12 +195,12 @@ uv run pytest services/protocol-processor-service/tests/ -v --tb=short -n0
 
 ### Phase 3 Completion Criteria
 
-- [ ] All 5 call sites converted to `await .ainvoke()`
-- [ ] `_structure_decision_with_gemini` is `async def`
-- [ ] `_structure_reasoning_with_gemini` is `async def`
-- [ ] Unit test mocks updated (`invoke` → `ainvoke`)
-- [ ] No remaining sync `.invoke()` in async-path files (grep confirms)
-- [ ] All tests pass
+- [x] All 5 call sites converted to `await .ainvoke()`
+- [x] `_structure_decision_with_gemini` is `async def`
+- [x] `_structure_reasoning_with_gemini` is `async def`
+- [x] Unit test mocks updated (`invoke` → `ainvoke`) — 5 test files updated
+- [x] No remaining sync `.invoke()` in async-path files (grep confirms: 0 hits)
+- [x] All 207 tests pass
 
 ---
 
