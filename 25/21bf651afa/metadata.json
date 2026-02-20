@@ -3,7 +3,7 @@
   "checkpoint_id": "2521bf651afa",
   "strategy": "manual-commit",
   "branch": "feature/terminology-search-entity-editor",
-  "checkpoints_count": 0,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/hitl-ui/src/components/CriterionCard.tsx",
     "apps/hitl-ui/src/components/CriterionModifyDialog.tsx",
@@ -26,6 +26,13 @@
       "context": "/25/21bf651afa/1/context.md",
       "content_hash": "/25/21bf651afa/1/content_hash.txt",
       "prompt": "/25/21bf651afa/1/prompt.txt"
+    },
+    {
+      "metadata": "/25/21bf651afa/2/metadata.json",
+      "transcript": "/25/21bf651afa/2/full.jsonl",
+      "context": "",
+      "content_hash": "/25/21bf651afa/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
