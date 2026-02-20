@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "d802a6e098a4",
+  "session_id": "1469035a-af86-401d-8256-308e4bf695e1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T07:37:35.1386Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/api-service/src/api_service/exporters/__init__.py",
+    "services/api-service/src/api_service/exporters/concept_utils.py",
+    "services/api-service/src/api_service/exporters/evaluation_sql_builder.py",
+    "services/api-service/src/api_service/exporters/fhir_group_builder.py",
+    "services/api-service/tests/test_exports.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/structure.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py",
+    "libs/shared/src/shared/models.py",
+    "services/api-service/scripts/demo_exports.py",
+    "services/api-service/src/api_service/exporters/circe_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "2e0b3f3b8819",
+  "transcript_identifier_at_start": "4cff6080-c510-4b99-a2d6-8ac1bfc4c8a6",
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T07:37:34.711463Z",
+    "agent_lines": 182,
+    "human_added": 0,
+    "human_modified": 2,
+    "human_removed": 8,
+    "total_committed": 184,
+    "agent_percentage": 98.91304347826086
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/1469035a-af86-401d-8256-308e4bf695e1.jsonl"
+}
