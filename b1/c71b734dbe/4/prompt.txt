@@ -1,0 +1,169 @@
+Run uv run pytest and make a plan for solving the warnings.
+
+---
+
+You can look online for information about this warning to find the solution rather than reinvent the wheel
+
+---
+
+<task-notification>
+<task-id>a44019b</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Investigate DB fixture patterns" completed</summary>
+<result>Perfect! Now I have all the information I need to provide a comprehensive analysis. Let me create the final report.
+
+## Key Findings: Database Fixture/Session Patterns and "Unclosed Database" ResourceWarnings
+
+Based on my analysis of the conftest.py files and test fixtures across both services, here are the critical findings:
+
+### 1. **API Service Fixtures** (`/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/tests/conftest.py`)
+
+**Engine Fixture (lines 23-43):**
+- Scope: `function` (fresh engine per test)
+- Uses `StaticPool` for in-memory SQLite
+- **GOOD**: Calls `engine.dispose()` in finally block (line 43)
+- **GOOD**: Properly yields engine and cleans up
+
+**Session Fixture (lines 46-56):**
+- Scope: `function`
+- Uses context manager: `with Session(db_engine) as session:`
+- Only calls `session.rollback()` in finally block, NO explicit close
+- **POTENTIAL ISSUE**: Relies on context manager to close the session, but if the context manager doesn't properly close the underlying connection, it can leak
+
+**Test Client Fixtures (lines 59-108):**
+- `test_client` (lines 59-84)
+- `async_client` (lines 87-108)
+- Both override `get_db()` dependency with generator functions that:
+  ```python
+  def override_get_db():
+      try:
+          yield db_session
+      finally:
+          pass  # <-- CRITICAL ISSUE: Does nothing to clean up!
+  ```
+- **CRITICAL ISSUE**: The finally block is empty (just `pass`), meaning sessions yielded to endpoints are never explicitly closed or disposed
+
+**Unauthenticated Client (lines 125-143):**
+- Same issue with `override_get_db()` - empty finally block
+
+### 2. **Protocol Processor Service Fixtures** (`/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/tests/conftest.py`)
+
+**Content:**
+```python
+import os
+os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost/test")
+```
+
+**Finding**: This conftest is **minimal - no fixture definitions**. Tests rely on fixtures from other services or define their own.
+
+**Test Pattern** (e.g., in `test_ordinal_resolve.py`, `test_phase2_e2e.py`):
+- Each test file defines its own local fixtures:
+  ```python
+  @pytest.fixture()
+  def engine():
+      eng = create_engine(...)
+      SQLModel.metadata.create_all(eng)
+      try:
+          yield eng
+      finally:
+          eng.dispose()  # GOOD
+  
+  @pytest.fixture()
+  def session(engine) -> Generator[Session, None, None]:
+      with Session(engine) as s:
+          yield s  # Relies on context manager
+  ```
+- **BETTER PATTERN**: These define their own fixtures and properly call `engine.dispose()`
+
+### 3. **Root Cause of "Unclosed Database" Warnings**
+
+The warnings are intentionally suppressed in pytest configuration:
+
+**In `/Users/noahdolevelixir/Code/medgemma-hackathon/pyproject.toml` (line 191):**
+```
+"ignore:unclosed database:ResourceWarning",
+```
+
+**In `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/pyproject.toml` (lines 74-75):**
+```
+"ignore:unclosed database:ResourceWarning",
+```
+
+### 4. **Why Sessions Aren't Being Properly Closed**
+
+**Primary Issue:** The `override_get_db()` functions in api-service test fixtures:
+```python
+def override_get_db():
+    try:
+        yield db_session  # Session passed to endpoint
+    finally:
+        pass  # <-- NOTHING HAPPENS HERE
+```
+
+This breaks the FastAPI dependency injection cleanup. When an endpoint receives the session via `get_db` dependency, the finally block should:
+1. Explicitly close/dispose the session, OR
+2. Commit any pending transactions, OR
+3. Handle rollback on errors
+
+Instead, it does nothing.
+
+**Secondary Issue:** SQLModel/SQLAlchemy Session context manager cleanup:
+- The `db_session` fixture uses `with Session(db_engine) as session:` 
+- This *should* properly close the connection
+- However, if the session is passed to multiple test clients that aren't properly cleaned up, connections may escape the context manager's scope
+
+**Tertiary Issue:** No engine.dispose() called between tests in the dependency override:
+- Unlike the individual protocol-processor test files that explicitly call `engine.dispose()`, the api-service fixtures don't ensure database resources are fully released between tests when running with `-n auto` (pytest-xdist parallel execution)
+
+### 5. **Storage.py Engine Pattern**
+
+**File**: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/storage.py`
+
+- Creates engine at module level (line 17)
+- No `dispose()` called in application lifecycle
+- Production engine (PostgreSQL) relies on connection pooling to handle cleanup
+
+### 6. **Test Configuration**
+
+**pytest config** (`pyproject.toml` line 208):
+```
+addopts = "-n auto"
+```
+
+This runs tests in parallel with pytest-xdist, which can amplify connection leaks because:
+- Multiple processes spawn engines simultaneously
+- Session cleanup timing becomes unpredictable
+- Resource warnings accumulate across parallel workers
+
+---
+
+## Summary of Issues
+
+| Issue | Severity | Location | Cause |
+|-------|----------|----------|-------|
+| Empty finally block in test client fixtures | HIGH | `conftest.py` lines 73, 97, 135 | No session cleanup in `override_get_db()` |
+| No session explicit close | MEDIUM | `conftest.py` line 56 | Relies only on context manager |
+| No engine disposal between parallel tests | MEDIUM | Parallel test execution | `-n auto` flag with no disposal |
+| Warnings are suppressed | MEDIUM | `pyproject.toml` lines 191, 75 | Issue is masked rather than fixed |
+| Protocol-processor better practice | LOW | `test_*.py` files | Individual test files call `engine.dispose()` explicitly |
+
+---
+
+## Files Referenced
+
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/tests/conftest.py`
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/tests/conftest.py`
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/storage.py`
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/dependencies.py`
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/pyproject.toml` (pytest config)
+- `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/pyproject.toml` (pytest config)</result>
+<usage>total_tokens: 48373
+tool_uses: 66
+duration_ms: 182129</usage>
+</task-notification>
+Full transcript available at: REDACTED.output
+
+---
+
+Yes
