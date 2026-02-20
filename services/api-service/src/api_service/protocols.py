@@ -746,7 +746,7 @@ def _check_dead_letter_archival(protocol: Protocol, session: Session) -> None:
         session.commit()
 
 
-def _apply_review_inheritance(
+def apply_review_inheritance(
     db: Session,
     protocol_id: str,
     archived_criteria: list[dict[str, Any]],

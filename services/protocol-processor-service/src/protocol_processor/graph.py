@@ -14,6 +14,7 @@ Error routing:
 Per user decision (v2.0 Architecture): "Flat pipeline with expression tree phase"
 """
 
+import logging
 import os
 from typing import Any
 
@@ -27,6 +28,8 @@ from protocol_processor.nodes.parse import parse_node
 from protocol_processor.nodes.persist import persist_node
 from protocol_processor.nodes.structure import structure_node
 from protocol_processor.state import PipelineState
+
+logger = logging.getLogger(__name__)
 
 
 def should_continue(state: PipelineState) -> str:
@@ -147,6 +150,11 @@ async def get_graph() -> Any:
         except Exception:
             # KeyError: DATABASE_URL not set; psycopg.OperationalError: DB
             # unreachable (e.g. unit tests). Compile without checkpointer.
+            logger.warning(
+                "Failed to create checkpointer — compiling graph without "
+                "fault-tolerance. Set DATABASE_URL to enable checkpointing.",
+                exc_info=True,
+            )
             checkpointer = None
         _graph = create_graph(checkpointer=checkpointer)
     return _graph
