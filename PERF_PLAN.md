@@ -85,25 +85,109 @@ print('ainvoke is coroutine function:', inspect.iscoroutinefunction(chain.ainvok
 **Output of 1.4:** Confirmed that `ainvoke` exists and is async. If not,
 document the alternative (e.g. `asyncio.get_event_loop().run_in_executor`).
 
-### 1.5 Check MedGemma `ModelGardenChatModel` cold-start / keep-warm options
+### 1.5 Investigate MedGemma `ModelGardenChatModel` cold-start / keep-warm options
 
-Read `libs/inference/src/inference/model_garden.py` (or equivalent) to
-understand how `create_model_loader` configures the Vertex AI endpoint.
-Determine if there is:
-- A provisioned throughput / dedicated endpoint option
-- A keep-alive or ping strategy
-- An environment variable controlling endpoint ID
+From the MLflow data: 63 calls to `ModelGardenChatModel` produced a min of 1.3s,
+median of ~14s, and a **max of 308s** — a 230× variance that makes the pipeline
+unpredictable. The 308s outlier is almost certainly a cold-start or a queued slot
+on a shared Model Garden endpoint.
 
-**Output of 1.5:** A description of current Vertex AI config and whether a
-keep-warm call before the test suite would eliminate the 308s outlier.
+**Steps:**
+
+1. Read `libs/inference/src/inference/model_garden.py` (and `config.py`,
+   `factory.py`) to understand how `create_model_loader` and `AgentConfig`
+   configure the Vertex AI endpoint. Specifically:
+   - Is it a shared public endpoint or a dedicated endpoint ID?
+   - Is there a `min_replica_count` > 0 keeping the model warm?
+   - Is `AgentConfig.from_env()` reading an endpoint resource name, or using
+     the default Model Garden serving path?
+
+2. Check the Vertex AI console (or `gcloud ai endpoints list`) to verify
+   whether the endpoint has `min_replica_count=0` (causes cold-starts).
+
+3. Determine available remedies:
+   - **Provisioned throughput**: Vertex AI allows reserving dedicated serving
+     capacity with guaranteed warm replicas. Document the quota/cost.
+   - **Dedicated endpoint with `min_replica_count=1`**: Keeps at least one
+     replica warm. Cost: ~$0.05–0.15/hr depending on accelerator.
+   - **Pre-flight warm-up call**: Send a single trivial inference call before
+     dispatching the entity batch. Adds ~2s overhead but eliminates the 308s
+     outlier for runs within the same process lifetime.
+   - **Skip MedGemma in tests**: Mock `medgemma_decide` entirely in unit and
+     integration tests; only call it in `@pytest.mark.slow` E2E tests. This
+     sidesteps the cold-start problem entirely for the test suite.
+
+**Output of 1.5:**
+- Confirmed endpoint type (shared vs dedicated) and `min_replica_count`
+- Ranked list of remedies with cost/complexity trade-offs
+- Recommendation for Phase 5: keep-warm call, dedicated endpoint, or test-only
+  mock — whichever is most appropriate given the deployment constraints
+
+### 1.6 Measure agentic retry trigger rate
+
+From MLflow trace data: Run 1 had 63 MedGemma calls and 158 Gemini structuring
+calls. With a baseline of 2 Gemini calls per entity (structure decision + field
+mapping), 158 calls for 63 entities implies ~32 extra Gemini calls — roughly
+**50% of entities** triggered at least one agentic retry cycle. This is far above
+the 30% threshold at which the `confidence < 0.5` cutoff should be reconsidered.
+
+**Steps:**
+
+1. Query the MLflow spans DB to count, per LangGraph trace, how many
+   `ModelGardenChatModel` calls exceed 1 per entity (retries):
+
+   ```python
+   # In the spans table, each ground_node run has N MedGemma calls.
+   # Baseline is 1 MedGemma call per entity (first evaluate attempt).
+   # Retry calls add 1 MedGemma (agentic_reasoning_loop) + 1 MedGemma
+   # (re-evaluate), so each retry cycle adds 2 MedGemma calls.
+   # retry_count = (total_medgemma_calls - entity_count) / 2
+   ```
+
+   Using the known entity counts from `span.set_inputs(entity_count=...)`:
+
+   | Trace | MedGemma calls | Entities | Est. retry cycles | Retry rate |
+   |---|---|---|---|---|
+   | Run 1 (1214s) | 63 | ~42 | ~10 | ~24% |
+   | Run 2 (956s) | 56 | ? | ? | ? |
+   | … | … | … | … | … |
+
+   The entity count is available in the `ground_node` span's content
+   (`inputs.entity_count`). Read it from the spans table and compute retry rate
+   for all 6 grounding runs.
+
+2. Cross-reference the AuditLog table (via the API DB, not MLflow) to see what
+   `confidence` scores entities received on their first attempt. This gives the
+   ground truth on how many fell below 0.5.
+
+3. Sample 10–20 AuditLog entries where `confidence < 0.5` and examine
+   `reasoning` to determine if they are:
+   - **Genuinely ambiguous** entities that need retry (retries are justified)
+   - **Ungroundable** entities (consent, demographics) that slip past the
+     pre-filter and waste API calls
+   - **Threshold too aggressive**: entities where MedGemma said confidence=0.4
+     but the selected code was actually correct (false negatives)
+
+**Output of 1.6:**
+- Retry rate per trace (table)
+- Breakdown of why entities fell below threshold (ambiguous / ungroundable /
+  threshold too tight)
+- Recommendation: keep `confidence < 0.5`, raise to `0.3`, or add entity-type
+  pre-filters before the retry loop kicks in
 
 ### Phase 1 Completion Criteria
 
 - [ ] Table of all sync `.invoke()` call sites in async paths
-- [ ] Baseline test durations recorded
+- [ ] Baseline test durations recorded (per-test wall-clock from pytest output)
 - [ ] Env-var injection confirmed safe for conftest.py
 - [ ] `ainvoke` compatibility confirmed for `ChatGoogleGenerativeAI.with_structured_output`
-- [ ] MedGemma endpoint cold-start root cause understood
+- [ ] MedGemma endpoint type confirmed (shared vs dedicated), cold-start root
+  cause understood, and remediation options ranked
+- [ ] Agentic retry rate computed for all 6 grounding traces
+- [ ] Retry root-cause sampled from AuditLog (ambiguous vs ungroundable vs
+  threshold too tight)
+- [ ] Written summary: findings and recommended threshold / pre-filter changes
+  (feeds Phase 5 scope decision)
 
 ---
 
