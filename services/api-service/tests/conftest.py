@@ -85,6 +85,10 @@ def test_client(db_session) -> Generator[TestClient, None, None]:
         yield client
 
     app.dependency_overrides.clear()
+    from api_service.storage import engine as storage_engine
+
+    storage_engine.dispose()
+    gc.collect()
 
 
 @pytest.fixture(scope="function")
@@ -109,6 +113,10 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
         yield client
 
     app.dependency_overrides.clear()
+    from api_service.storage import engine as storage_engine
+
+    storage_engine.dispose()
+    gc.collect()
 
 
 @pytest.fixture
@@ -144,3 +152,7 @@ def unauthenticated_client(db_session) -> Generator[TestClient, None, None]:
         yield client
 
     app.dependency_overrides.clear()
+    from api_service.storage import engine as storage_engine
+
+    storage_engine.dispose()
+    gc.collect()
