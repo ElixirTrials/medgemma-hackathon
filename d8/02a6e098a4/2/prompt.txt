@@ -1,0 +1,923 @@
+Implement the following plan:
+
+# Phase 4: Join-Ready Export (CIRCE, FHIR Group, Evaluation SQL)
+
+## Context
+
+Phases 1–3b are complete: the pipeline extracts criteria, grounds entities via dual grounding (ToolUniverse + OMOP), builds expression trees with AND/OR/NOT logic, normalizes units/values, and resolves unknown ordinal scales. The `atomic_criteria`, `composite_criteria`, and `criterion_relationships` tables are populated with concept-grounded, unit-normalized rows.
+
+The goal is to make this data **join-ready** — optimally indexed and exportable in standard formats so any future patient matching system, OHDSI Atlas instance, or FHIR-based matcher can consume it directly.
+
+This phase adds **three read-only export endpoints** to the api-service and an **Alembic migration** for index optimization. No changes to the protocol-processor-service pipeline.
+
+## Files
+
+| File | Change |
+|------|--------|
+| `api-service/src/api_service/exporters/__init__.py` | **NEW** — `ProtocolExportData` dataclass + shared DB loader |
+| `api-service/src/api_service/exporters/circe_builder.py` | **NEW** — CIRCE CohortExpression JSON builder |
+| `api-service/src/api_service/exporters/fhir_group_builder.py` | **NEW** — FHIR Group resource builder |
+| `api-service/src/api_service/exporters/evaluation_sql_builder.py` | **NEW** — OMOP CDM evaluation SQL generator |
+| `api-service/src/api_service/exports.py` | **NEW** — FastAPI router with 3 GET endpoints |
+| `api-service/src/api_service/main.py` | **MODIFY** — import + mount exports router (2 lines) |
+| `api-service/alembic/versions/44_01_add_export_indexes.py` | **NEW** — index optimization migration |
+| `api-service/tests/test_exports.py` | **NEW** — unit + integration tests |
+
+## Step 1: Shared Data Loader — `exporters/__init__.py`
+
+`ProtocolExportData` dataclass holds everything all three exporters need:
+
+```python
+@dataclass
+class ProtocolExportData:
+    protocol: Protocol
+    criteria: list[Criteria]
+    atomics: list[AtomicCriterion]
+    composites: list[CompositeCriterion]
+    relationships: list[CriterionRelationship]
+    atomics_by_id: dict[str, AtomicCriterion]
+    composites_by_id: dict[str, CompositeCriterion]
+    children_by_parent: dict[str, list[CriterionRelationship]]  # sorted by child_sequence
+    criteria_by_id: dict[str, Criteria]
+```
+
+`load_protocol_export_data(db, protocol_id)` queries the active (non-archived) batch and all associated records. Returns `None` if not found.
+
+## Step 2: CIRCE Builder — `exporters/circe_builder.py`
+
+`build_circe_export(data) -> dict` produces OHDSI CIRCE CohortExpression JSON.
+
+**Key mappings:**
+| Our data | CIRCE equivalent |
+|----------|-----------------|
+| `omop_concept_id` (or `entity_concept_id` fallback) | ConceptSet item with `includeDescendants: true` |
+| `entity_domain` | CIRCE domain table (condition→ConditionOccurrence, measurement→Measurement, drug→DrugExposure, procedure→ProcedureOccurrence) |
+| `relation_operator` + `value_numeric` | Value attribute filter (Op: gt/gte/lt/lte/eq) |
+| `unit_concept_id` | Unit filter |
+| `negation=true` | OccurrenceCount=0 (absence) |
+| `inclusion_exclusion="inclusion"` | AdditionalCriteria |
+| `inclusion_exclusion="exclusion"` | CensoringCriteria |
+| Composite AND/OR | CriteriaGroup Type="ALL"/"ANY" |
+
+Walks `Criteria.structured_criterion` JSONB tree recursively. The tree uses `ExpressionNode.type` (AND/OR/NOT/ATOMIC) and `ExpressionNode.atomic_criterion_id` (FK to atomic_criteria.id).
+
+## Step 3: FHIR Group Builder — `exporters/fhir_group_builder.py`
+
+`build_fhir_group_export(data) -> dict` produces FHIR R4 Group resource (EBM IG).
+
+**Key mappings:**
+| Our data | FHIR equivalent |
+|----------|----------------|
+| `entity_concept_system` | System URI (snomed→`http://snomed.info/sct`, loinc→`http://loinc.org`) |
+| `value_numeric` + `unit_text` + `relation_operator` | `valueQuantity` with comparator (ge/gt/le/lt) |
+| `value_text` | `valueCodeableConcept` |
+| `negation` or exclusion | `exclude: true` |
+| AND | Flat characteristics, `combinationMethod: "all-of"` |
+| OR | Nested contained Group, `combinationMethod: "any-of"` |
+| NOT | Inverted `exclude` flag |
+
+## Step 4: Evaluation SQL Builder — `exporters/evaluation_sql_builder.py`
+
+`build_evaluation_sql(data) -> str` generates ready-to-run SQL for OMOP CDM v5.4.
+
+Structure:
+1. **Per-atomic CTEs** using `concept_ancestor` for descendant expansion
+2. **Domain-specific evaluation**: measurement→`value_as_number`, demographics→`year_of_birth` age calc, condition/drug/procedure→existence check
+3. **Final eligibility query**: `SELECT person_id FROM person WHERE EXISTS(inclusion) AND NOT EXISTS(exclusion)`
+
+SQL returned as text (not executed). Concept IDs validated as integers before interpolation.
+
+## Step 5: FastAPI Router — `exports.py`
+
+| Endpoint | Response Type | Content |
+|----------|--------------|---------|
+| `GET /protocols/{id}/export/circe` | JSON (CirceExportResponse) | CohortExpression + stats |
+| `GET /protocols/{id}/export/fhir-group` | JSON (FhirGroupExportResponse) | Group resource + stats |
+| `GET /protocols/{id}/export/evaluation-sql` | PlainTextResponse | SQL text |
+
+All return 404 for missing protocol or no structured criteria. Protected by `get_current_user` dependency.
+
+## Step 6: Mount Router — `main.py`
+
+Two lines added alongside existing router imports/mounts:
+```python
+from api_service.exports import router as exports_router  # noqa: E402
+app.include_router(exports_router, dependencies=[Depends(get_current_user)])
+```
+
+## Step 7: Index Migration — `44_01_add_export_indexes.py`
+
+Revises `43_01_unit_value_concept_ids`. Adds indexes for future join patterns:
+
+| Index | Table | Columns |
+|-------|-------|---------|
+| `ix_atomic_domain_concept` | atomic_criteria | (entity_domain, omop_concept_id) |
+| `ix_composite_proto_incl` | composite_criteria | (protocol_id, inclusion_exclusion) |
+| `ix_rel_child_criterion` | criterion_relationships | (child_criterion_id) |
+| `ix_atomic_crit_incl` | atomic_criteria | (criterion_id, inclusion_exclusion) |
+
+Idempotent — checks existing indexes before creating. Same pattern as `43_01`.
+
+## Step 8: Tests — `tests/test_exports.py`
+
+Uses existing test fixtures from `conftest.py` (`db_session`, `test_client`, `unauthenticated_client`). Creates Protocol + CriteriaBatch + Criteria + AtomicCriterion + CompositeCriterion + CriterionRelationship in SQLite.
+
+**Unit tests (builder functions):**
+- CIRCE: concept sets, domain mapping, value/unit filters, negation, AND/OR groups, inclusion vs exclusion, omop_concept_id precedence, empty protocol
+- FHIR: characteristics, quantity values, text values, exclusion, OR nesting, NOT inversion, system URIs
+- SQL: domain CTEs, measurement value filters, demographics age calc, eligibility query, negation
+
+**Integration tests (via test_client):**
+- 200 for each endpoint with valid protocol
+- 404 for unknown protocol_id
+- 404 for protocol with no structured criteria
+- Response stats match actual data
+
+## Verification
+
+1. `uv run ruff check .` in api-service — clean
+2. `uv run pytest tests/ -v` in api-service — all tests pass
+3. Manual: `curl` each endpoint for a processed protocol (from run_ordinal_e2e.py output), inspect JSON/SQL
+4. CIRCE: ConceptSets reference valid OMOP concept_ids, domains match entity_domain
+5. FHIR: Group structure matches EBM IG spec
+6. SQL: paste into SQL client, verify it parses
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+<task-notification>
+<task-id>ad5be6a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore api-service codebase" completed</summary>
+<result>I now have a thorough understanding of the entire api-service. Here is the complete report.
+
+---
+
+## Full Exploration Report: api-service
+
+### 1. Directory Structure
+
+Base path: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service`
+
+```
+services/api-service/
+  alembic.ini
+  Dockerfile
+  pyproject.toml
+  README.md
+  mkdocs.yml
+  docs/api/index.md
+  scripts/
+    clear_protocols_and_criteria.py
+    export_openapi.py
+  alembic/
+    env.py
+    README
+    script.py.mako
+    versions/
+      91004fffe85d_initial_domain_models.py      (base: creates protocol, criteria, criteriabatch, entity, review, auditlog, outboxevent)
+      6bba3f92fdc1_add_user_model.py             (revises: 91004fffe85d -> adds user table)
+      47530bf7f47c_add_gin_index_for_fulltext_search.py  (revises: 6bba3f92fdc1 -> GIN index on criteria.text)
+      07_01_protocol_status_enum.py              (revises: 47530bf7f47c -> adds error_reason to protocol)
+      33_01_add_batch_is_archived.py             (revises: 07_01 -> adds is_archived to criteriabatch)
+      40_01_add_entity_grounding_columns.py      (revises: 33_01 -> adds grounding_system, grounding_error to entity)
+      41_01_add_entity_omop_columns.py           (revises: 40_01 -> adds omop_concept_id, reconciliation_status to entity)
+      42_01_add_expression_tree_tables.py        (revises: 41_01 -> creates atomic_criteria, composite_criteria, criterion_relationships; adds structured_criterion to criteria)
+      43_01_add_unit_value_concept_ids.py         (revises: 42_01 -> adds unit_concept_id, value_concept_id to atomic_criteria)
+  src/api_service/
+    __init__.py
+    main.py
+    auth.py
+    dependencies.py
+    storage.py
+    middleware.py
+    gcs.py
+    protocols.py
+    reviews.py
+    entities.py
+    search.py
+    terminology_search.py
+    integrity.py
+    criterion_rerun.py
+    batch_compare.py
+    fuzzy_matching.py
+    quality.py
+  tests/
+    conftest.py
+    test_auth_required.py
+    test_integrity.py
+    test_models.py
+    test_protocol_api.py
+    test_quality.py
+    test_review_api.py
+    test_schemas.py
+    test_umls_clients.py
+```
+
+---
+
+### 2. Models (from `/Users/noahdolevelixir/Code/medgemma-hackathon/libs/shared/src/shared/models.py`)
+
+All SQLModel table models are defined in the shared library. Here are all models with their fields and relationships:
+
+#### **Protocol** (table: `protocol`)
+```python
+id: str              # UUID PK
+title: str
+file_uri: str
+status: str          # default "uploaded", indexed. Enum: uploaded, pending, extracting, extraction_failed, grounding, grounding_failed, pending_review, complete, dead_letter, archived
+page_count: int | None
+quality_score: float | None
+error_reason: str | None
+metadata_: Dict[str, Any]  # JSON column
+created_at: datetime        # server_default=func.now()
+updated_at: datetime        # server_default=func.now(), onupdate=func.now()
+```
+
+#### **CriteriaBatch** (table: `criteriabatch`)
+```python
+id: str              # UUID PK
+protocol_id: str     # FK -> protocol.id, indexed
+status: str          # default "pending_review", indexed
+extraction_model: str | None
+created_at: datetime
+updated_at: datetime
+is_archived: bool    # default False, indexed
+```
+**Relationship**: CriteriaBatch belongs to Protocol via `protocol_id`.
+
+#### **Criteria** (table: `criteria`)
+```python
+id: str              # UUID PK
+batch_id: str        # FK -> criteriabatch.id, indexed
+criteria_type: str   # "inclusion" or "exclusion"
+category: str | None
+text: str            # Text column
+temporal_constraint: Dict[str, Any] | None  # JSON
+conditions: Dict[str, Any] | None           # JSON
+numeric_thresholds: Dict[str, Any] | None   # JSON
+assertion_status: str | None
+confidence: float    # default 1.0
+source_section: str | None
+page_number: int | None
+review_status: str | None  # "approved", "rejected", "modified", or None
+structured_criterion: Dict[str, Any] | None  # JSON (Phase 2 expression tree)
+created_at: datetime
+updated_at: datetime
+```
+**Relationship**: Criteria belongs to CriteriaBatch via `batch_id`.
+
+#### **Entity** (table: `entity`)
+```python
+id: str              # UUID PK
+criteria_id: str     # FK -> criteria.id, indexed
+entity_type: str     # indexed
+text: str
+span_start: int | None
+span_end: int | None
+umls_cui: str | None
+snomed_code: str | None
+preferred_term: str | None
+grounding_confidence: float | None
+grounding_method: str | None
+review_status: str | None
+context_window: Dict[str, Any] | None  # JSON
+# Multi-terminology codes
+rxnorm_code: str | None     # indexed
+icd10_code: str | None      # indexed
+loinc_code: str | None       # indexed
+hpo_code: str | None         # indexed
+grounding_system: str | None
+grounding_error: str | None
+# OMOP dual grounding
+omop_concept_id: str | None  # indexed
+reconciliation_status: str | None
+created_at: datetime
+updated_at: datetime
+```
+**Relationship**: Entity belongs to Criteria via `criteria_id`.
+
+#### **AtomicCriterion** (table: `atomic_criteria`)
+```python
+__tablename__ = "atomic_criteria"
+__table_args__ = Index("ix_atomic_proto_incl", "protocol_id", "inclusion_exclusion")
+
+id: str              # UUID PK
+criterion_id: str    # FK -> criteria.id, indexed
+protocol_id: str     # FK -> protocol.id, indexed
+inclusion_exclusion: str
+entity_concept_id: str | None    # indexed
+entity_concept_system: str | None
+omop_concept_id: str | None      # indexed
+entity_domain: str | None
+relation_operator: str | None
+value_numeric: float | None      # Float column
+value_text: str | None
+unit_text: str | None
+unit_concept_id: int | None      # Integer column
+value_concept_id: int | None     # Integer column
+negation: bool       # default False
+temporal_constraint: Dict[str, Any] | None  # JSON
+original_text: str | None
+confidence_score: float | None
+human_verified: bool  # default False
+human_modified: bool  # default False
+created_at: datetime
+updated_at: datetime
+```
+**Relationships**: AtomicCriterion belongs to Criteria via `criterion_id` and to Protocol via `protocol_id`.
+
+#### **CompositeCriterion** (table: `composite_criteria`)
+```python
+__tablename__ = "composite_criteria"
+
+id: str              # UUID PK
+criterion_id: str    # FK -> criteria.id, indexed
+protocol_id: str     # FK -> protocol.id, indexed
+inclusion_exclusion: str
+logic_operator: str  # AND/OR/NOT
+parent_criterion_id: str | None  # indexed (self-reference for nesting)
+original_text: str | None
+human_verified: bool  # default False
+created_at: datetime
+updated_at: datetime
+```
+**Relationships**: CompositeCriterion belongs to Criteria via `criterion_id` and Protocol via `protocol_id`. Self-referencing via `parent_criterion_id`.
+
+#### **CriterionRelationship** (table: `criterion_relationships`)
+```python
+__tablename__ = "criterion_relationships"
+
+parent_criterion_id: str  # FK -> composite_criteria.id, PK (part 1)
+child_criterion_id: str   # PK (part 2)
+child_type: str           # discriminator: "atomic" or "composite"
+child_sequence: int       # default 0, preserves operand order
+```
+**Relationships**: Links CompositeCriterion (parent) to either AtomicCriterion or CompositeCriterion (child) via polymorphic FK.
+
+#### **Review** (table: `review`)
+```python
+id: str              # UUID PK
+reviewer_id: str     # indexed
+target_type: str     # "criteria" or "entity"
+target_id: str       # indexed
+action: str          # "approve", "reject", "modify"
+before_value: Dict[str, Any] | None  # JSON
+after_value: Dict[str, Any] | None   # JSON
+comment: str | None
+created_at: datetime
+```
+
+#### **AuditLog** (table: `auditlog`)
+```python
+id: str              # UUID PK
+event_type: str      # indexed (e.g., "review_action")
+actor_id: str | None # indexed
+target_type: str | None
+target_id: str | None
+details: Dict[str, Any]  # JSON
+created_at: datetime
+```
+
+#### **User** (table: `user`)
+```python
+id: str              # UUID PK
+email: str           # unique, indexed
+name: str | None
+picture_url: str | None
+is_active: bool      # default True
+created_at: datetime
+updated_at: datetime
+```
+
+#### **OutboxEvent** (table: `outboxevent`)
+```python
+id: str              # UUID PK
+event_type: str      # indexed
+aggregate_type: str
+aggregate_id: str    # indexed
+payload: Dict[str, Any]  # JSON
+idempotency_key: str     # unique
+status: str          # default "pending", indexed
+retry_count: int     # default 0
+published_at: datetime | None
+created_at: datetime
+```
+
+#### Entity Relationship Summary
+```
+Protocol 1--* CriteriaBatch 1--* Criteria 1--* Entity
+                                 Criteria 1--* AtomicCriterion
+                                 Criteria 1--* CompositeCriterion
+Protocol 1--* AtomicCriterion
+Protocol 1--* CompositeCriterion
+CompositeCriterion *--* (AtomicCriterion | CompositeCriterion)  via CriterionRelationship
+Review -> target_id references Criteria.id or Entity.id (polymorphic by target_type)
+AuditLog -> target_id references Criteria.id or Entity.id (polymorphic by target_type)
+```
+
+---
+
+### 3. main.py (`/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/main.py`)
+
+**App creation**: `app = FastAPI(lifespan=lifespan)`
+
+**Lifespan**: Creates DB tables, initializes MLflow (if MLFLOW_TRACKING_URI set), starts `OutboxProcessor` as background task with handler for `protocol_uploaded` events.
+
+**Middleware** (in order):
+1. `SessionMiddleware` (for OAuth state)
+2. `CORSMiddleware` (origins from `CORS_ORIGINS` env var)
+3. `MLflowRequestMiddleware` (custom ASGI middleware for request tracing)
+
+**Global exception handler**: Catches unhandled exceptions, returns JSON 500.
+
+**Router mounting**:
+```python
+# PUBLIC (no auth):
+app.include_router(auth_router)                    # prefix=/auth
+
+# PROTECTED (all require get_current_user via Depends):
+app.include_router(protocols_router, dependencies=[Depends(get_current_user)])       # prefix=/protocols
+app.include_router(reviews_router, dependencies=[Depends(get_current_user)])         # prefix=/reviews
+app.include_router(entities_router, dependencies=[Depends(get_current_user)])        # prefix=/entities
+app.include_router(search_router, dependencies=[Depends(get_current_user)])          # prefix=/criteria
+app.include_router(terminology_search_router, dependencies=[Depends(get_current_user)])  # prefix=/api/terminology
+app.include_router(integrity_router, dependencies=[Depends(get_current_user)])       # prefix=/integrity
+app.include_router(criterion_rerun_router, dependencies=[Depends(get_current_user)]) # prefix=/reviews
+app.include_router(batch_compare_router, dependencies=[Depends(get_current_user)])   # prefix=/reviews
+```
+
+**Root endpoints**: `/health`, `/ready` (with DB check), `/`, `/local-upload/{path}`, `/local-files/{path}`
+
+**Pattern**: Auth is applied at the router level via `dependencies=[Depends(get_current_user)]` in `include_router()`, NOT on individual endpoints. This means all endpoints in a protected router automatically require auth.
+
+---
+
+### 4. Router Patterns
+
+All routers follow the same structure:
+
+1. **Router creation**: `router = APIRouter(prefix="/...", tags=["..."])`
+2. **Pydantic request/response models**: Defined at module top, after imports.
+3. **Endpoints**: Use `@router.get/post(path, response_model=...)` with `db: Session = Depends(get_db)` for database access.
+4. **Helper functions**: Private `_helper_name()` functions for model conversion and business logic.
+5. **No direct `get_current_user` on most endpoints** -- it's applied at the router level in main.py. Exception: `entities.py` uses `current_user: dict = Depends(get_current_user)` on individual endpoints as well.
+
+**Existing routers and their endpoints**:
+
+| Router file | Prefix | Endpoints |
+|---|---|---|
+| `auth.py` | `/auth` | GET `/login`, GET `/callback`, GET `/me`, POST `/dev-login` |
+| `protocols.py` | `/protocols` | POST `/upload`, POST `/{id}/confirm-upload`, POST `/{id}/retry`, POST `/{id}/archive`, POST `/{id}/re-extract`, GET `""` (list), GET `/{id}`, GET `/{id}/batches` |
+| `reviews.py` | `/reviews` | GET `/batches`, GET `/batches/{id}/metrics`, GET `/batches/{id}/criteria`, POST `/criteria/{id}/action`, GET `/protocols/{id}/pdf-url`, GET `/pending-summary`, GET `/audit-log` |
+| `entities.py` | `/entities` | GET `/criteria/{id}`, GET `/batch/{id}`, POST `/{id}/action` |
+| `search.py` | `/criteria` | GET `/search` |
+| `terminology_search.py` | `/api/terminology` | GET `/{system}/search` |
+| `integrity.py` | `/integrity` | GET `/check` |
+| `criterion_rerun.py` | `/reviews` | POST `/criteria/{id}/rerun` |
+| `batch_compare.py` | `/reviews` | GET `/batch-compare` |
+
+**Pagination pattern** (used by protocols, reviews, search, audit-log):
+```python
+class SomeListResponse(BaseModel):
+    items: list[SomeResponse]
+    total: int
+    page: int
+    page_size: int
+    pages: int
+```
+With query params: `page: int = Query(default=1, ge=1)`, `page_size: int = Query(default=20, ge=1, le=100)`.
+
+---
+
+### 5. Test Fixtures (`/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/tests/conftest.py`)
+
+**`db_engine`** (function scope): Creates in-memory SQLite engine with `StaticPool`. Imports `shared.models` to register tables, then calls `SQLModel.metadata.create_all(engine)`.
+
+**`db_session(db_engine)`** (function scope): Creates a `Session(db_engine)`, yields it, rolls back after each test.
+
+**`test_client(db_session)`** (function scope): Creates `TestClient(app)` with two dependency overrides:
+- `get_db` -> yields the test `db_session`
+- `get_current_user` -> returns `{"sub": "test-user-id", "email": "test@example.com", "name": "Test User"}`
+
+**`async_client(db_session)`** (function scope): Same overrides but with `httpx.AsyncClient` for async endpoint testing.
+
+**`auth_headers()`**: Returns `{"Authorization": "Bearer <token>"}` with a valid JWT signed with the dev secret.
+
+**`unauthenticated_client(db_session)`** (function scope): Creates `TestClient(app)` with ONLY `get_db` overridden. Does NOT override `get_current_user`, so requests get 401. Used for testing auth enforcement.
+
+All fixtures clear `app.dependency_overrides` after yielding.
+
+---
+
+### 6. Alembic Versions (Migration Chain)
+
+```
+91004fffe85d (initial domain models)
+  -> 6bba3f92fdc1 (add user model)
+    -> 47530bf7f47c (add GIN index for fulltext search - PostgreSQL only)
+      -> 07_01_protocol_status_enum (add error_reason to protocol)
+        -> 33_01_add_batch_is_archived (add is_archived bool to criteriabatch)
+          -> 40_01_entity_grounding_cols (add grounding_system, grounding_error to entity)
+            -> 41_01_entity_omop_cols (add omop_concept_id, reconciliation_status to entity)
+              -> 42_01_expression_tree (add structured_criterion to criteria + create atomic_criteria, composite_criteria, criterion_relationships tables)
+                -> 43_01_unit_value_concept_ids (add unit_concept_id, value_concept_id to atomic_criteria)
+```
+
+**Migration 43_01** (the latest, `43_01_add_unit_value_concept_ids.py`):
+- Revision: `43_01_unit_value_concept_ids`
+- Down-revision: `42_01_expression_tree`
+- Uses `sa.inspect(conn)` to get existing columns, then `batch_alter_table` with conditional `add_column` (idempotent pattern).
+- Adds `unit_concept_id` (Integer, nullable) and `value_concept_id` (Integer, nullable) to `atomic_criteria`.
+
+**Common migration patterns**:
+- Convention: `{number}_{sub}_{description}.py` for manual migrations, hash-based for autogenerated ones.
+- All use `batch_alter_table` for SQLite compatibility (env.py sets `render_as_batch=True`).
+- Recent migrations use `sa.inspect(conn)` to check existing columns/tables before adding (idempotent).
+- `upgrade()` and `downgrade()` both present.
+
+---
+
+### 7. Export-Related Code
+
+There is **no existing exporter or export-related code** for criteria/protocol data export. The only "export" file is:
+
+**`/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/scripts/export_openapi.py`**: Exports the FastAPI OpenAPI schema to `docs/openapi.json`. This is for API documentation, not data export.
+
+A grep for "export" across the entire api-service found only references to this OpenAPI export script. There are no CSV, JSON, Excel, or any other data export endpoints or utilities.
+
+---
+
+### 8. The `get_current_user` Dependency
+
+Defined in `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/dependencies.py`:
+
+```python
+def get_current_user(authorization: str | None = Header(default=None)) -> dict:
+    """Extract and validate JWT from Authorization header.
+    Expected format: Bearer <token>
+    Returns: Dict with user claims: sub, email, name.
+    Raises: HTTPException 401 if token is missing, expired, or invalid.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid auth header")
+
+    token = authorization[7:]
+    try:
+        secret = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
+        payload = jwt.decode(token, secret, algorithms=["HS256"])
+        return payload
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+```
+
+Returns a `dict` with keys `sub` (user ID), `email`, `name`. It is applied to protected routers at the `include_router()` level in main.py, and also referenced directly via `Depends(get_current_user)` in some endpoints (e.g., in `entities.py` and `search.py`).
+
+Also in `dependencies.py`:
+```python
+def get_db() -> Generator[Session, None, None]:
+    with Session(engine) as session:
+        yield session
+```
+
+The `engine` comes from `storage.py` which reads `DATABASE_URL` from environment (required, no fallback) and creates a SQLAlchemy engine.</result>
+<usage>total_tokens: 95687
+tool_uses: 36
+duration_ms: 147627</usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/ad5be6a.output
+
+---
+
+Run a few criteria through the backend and show me the table that results.
+
+---
+
+I thought age was not a SNOMED concept but rather birthdate. Can you tell me whether to be consistent, we need to convert age to birthdate-today() ?
+
+---
+
+Check that the grounding and extraction is correctly I identifying the SNOMED/OMOP concept for age
+
+---
+
+yes
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User asked to implement "Phase 4: Join-Ready Export (CIRCE, FHIR Group, Evaluation SQL)" - a detailed plan with 8 steps covering new export endpoints for the api-service.
+
+2. **Exploration Phase**: I launched an Explore agent to understand the api-service codebase. While waiting, I also read key files directly: main.py, 43_01 migration, conftest.py, and shared/models.py.
+
+3. **Implementation Phase**: I created 9 tasks and implemented them sequentially:
+   - Task 1: `exporters/__init__.py` - ProtocolExportData dataclass + load_protocol_export_data()
+   - Task 2: `exporters/circe_builder.py` - CIRCE CohortExpression JSON builder
+   - Task 3: `exporters/fhir_group_builder.py` - FHIR R4 Group resource builder
+   - Task 4: `exporters/evaluation_sql_builder.py` - OMOP CDM evaluation SQL generator
+   - Task 5: `exports.py` - FastAPI router with 3 GET endpoints
+   - Task 6: Modified `main.py` - 2 lines to import + mount exports router
+   - Task 7: `44_01_add_export_indexes.py` - Alembic migration for 4 indexes
+   - Task 8: `tests/test_exports.py` - 34 tests (unit + integration)
+   - Task 9: Verification - ruff check + pytest
+
+4. **Ruff Fixes**: Initial ruff check found 16 errors:
+   - I001 import sorting (auto-fixed with --fix)
+   - F401 unused imports (auto-fixed)
+   - F541 f-strings without placeholders (auto-fixed)
+   - C901 complexity too high in `_build_criteria_group` and `_build_characteristics_from_tree` (manually fixed by extracting helper functions)
+   - E501 line too long (manually fixed)
+
+5. **User Request 2**: "Run a few criteria through the backend and show me the table that results."
+   - I read `run_ordinal_e2e.py` to understand existing e2e patterns
+   - That script required live Gemini + Postgres, too heavy
+   - I wrote `scripts/demo_exports.py` that seeds realistic T2DM trial criteria into SQLite and runs all 3 exporters
+   - First run failed with `DetachedInstanceError` because session closed before accessing protocol attributes
+   - Fixed by keeping session open during export calls
+   - Second run succeeded, showing the criteria table and all 3 export outputs
+
+6. **User Request 3**: "I thought age was not a SNOMED concept but rather birthdate. Can you tell me whether to be consistent, we need to convert age to birthdate-today()?"
+   - I analyzed the current state across all 3 exporters for demographics handling
+   - SQL builder: correct (uses year_of_birth)
+   - CIRCE builder: wrong (defaults to ConditionOccurrence)
+   - FHIR builder: wrong (treats age as coded observation)
+   - Explained that CIRCE uses DemographicCriteria, FHIR uses usage-context-type|age
+   - Asked if user wanted me to fix
+
+7. **User Request 4**: "Check that the grounding and extraction is correctly identifying the SNOMED/OMOP concept for age"
+   - Launched thorough Explore agent to trace the full pipeline flow
+   - Key findings:
+     - Extraction: category="other" (not "demographics"), prompt explicitly says not demographics
+     - Decomposition: entity_type="Demographic" ← correct
+     - Grounding: routed to UMLS + SNOMED, finds UMLS CUI C0001779, SNOMED 424144002
+     - OMOP Mapper: maps Demographic→Observation domain, finds concept 4265453
+     - **Critical gap**: field_mapper.py never includes `entity_domain` in output dict
+     - structure_builder.py reads `fm.get("entity_domain")` which is always None
+     - So all exporters get entity_domain=None and default to condition logic
+   - Presented the complete flow diagram and the fix needed
+
+8. **User Request 5**: "yes" (to fixing the pipeline + exporters)
+   - Created 5 tasks (#10-#14)
+   - Task 10: Added `"entity_type": entity.entity_type` to field_mapper.py output dict (line 141)
+   - Task 11: Added `_ENTITY_TYPE_TO_DOMAIN` mapping to structure_builder.py and domain derivation logic in `_create_atomic_from_mapping`
+   - Task 12: Added `_build_demographic_criteria()` to circe_builder.py that uses DemographicCriteria with Age filter (no ConceptSet)
+   - Task 13: Added `_build_demographic_characteristic()` to fhir_group_builder.py that uses usage-context-type|age code with valueQuantity
+   - Task 14: Update tests and verify ← NOT YET DONE
+
+Let me now gather all the specific code changes and file details.
+
+Key files modified/created in the api-service:
+- `services/api-service/src/api_service/exporters/__init__.py` (NEW)
+- `services/api-service/src/api_service/exporters/circe_builder.py` (NEW)
+- `services/api-service/src/api_service/exporters/fhir_group_builder.py` (NEW)
+- `services/api-service/src/api_service/exporters/evaluation_sql_builder.py` (NEW)
+- `services/api-service/src/api_service/exports.py` (NEW)
+- `services/api-service/src/api_service/main.py` (MODIFIED)
+- `services/api-service/alembic/versions/44_01_add_export_indexes.py` (NEW)
+- `services/api-service/tests/test_exports.py` (NEW)
+- `services/api-service/scripts/demo_exports.py` (NEW)
+
+Key files modified in protocol-processor-service:
+- `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py` (MODIFIED)
+- `services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py` (MODIFIED)
+
+Pending tasks: Task 14 - Update tests and verify (ruff + pytest for both services)
+
+The user's explicit instruction from CLAUDE.md: "ALWAYS use uv run to launch any python code"
+
+Summary:
+1. Primary Request and Intent:
+   - **Phase 4 Implementation**: User requested implementing "Phase 4: Join-Ready Export (CIRCE, FHIR Group, Evaluation SQL)" - three read-only export endpoints for the api-service, an Alembic migration for index optimization, and comprehensive tests. The plan was provided in extreme detail with file-by-file specs.
+   - **Demo Run**: User asked to "Run a few criteria through the backend and show me the table that results" to see the exports working end-to-end.
+   - **Age/Demographics Investigation**: User questioned whether age should be a SNOMED concept or birthdate-derived, asking to check consistency and whether the grounding pipeline correctly identifies SNOMED/OMOP concepts for age.
+   - **Fix Demographics Pipeline**: After reviewing the findings showing `entity_domain` is never populated and exporters incorrectly handle demographics, user said "yes" to fixing both the pipeline (field_mapper + structure_builder) and the exporters (CIRCE + FHIR).
+
+2. Key Technical Concepts:
+   - **OHDSI CIRCE CohortExpression**: JSON format for Atlas/WebAPI. Demographics use `DemographicCriteria` with `Age` range (no ConceptSet). Conditions use domain-specific criteria with `CodesetId`.
+   - **FHIR R4 Group (EBM IG)**: Resource with characteristics. Demographics use `usage-context-type|age` code system. OR logic requires nested contained Groups with `any-of` combination.
+   - **OMOP CDM v5.4 SQL**: Uses `concept_ancestor` for descendant expansion, `person.year_of_birth` for age calculation, domain-specific tables (condition_occurrence, measurement, drug_exposure, etc.).
+   - **Expression Tree Model**: `Criteria.structured_criterion` JSONB stores tree with `ExpressionNode.type` (AND/OR/NOT/ATOMIC) and `ExpressionNode.atomic_criterion_id`.
+   - **Dual Grounding Pipeline**: ToolUniverse (UMLS/SNOMED) + OMOP Mapper provide concept codes. MedGemma selects best code.
+   - **Entity Type to Domain Gap**: `field_mapper.py` had `entity.entity_type` but never included it in output. `structure_builder.py` read `fm.get("entity_domain")` which was always None.
+   - **SQLModel/SQLAlchemy models**: All in `libs/shared/src/shared/models.py` - Protocol, CriteriaBatch, Criteria, AtomicCriterion, CompositeCriterion, CriterionRelationship.
+   - **FastAPI router pattern**: Routers mounted in `main.py` with `dependencies=[Depends(get_current_user)]` for auth.
+   - **CLAUDE.md requirement**: "ALWAYS use uv run to launch any python code"
+
+3. Files and Code Sections:
+
+   - **`services/api-service/src/api_service/exporters/__init__.py`** (NEW)
+     - Shared data loader for all three exporters. Contains `ProtocolExportData` dataclass and `load_protocol_export_data()` function.
+     - Queries active (non-archived) batch, loads criteria, atomics, composites, relationships, and builds lookup dicts.
+     ```python
+     @dataclass
+     class ProtocolExportData:
+         protocol: Protocol
+         criteria: list[Criteria]
+         atomics: list[AtomicCriterion]
+         composites: list[CompositeCriterion]
+         relationships: list[CriterionRelationship]
+         atomics_by_id: dict[str, AtomicCriterion] = field(default_factory=dict)
+         composites_by_id: dict[str, CompositeCriterion] = field(default_factory=dict)
+         children_by_parent: dict[str, list[CriterionRelationship]] = field(default_factory=dict)
+         criteria_by_id: dict[str, Criteria] = field(default_factory=dict)
+     ```
+
+   - **`services/api-service/src/api_service/exporters/circe_builder.py`** (NEW, then MODIFIED for demographics)
+     - CIRCE CohortExpression builder. Walks expression trees recursively.
+     - **Demographics fix added**: `_build_demographic_criteria()` produces `DemographicCriteria` with `Age` filter instead of a ConceptSet.
+     ```python
+     def _build_demographic_criteria(
+         atomic: AtomicCriterion,
+     ) -> dict[str, Any] | None:
+         if atomic.value_numeric is None or not atomic.relation_operator:
+             return None
+         op_str = _OP_MAP.get(atomic.relation_operator, "gte")
+         age_filter: dict[str, Any] = {
+             "Value": int(atomic.value_numeric),
+             "Op": op_str,
+         }
+         return {
+             "Criteria": {
+                 "DemographicCriteria": {
+                     "Age": age_filter,
+                 },
+             },
+         }
+     ```
+     - `_build_atomic_criteria` now checks `if (atomic.entity_domain or "").lower() == "demographics"` first and delegates to `_build_demographic_criteria`.
+     - Complexity was reduced by extracting `_build_and_or_group()` and `_build_not_group()` from `_build_criteria_group()`.
+
+   - **`services/api-service/src/api_service/exporters/fhir_group_builder.py`** (NEW, then MODIFIED for demographics)
+     - FHIR R4 Group resource builder. AND = flat characteristics, OR = nested contained Group with `any-of`, NOT = inverted exclude flag.
+     - **Demographics fix added**: `_build_demographic_characteristic()` uses `usage-context-type|age` code system with UCUM unit.
+     ```python
+     def _build_demographic_characteristic(
+         atomic: AtomicCriterion,
+         exclude: bool = False,
+     ) -> dict[str, Any] | None:
+         if atomic.value_numeric is None:
+             return None
+         quantity: dict[str, Any] = {
+             "value": atomic.value_numeric,
+             "unit": atomic.unit_text or "years",
+             "system": "http://unitsofmeasure.org",
+             "code": "a",
+         }
+         if atomic.relation_operator:
+             comparator = _COMPARATOR_MAP.get(atomic.relation_operator)
+             if comparator:
+                 quantity["comparator"] = comparator
+         return {
+             "code": {
+                 "coding": [{
+                     "system": "http://terminology.hl7.org/CodeSystem/usage-context-type",
+                     "code": "age",
+                     "display": "Age Range",
+                 }],
+             },
+             "exclude": exclude,
+             "valueQuantity": quantity,
+         }
+     ```
+     - `_build_characteristic` checks for demographics domain first, delegates to new function.
+     - Complexity reduced by extracting `_build_or_characteristic()`.
+
+   - **`services/api-service/src/api_service/exporters/evaluation_sql_builder.py`** (NEW)
+     - OMOP CDM v5.4 SQL generator. Already had correct demographics handling from the start.
+     - `_build_demographics_cte()` generates `EXTRACT(YEAR FROM CURRENT_DATE) - p.year_of_birth` for age.
+     - Per-atomic CTEs use `concept_ancestor` for descendant expansion.
+     - Final query: `SELECT person_id FROM person WHERE EXISTS(inclusion) AND NOT EXISTS(exclusion)`.
+
+   - **`services/api-service/src/api_service/exports.py`** (NEW)
+     - FastAPI router with prefix `/protocols`, tag `exports`.
+     - 3 endpoints: `GET /{protocol_id}/export/circe` (JSON), `GET /{protocol_id}/export/fhir-group` (JSON), `GET /{protocol_id}/export/evaluation-sql` (PlainTextResponse).
+     - Response models: `CirceExportResponse`, `FhirGroupExportResponse` with `ExportStats`.
+     - All return 404 for missing protocol or no structured criteria.
+
+   - **`services/api-service/src/api_service/main.py`** (MODIFIED)
+     - Added import: `from api_service.exports import router as exports_router  # noqa: E402`
+     - Added mount: `app.include_router(exports_router, dependencies=[Depends(get_current_user)])`
+
+   - **`services/api-service/alembic/versions/44_01_add_export_indexes.py`** (NEW)
+     - Revision `44_01_export_indexes`, revises `43_01_unit_value_concept_ids`.
+     - 4 indexes: `ix_atomic_domain_concept`, `ix_composite_proto_incl`, `ix_rel_child_criterion`, `ix_atomic_crit_incl`.
+     - Idempotent — checks existing indexes before creating.
+
+   - **`services/api-service/tests/test_exports.py`** (NEW)
+     - 34 tests: TestCirceBuilder (8 unit tests), TestFhirGroupBuilder (7 unit tests), TestEvaluationSqlBuilder (8 unit tests), TestExportEndpoints (11 integration tests).
+     - Uses helper functions `_make_protocol`, `_make_batch`, `_make_criterion`, `_make_atomic`, `_make_composite`, `_make_relationship`.
+     - Integration tests use `test_client` and `unauthenticated_client` fixtures from conftest.py.
+
+   - **`services/api-service/scripts/demo_exports.py`** (NEW)
+     - Demo script that seeds a realistic T2DM SGLT2 inhibitor trial with 7 criteria / 9 atomics / 2 composites into SQLite and runs all 3 exporters.
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`** (MODIFIED)
+     - Added `"entity_type": entity.entity_type` to the mapping dict output at line ~141.
+     ```python
+     mappings = [
+         {
+             "entity": m.entity,
+             "relation": m.relation,
+             "value": m.value,
+             "unit": m.unit,
+             "entity_concept_id": entity.selected_code,
+             "entity_concept_system": entity.selected_system,
+             "omop_concept_id": entity.omop_concept_id,
+             "entity_type": entity.entity_type,  # NEW
+         }
+         for m in response.mappings
+     ]
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py`** (MODIFIED)
+     - Added `_ENTITY_TYPE_TO_DOMAIN` mapping constant after logger declaration:
+     ```python
+     _ENTITY_TYPE_TO_DOMAIN: dict[str, str] = {
+         "Condition": "condition",
+         "Medication": "drug",
+         "Lab_Value": "measurement",
+         "Procedure": "procedure",
+         "Demographic": "demographics",
+         "Other": "observation",
+     }
+     ```
+     - Modified `_create_atomic_from_mapping()` to derive `entity_domain` from `entity_type` when not explicitly provided:
+     ```python
+     entity_domain = fm.get("entity_domain")
+     if not entity_domain:
+         entity_type = fm.get("entity_type", "")
+         entity_domain = _ENTITY_TYPE_TO_DOMAIN.get(entity_type)
+     ```
+
+   - **Key files READ for context** (not modified):
+     - `libs/shared/src/shared/models.py` — All SQLModel table models (Protocol, CriteriaBatch, Criteria, AtomicCriterion, CompositeCriterion, CriterionRelationship, etc.)
+     - `services/api-service/tests/conftest.py` — Test fixtures: db_engine (SQLite in-memory), db_session, test_client (with auth override), unauthenticated_client
+     - `services/api-service/alembic/versions/43_01_add_unit_value_concept_ids.py` — Migration pattern reference
+     - `services/protocol-processor-service/src/protocol_processor/schemas/grounding.py` — EntityGroundingResult has `entity_type` field
+     - `services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py` — `ENTITY_TYPE_TO_OMOP_DOMAIN` maps Demographic→Observation
+
+4. Errors and Fixes:
+   - **Ruff lint errors (16 total)**:
+     - I001 import sorting in 5 files → auto-fixed with `ruff check --fix`
+     - F401 unused imports (CriterionRelationship, Any, pytest) → auto-fixed
+     - F541 f-strings without placeholders in evaluation_sql_builder.py → auto-fixed
+     - C901 complexity in `_build_criteria_group` (12 > 10) → manually extracted `_build_and_or_group()` and `_build_not_group()` helper functions
+     - C901 complexity in `_build_characteristics_from_tree` (11 > 10) → manually extracted `_build_or_characteristic()` helper function
+     - E501 line too long (2 occurrences) → manually split long string and extracted boolean condition to variable `is_measurement`
+   - **DetachedInstanceError in demo script**:
+     - `data.protocol.id` accessed after session closed → fixed by keeping session open during export calls (moved export logic inside `with Session(engine) as session:` block)
+   - **Demographics domain gap** (identified by user):
+     - `entity_domain` was always None because `field_mapper.py` never included it in output
+     - Fixed by adding `entity_type` to field_mapper output and deriving `entity_domain` in structure_builder
+     - Fixed CIRCE builder to use `DemographicCriteria` instead of ConceptSet for demographics
+     - Fixed FHIR builder to use `usage-context-type|age` instead of SNOMED code for demographics
+
+5. Problem Solving:
+   - **Phase 4 export implementation**: Completed all 8 files with 34 passing tests and clean ruff.
+   - **Demo script**: Created to demonstrate exports without requiring external services (Gemini, Postgres).
+   - **Demographics pipeline gap**: Traced the full pipeline flow from extraction through grounding to atomic criteria creation. Identified that `entity_domain` was never populated. Fixed at the source (field_mapper + structure_builder) and at the exporters (CIRCE + FHIR). SQL builder already handled demographics correctly.
+   - **SNOMED/OMOP concepts for age**: Confirmed that the concept codes (SNOMED 424144002 "Current chronological age", OMOP 4265453) are correct for representing the observable entity, but the exporters need to treat demographics differently from coded clinical concepts.
+
+6. All User Messages:
+   - "Implement the following plan: # Phase 4: Join-Ready Export (CIRCE, FHIR Group, Evaluation SQL) [detailed plan with 8 steps]"
+   - "Run a few criteria through the backend and show me the table that results."
+   - "I thought age was not a SNOMED concept but rather birthdate. Can you tell me whether to be consistent, we need to convert age to birthdate-today()?"
+   - "Check that the grounding and extraction is correctly identifying the SNOMED/OMOP concept for age"
+   - "yes" (to fixing the pipeline + exporters for demographics handling)
+
+7. Pending Tasks:
+   - **Task 14 (in_progress)**: Update tests and verify — need to run `uv run ruff check .` and `uv run pytest tests/ -v` for BOTH services (api-service and protocol-processor-service) to verify the demographics fixes pass. Also need to update existing tests in test_exports.py to cover demographics domain handling (test that CIRCE produces DemographicCriteria, FHIR produces usage-context-type|age, and update the demo script's age criterion to use `entity_domain: "demographics"`).
+
+8. Current Work:
+   I was in the middle of fixing demographics handling across the pipeline and exporters. Tasks #10-#13 are completed:
+   - #10: Added `entity_type` to field_mapper.py output
+   - #11: Added `_ENTITY_TYPE_TO_DOMAIN` mapping + derivation logic in structure_builder.py
+   - #12: Added `_build_demographic_criteria()` to circe_builder.py
+   - #13: Added `_build_demographic_characteristic()` to fhir_group_builder.py
+   
+   Task #14 ("Update tests and verify") is still in_progress — I have NOT yet:
+   - Run ruff check on either service
+   - Run pytest on either service
+   - Updated test_exports.py to cover the new demographics paths
+   - Updated the demo script to verify the demographics fix works end-to-end
+
+9. Optional Next Step:
+   Complete Task #14: Run `uv run ruff check .` and `uv run pytest tests/ -v` for both api-service and protocol-processor-service. Update tests in `test_exports.py` to verify demographics handling (CIRCE `DemographicCriteria`, FHIR `usage-context-type|age`). Re-run the demo script to confirm the age criterion now exports correctly.
+   
+   This directly continues the user's "yes" response to fixing the pipeline and exporters. The last completed work was editing `fhir_group_builder.py` to add `_build_demographic_characteristic()` (Task #13). Task #14 "Update tests and verify" was created and set to in_progress but no verification work has been done yet.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+commit and procceed to the next phase
