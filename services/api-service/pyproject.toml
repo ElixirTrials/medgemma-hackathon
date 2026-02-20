@@ -72,7 +72,6 @@ markers = [
     "e2e: End-to-end tests (complete workflows)",
 ]
 filterwarnings = [
-    "ignore:unclosed database:ResourceWarning",
     "ignore:Use 'content=<...>' to upload raw bytes:DeprecationWarning:httpx",
 ]
 

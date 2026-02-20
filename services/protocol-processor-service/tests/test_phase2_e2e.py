@@ -13,6 +13,7 @@ exercise the actual SQLAlchemy/SQLModel layer with in-memory SQLite.
 
 from __future__ import annotations
 
+import gc
 import os
 from typing import Any, Generator
 from unittest.mock import MagicMock, patch
@@ -43,13 +44,17 @@ def e2e_engine():
         yield engine
     finally:
         engine.dispose()
+        gc.collect()
 
 
 @pytest.fixture()
 def e2e_session(e2e_engine) -> Generator[Session, None, None]:
     """Create a session for E2E testing."""
-    with Session(e2e_engine) as session:
+    session = Session(e2e_engine)
+    try:
         yield session
+    finally:
+        session.close()
 
 
 # ---------------------------------------------------------------------------

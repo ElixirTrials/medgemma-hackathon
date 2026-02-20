@@ -10,6 +10,7 @@ clinical trial protocols.
 
 from __future__ import annotations
 
+import gc
 import os
 from typing import Any, Generator
 from unittest.mock import patch
@@ -40,12 +41,16 @@ def engine():
         yield eng
     finally:
         eng.dispose()
+        gc.collect()
 
 
 @pytest.fixture()
 def session(engine) -> Generator[Session, None, None]:
-    with Session(engine) as s:
+    s = Session(engine)
+    try:
         yield s
+    finally:
+        s.close()
 
 
 def _setup_parent(
