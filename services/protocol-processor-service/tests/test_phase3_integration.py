@@ -10,7 +10,6 @@ clinical trial protocols.
 
 from __future__ import annotations
 
-import gc
 import os
 from typing import Any, Generator
 from unittest.mock import patch
@@ -41,7 +40,6 @@ def engine():
         yield eng
     finally:
         eng.dispose()
-        gc.collect()
 
 
 @pytest.fixture()

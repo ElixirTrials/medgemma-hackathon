@@ -13,7 +13,6 @@ exercise the actual SQLAlchemy/SQLModel layer with in-memory SQLite.
 
 from __future__ import annotations
 
-import gc
 import os
 from typing import Any, Generator
 from unittest.mock import MagicMock, patch
@@ -44,7 +43,6 @@ def e2e_engine():
         yield engine
     finally:
         engine.dispose()
-        gc.collect()
 
 
 @pytest.fixture()

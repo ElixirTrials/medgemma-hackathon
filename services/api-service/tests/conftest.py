@@ -4,7 +4,6 @@ Provides database, HTTP client, and async client fixtures used
 by all test modules in this directory.
 """
 
-import gc
 import os
 from datetime import datetime, timedelta
 from typing import AsyncGenerator, Generator
@@ -42,7 +41,6 @@ def db_engine():
         yield engine
     finally:
         engine.dispose()
-        gc.collect()
 
 
 @pytest.fixture(scope="function")
@@ -88,7 +86,6 @@ def test_client(db_session) -> Generator[TestClient, None, None]:
     from api_service.storage import engine as storage_engine
 
     storage_engine.dispose()
-    gc.collect()
 
 
 @pytest.fixture(scope="function")
@@ -116,7 +113,6 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
     from api_service.storage import engine as storage_engine
 
     storage_engine.dispose()
-    gc.collect()
 
 
 @pytest.fixture
@@ -155,4 +151,3 @@ def unauthenticated_client(db_session) -> Generator[TestClient, None, None]:
     from api_service.storage import engine as storage_engine
 
     storage_engine.dispose()
-    gc.collect()
