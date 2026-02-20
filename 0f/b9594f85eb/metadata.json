@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0fb9594f85eb",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/ci.yml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0f/b9594f85eb/0/metadata.json",
+      "transcript": "/0f/b9594f85eb/0/full.jsonl",
+      "context": "/0f/b9594f85eb/0/context.md",
+      "content_hash": "/0f/b9594f85eb/0/content_hash.txt",
+      "prompt": "/0f/b9594f85eb/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
