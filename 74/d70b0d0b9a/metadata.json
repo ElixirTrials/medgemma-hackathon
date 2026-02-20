@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "74d70b0d0b9a",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "README.md",
+    "docs/img/elixirtrials-logo.png",
+    "docs/jinja2-prompts.md",
+    "mkdocs.yml",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/74/d70b0d0b9a/0/metadata.json",
+      "transcript": "/74/d70b0d0b9a/0/full.jsonl",
+      "context": "/74/d70b0d0b9a/0/context.md",
+      "content_hash": "/74/d70b0d0b9a/0/content_hash.txt",
+      "prompt": "/74/d70b0d0b9a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
