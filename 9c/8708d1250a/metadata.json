@@ -1,0 +1,27 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9c8708d1250a",
+  "strategy": "manual-commit",
+  "branch": "feature/perf-test-limits-and-async-grounding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "pyproject.toml",
+    "services/protocol-processor-service/tests/conftest.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9c/8708d1250a/0/metadata.json",
+      "transcript": "/9c/8708d1250a/0/full.jsonl",
+      "context": "/9c/8708d1250a/0/context.md",
+      "content_hash": "/9c/8708d1250a/0/content_hash.txt",
+      "prompt": "/9c/8708d1250a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
