@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a80a3bd0f721",
+  "strategy": "manual-commit",
+  "branch": "feature/perf-test-limits-and-async-grounding",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "PERF_PLAN.md",
+    "libs/inference/src/inference/model_garden.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a8/0a3bd0f721/0/metadata.json",
+      "transcript": "/a8/0a3bd0f721/0/full.jsonl",
+      "context": "/a8/0a3bd0f721/0/context.md",
+      "content_hash": "/a8/0a3bd0f721/0/content_hash.txt",
+      "prompt": "/a8/0a3bd0f721/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
