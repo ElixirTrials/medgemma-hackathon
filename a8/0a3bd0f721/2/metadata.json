@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a80a3bd0f721",
+  "session_id": "a1a154b0-5ab0-435c-aec8-113d1359c834",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T15:29:16.516582Z",
+  "branch": "feature/perf-test-limits-and-async-grounding",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "PERF_PLAN.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c292ea89e660",
+  "checkpoint_transcript_start": 1076,
+  "transcript_lines_at_start": 1076,
+  "token_usage": {
+    "input_tokens": 7,
+    "cache_creation_tokens": 16415,
+    "cache_read_tokens": 1016442,
+    "output_tokens": 173,
+    "api_call_count": 7
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T15:29:15.644128Z",
+    "agent_lines": 0,
+    "human_added": 23,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 23,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/a1a154b0-5ab0-435c-aec8-113d1359c834.jsonl"
+}
