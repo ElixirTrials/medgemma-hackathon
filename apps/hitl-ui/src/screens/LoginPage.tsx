@@ -24,7 +24,9 @@ export default function LoginPage() {
         try {
             const res = await fetch(`${API_BASE_URL}/auth/dev-login`, { method: 'POST' });
             if (!res.ok) {
-                throw new Error(res.status === 404 ? 'Dev login not enabled on server' : `Error ${res.status}`);
+                throw new Error(
+                    res.status === 404 ? 'Dev login not enabled on server' : `Error ${res.status}`
+                );
             }
             const data = await res.json();
             setAuth(data.access_token, data.user);
@@ -92,9 +94,7 @@ export default function LoginPage() {
                         >
                             {devLoading ? 'Signing in...' : 'Dev Login (local only)'}
                         </Button>
-                        {devError && (
-                            <p className="text-sm text-red-500 text-center">{devError}</p>
-                        )}
+                        {devError && <p className="text-sm text-red-500 text-center">{devError}</p>}
                     </div>
 
                     <div className="pt-2 text-center">

@@ -11,7 +11,7 @@ import logging
 import time
 from typing import Any, Callable
 
-import requests
+import requests  # type: ignore[import-untyped]
 from langchain_core.callbacks.manager import CallbackManagerForLLMRun
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
@@ -55,6 +55,24 @@ def _build_gemma_prompt(messages: list[Any]) -> str:
         prompt_parts.append(f"<start_of_turn>{role}\n{content}<end_of_turn>")
 
     return "\n".join(prompt_parts) + "\n<start_of_turn>model\n"
+
+
+def _strip_model_garden_artifacts(text: str, full_prompt: str) -> str:
+    """Strip echoed prompts and end-of-turn markers from response.
+
+    Note: This is now minimal because Gemini handles JSON structuring.
+    MedGemma's output goes to Gemini, so thinking tokens and other artifacts
+    are handled by Gemini's structured output parser.
+    """
+    # Strip echoed prompt if present
+    if text.startswith(full_prompt):
+        text = text[len(full_prompt) :].strip()
+
+    # Strip trailing end-of-turn marker
+    if text.endswith("<end_of_turn>"):
+        text = text[: -len("<end_of_turn>")].strip()
+
+    return text
 
 
 def _is_retryable_error(exception: BaseException) -> bool:
@@ -140,12 +158,22 @@ class ModelGardenChatModel(BaseChatModel):
     Wraps a Vertex AI endpoint that serves MedGemma (or other Gemma-family
     models) using the Gemma chat template for prompt formatting and
     exponential-backoff retry for transient errors.
+
+    The Endpoint object is instantiated once in the constructor and reused
+    across calls to enable gRPC channel reuse and avoid per-call overhead.
     """
 
     endpoint_resource_name: str
     project: str
     location: str
-    max_output_tokens: int = Field(default=512)
+    max_output_tokens: int = Field(default=8192)
+    _endpoint: Any = None
+
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize the Vertex AI Endpoint once for connection reuse."""
+        from google.cloud import aiplatform
+
+        self._endpoint = aiplatform.Endpoint(self.endpoint_resource_name)
 
     def _generate(
         self,
@@ -165,9 +193,7 @@ class ModelGardenChatModel(BaseChatModel):
         Returns:
             ChatResult containing the model's response.
         """
-        from google.cloud import aiplatform
-
-        endpoint = aiplatform.Endpoint(self.endpoint_resource_name)
+        endpoint = self._endpoint
 
         full_prompt = _build_gemma_prompt(messages)
 
@@ -208,8 +234,7 @@ class ModelGardenChatModel(BaseChatModel):
             raise
 
         text = response.predictions[0]
-        if text.startswith(full_prompt):
-            text = text[len(full_prompt) :].strip()
+        text = _strip_model_garden_artifacts(text, full_prompt)
 
         message = AIMessage(content=text)
         generation = ChatGeneration(message=message)

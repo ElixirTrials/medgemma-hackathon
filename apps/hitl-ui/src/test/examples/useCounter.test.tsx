@@ -8,8 +8,8 @@
  * - Testing hook side effects
  */
 
-import { act, renderHook, waitFor } from '@testing-library/react';
-import { useEffect, useState } from 'react';
+import { act, renderHook } from '@testing-library/react';
+import { useState } from 'react';
 import { describe, expect, it } from 'vitest';
 
 // Example custom hook: useCounter
@@ -133,49 +133,5 @@ describe('useCounter Hook', () => {
         });
 
         expect(result.current.count).toBe(5);
-    });
-});
-
-// Example: Testing a hook with side effects
-function useLocalStorage(key: string, initialValue: string) {
-    const [value, setValue] = useState(() => {
-        const stored = localStorage.getItem(key);
-        return stored !== null ? stored : initialValue;
-    });
-
-    useEffect(() => {
-        localStorage.setItem(key, value);
-    }, [key, value]);
-
-    return [value, setValue] as const;
-}
-
-describe('useLocalStorage Hook', () => {
-    it('initializes with value from localStorage', () => {
-        localStorage.setItem('testKey', 'stored value');
-
-        const { result } = renderHook(() => useLocalStorage('testKey', 'default'));
-
-        expect(result.current[0]).toBe('stored value');
-    });
-
-    it('uses initial value when localStorage is empty', () => {
-        localStorage.removeItem('testKey');
-
-        const { result } = renderHook(() => useLocalStorage('testKey', 'default'));
-
-        expect(result.current[0]).toBe('default');
-    });
-
-    it('updates localStorage when value changes', async () => {
-        const { result } = renderHook(() => useLocalStorage('testKey', 'initial'));
-
-        act(() => {
-            result.current[1]('updated');
-        });
-
-        await waitFor(() => {
-            expect(localStorage.getItem('testKey')).toBe('updated');
-        });
     });
 });

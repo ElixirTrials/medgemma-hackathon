@@ -49,11 +49,12 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 
     Automatically rolls back changes after each test.
     """
-    with Session(db_engine) as session:
-        try:
-            yield session
-        finally:
-            session.rollback()
+    session = Session(db_engine)
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
 
 
 @pytest.fixture(scope="function")
@@ -82,6 +83,9 @@ def test_client(db_session) -> Generator[TestClient, None, None]:
         yield client
 
     app.dependency_overrides.clear()
+    from api_service.storage import engine as storage_engine
+
+    storage_engine.dispose()
 
 
 @pytest.fixture(scope="function")
@@ -106,6 +110,9 @@ async def async_client(db_session) -> AsyncGenerator[AsyncClient, None]:
         yield client
 
     app.dependency_overrides.clear()
+    from api_service.storage import engine as storage_engine
+
+    storage_engine.dispose()
 
 
 @pytest.fixture
@@ -141,3 +148,6 @@ def unauthenticated_client(db_session) -> Generator[TestClient, None, None]:
         yield client
 
     app.dependency_overrides.clear()
+    from api_service.storage import engine as storage_engine
+
+    storage_engine.dispose()

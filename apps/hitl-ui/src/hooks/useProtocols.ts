@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuthStore } from '../stores/authStore';
 
@@ -43,6 +43,7 @@ export interface Protocol {
         | 'grounding'
         | 'grounding_failed'
         | 'pending_review'
+        | 'processing'
         | 'complete'
         | 'dead_letter'
         | 'archived';
@@ -52,6 +53,7 @@ export interface Protocol {
     metadata_: Record<string, unknown>;
     created_at: string;
     updated_at: string;
+    version_count?: number; // Present when deduplicate=true
 }
 
 export interface ProtocolListResponse {
@@ -70,7 +72,12 @@ export interface UploadResponse {
 
 // --- Hooks ---
 
-export function useProtocolList(page: number, pageSize: number, status?: string) {
+export function useProtocolList(
+    page: number,
+    pageSize: number,
+    status?: string,
+    deduplicate?: boolean
+) {
     const params = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
@@ -78,18 +85,22 @@ export function useProtocolList(page: number, pageSize: number, status?: string)
     if (status) {
         params.set('status', status);
     }
+    if (deduplicate) {
+        params.set('deduplicate', 'true');
+    }
 
     return useQuery({
-        queryKey: ['protocols', page, pageSize, status],
+        queryKey: ['protocols', page, pageSize, status, deduplicate],
         queryFn: () => fetchApi<ProtocolListResponse>(`/protocols?${params.toString()}`),
     });
 }
 
-export function useProtocol(id: string) {
+export function useProtocol(id: string, options?: Partial<UseQueryOptions<Protocol, Error>>) {
     return useQuery({
         queryKey: ['protocols', id],
         queryFn: () => fetchApi<Protocol>(`/protocols/${id}`),
         enabled: Boolean(id),
+        ...options,
     });
 }
 
@@ -162,6 +173,40 @@ export function useRetryProtocol() {
     return useMutation({
         mutationFn: (protocolId: string) =>
             fetchApi<{ status: string; protocol_id: string }>(`/protocols/${protocolId}/retry`, {
+                method: 'POST',
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['protocols'] });
+        },
+    });
+}
+
+export interface ReExtractResponse {
+    status: string;
+    protocol_id: string;
+    archived_batches: number;
+}
+
+export function useReExtractProtocol() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: (protocolId: string) =>
+            fetchApi<ReExtractResponse>(`/protocols/${protocolId}/re-extract`, {
+                method: 'POST',
+            }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['protocols'] });
+            queryClient.invalidateQueries({ queryKey: ['review-batches'] });
+        },
+    });
+}
+
+export function useArchiveProtocol() {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (protocolId: string) =>
+            fetchApi<Protocol>(`/protocols/${protocolId}/archive`, {
                 method: 'POST',
             }),
         onSuccess: () => {

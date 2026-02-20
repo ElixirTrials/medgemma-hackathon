@@ -1,13 +1,13 @@
-import { ArrowLeft, ChevronDown, ChevronUp, Loader2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, ChevronDown, ChevronUp, Loader2, Search } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { Link, useParams } from 'react-router-dom';
+import { useDebounce } from 'use-debounce';
 
 import * as Tabs from '@radix-ui/react-tabs';
 import CriterionCard from '../components/CriterionCard';
 import EntityCard from '../components/EntityCard';
 import PdfViewer from '../components/PdfViewer';
-import { Button } from '../components/ui/Button';
 import type { EntityActionRequest, EntityResponse } from '../hooks/useEntities';
 import { useEntityAction, useEntityListByBatch } from '../hooks/useEntities';
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
@@ -20,30 +20,29 @@ import {
 } from '../hooks/useReviews';
 import { cn } from '../lib/utils';
 
-const SORT_OPTIONS = [
-    { label: 'Confidence', value: 'confidence' },
-    { label: 'Type', value: 'criteria_type' },
-    { label: 'Status', value: 'review_status' },
-] as const;
-
 function formatTimestamp(dateStr: string): string {
     return new Date(dateStr).toLocaleString();
 }
 
 export default function ReviewPage() {
     const { batchId } = useParams<{ batchId: string }>();
-    const [sortBy, setSortBy] = useState('confidence');
-    const [sortOrder, setSortOrder] = useState('asc');
     const [auditOpen, setAuditOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('criteria');
     const [activeCriterion, setActiveCriterion] = useState<Criterion | null>(null);
+
+    // Filter state
+    const [searchText, setSearchText] = useState('');
+    const [statusFilter, setStatusFilter] = useState<string>('all');
+    const [typeFilter, setTypeFilter] = useState<string>('all');
+    const [confidenceFilter, setConfidenceFilter] = useState<string>('all');
+    const [debouncedSearch] = useDebounce(searchText, 300);
 
     // Fetch batch criteria
     const {
         data: criteria,
         isLoading: criteriaLoading,
         error: criteriaError,
-    } = useBatchCriteria(batchId ?? '', sortBy, sortOrder);
+    } = useBatchCriteria(batchId ?? '', 'confidence', 'asc');
 
     // Fetch batch info (find batch from list)
     const { data: batchListData } = useBatchList(1, 100);
@@ -93,6 +92,75 @@ export default function ReviewPage() {
             groupedEntities[entity.criteria_id]?.push(entity);
         }
     }
+
+    // Client-side filtering
+    const filteredCriteria = useMemo(() => {
+        if (!criteria) return [];
+        return criteria.filter((c) => {
+            // Text search (case-insensitive)
+            if (debouncedSearch && !c.text.toLowerCase().includes(debouncedSearch.toLowerCase())) {
+                return false;
+            }
+            // Status filter
+            if (statusFilter !== 'all') {
+                const isReviewed = c.review_status !== null;
+                if (statusFilter === 'reviewed' && !isReviewed) return false;
+                if (statusFilter === 'pending' && isReviewed) return false;
+            }
+            // Type filter
+            if (typeFilter !== 'all' && c.criteria_type !== typeFilter) {
+                return false;
+            }
+            // Confidence filter (high>=0.85, medium>=0.7, low<0.7)
+            if (confidenceFilter !== 'all') {
+                if (confidenceFilter === 'high' && c.confidence < 0.85) return false;
+                if (confidenceFilter === 'medium' && (c.confidence < 0.7 || c.confidence >= 0.85))
+                    return false;
+                if (confidenceFilter === 'low' && c.confidence >= 0.7) return false;
+            }
+            return true;
+        });
+    }, [criteria, debouncedSearch, statusFilter, typeFilter, confidenceFilter]);
+
+    // Section grouping with pending-first sort
+    const { uncategorizedCriteria, inclusionCriteria, exclusionCriteria } = useMemo(() => {
+        const uncategorized: Criterion[] = [];
+        const inclusion: Criterion[] = [];
+        const exclusion: Criterion[] = [];
+
+        for (const c of filteredCriteria) {
+            if (
+                !c.criteria_type ||
+                (c.criteria_type !== 'inclusion' && c.criteria_type !== 'exclusion')
+            ) {
+                uncategorized.push(c);
+            } else if (c.criteria_type === 'inclusion') {
+                inclusion.push(c);
+            } else {
+                exclusion.push(c);
+            }
+        }
+
+        const sortFn = (a: Criterion, b: Criterion) => {
+            const aPending = a.review_status === null;
+            const bPending = b.review_status === null;
+            if (aPending && !bPending) return -1;
+            if (!aPending && bPending) return 1;
+            return 0;
+        };
+        uncategorized.sort(sortFn);
+        inclusion.sort(sortFn);
+        exclusion.sort(sortFn);
+
+        return {
+            uncategorizedCriteria: uncategorized,
+            inclusionCriteria: inclusion,
+            exclusionCriteria: exclusion,
+        };
+    }, [filteredCriteria]);
+
+    const countReviewed = (list: Criterion[]) =>
+        list.filter((c) => c.review_status !== null).length;
 
     if (criteriaLoading) {
         return (
@@ -233,50 +301,137 @@ export default function ReviewPage() {
                             </Tabs.List>
 
                             {/* Criteria Tab Content */}
-                            <Tabs.Content value="criteria" className="p-4">
-                                {/* Sort controls */}
-                                <div className="flex items-center gap-2 mb-4">
-                                    <span className="text-sm text-muted-foreground">Sort by:</span>
-                                    <select
-                                        value={sortBy}
-                                        onChange={(e) => setSortBy(e.target.value)}
-                                        className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                                    >
-                                        {SORT_OPTIONS.map((opt) => (
-                                            <option key={opt.value} value={opt.value}>
-                                                {opt.label}
-                                            </option>
-                                        ))}
-                                    </select>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() =>
-                                            setSortOrder((o) => (o === 'asc' ? 'desc' : 'asc'))
-                                        }
-                                    >
-                                        {sortOrder === 'asc' ? (
-                                            <ChevronUp className="h-4 w-4" />
-                                        ) : (
-                                            <ChevronDown className="h-4 w-4" />
-                                        )}
-                                    </Button>
+                            <Tabs.Content value="criteria" className="">
+                                {/* Sticky filter bar */}
+                                <div className="sticky top-0 z-10 bg-card border-b px-4 py-3">
+                                    <div className="flex items-center gap-3 flex-wrap">
+                                        <div className="relative flex-1 min-w-[200px]">
+                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <input
+                                                type="text"
+                                                value={searchText}
+                                                onChange={(e) => setSearchText(e.target.value)}
+                                                placeholder="Search criteria..."
+                                                className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm"
+                                            />
+                                        </div>
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value="all">All Status</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="reviewed">Reviewed</option>
+                                        </select>
+                                        <select
+                                            value={typeFilter}
+                                            onChange={(e) => setTypeFilter(e.target.value)}
+                                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value="all">All Types</option>
+                                            <option value="inclusion">Inclusion</option>
+                                            <option value="exclusion">Exclusion</option>
+                                        </select>
+                                        <select
+                                            value={confidenceFilter}
+                                            onChange={(e) => setConfidenceFilter(e.target.value)}
+                                            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                                        >
+                                            <option value="all">All Confidence</option>
+                                            <option value="high">High (≥85%)</option>
+                                            <option value="medium">Medium (70-84%)</option>
+                                            <option value="low">Low (&lt;70%)</option>
+                                        </select>
+                                    </div>
                                 </div>
 
-                                {/* Criteria cards */}
-                                <div className="space-y-4">
-                                    {criteria && criteria.length > 0 ? (
-                                        criteria.map((criterion) => (
-                                            <CriterionCard
-                                                key={criterion.id}
-                                                criterion={criterion}
-                                                onAction={handleAction}
-                                                isSubmitting={reviewAction.isPending}
-                                                onCriterionClick={handleCriterionClick}
-                                                isActive={activeCriterion?.id === criterion.id}
-                                            />
-                                        ))
-                                    ) : (
+                                {/* Criteria sections */}
+                                <div className="p-4 space-y-6">
+                                    {/* To Be Sorted — appears at top if any uncategorized criteria exist */}
+                                    {uncategorizedCriteria.length > 0 && (
+                                        <section>
+                                            <h2 className="text-lg font-bold mb-3 text-foreground">
+                                                To Be Sorted ({countReviewed(uncategorizedCriteria)}
+                                                /{uncategorizedCriteria.length} reviewed)
+                                            </h2>
+                                            <div className="space-y-4">
+                                                {uncategorizedCriteria.map((c) => (
+                                                    <CriterionCard
+                                                        key={c.id}
+                                                        criterion={c}
+                                                        onAction={handleAction}
+                                                        isSubmitting={reviewAction.isPending}
+                                                        onCriterionClick={handleCriterionClick}
+                                                        isActive={activeCriterion?.id === c.id}
+                                                        pdfUrl={pdfData?.url}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {/* Inclusion Criteria section */}
+                                    {inclusionCriteria.length > 0 && (
+                                        <section>
+                                            <h2 className="text-lg font-bold mb-3 text-foreground">
+                                                Inclusion Criteria (
+                                                {countReviewed(inclusionCriteria)}/
+                                                {inclusionCriteria.length} reviewed)
+                                            </h2>
+                                            <div className="space-y-4">
+                                                {inclusionCriteria.map((c) => (
+                                                    <CriterionCard
+                                                        key={c.id}
+                                                        criterion={c}
+                                                        onAction={handleAction}
+                                                        isSubmitting={reviewAction.isPending}
+                                                        onCriterionClick={handleCriterionClick}
+                                                        isActive={activeCriterion?.id === c.id}
+                                                        pdfUrl={pdfData?.url}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {/* Exclusion Criteria section */}
+                                    {exclusionCriteria.length > 0 && (
+                                        <section>
+                                            <h2 className="text-lg font-bold mb-3 text-foreground">
+                                                Exclusion Criteria (
+                                                {countReviewed(exclusionCriteria)}/
+                                                {exclusionCriteria.length} reviewed)
+                                            </h2>
+                                            <div className="space-y-4">
+                                                {exclusionCriteria.map((c) => (
+                                                    <CriterionCard
+                                                        key={c.id}
+                                                        criterion={c}
+                                                        onAction={handleAction}
+                                                        isSubmitting={reviewAction.isPending}
+                                                        onCriterionClick={handleCriterionClick}
+                                                        isActive={activeCriterion?.id === c.id}
+                                                        pdfUrl={pdfData?.url}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </section>
+                                    )}
+
+                                    {/* Empty state when filters match nothing */}
+                                    {filteredCriteria.length === 0 &&
+                                        criteria &&
+                                        criteria.length > 0 && (
+                                            <div className="text-center py-8">
+                                                <p className="text-muted-foreground">
+                                                    No criteria match your filters
+                                                </p>
+                                            </div>
+                                        )}
+
+                                    {/* Original empty state when no criteria at all */}
+                                    {(!criteria || criteria.length === 0) && (
                                         <div className="text-center py-8">
                                             <p className="text-muted-foreground">
                                                 No criteria found for this batch

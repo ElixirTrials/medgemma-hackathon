@@ -48,11 +48,10 @@ class OmopVocabularyClient:
             database_url: PostgreSQL connection string. If None, reads from
                 OMOP_VOCAB_URL environment variable.
         """
-        self.database_url = database_url or os.getenv("OMOP_VOCAB_URL")
-        if not self.database_url:
-            raise ValueError(
-                "OMOP_VOCAB_URL not provided and not found in environment"
-            )
+        resolved_database_url = database_url or os.getenv("OMOP_VOCAB_URL")
+        if not resolved_database_url:
+            raise ValueError("OMOP_VOCAB_URL not provided and not found in environment")
+        self.database_url: str = resolved_database_url
         self.engine: Optional[Engine] = None
 
     def _get_engine(self) -> Engine:
@@ -107,7 +106,11 @@ class OmopVocabularyClient:
 
         # Strategy 3: Fuzzy match on synonyms
         concepts = self._fuzzy_match_synonym(term, domain, vocabulary, limit)
-        avg_score = sum(c.similarity_score or 0 for c in concepts) / len(concepts) if concepts else 0.0
+        avg_score = (
+            sum(c.similarity_score or 0 for c in concepts) / len(concepts)
+            if concepts
+            else 0.0
+        )
         return ConceptMapping(
             query_term=term,
             concepts=concepts,
@@ -124,7 +127,7 @@ class OmopVocabularyClient:
     ) -> List[OmopConcept]:
         """Find exact matches on concept name."""
         query = text("""
-            SELECT 
+            SELECT
                 concept_id,
                 concept_name,
                 domain_id,
@@ -144,7 +147,13 @@ class OmopVocabularyClient:
         engine = self._get_engine()
         with engine.connect() as conn:
             result = conn.execute(
-                query, {"term": term, "domain": domain, "vocabulary": vocabulary, "limit": limit}
+                query,
+                {
+                    "term": term,
+                    "domain": domain,
+                    "vocabulary": vocabulary,
+                    "limit": limit,
+                },
             )
             return [
                 OmopConcept(
@@ -168,7 +177,7 @@ class OmopVocabularyClient:
     ) -> List[OmopConcept]:
         """Find fuzzy matches on concept name using trigram similarity."""
         query = text("""
-            SELECT 
+            SELECT
                 concept_id,
                 concept_name,
                 domain_id,
@@ -190,7 +199,13 @@ class OmopVocabularyClient:
         engine = self._get_engine()
         with engine.connect() as conn:
             result = conn.execute(
-                query, {"term": term, "domain": domain, "vocabulary": vocabulary, "limit": limit}
+                query,
+                {
+                    "term": term,
+                    "domain": domain,
+                    "vocabulary": vocabulary,
+                    "limit": limit,
+                },
             )
             return [
                 OmopConcept(
@@ -231,7 +246,7 @@ class OmopVocabularyClient:
               AND (:domain IS NULL OR c.domain_id = :domain)
               AND (:vocabulary IS NULL OR c.vocabulary_id = :vocabulary)
               AND similarity(cs.concept_synonym_name, :term) > 0.3
-            GROUP BY c.concept_id, c.concept_name, c.domain_id, c.vocabulary_id, 
+            GROUP BY c.concept_id, c.concept_name, c.domain_id, c.vocabulary_id,
                      c.concept_class_id, c.standard_concept, c.concept_code
             ORDER BY score DESC, c.concept_id
             LIMIT :limit
@@ -240,7 +255,13 @@ class OmopVocabularyClient:
         engine = self._get_engine()
         with engine.connect() as conn:
             result = conn.execute(
-                query, {"term": term, "domain": domain, "vocabulary": vocabulary, "limit": limit}
+                query,
+                {
+                    "term": term,
+                    "domain": domain,
+                    "vocabulary": vocabulary,
+                    "limit": limit,
+                },
             )
             return [
                 OmopConcept(
@@ -269,7 +290,7 @@ class OmopVocabularyClient:
             OmopConcept if found, None otherwise
         """
         query = text("""
-            SELECT 
+            SELECT
                 concept_id,
                 concept_name,
                 domain_id,

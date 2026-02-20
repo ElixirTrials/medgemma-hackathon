@@ -10,7 +10,6 @@ dependencies = [
     "markdown>=3.4.0",
     "playwright>=1.40.0",
     "mkdocs>=1.5.0",
-    "mkdocs-material>=9.0.0",
     "mkdocs-monorepo-plugin>=1.0.0",
     "mkdocstrings[python]>=0.24.0",
     "requests>=2.32.5",
@@ -47,6 +46,8 @@ dependencies = [
     "itsdangerous>=2.1.0",
     "pybreaker>=1.2.0",
     "langchain-google-genai>=4.2.0",
+    "rapidfuzz>=3.14.3",
+    "tooluniverse>=1.0.18",
 ]
 
 [dependency-groups]
@@ -62,14 +63,18 @@ dev = [
     "requests-mock>=1.12.1",
     "transformers>=4.57.6",
     "ipykernel>=7.2.0",
+    "types-requests>=2.32.4.20260107",
+    "types-cachetools>=6.2.0.20251022",
 ]
+
+[tool.uv]
+# Exclude conflicting "fitz" package (shadows PyMuPDF's fitz); we use pymupdf for PDF.
+override-dependencies = ["fitz ; sys_platform == 'never'"]
 
 [tool.uv.workspace]
 members = [
     "services/api-service",
-    "services/extraction-service",
-    "services/grounding-service",
-    "services/umls-mcp-server",
+    "services/protocol-processor-service",
     "libs/data-pipeline",
     "libs/evaluation",
     "libs/events-py",
@@ -110,6 +115,10 @@ module = "httpx"
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
+module = "tooluniverse"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
 module = [
     "fitz",
     "fitz.*",
@@ -134,12 +143,8 @@ ignore_missing_imports = true
 module = [
     "data_pipeline",
     "data_pipeline.load_data",
-    "extraction_service",
-    "extraction_service.*",
-    "grounding_service",
-    "grounding_service.*",
-    "umls_mcp_server",
-    "umls_mcp_server.*",
+    "protocol_processor",
+    "protocol_processor.*",
     "shared",
     "shared.models",
 ]
@@ -171,28 +176,28 @@ module = [
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["services", "libs"]
+testpaths = ["services", "libs", "tests"]
 norecursedirs = ["site", "docs", ".venv", "venv", ".uv_cache", "node_modules", ".git"]
 markers = [
     "e2e: end-to-end API workflow tests",
     "integration: marks tests as integration tests",
+    "slow: marks tests that run the full extraction-grounding loop (deselect with -m 'not slow')",
 ]
 filterwarnings = [
+    "ignore::pytest_benchmark.logger.PytestBenchmarkWarning",
     "ignore:Inheritance class AiohttpClientSession.*:DeprecationWarning:google\\.genai\\._api_client",
     "ignore:builtin type swigvarlink has no __module__ attribute:DeprecationWarning",
     "ignore:builtin type SwigPyPacked has no __module__ attribute:DeprecationWarning",
     "ignore:builtin type SwigPyObject has no __module__ attribute:DeprecationWarning",
-    "ignore:unclosed database:ResourceWarning",
     "ignore:No data was collected:coverage.exceptions.CoverageWarning",
     "ignore:Use 'content=<...>' to upload raw bytes:DeprecationWarning:httpx",
 ]
 pythonpath = [
     "services/api-service/src",
-    "services/extraction-service/src",
-    "services/grounding-service/src",
-    "services/umls-mcp-server/src",
+    "services/protocol-processor-service/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
+    "libs/events-py",
     "libs/events-py/src",
     "libs/inference/src",
     "libs/model-training/src",
@@ -205,9 +210,7 @@ addopts = "-n auto"
 [tool.coverage.run]
 source = [
     "services/api-service/src",
-    "services/extraction-service/src",
-    "services/grounding-service/src",
-    "services/umls-mcp-server/src",
+    "services/protocol-processor-service/src",
     "libs/data-pipeline/src",
     "libs/evaluation/src",
     "libs/events-py/src",

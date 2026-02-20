@@ -7,10 +7,19 @@ services:
       dockerfile: services/api-service/Dockerfile
     ports:
       - "${API_PORT:-8000}:8000"
+    env_file:
+      - ../.env
     environment:
       - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
       - OMOP_VOCAB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@omop-vocab:5432/omop_vocab
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_TRACE_TIMEOUT_SECONDS=300
+      - USE_LOCAL_STORAGE=1
+      - LOCAL_UPLOAD_DIR=/app/uploads
+      - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
+    volumes:
+      - ${GOOGLE_ADC_PATH:-~/.config/gcloud/application_default_credentials.json}:/tmp/keys/application_default_credentials.json:ro
+      - ../data/uploads:/app/uploads
     depends_on:
       db:
         condition: service_healthy
@@ -62,7 +71,7 @@ services:
       POSTGRES_DB: omop_vocab
     volumes:
       - omop_vocab_data:/var/lib/postgresql/data
-      - ./data/omop-vocab:/vocab-data:ro
+      - ../data/omop_vocab:/vocab-data:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -103,35 +112,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-
-  extraction:
-    build:
-      context: ..
-      dockerfile: services/extraction-service/Dockerfile
-    ports:
-      - "8001:8001"
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
-    depends_on:
-      db:
-        condition: service_healthy
-    profiles:
-      - agents
-
-  grounding:
-    build:
-      context: ..
-      dockerfile: services/grounding-service/Dockerfile
-    ports:
-      - "8002:8002"
-    environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-app}
-      - OMOP_VOCAB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@omop-vocab:5432/omop_vocab
-    depends_on:
-      db:
-        condition: service_healthy
-    profiles:
-      - agents
 
 volumes:
   postgres_data:

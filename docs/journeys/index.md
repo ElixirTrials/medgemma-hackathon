@@ -1,27 +1,21 @@
 # User Journeys
 
-This section documents the key user workflows in the Clinical Trial Criteria Extraction System through narrative walkthroughs with runtime sequence diagrams.
+End-to-end workflows through the system, from protocol upload to structured export.
 
-Each journey focuses on the **happy path** and links to error handling documentation for failure scenarios.
+## Journey Map
 
-## Journeys
+| Journey | Actors | Outcome |
+|---------|--------|---------|
+| [Upload & Extraction](upload-extraction.md) | Researcher → System | PDF becomes structured criteria in DB |
+| [Grounding, Structuring & HITL Review](grounding-review.md) | System → Clinician | Criteria get coded, structured, and reviewed |
 
-| Journey | Description | Primary Actor |
-|---------|-------------|---------------|
-| [Upload & Extraction](./upload-extraction.md) | From PDF upload to structured criteria extraction | Clinical Researcher |
-| [Grounding & HITL Review](./grounding-review.md) | From entity identification to human-approved UMLS codes | Clinical Researcher |
+## The Big Picture
 
-## How to Read These Journeys
+A protocol PDF moves through these stages:
 
-Each journey follows a consistent structure:
+```
+Upload → Extract → Parse → Ground → Persist → Structure → Ordinal Resolve → Review → Export
+ (UI)    (Gemini)   (DB)   (UMLS)    (DB)     (Gemini)     (Gemini)        (HITL)   (API)
+```
 
-1. **User Story** — Who is doing what, and why it matters
-2. **Runtime Flow** — Mermaid sequence diagram showing service interactions
-3. **Narrative Explanation** — Three-act walkthrough (setup, action, resolution) explaining the "why" behind each step
-4. **Error Handling** — Links to component-specific error documentation
-
-## Related Documentation
-
-- [System Architecture](../architecture/system-architecture.md) — C4 Container diagram showing system structure
-- [Data Models](../architecture/data-models.md) — Database schema and LangGraph state structures
-- [HITL Flow Diagram](../diagrams/hitl-flow.md) — Combined end-to-end sequence diagram (overview)
+Each stage is a LangGraph node in `protocol-processor-service`, except Upload (API endpoint), Review (UI), and Export (API endpoint).

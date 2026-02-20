@@ -1,7 +1,7 @@
 FROM python:3.12-slim AS base
 
-# Install system dependencies for health check
-RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+# Install system dependencies (curl for health check, gcc/build-essential for C extensions)
+RUN apt-get update && apt-get install -y --no-install-recommends curl gcc build-essential && rm -rf /var/lib/apt/lists/*
 
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
@@ -14,8 +14,8 @@ COPY pyproject.toml uv.lock ./
 # Copy all libs (needed for workspace resolution)
 COPY libs/ libs/
 
-# Copy this service
-COPY services/api-service/ services/api-service/
+# Copy all services (needed for workspace resolution — api-service imports protocol_processor)
+COPY services/ services/
 
 # Copy alembic configuration
 COPY services/api-service/alembic.ini services/api-service/alembic.ini

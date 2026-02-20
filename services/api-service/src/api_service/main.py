@@ -9,24 +9,29 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 from events_py.outbox import OutboxProcessor  # noqa: E402
-from extraction_service.trigger import handle_protocol_uploaded  # noqa: E402
 from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
-from grounding_service.trigger import handle_criteria_extracted  # noqa: E402
+from protocol_processor.trigger import handle_protocol_uploaded  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
 
 from api_service.auth import router as auth_router  # noqa: E402
+from api_service.batch_compare import router as batch_compare_router  # noqa: E402
+from api_service.criterion_rerun import router as criterion_rerun_router  # noqa: E402
 from api_service.dependencies import get_current_user, get_db  # noqa: E402
 from api_service.entities import router as entities_router  # noqa: E402
+from api_service.exports import router as exports_router  # noqa: E402
+from api_service.integrity import router as integrity_router  # noqa: E402
 from api_service.middleware import MLflowRequestMiddleware  # noqa: E402
 from api_service.protocols import router as protocols_router  # noqa: E402
 from api_service.reviews import router as reviews_router  # noqa: E402
 from api_service.search import router as search_router  # noqa: E402
 from api_service.storage import create_db_and_tables, engine  # noqa: E402
-from api_service.umls_search import router as umls_search_router  # noqa: E402
+from api_service.terminology_search import (  # noqa: E402
+    router as terminology_search_router,
+)
 
 # Setup basic logging
 logging.basicConfig(level=logging.INFO)
@@ -55,8 +60,8 @@ async def lifespan(app: FastAPI):
             mlflow.set_experiment("protocol-processing")
             # Enable LangChain autolog for extraction/grounding agent traces
             try:
-                mlflow.langchain.autolog(log_models=False)
-                logger.info("MLflow LangChain autolog enabled")
+                mlflow.langchain.autolog(run_tracer_inline=True)
+                logger.info("MLflow LangChain autolog enabled (run_tracer_inline=True)")
             except Exception:
                 logger.debug("MLflow LangChain autolog failed", exc_info=True)
             logger.info(
@@ -74,11 +79,13 @@ async def lifespan(app: FastAPI):
         )
 
     # Start outbox processor as background task
+    # Per PIPE-03: criteria_extracted outbox removed. protocol_uploaded retained.
+    # protocol_processor.trigger.handle_protocol_uploaded replaces both the
+    # old extraction_service.trigger and grounding_service.trigger handlers.
     processor = OutboxProcessor(
         engine=engine,
         handlers={
             "protocol_uploaded": [handle_protocol_uploaded],
-            "criteria_extracted": [handle_criteria_extracted],
         },
     )
     task = asyncio.create_task(processor.start())
@@ -94,15 +101,25 @@ async def lifespan(app: FastAPI):
     if _running_tasks:
         logger.info(f"Waiting for {len(_running_tasks)} tasks to complete...")
         await asyncio.gather(*_running_tasks, return_exceptions=True)
+
+    engine.dispose()
     logger.info("Shutdown complete")
 
 
 app = FastAPI(lifespan=lifespan)
 
 # Add SessionMiddleware for OAuth state (must be before CORS)
+_DEFAULT_SESSION_SECRET = "dev-session-secret"
+_session_secret = os.getenv("SESSION_SECRET", _DEFAULT_SESSION_SECRET)
+_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+if _is_production and _session_secret == _DEFAULT_SESSION_SECRET:
+    raise RuntimeError(
+        "SESSION_SECRET must be set to a secure value in production. "
+        "The default dev secret is not allowed."
+    )
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET", "dev-session-secret"),
+    secret_key=_session_secret,
 )
 
 # Configure CORS
@@ -144,7 +161,11 @@ app.include_router(protocols_router, dependencies=[Depends(get_current_user)])
 app.include_router(reviews_router, dependencies=[Depends(get_current_user)])
 app.include_router(entities_router, dependencies=[Depends(get_current_user)])
 app.include_router(search_router, dependencies=[Depends(get_current_user)])
-app.include_router(umls_search_router, dependencies=[Depends(get_current_user)])
+app.include_router(terminology_search_router, dependencies=[Depends(get_current_user)])
+app.include_router(integrity_router, dependencies=[Depends(get_current_user)])
+app.include_router(criterion_rerun_router, dependencies=[Depends(get_current_user)])
+app.include_router(batch_compare_router, dependencies=[Depends(get_current_user)])
+app.include_router(exports_router, dependencies=[Depends(get_current_user)])
 
 
 @app.get("/health")

@@ -4,7 +4,7 @@ Tests compute_quality_score and quality_result_to_metadata using
 minimal in-memory PDFs created with PyMuPDF (fitz).
 """
 
-import fitz
+import pymupdf as fitz
 import pytest
 
 from api_service.quality import compute_quality_score, quality_result_to_metadata

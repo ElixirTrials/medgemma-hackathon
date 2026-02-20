@@ -1,87 +1,110 @@
-# Developer onboarding
+# Onboarding
 
-Get the repo running locally and run tests. For architecture and workflows, see [Project Overview](index.md) and the [Testing Guide](testing-guide.md).
+Get ElixirTrials running locally in under 10 minutes.
 
 ## Prerequisites
 
-- **Python 3.12+** and **uv** (recommended: install via [uv](https://docs.astral.sh/uv/))
-- **Node.js 20+** (for the HITL UI)
-- **Docker & Docker Compose** (optional, for full stack)
+| Tool | Version | Purpose |
+|------|---------|---------|
+| Python | 3.12+ | Backend services |
+| uv | latest | Python package manager (replaces pip/venv) |
+| Node.js | 18+ | Frontend UI |
+| Docker | latest | PostgreSQL database |
+| gcloud CLI | latest | GCP authentication (optional for local dev) |
 
-## 1. Clone and install
-
-```bash
-git clone <repo-url>
-cd <repo-name>
-
-# Sync Python dependencies (root workspace)
-uv sync --all-extras
-
-# Frontend (HITL UI)
-cd apps/hitl-ui && npm ci && cd ../..
-```
-
-## 2. Run the API
-
-From repo root:
+## 1. Clone and Install
 
 ```bash
-uv run uvicorn api_service.main:app --reload
+git clone https://github.com/noahdolevelixir/medgemma-hackathon.git
+cd medgemma-hackathon
+uv sync                    # Install all Python dependencies
+cd apps/hitl-ui && npm install && cd ../..
 ```
 
-API runs with hot reload. Health: `GET /health`, readiness: `GET /ready`. See `services/api-service/README.md` for env and DB setup.
-
-## 3. Run the UI
+## 2. Environment Configuration
 
 ```bash
-cd apps/hitl-ui && npm run dev
+cp .env.example .env
 ```
 
-Set `VITE_API_BASE_URL` if the API is not at the default. See `apps/hitl-ui/README.md`.
+Edit `.env` with your credentials:
 
-## 4. Run agents
+| Variable | Required | Source |
+|----------|----------|--------|
+| `GOOGLE_API_KEY` | Yes | [Google AI Studio](https://aistudio.google.com/apikey) |
+| `UMLS_API_KEY` | Yes | [UMLS Sign Up](https://uts.nlm.nih.gov/uts/signup-login) |
+| `GEMINI_MODEL_NAME` | No | Defaults to `gemini-2.5-flash` |
+| `MODEL_BACKEND` | No | `vertex` for Vertex AI, omit for Gemini Developer API |
+| `GCP_PROJECT_ID` | If Vertex | Your GCP project ID |
+| `GCP_REGION` | If Vertex | e.g., `europe-west4` |
+| `VERTEX_ENDPOINT_ID` | If Vertex | MedGemma endpoint ID |
+| `GOOGLE_CLIENT_ID` | No | OAuth login (dev works without) |
+| `GOOGLE_CLIENT_SECRET` | No | OAuth login (dev works without) |
+| `MLFLOW_TRACKING_URI` | No | Defaults to `http://localhost:5001` |
 
-Agent services and LangGraph usage are documented in the [Components Overview](components/index.md) and per-service READMEs under `services/extraction-service` and `services/grounding-service`.
-
-## 5. Run tests
-
-**All checks (lint, typecheck, tests):**
+## 3. Start the Dev Stack
 
 ```bash
-make check
+make run-dev
 ```
 
-**Python only:**
+This starts:
+
+- **PostgreSQL** on port 5432 (Docker)
+- **MLflow** on port 5001 (local)
+- **API service** on port 8000 (uvicorn with hot-reload)
+- **UI** on port 3000 (Vite dev server)
+
+Alternatively, start components individually:
 
 ```bash
-uv run pytest services/api-service/tests libs/events-py/tests -q
+make run-infra    # DB + MLflow only
+make run-api      # API service only
+make run-ui       # UI only
 ```
 
-**Frontend only:**
+## 4. Verify
+
+1. Open [http://localhost:3000](http://localhost:3000) — you should see the HITL UI
+2. Check [http://localhost:8000/health](http://localhost:8000/health) — should return `{"status": "healthy"}`
+3. Check [http://localhost:5001](http://localhost:5001) — MLflow dashboard
+
+## 5. Upload a Protocol
+
+1. Click **Upload Protocol** in the UI
+2. Drop a clinical trial protocol PDF (max 50 MB)
+3. The pipeline runs automatically: extract → parse → ground → structure
+4. Review extracted criteria in the HITL review page
+
+## Project Structure
+
+```
+medgemma-hackathon/
+├── apps/hitl-ui/              # React + Vite frontend
+├── services/
+│   ├── api-service/           # FastAPI backend (REST + outbox)
+│   └── protocol-processor-service/  # LangGraph pipeline
+├── libs/
+│   ├── shared/                # SQLModel data models
+│   ├── events-py/             # Outbox processor + event contracts
+│   ├── inference/             # Model inference utilities
+│   ├── evaluation/            # Quality evaluation
+│   ├── data-pipeline/         # Data loading utilities
+│   └── model-training/        # Fine-tuning scripts
+├── infra/                     # Docker Compose, OMOP vocab
+├── scripts/                   # Dev tooling, migrations
+├── docs/                      # This documentation
+├── Makefile                   # All dev commands
+└── mkdocs.yml                 # Docs site config
+```
+
+## Common Commands
 
 ```bash
-cd apps/hitl-ui && npm test -- --run
+make help          # Show all available commands
+make check         # Run linters + type checkers + tests
+make lint-fix      # Auto-fix lint issues
+make test          # Run all tests
+make docs-build    # Build documentation site
+make docs-serve    # Serve docs at http://localhost:8000
 ```
-
-## 6. Build docs
-
-```bash
-make docs-build
-make docs-serve   # serve at http://localhost:8000
-```
-
-## 7. Full stack with Docker
-
-From repo root:
-
-```bash
-docker-compose -f infra/docker-compose.yml up --build
-```
-
-See `infra/README.md` for env vars and options.
-
-## Next steps
-
-- [Components Overview](components/index.md) — services and libraries
-- [Testing Guide](testing-guide.md) — testing patterns and examples
-- [Documentation index](index.md) — architecture and quick start

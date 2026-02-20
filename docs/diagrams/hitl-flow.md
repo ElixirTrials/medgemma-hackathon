@@ -1,51 +1,57 @@
 # HITL Flow
 
+Human-in-the-loop review workflow from criteria extraction to final approval.
+
 ```mermaid
-sequenceDiagram
-    participant Researcher as Clinical<br/>Researcher
-    participant UI as HITL<br/>Review UI
-    participant API as API<br/>Service
-    participant Extract as Extraction<br/>Service
-    participant Ground as Grounding<br/>Service
-    participant DB as PostgreSQL
-
-    Researcher->>UI: Upload Protocol PDF
-    UI->>API: Create Protocol (GCS Signed URL)
-    API->>DB: Store Protocol Record
-    API->>Extract: ProtocolUploaded Event
-
-    Extract->>Extract: Parse PDF (pymupdf4llm)
-    Extract->>Extract: Extract Criteria (Gemini)
-    Extract->>API: CriteriaExtracted Event
-    API->>DB: Store CriteriaBatch
-
-    API->>Ground: CriteriaExtracted Event
-    Ground->>Ground: Extract Entities (MedGemma)
-    Ground->>Ground: Ground to UMLS/SNOMED (MCP)
-    Ground->>API: EntitiesGrounded Event
-    API->>DB: Store Grounded Entities
-
-    Researcher->>UI: Open Review Queue
-    UI->>API: Fetch Pending Batches
-    API->>Researcher: Criteria + Entities + PDF
-
-    alt Researcher Approves
-        Researcher->>UI: Approve Criterion
-        UI->>API: POST Review Action
-        API->>DB: Log Audit Event
-    else Researcher Modifies
-        Researcher->>UI: Edit + Approve
-        UI->>API: POST Review Action (with changes)
-        API->>DB: Log Before/After in Audit
+flowchart TB
+    subgraph Pipeline["Automated Pipeline"]
+        EX[Extract criteria<br/>from PDF] --> PA[Parse into<br/>DB records]
+        PA --> GR[Ground entities<br/>to terminologies]
+        GR --> PE[Persist to DB]
+        PE --> ST[Build expression<br/>trees]
+        ST --> OR[Resolve ordinal<br/>scales]
     end
 
-    Note over DB: Full audit trail with<br/>reviewer, timestamp, action
+    OR --> PR{Protocol status?}
+    PR -->|pending_review| RQ[Review Queue]
+    PR -->|grounding_failed| FAIL[Error state]
+    FAIL -->|retry| EX
 
-    %% Styling
-    style Researcher fill:#f9f9f9,stroke:#333,stroke-width:2px
-    style UI fill:#e1f5ff,stroke:#007acc,stroke-width:2px
-    style API fill:#d4f1d4,stroke:#28a745,stroke-width:2px
-    style Extract fill:#ffe5cc,stroke:#fd7e14,stroke-width:2px
-    style Ground fill:#ffe5cc,stroke:#fd7e14,stroke-width:2px
-    style DB fill:#fff3cd,stroke:#ffc107,stroke-width:2px
+    subgraph Review["HITL Review"]
+        RQ --> REV[Clinician reviews<br/>each criterion]
+        REV -->|Approve| APP[Mark approved]
+        REV -->|Reject| REJ[Mark rejected]
+        REV -->|Modify| MOD[Edit + approve]
+    end
+
+    APP --> DONE{All reviewed?}
+    REJ --> DONE
+    MOD --> DONE
+    DONE -->|Yes| COMP[Protocol complete]
+    DONE -->|No| RQ
+
+    COMP --> EXPORT[Export]
+    EXPORT --> CIRCE[CIRCE JSON]
+    EXPORT --> FHIR[FHIR R4 Group]
+    EXPORT --> SQL[OMOP SQL]
 ```
+
+## Review States
+
+| State | Meaning |
+|-------|---------|
+| `null` (pending) | Not yet reviewed |
+| `approved` | Clinician confirmed AI output |
+| `rejected` | Clinician marked as incorrect |
+| `modified` | Clinician provided corrections |
+
+## Audit Trail
+
+Every review action creates a `Review` record with:
+
+- `before_value` — state before the action
+- `after_value` — state after the action
+- `reviewer_id` — who performed the action
+- `comment` — optional notes
+
+System-level events (grounding, status transitions) are logged to `AuditLog`.

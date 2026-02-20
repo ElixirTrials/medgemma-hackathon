@@ -1,24 +1,64 @@
 # Agent Flow
 
+Agentic grounding pattern used when initial entity grounding has low confidence.
+
 ```mermaid
-graph TD
-    Upload[Protocol PDF Upload] -->|GCS Signed URL| API[API Service]
-    API -->|ProtocolUploaded Event| Extract[Extraction Service]
-    Extract -->|PDF Parse + Gemini| Criteria[Structured Criteria]
-    Criteria -->|CriteriaExtracted Event| Ground[Grounding Service]
-    Ground -->|MedGemma + UMLS MCP| Entities[Grounded Entities]
-    Entities -->|EntitiesGrounded Event| API
-    API -->|Review Queue| HITL[HITL Review UI]
-    HITL -->|Approve/Reject/Modify| API
-    API -->|Audit Log| DB[(PostgreSQL)]
+flowchart TB
+    ENT[Entity from parse node] --> DUAL[Dual grounding]
 
-    classDef service fill:#d4f1d4,stroke:#28a745,color:#000,stroke-width:2px;
-    classDef agent fill:#ffe5cc,stroke:#fd7e14,color:#000,stroke-width:2px;
-    classDef data fill:#f0f0f0,stroke:#666,color:#000;
-    classDef ui fill:#e1f5ff,stroke:#007acc,color:#000,stroke-width:2px;
+    subgraph Dual["Parallel Grounding"]
+        DUAL --> TR[TerminologyRouter<br/>UMLS search]
+        DUAL --> OM[OMOP Mapper<br/>concept lookup]
+    end
 
-    class API service;
-    class Extract,Ground agent;
-    class DB data;
-    class HITL ui;
+    TR --> REC[Reconcile results]
+    OM --> REC
+
+    REC --> CONF{Confidence >= 0.5?}
+    CONF -->|Yes| DONE[Accept grounding]
+    CONF -->|No| AGENT[Agentic retry loop]
+
+    subgraph Retry["MedGemma Reasoning (max 3)"]
+        AGENT --> Q1[Is entity valid<br/>for coding?]
+        Q1 -->|Yes| Q2[Derive broader<br/>concept?]
+        Q1 -->|No| SKIP[Skip entity]
+        Q2 --> Q3[Rephrase for<br/>better match?]
+        Q3 --> RETRY[Retry grounding<br/>with improved input]
+    end
+
+    RETRY --> CONF2{Improved?}
+    CONF2 -->|Yes| DONE
+    CONF2 -->|No, attempts left| AGENT
+    CONF2 -->|No, exhausted| EXPERT[Route to<br/>expert review]
+
+    style DONE fill:#22c55e,color:#fff
+    style EXPERT fill:#f59e0b,color:#fff
+    style SKIP fill:#ef4444,color:#fff
 ```
+
+## Grounding Pipeline Details
+
+### TerminologyRouter
+
+Routes entities to the best UMLS source vocabulary based on entity type:
+
+| Entity type | Primary vocabulary | Fallback |
+|-------------|-------------------|----------|
+| condition | SNOMED CT | ICD-10 |
+| measurement | LOINC | SNOMED CT |
+| drug | RxNorm | SNOMED CT |
+| procedure | SNOMED CT | CPT |
+
+### OMOP Mapper
+
+Resolves entities to OMOP CDM concept IDs using the OMOP vocabulary tables. Enables direct joins against CDM data warehouses.
+
+### Reconciliation
+
+`_reconcile_dual_grounding()` merges results from both paths:
+
+- Prefers OMOP concept ID when available (needed for exports)
+- Falls back to source terminology codes
+- Combines confidence scores from both paths
+
+**File**: `services/protocol-processor-service/src/protocol_processor/nodes/ground.py`

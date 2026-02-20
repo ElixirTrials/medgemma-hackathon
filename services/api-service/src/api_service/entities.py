@@ -44,6 +44,16 @@ class EntityResponse(BaseModel):
     grounding_method: str | None
     review_status: str | None
     context_window: Dict[str, Any] | None
+    # Multi-terminology code fields (Phase 32)
+    rxnorm_code: str | None
+    icd10_code: str | None
+    loinc_code: str | None
+    hpo_code: str | None
+    grounding_system: str | None
+    grounding_error: str | None
+    # Phase 1a: dual grounding fields
+    omop_concept_id: str | None
+    reconciliation_status: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -56,6 +66,10 @@ class EntityActionRequest(BaseModel):
     modified_umls_cui: str | None = None
     modified_snomed_code: str | None = None
     modified_preferred_term: str | None = None
+    modified_rxnorm_code: str | None = None
+    modified_icd10_code: str | None = None
+    modified_loinc_code: str | None = None
+    modified_hpo_code: str | None = None
     comment: str | None = None
 
 
@@ -208,9 +222,48 @@ def _entity_to_response(entity: Entity) -> EntityResponse:
         grounding_method=entity.grounding_method,
         review_status=entity.review_status,
         context_window=entity.context_window,
+        rxnorm_code=getattr(entity, "rxnorm_code", None),
+        icd10_code=getattr(entity, "icd10_code", None),
+        loinc_code=getattr(entity, "loinc_code", None),
+        hpo_code=getattr(entity, "hpo_code", None),
+        grounding_system=getattr(entity, "grounding_system", None),
+        grounding_error=getattr(entity, "grounding_error", None),
+        omop_concept_id=getattr(entity, "omop_concept_id", None),
+        reconciliation_status=getattr(entity, "reconciliation_status", None),
         created_at=entity.created_at,
         updated_at=entity.updated_at,
     )
+
+
+def _entity_codes_snapshot(entity: Entity) -> Dict[str, Any]:
+    """Return a snapshot of all terminology code fields from an entity."""
+    return {
+        "umls_cui": entity.umls_cui,
+        "snomed_code": entity.snomed_code,
+        "preferred_term": entity.preferred_term,
+        "rxnorm_code": getattr(entity, "rxnorm_code", None),
+        "icd10_code": getattr(entity, "icd10_code", None),
+        "loinc_code": getattr(entity, "loinc_code", None),
+        "hpo_code": getattr(entity, "hpo_code", None),
+    }
+
+
+def _apply_modify_codes(entity: Entity, body: EntityActionRequest) -> None:
+    """Apply all modified terminology code fields from an action request."""
+    if body.modified_umls_cui is not None:
+        entity.umls_cui = body.modified_umls_cui
+    if body.modified_snomed_code is not None:
+        entity.snomed_code = body.modified_snomed_code
+    if body.modified_preferred_term is not None:
+        entity.preferred_term = body.modified_preferred_term
+    if body.modified_rxnorm_code is not None:
+        entity.rxnorm_code = body.modified_rxnorm_code  # type: ignore[attr-defined]
+    if body.modified_icd10_code is not None:
+        entity.icd10_code = body.modified_icd10_code  # type: ignore[attr-defined]
+    if body.modified_loinc_code is not None:
+        entity.loinc_code = body.modified_loinc_code  # type: ignore[attr-defined]
+    if body.modified_hpo_code is not None:
+        entity.hpo_code = body.modified_hpo_code  # type: ignore[attr-defined]
 
 
 def _apply_entity_action(
@@ -223,11 +276,7 @@ def _apply_entity_action(
         Tuple of (before_value, after_value). after_value is None unless
         action is "modify".
     """
-    before_value: Dict[str, Any] = {
-        "umls_cui": entity.umls_cui,
-        "snomed_code": entity.snomed_code,
-        "preferred_term": entity.preferred_term,
-    }
+    before_value = _entity_codes_snapshot(entity)
     after_value: Dict[str, Any] | None = None
 
     if body.action == "approve":
@@ -236,16 +285,7 @@ def _apply_entity_action(
         entity.review_status = "rejected"
     elif body.action == "modify":
         entity.review_status = "modified"
-        if body.modified_umls_cui is not None:
-            entity.umls_cui = body.modified_umls_cui
-        if body.modified_snomed_code is not None:
-            entity.snomed_code = body.modified_snomed_code
-        if body.modified_preferred_term is not None:
-            entity.preferred_term = body.modified_preferred_term
-        after_value = {
-            "umls_cui": entity.umls_cui,
-            "snomed_code": entity.snomed_code,
-            "preferred_term": entity.preferred_term,
-        }
+        _apply_modify_codes(entity, body)
+        after_value = _entity_codes_snapshot(entity)
 
     return before_value, after_value

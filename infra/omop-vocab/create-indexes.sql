@@ -2,6 +2,9 @@
 -- These indexes are critical for fast concept lookups and searches
 -- Run AFTER data loading (indexes slow down COPY)
 
+-- Enable pg_trgm extension for fuzzy text search (must come before trigram indexes)
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
 \echo 'Creating indexes for OMOP Vocabulary tables...'
 \echo 'This may take 10-20 minutes depending on vocabulary size.'
 \echo ''
@@ -50,20 +53,9 @@ CREATE INDEX idx_source_to_concept_target_id ON source_to_concept_map (target_co
 CREATE INDEX idx_drug_strength_drug_concept_id ON drug_strength (drug_concept_id);
 CREATE INDEX idx_drug_strength_ingredient_concept_id ON drug_strength (ingredient_concept_id);
 
--- Foreign key constraints (for data integrity)
-\echo 'Creating foreign key constraints...'
-ALTER TABLE concept ADD CONSTRAINT fk_concept_domain FOREIGN KEY (domain_id) REFERENCES domain (domain_id);
-ALTER TABLE concept ADD CONSTRAINT fk_concept_vocabulary FOREIGN KEY (vocabulary_id) REFERENCES vocabulary (vocabulary_id);
-ALTER TABLE concept ADD CONSTRAINT fk_concept_class FOREIGN KEY (concept_class_id) REFERENCES concept_class (concept_class_id);
-
-ALTER TABLE concept_relationship ADD CONSTRAINT fk_concept_relationship_concept_1 FOREIGN KEY (concept_id_1) REFERENCES concept (concept_id);
-ALTER TABLE concept_relationship ADD CONSTRAINT fk_concept_relationship_concept_2 FOREIGN KEY (concept_id_2) REFERENCES concept (concept_id);
-ALTER TABLE concept_relationship ADD CONSTRAINT fk_concept_relationship_relationship FOREIGN KEY (relationship_id) REFERENCES relationship (relationship_id);
-
-ALTER TABLE concept_synonym ADD CONSTRAINT fk_concept_synonym_concept FOREIGN KEY (concept_id) REFERENCES concept (concept_id);
-
--- Enable pg_trgm extension for fuzzy text search (if not already enabled)
-CREATE EXTENSION IF NOT EXISTS pg_trgm;
+-- FK constraints intentionally omitted: this is a read-only vocabulary database
+-- and Athena downloads contain orphaned synonym/relationship references that
+-- would violate referential integrity constraints.
 
 -- Analyze tables for query planner statistics
 \echo 'Analyzing tables...'

@@ -66,6 +66,11 @@ class CriterionEntityResponse(BaseModel):
     snomed_code: str | None
     preferred_term: str | None
     grounding_confidence: float | None
+    grounding_method: str | None
+    rxnorm_code: str | None
+    icd10_code: str | None
+    loinc_code: str | None
+    hpo_code: str | None
 
 
 class CriterionResponse(BaseModel):
@@ -130,6 +135,30 @@ class AuditLogListResponse(BaseModel):
     pages: int
 
 
+class PendingSummaryResponse(BaseModel):
+    """Summary of pending review work."""
+
+    pending_batches: int
+    pending_criteria: int
+    message: str
+
+
+class BatchMetricsResponse(BaseModel):
+    """Per-batch review agreement metrics response."""
+
+    batch_id: str
+    total_criteria: int
+    approved: int
+    rejected: int
+    modified: int
+    pending: int
+    approved_pct: float
+    rejected_pct: float
+    modified_pct: float
+    modification_breakdown: Dict[str, int]
+    per_criterion_details: list[Dict[str, Any]]
+
+
 # --- Endpoints ---
 
 
@@ -148,16 +177,24 @@ def list_batches(
     - Count of linked criteria per batch
     - Count of reviewed criteria (review_status IS NOT NULL) for progress
     """
-    # Build count query
-    count_stmt = select(func.count()).select_from(CriteriaBatch)
+    # Build count query — exclude archived batches (hidden from dashboard)
+    count_stmt = (
+        select(func.count())
+        .select_from(CriteriaBatch)
+        .where(
+            CriteriaBatch.is_archived == False  # noqa: E712
+        )
+    )
     if status:
         count_stmt = count_stmt.where(CriteriaBatch.status == status)
     if protocol_id:
         count_stmt = count_stmt.where(CriteriaBatch.protocol_id == protocol_id)
     total = db.exec(count_stmt).one()
 
-    # Build data query
-    data_stmt = select(CriteriaBatch)
+    # Build data query — exclude archived batches (Pitfall 1 from RESEARCH.md)
+    data_stmt = select(CriteriaBatch).where(
+        CriteriaBatch.is_archived == False  # noqa: E712
+    )
     if status:
         data_stmt = data_stmt.where(CriteriaBatch.status == status)
     if protocol_id:
@@ -216,6 +253,98 @@ def list_batches(
         page=page,
         page_size=page_size,
         pages=pages,
+    )
+
+
+@router.get(
+    "/batches/{batch_id}/metrics",
+    response_model=BatchMetricsResponse,
+)
+def get_batch_metrics(
+    batch_id: str,
+    db: Session = Depends(get_db),
+) -> BatchMetricsResponse:
+    """Return agreement metrics for a criteria batch.
+
+    Counts criteria by review_status and computes percentages.
+    Breaks down modify actions by schema_version from AuditLog details.
+    Includes per_criterion_details for reviewed criteria (drill-down layer 2).
+
+    Uses exactly 2 SQL queries (criteria + audit logs) — no N+1.
+    """
+    # Verify batch exists
+    batch = db.get(CriteriaBatch, batch_id)
+    if not batch:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Batch {batch_id} not found",
+        )
+
+    # Query 1: All criteria for this batch
+    criteria_list = db.exec(select(Criteria).where(Criteria.batch_id == batch_id)).all()
+
+    total = len(criteria_list)
+    approved = sum(1 for c in criteria_list if c.review_status == "approved")
+    rejected = sum(1 for c in criteria_list if c.review_status == "rejected")
+    modified = sum(1 for c in criteria_list if c.review_status == "modified")
+    pending = sum(1 for c in criteria_list if c.review_status is None)
+
+    def _pct(count: int) -> float:
+        return round(count / total * 100, 1) if total > 0 else 0.0
+
+    # Query 2: All audit logs for this batch's criteria (join Criteria → AuditLog)
+    criteria_ids = [c.id for c in criteria_list]
+    modification_breakdown: Dict[str, int] = {}
+    if criteria_ids:
+        audit_logs = db.exec(
+            select(AuditLog)
+            .join(Criteria, col(AuditLog.target_id) == col(Criteria.id))
+            .where(
+                col(AuditLog.target_type) == "criteria",
+                col(Criteria.batch_id) == batch_id,
+                col(AuditLog.event_type) == "review_action",
+            )
+        ).all()
+
+        schema_version_map = {
+            "text_v1": "text_edits",
+            "structured_v1": "structured_edits",
+            "v1.5-multi": "field_mapping_changes",
+        }
+        for log in audit_logs:
+            details = log.details or {}
+            if details.get("action") == "modify":
+                schema_version = details.get("schema_version", "")
+                breakdown_key = schema_version_map.get(schema_version)
+                if breakdown_key:
+                    modification_breakdown[breakdown_key] = (
+                        modification_breakdown.get(breakdown_key, 0) + 1
+                    )
+
+    # Build per_criterion_details for reviewed criteria
+    per_criterion_details: list[Dict[str, Any]] = [
+        {
+            "criterion_id": c.id,
+            "criterion_text": c.text[:100],
+            "review_status": c.review_status,
+            "criteria_type": c.criteria_type,
+        }
+        for c in criteria_list
+        if c.review_status is not None
+    ]
+
+    return BatchMetricsResponse(
+        batch_id=batch_id,
+        total_criteria=total,
+        approved=approved,
+        rejected=rejected,
+        modified=modified,
+        pending=pending,
+        approved_pct=_pct(approved),
+        rejected_pct=_pct(rejected),
+        modified_pct=_pct(modified),
+        modification_breakdown=modification_breakdown,
+        per_criterion_details=per_criterion_details,
     )
 
 
@@ -393,32 +522,102 @@ def get_pdf_url(
     return PdfUrlResponse(url=url, expires_in_minutes=60)
 
 
+@router.get("/pending-summary", response_model=PendingSummaryResponse)
+def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse:
+    """Get summary of pending review work.
+
+    Returns counts of batches and criteria needing review.
+    Pending = batches with at least one unreviewed criterion.
+    """
+    # Count criteria where review_status IS NULL in active batches
+    pending_criteria_stmt = (
+        select(func.count())
+        .select_from(Criteria)
+        .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
+        .where(
+            col(Criteria.review_status).is_(None),
+            col(CriteriaBatch.status).in_(
+                ["pending_review", "in_progress", "entities_grounded"]
+            ),
+        )
+    )
+    pending_criteria = db.exec(pending_criteria_stmt).one()
+
+    # Count distinct batches that have at least one unreviewed criterion
+    pending_batches_stmt = (
+        select(func.count(func.distinct(col(CriteriaBatch.id))))
+        .select_from(Criteria)
+        .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
+        .where(
+            col(Criteria.review_status).is_(None),
+            col(CriteriaBatch.status).in_(
+                ["pending_review", "in_progress", "entities_grounded"]
+            ),
+        )
+    )
+    pending_batches = db.exec(pending_batches_stmt).one()
+
+    message = (
+        f"{pending_batches} batch{'es' if pending_batches != 1 else ''} "
+        f"({pending_criteria} criteria) pending review"
+    )
+
+    return PendingSummaryResponse(
+        pending_batches=pending_batches,
+        pending_criteria=pending_criteria,
+        message=message,
+    )
+
+
 @router.get("/audit-log", response_model=AuditLogListResponse)
 def list_audit_log(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     target_type: str | None = Query(default=None),
     target_id: str | None = Query(default=None),
+    batch_id: str | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> AuditLogListResponse:
     """List audit log entries with pagination and optional filters.
 
-    Supports filtering by target_type and target_id for scoped views.
+    Supports filtering by target_type, target_id, and batch_id.
+    When batch_id is provided, returns audit entries for all criteria
+    in that batch (joins through Criteria table).
     """
     # Build count query
     count_stmt = select(func.count()).select_from(AuditLog)
-    if target_type:
-        count_stmt = count_stmt.where(AuditLog.target_type == target_type)
-    if target_id:
-        count_stmt = count_stmt.where(AuditLog.target_id == target_id)
+
+    if batch_id:
+        # Join AuditLog → Criteria to filter by batch_id
+        count_stmt = count_stmt.join(
+            Criteria, col(AuditLog.target_id) == col(Criteria.id)
+        ).where(
+            col(AuditLog.target_type) == "criteria", col(Criteria.batch_id) == batch_id
+        )
+    else:
+        # Existing filters (unchanged for backward compatibility)
+        if target_type:
+            count_stmt = count_stmt.where(AuditLog.target_type == target_type)
+        if target_id:
+            count_stmt = count_stmt.where(AuditLog.target_id == target_id)
+
     total = db.exec(count_stmt).one()
 
-    # Build data query
+    # Build data query (same join logic)
     data_stmt = select(AuditLog)
-    if target_type:
-        data_stmt = data_stmt.where(AuditLog.target_type == target_type)
-    if target_id:
-        data_stmt = data_stmt.where(AuditLog.target_id == target_id)
+
+    if batch_id:
+        data_stmt = data_stmt.join(
+            Criteria, col(AuditLog.target_id) == col(Criteria.id)
+        ).where(
+            col(AuditLog.target_type) == "criteria", col(Criteria.batch_id) == batch_id
+        )
+    else:
+        if target_type:
+            data_stmt = data_stmt.where(AuditLog.target_type == target_type)
+        if target_id:
+            data_stmt = data_stmt.where(AuditLog.target_id == target_id)
+
     data_stmt = (
         data_stmt.offset((page - 1) * page_size)
         .limit(page_size)
@@ -509,7 +708,11 @@ def _apply_review_action(  # noqa: C901
 def _update_batch_status(db: Session, batch_id: str) -> None:
     """Update a batch's status based on its criteria review progress.
 
-    Transitions: pending_review -> in_progress -> approved/rejected
+    Transitions:
+    - pending_review -> in_progress (first review submitted)
+    - in_progress -> approved (all criteria reviewed, none rejected)
+    - in_progress -> rejected (all criteria reviewed, any rejected)
+    - in_progress -> reviewed (all criteria reviewed, mixed results)
     """
     batch = db.get(CriteriaBatch, batch_id)
     if not batch:
@@ -528,9 +731,11 @@ def _update_batch_status(db: Session, batch_id: str) -> None:
         )
     ).one()
 
+    # First review submitted: pending_review -> in_progress
     if batch.status == "pending_review" and reviewed_count >= 1:
         batch.status = "in_progress"
 
+    # All criteria reviewed: determine final status
     if reviewed_count == total_count and total_count > 0:
         rejected_count = db.exec(
             select(func.count())
@@ -540,7 +745,23 @@ def _update_batch_status(db: Session, batch_id: str) -> None:
                 Criteria.review_status == "rejected",
             )
         ).one()
-        batch.status = "rejected" if rejected_count > 0 else "approved"
+
+        approved_count = db.exec(
+            select(func.count())
+            .select_from(Criteria)
+            .where(
+                Criteria.batch_id == batch.id,
+                Criteria.review_status == "approved",
+            )
+        ).one()
+
+        # Terminal state transitions
+        if rejected_count > 0:
+            batch.status = "rejected"  # Any rejected = batch rejected
+        elif approved_count == total_count:
+            batch.status = "approved"  # All approved = batch approved
+        else:
+            batch.status = "reviewed"  # Mixed or modified = batch reviewed
 
     db.add(batch)
 
@@ -558,6 +779,11 @@ def _criterion_to_response(
             snomed_code=e.snomed_code,
             preferred_term=e.preferred_term,
             grounding_confidence=e.grounding_confidence,
+            grounding_method=e.grounding_method,
+            rxnorm_code=e.rxnorm_code,
+            icd10_code=e.icd10_code,
+            loinc_code=e.loinc_code,
+            hpo_code=e.hpo_code,
         )
         for e in (entities or [])
     ]

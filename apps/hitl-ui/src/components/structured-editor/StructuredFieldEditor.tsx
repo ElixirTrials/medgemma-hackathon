@@ -59,10 +59,7 @@ export function StructuredFieldEditor({
 
                 // If category changed, reset value to default for new category
                 if (newCategory !== currentCategory) {
-                    setValue(
-                        `mappings.${index}.value`,
-                        getDefaultValueForCategory(newCategory)
-                    );
+                    setValue(`mappings.${index}.value`, getDefaultValueForCategory(newCategory));
                 }
             }
 
@@ -95,10 +92,7 @@ export function StructuredFieldEditor({
                         : null;
 
                 return (
-                    <div
-                        key={field.id}
-                        className="border rounded-lg p-3 mb-3 relative"
-                    >
+                    <div key={field.id} className="border rounded-lg p-3 mb-3 relative">
                         {/* Mapping label and remove button */}
                         <div className="flex items-center justify-between mb-3">
                             <span className="text-sm font-medium text-muted-foreground">

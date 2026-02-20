@@ -7,6 +7,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 jobs:
   paths-filter:
     runs-on: ubuntu-latest
@@ -52,7 +56,7 @@ jobs:
       - name: Format check
         run: uv run ruff format --check .
       - name: Type check
-        run: uv run mypy libs/shared/src services/api-service/src libs/inference/src services/extraction-service/src services/grounding-service/src libs/data-pipeline/src libs/evaluation/src libs/events-py/src libs/model-training/src
+        run: uv run mypy libs/shared/src services/api-service/src services/protocol-processor-service/src libs/inference/src libs/data-pipeline/src libs/evaluation/src libs/events-py/src libs/model-training/src
 
   test:
     runs-on: ubuntu-latest
