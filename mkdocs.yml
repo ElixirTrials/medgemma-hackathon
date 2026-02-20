@@ -1,0 +1,125 @@
+site_name: ElixirTrials — Clinical Trial Criteria Extraction
+site_description: AI-powered system for extracting and grounding clinical trial eligibility criteria from protocol PDFs
+site_author: ElixirTrials Team
+site_url: https://noahdolevelixir.github.io/medgemma-hackathon/
+site_dir: site
+docs_dir: docs
+repo_name: noahdolevelixir/medgemma-hackathon
+repo_url: https://github.com/noahdolevelixir/medgemma-hackathon
+edit_uri: edit/main/docs/
+exclude_docs: |
+  **/node_modules/**
+  **/.pytest_cache/**
+  **/.ruff_cache/**
+  **/.mypy_cache/**
+  **/__pycache__/**
+  **/src/**
+  **/tests/**
+  **/scripts/**
+  **/alembic/**
+  **/e2e/**
+  **/dist/**
+  **/.vite/**
+  hitl-ui/index.html
+
+theme:
+  name: mkdocs
+  navigation_depth: 3
+  locale: en
+
+extra_css:
+  - assets/custom.css
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+  - assets/mermaid-init.js
+
+plugins:
+  - search
+  - monorepo
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths:
+            - services/*/src
+            - libs/*/src
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+            show_signature_annotations: true
+            show_bases: true
+            heading_level: 2
+            members_order: source
+            docstring_style: google
+            filters:
+              - "!^_"
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            separate_signature: true
+            signature_crossrefs: true
+            show_submodules: true
+            show_root_toc_entry: true
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_div_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Onboarding: onboarding.md
+
+  - Architecture:
+      - Overview: architecture/index.md
+      - System Architecture: architecture/system-architecture.md
+      - Data Models: architecture/data-models.md
+
+  - User Journeys:
+      - Overview: journeys/index.md
+      - Upload & Extraction: journeys/upload-extraction.md
+      - Grounding, Structuring & HITL Review: journeys/grounding-review.md
+
+  - Components:
+      - Overview: components/index.md
+      - api-service: "!include ./services/api-service/mkdocs.yml"
+      - protocol-processor-service: "!include ./services/protocol-processor-service/mkdocs.yml"
+      - hitl-ui: "!include ./apps/hitl-ui/mkdocs.yml"
+      - shared: "!include ./libs/shared/mkdocs.yml"
+      - events-py: "!include ./libs/events-py/mkdocs.yml"
+      - data-pipeline: "!include ./libs/data-pipeline/mkdocs.yml"
+      - evaluation: "!include ./libs/evaluation/mkdocs.yml"
+      - inference: "!include ./libs/inference/mkdocs.yml"
+      - model-training: "!include ./libs/model-training/mkdocs.yml"
+
+  - Diagrams:
+      - HITL Flow: diagrams/hitl-flow.md
+      - Agent Flow: diagrams/agent-flow.md
+      - LangGraph Pipeline: diagrams/langgraph-architecture.md
+
+  - Status:
+      - Overview: status/index.md
+
+  - Code Tour:
+      - Overview: code-tour/index.md
+
+  - Guides:
+      - Testing Guide: testing-guide.md
+      - Gemini & Vertex Auth: development/gemini-vertex-auth.md
+      - Jinja2 Prompts Reference: jinja2-prompts.md

@@ -1,0 +1,1249 @@
+#!/usr/bin/env python3
+"""Quality evaluation script for the unified pipeline.
+
+Uploads sample PDFs through the running Docker Compose stack, waits for
+pipeline completion, queries results via the API, computes statistics,
+runs an LLM heuristic assessment, and generates a structured markdown report.
+
+Usage:
+    uv run python scripts/quality_eval.py              # Upload + evaluate
+    uv run python scripts/quality_eval.py --fresh      # Force re-upload
+    uv run python scripts/quality_eval.py --skip-upload # Use existing data
+    uv run python scripts/quality_eval.py --protocol-ids id1,id2
+    uv run python scripts/quality_eval.py --skip-llm   # Skip LLM assessment
+    uv run python scripts/quality_eval.py --report-name my_report.md
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import os
+import sys
+import time
+from collections import Counter
+from datetime import datetime, timezone
+from pathlib import Path
+from statistics import mean, median
+
+import httpx
+import jwt
+
+# ---------------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------------
+
+# Allow running as `uv run python scripts/quality_eval.py` from repo root
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+
+sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+
+from quality_eval_config import (  # noqa: E402
+    API_URL,
+    JWT_SECRET,
+    PIPELINE_TIMEOUT,
+    REPORT_OUTPUT_DIR,
+    SAMPLE_PDFS,
+)
+
+# Terminal statuses (same as tests/e2e/conftest.py)
+_TERMINAL_STATUSES = frozenset(
+    {
+        "pending_review",
+        "complete",
+        "extraction_failed",
+        "grounding_failed",
+        "pipeline_failed",
+        "dead_letter",
+    }
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_client() -> httpx.Client:
+    """Create an authenticated httpx client with a JWT bearer token."""
+    token = jwt.encode(
+        {"sub": "quality-eval", "email": "eval@system.local", "name": "Quality Eval"},
+        JWT_SECRET,
+        algorithm="HS256",
+    )
+    return httpx.Client(
+        base_url=API_URL,
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=60.0,
+    )
+
+
+def _wait_for_pipeline(
+    client: httpx.Client,
+    protocol_id: str,
+    timeout: int = PIPELINE_TIMEOUT,
+    poll_interval: int = 5,
+) -> dict:
+    """Poll protocol status until it reaches a terminal state."""
+    deadline = time.monotonic() + timeout
+    while True:
+        resp = client.get(f"/protocols/{protocol_id}")
+        resp.raise_for_status()
+        data = resp.json()
+
+        status = data.get("status", "")
+        elapsed = int(timeout - (deadline - time.monotonic()))
+        print(
+            f"    Waiting for pipeline (protocol {protocol_id[:8]}...)..."
+            f" status: {status} ({elapsed}s)"
+        )
+
+        if status in _TERMINAL_STATUSES:
+            return data
+
+        if time.monotonic() > deadline:
+            raise TimeoutError(
+                f"Protocol {protocol_id} still in '{status}' after {timeout}s"
+            )
+
+        time.sleep(poll_interval)
+
+
+# ---------------------------------------------------------------------------
+# Step 1: Upload and process PDFs
+# ---------------------------------------------------------------------------
+
+
+def upload_pdf(client: httpx.Client, pdf_path: str) -> str:
+    """Upload a single PDF through the three-step flow. Returns protocol_id."""
+    path = _REPO_ROOT / pdf_path
+    if not path.exists():
+        raise FileNotFoundError(f"PDF not found: {path}")
+
+    pdf_bytes = path.read_bytes()
+
+    # Step 1: Request upload URL
+    resp = client.post(
+        "/protocols/upload",
+        json={
+            "filename": path.name,
+            "content_type": "application/pdf",
+            "file_size_bytes": len(pdf_bytes),
+        },
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    protocol_id = data["protocol_id"]
+    upload_url = data["upload_url"]
+
+    # Step 2: PUT the PDF bytes to the upload URL
+    put_resp = httpx.put(
+        upload_url,
+        content=pdf_bytes,
+        headers={"Content-Type": "application/pdf"},
+        timeout=30.0,
+    )
+    put_resp.raise_for_status()
+
+    # Step 3: Confirm upload with base64 PDF
+    pdf_b64 = base64.b64encode(pdf_bytes).decode("ascii")
+    confirm_resp = client.post(
+        f"/protocols/{protocol_id}/confirm-upload",
+        json={"pdf_bytes_base64": pdf_b64},
+    )
+    confirm_resp.raise_for_status()
+
+    return protocol_id
+
+
+def upload_and_process(client: httpx.Client, fresh: bool = False) -> list[dict]:
+    """Upload sample PDFs and wait for pipeline completion.
+
+    Returns list of dicts with protocol_id, status, and title for each PDF.
+    """
+    results: list[dict] = []
+    total_pdfs = len(SAMPLE_PDFS)
+
+    for idx, pdf_path in enumerate(SAMPLE_PDFS, 1):
+        pdf_name = Path(pdf_path).name
+        print(f"  Uploading PDF {idx}/{total_pdfs}: {pdf_name}...")
+
+        try:
+            protocol_id = upload_pdf(client, pdf_path)
+            print(f"  [{pdf_name}] protocol_id={protocol_id}, waiting for pipeline...")
+
+            start = time.monotonic()
+            final = _wait_for_pipeline(client, protocol_id)
+            elapsed = int(time.monotonic() - start)
+            status = final.get("status", "unknown")
+            title = final.get("title", pdf_name)
+            print(
+                f"  Pipeline complete for protocol {protocol_id[:8]}..."
+                f" (status: {status}, {elapsed}s)"
+            )
+
+            results.append(
+                {
+                    "protocol_id": protocol_id,
+                    "status": status,
+                    "title": title,
+                    "pdf_path": pdf_path,
+                }
+            )
+        except Exception as exc:
+            print(f"  [{pdf_name}] ERROR: {exc}")
+            results.append(
+                {
+                    "protocol_id": None,
+                    "status": "error",
+                    "title": pdf_name,
+                    "pdf_path": pdf_path,
+                    "error": str(exc),
+                }
+            )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# Step 2: Collect results via API
+# ---------------------------------------------------------------------------
+
+
+def collect_criteria(client: httpx.Client, protocol_id: str) -> list[dict]:
+    """Fetch all criteria + entities for a protocol via the API."""
+    print(f"  Collecting results for protocol {protocol_id[:8]}...")
+
+    # Get batches for the protocol
+    resp = client.get(f"/protocols/{protocol_id}/batches")
+    resp.raise_for_status()
+    batches = resp.json()
+
+    if isinstance(batches, dict):
+        # Paginated response
+        batches = batches.get("items", [])
+
+    all_criteria: list[dict] = []
+    for batch in batches:
+        batch_id = batch["id"]
+        cr_resp = client.get(f"/reviews/batches/{batch_id}/criteria")
+        cr_resp.raise_for_status()
+        criteria_list = cr_resp.json()
+        for criterion in criteria_list:
+            criterion["_batch_id"] = batch_id
+            criterion["_protocol_id"] = protocol_id
+        all_criteria.extend(criteria_list)
+
+    return all_criteria
+
+
+# ---------------------------------------------------------------------------
+# Step 3: Compute statistics
+# ---------------------------------------------------------------------------
+
+
+def _extract_entities(criteria_list: list[dict]) -> list[dict]:
+    """Flatten entities from a criteria list."""
+    entities: list[dict] = []
+    for criterion in criteria_list:
+        entities.extend(criterion.get("entities", []))
+    return entities
+
+
+def compute_per_protocol_stats(protocol_id: str, criteria_list: list[dict]) -> dict:
+    """Compute per-protocol statistics."""
+    entities = _extract_entities(criteria_list)
+
+    inclusion_count = sum(
+        1 for c in criteria_list if c.get("criteria_type") == "inclusion"
+    )
+    exclusion_count = sum(
+        1 for c in criteria_list if c.get("criteria_type") == "exclusion"
+    )
+
+    cui_count = sum(1 for e in entities if e.get("umls_cui"))
+    total_entities = len(entities)
+    cui_rate = cui_count / total_entities if total_entities > 0 else 0.0
+
+    method_counter: Counter = Counter()
+    for e in entities:
+        method = e.get("grounding_method") or "none"
+        method_counter[method] += 1
+
+    return {
+        "protocol_id": protocol_id,
+        "criteria_count": len(criteria_list),
+        "inclusion_count": inclusion_count,
+        "exclusion_count": exclusion_count,
+        "entity_count": total_entities,
+        "cui_rate": cui_rate,
+        "grounding_method_distribution": dict(method_counter),
+    }
+
+
+def compute_aggregate_stats(all_entities: list[dict]) -> dict:
+    """Compute aggregate statistics across all entities."""
+    confidences = [
+        e["grounding_confidence"]
+        for e in all_entities
+        if e.get("grounding_confidence") is not None
+    ]
+
+    total = len(all_entities)
+    cui_count = sum(1 for e in all_entities if e.get("umls_cui"))
+
+    entity_type_counter: Counter = Counter()
+    for e in all_entities:
+        entity_type_counter[e.get("entity_type", "unknown")] += 1
+
+    return {
+        "mean_confidence": mean(confidences) if confidences else 0.0,
+        "median_confidence": median(confidences) if confidences else 0.0,
+        "overall_cui_rate": cui_count / total if total > 0 else 0.0,
+        "entity_type_distribution": dict(entity_type_counter),
+        "total_entities": total,
+    }
+
+
+def compute_confidence_distribution(all_entities: list[dict]) -> dict:
+    """Compute confidence distribution across buckets."""
+    buckets = {
+        "null/zero": 0,
+        "0-0.5": 0,
+        "0.5-0.7": 0,
+        "0.7-0.9": 0,
+        "0.9-1.0": 0,
+    }
+
+    for e in all_entities:
+        conf = e.get("grounding_confidence")
+        if conf is None or conf == 0:
+            buckets["null/zero"] += 1
+        elif conf < 0.5:
+            buckets["0-0.5"] += 1
+        elif conf < 0.7:
+            buckets["0.5-0.7"] += 1
+        elif conf < 0.9:
+            buckets["0.7-0.9"] += 1
+        else:
+            buckets["0.9-1.0"] += 1
+
+    total = len(all_entities)
+    result: dict = {}
+    for label, count in buckets.items():
+        pct = (count / total * 100) if total > 0 else 0.0
+        result[label] = {"count": count, "percentage": round(pct, 1)}
+
+    return result
+
+
+def compute_terminology_success(all_entities: list[dict]) -> dict:
+    """Compute per-terminology-system grounding success rates."""
+    total = len(all_entities)
+
+    systems = {
+        "UMLS": "umls_cui",
+        "SNOMED": "snomed_code",
+        "RxNorm": "rxnorm_code",
+        "ICD-10": "icd10_code",
+        "LOINC": "loinc_code",
+        "HPO": "hpo_code",
+    }
+
+    result: dict = {}
+    for system_name, field in systems.items():
+        count = sum(1 for e in all_entities if e.get(field))
+        rate = count / total if total > 0 else 0.0
+        result[system_name] = {"count": count, "rate": round(rate * 100, 1)}
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Bug Catalog (identifies pipeline problems for triage)
+# ---------------------------------------------------------------------------
+
+_TERMINOLOGY_CODE_FIELDS = (
+    "snomed_code",
+    "rxnorm_code",
+    "icd10_code",
+    "loinc_code",
+    "hpo_code",
+)
+
+
+def _find_ungrounded_entities(
+    all_criteria_by_protocol: dict[str, list[dict]],
+) -> list[dict]:
+    """Find entities with no UMLS CUI and no terminology codes."""
+    issues: list[dict] = []
+    for protocol_id, criteria_list in all_criteria_by_protocol.items():
+        for criterion in criteria_list:
+            criterion_text = (criterion.get("criteria_text") or "")[:80]
+            for entity in criterion.get("entities", []):
+                has_cui = bool(entity.get("umls_cui"))
+                has_code = any(entity.get(field) for field in _TERMINOLOGY_CODE_FIELDS)
+                if has_cui or has_code:
+                    continue
+
+                confidence = entity.get("grounding_confidence")
+                if confidence is not None and confidence >= 0.5:
+                    # Has some confidence but no codes — shouldn't happen often
+                    # but not flagged by the spec
+                    continue
+
+                if confidence is not None and 0 < confidence < 0.5:
+                    severity = "warning"
+                else:
+                    severity = "critical"
+
+                issues.append(
+                    {
+                        "type": "ungrounded_entities",
+                        "severity": severity,
+                        "entity_text": entity.get("entity_text", ""),
+                        "entity_type": entity.get("entity_type", "unknown"),
+                        "criterion_text": criterion_text,
+                        "protocol_id": protocol_id,
+                        "grounding_method": entity.get("grounding_method"),
+                        "grounding_confidence": confidence,
+                    }
+                )
+    return issues
+
+
+def _find_pipeline_errors(protocol_results: list[dict]) -> list[dict]:
+    """Find protocols with error statuses."""
+    error_statuses = {
+        "extraction_failed",
+        "grounding_failed",
+        "pipeline_failed",
+        "dead_letter",
+    }
+    issues: list[dict] = []
+    for result in protocol_results:
+        status = result.get("status", "")
+        if status in error_statuses:
+            issues.append(
+                {
+                    "type": "pipeline_errors",
+                    "severity": "critical",
+                    "protocol_id": result.get("protocol_id", ""),
+                    "title": result.get("title", "Unknown"),
+                    "status": status,
+                    "error": result.get("error", ""),
+                }
+            )
+    return issues
+
+
+def _find_structural_issues(
+    all_criteria_by_protocol: dict[str, list[dict]],
+) -> list[dict]:
+    """Find criteria with zero entities or unknown criteria types."""
+    issues: list[dict] = []
+    valid_types = {"inclusion", "exclusion"}
+
+    for protocol_id, criteria_list in all_criteria_by_protocol.items():
+        for criterion in criteria_list:
+            criterion_text = (criterion.get("criteria_text") or "")[:80]
+            criteria_type = criterion.get("criteria_type", "unknown")
+            entities = criterion.get("entities", [])
+
+            # Criteria with zero entities
+            if not entities:
+                issues.append(
+                    {
+                        "type": "structural_issues",
+                        "severity": "warning",
+                        "criterion_text": criterion_text,
+                        "criteria_type": criteria_type,
+                        "protocol_id": protocol_id,
+                        "issue": "no_entities",
+                    }
+                )
+
+            # Unknown criteria type
+            if criteria_type not in valid_types:
+                issues.append(
+                    {
+                        "type": "structural_issues",
+                        "severity": "info",
+                        "criterion_text": criterion_text,
+                        "criteria_type": criteria_type,
+                        "protocol_id": protocol_id,
+                        "issue": "unknown_criteria_type",
+                    }
+                )
+
+    return issues
+
+
+def catalog_bugs(
+    protocol_results: list[dict],
+    all_criteria_by_protocol: dict[str, list[dict]],
+) -> dict:
+    """Build a bug catalog from pipeline results and criteria data.
+
+    Returns a structured dict with keys: ungrounded_entities, pipeline_errors,
+    structural_issues, summary.
+    """
+    ungrounded = _find_ungrounded_entities(all_criteria_by_protocol)
+    pipeline_errors = _find_pipeline_errors(protocol_results)
+    structural = _find_structural_issues(all_criteria_by_protocol)
+
+    all_issues = ungrounded + pipeline_errors + structural
+
+    by_severity: dict[str, int] = {}
+    for issue in all_issues:
+        sev = issue["severity"]
+        by_severity[sev] = by_severity.get(sev, 0) + 1
+
+    by_type: dict[str, int] = {
+        "ungrounded_entities": len(ungrounded),
+        "pipeline_errors": len(pipeline_errors),
+        "structural_issues": len(structural),
+    }
+
+    return {
+        "ungrounded_entities": ungrounded,
+        "pipeline_errors": pipeline_errors,
+        "structural_issues": structural,
+        "summary": {
+            "total_issues": len(all_issues),
+            "by_severity": by_severity,
+            "by_type": by_type,
+        },
+    }
+
+
+# ---------------------------------------------------------------------------
+# LLM Heuristic Assessment (QUAL-07)
+# ---------------------------------------------------------------------------
+
+_LLM_ASSESSMENT_PROMPT = """\
+You are evaluating the quality of an automated clinical trial criteria \
+extraction and medical entity grounding pipeline. You are given the actual \
+output from processing {n} clinical trial protocol PDFs.
+
+## Pipeline Output Summary
+{stats_summary}
+
+## Sample Extracted Criteria with Entities
+{criteria_samples}
+
+## Your Assessment
+
+Evaluate the following dimensions. Be specific -- reference actual criteria \
+text and entity examples from above.
+
+### Extraction Completeness
+Are all medical entities in the criteria text captured? Identify any obvious \
+missed entities by quoting the criteria text.
+
+### Grounding Accuracy
+For grounded entities, do the terminology codes seem correct? Flag any \
+obvious mismatches (e.g., a medication mapped to a condition code).
+
+### Coverage Gaps
+Which entity types or terminology systems have low/zero coverage? \
+Hypothesize why.
+
+### Overall Quality Rating
+Rate: Excellent / Good / Fair / Poor
+Provide 2-3 sentences of reasoning.
+"""
+
+
+def _build_stats_summary(
+    stats: dict,
+    per_protocol_stats: list[dict],
+    terminology: dict,
+    confidence_dist: dict,
+    total_criteria: int,
+) -> str:
+    """Build a text summary of pipeline stats for the LLM prompt."""
+    lines: list[str] = []
+    lines.append(f"- Total criteria extracted: {total_criteria}")
+    lines.append(f"- Total entities: {stats['total_entities']}")
+    lines.append(f"- Overall CUI (UMLS) rate: {stats['overall_cui_rate'] * 100:.1f}%")
+    lines.append(f"- Mean grounding confidence: {stats['mean_confidence']:.3f}")
+    lines.append(f"- Median grounding confidence: {stats['median_confidence']:.3f}")
+
+    # Entity type distribution
+    lines.append("\nEntity type distribution:")
+    for etype, count in sorted(
+        stats["entity_type_distribution"].items(),
+        key=lambda x: x[1],
+        reverse=True,
+    ):
+        lines.append(f"  - {etype}: {count}")
+
+    # Per-protocol summary
+    lines.append("\nPer-protocol breakdown:")
+    for ps in per_protocol_stats:
+        lines.append(
+            f"  - Protocol {ps['protocol_id'][:8]}...: "
+            f"{ps['criteria_count']} criteria, "
+            f"{ps['entity_count']} entities, "
+            f"CUI rate {ps['cui_rate'] * 100:.1f}%"
+        )
+
+    # Terminology coverage
+    lines.append("\nTerminology system coverage:")
+    for system_name in ["UMLS", "SNOMED", "RxNorm", "ICD-10", "LOINC", "HPO"]:
+        info = terminology.get(system_name, {"count": 0, "rate": 0.0})
+        lines.append(f"  - {system_name}: {info['count']} entities ({info['rate']}%)")
+
+    # Confidence distribution
+    lines.append("\nConfidence distribution:")
+    for bucket_name in ["null/zero", "0-0.5", "0.5-0.7", "0.7-0.9", "0.9-1.0"]:
+        info = confidence_dist.get(bucket_name, {"count": 0, "percentage": 0.0})
+        lines.append(f"  - {bucket_name}: {info['count']} ({info['percentage']}%)")
+
+    return "\n".join(lines)
+
+
+def _build_criteria_samples(
+    all_criteria_by_protocol: dict[str, list[dict]],
+    max_criteria: int = 20,
+) -> str:
+    """Build sample criteria text with entities for the LLM prompt.
+
+    Selects up to max_criteria representative criteria across protocols,
+    prioritizing criteria that have entities to give the LLM useful context.
+    """
+    samples: list[str] = []
+    remaining = max_criteria
+
+    for protocol_id, criteria_list in all_criteria_by_protocol.items():
+        if remaining <= 0:
+            break
+
+        # Take a proportional share from each protocol, at least 2
+        share = max(2, remaining // max(1, len(all_criteria_by_protocol)))
+
+        # Sort: criteria with entities first (more informative)
+        sorted_criteria = sorted(
+            criteria_list,
+            key=lambda c: len(c.get("entities", [])),
+            reverse=True,
+        )
+
+        for criterion in sorted_criteria[:share]:
+            if remaining <= 0:
+                break
+
+            ctype = criterion.get("criteria_type", "unknown")
+            text = criterion.get("criteria_text", "")[:300]
+            entities = criterion.get("entities", [])
+
+            sample = f"**[{ctype.upper()}]** {text}"
+            if entities:
+                sample += "\n  Entities:"
+                for ent in entities[:5]:  # Limit entities per criterion
+                    ent_text = ent.get("entity_text", "?")
+                    ent_type = ent.get("entity_type", "?")
+                    cui = ent.get("umls_cui", "")
+                    snomed = ent.get("snomed_code", "")
+                    rxnorm = ent.get("rxnorm_code", "")
+                    conf = ent.get("grounding_confidence")
+
+                    codes_parts: list[str] = []
+                    if cui:
+                        codes_parts.append(f"UMLS:{cui}")
+                    if snomed:
+                        codes_parts.append(f"SNOMED:{snomed}")
+                    if rxnorm:
+                        codes_parts.append(f"RxNorm:{rxnorm}")
+                    codes = ", ".join(codes_parts) if codes_parts else "ungrounded"
+                    conf_str = f", conf={conf:.2f}" if conf is not None else ""
+
+                    sample += f'\n    - "{ent_text}" ({ent_type}) -> {codes}{conf_str}'
+                if len(entities) > 5:
+                    sample += f"\n    - ... and {len(entities) - 5} more entities"
+            else:
+                sample += "\n  Entities: (none extracted)"
+
+            samples.append(sample)
+            remaining -= 1
+
+    return "\n\n".join(samples) if samples else "(No criteria available for sampling)"
+
+
+def run_llm_assessment(
+    all_criteria_by_protocol: dict[str, list[dict]],
+    aggregate_stats: dict,
+    per_protocol_stats: list[dict],
+    terminology: dict,
+    confidence_dist: dict,
+    total_criteria: int,
+) -> str:
+    """Run LLM heuristic assessment of pipeline quality using Gemini.
+
+    Returns the LLM's markdown-formatted assessment text, or an error
+    message if the assessment could not be completed.
+    """
+    # Try to import google.genai
+    try:
+        from google import genai  # noqa: F811
+    except ImportError:
+        return (
+            "*LLM assessment unavailable: google-genai SDK not installed. "
+            "Install with `pip install google-genai`.*"
+        )
+
+    # Check for API key
+    api_key = os.getenv("GOOGLE_API_KEY")
+    if not api_key:
+        return (
+            "*LLM assessment unavailable: GOOGLE_API_KEY environment variable "
+            "not set. Set it to enable LLM-based quality assessment.*"
+        )
+
+    # Build prompt components
+    n_protocols = len(all_criteria_by_protocol)
+    stats_summary = _build_stats_summary(
+        aggregate_stats,
+        per_protocol_stats,
+        terminology,
+        confidence_dist,
+        total_criteria,
+    )
+    criteria_samples = _build_criteria_samples(all_criteria_by_protocol)
+
+    prompt = _LLM_ASSESSMENT_PROMPT.format(
+        n=n_protocols,
+        stats_summary=stats_summary,
+        criteria_samples=criteria_samples,
+    )
+
+    # Call Gemini
+    model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
+    try:
+        client = genai.Client(api_key=api_key)
+        response = client.models.generate_content(
+            model=model_name,
+            contents=prompt,
+            config={
+                "temperature": 0.3,
+            },
+        )
+        return response.text or "(LLM returned empty response)"
+    except Exception as exc:
+        return f"*LLM assessment unavailable: {exc}*"
+
+
+# ---------------------------------------------------------------------------
+# Step 4: Generate markdown report
+# ---------------------------------------------------------------------------
+
+
+def generate_report(
+    protocol_results: list[dict],
+    per_protocol_stats: list[dict],
+    aggregate: dict,
+    confidence_dist: dict,
+    terminology: dict,
+    total_criteria: int,
+    llm_assessment: str | None = None,
+    bug_catalog: dict | None = None,
+) -> str:
+    """Generate the markdown report content."""
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    pdf_count = len(protocol_results)
+
+    lines: list[str] = []
+    lines.append("# Quality Evaluation Report")
+    lines.append(f"Generated: {now}")
+    lines.append(
+        "Pipeline: unified 5-node LangGraph (ingest->extract->parse->ground->persist)"
+    )
+    lines.append(f"PDFs evaluated: {pdf_count}")
+    lines.append("")
+
+    # --- Per-Protocol Statistics ---
+    lines.append("## Per-Protocol Statistics")
+    lines.append("")
+    lines.append("| Protocol | Criteria | Inc | Exc | Entities | CUI Rate | Status |")
+    lines.append("|----------|----------|-----|-----|----------|----------|--------|")
+
+    for pr, ps in zip(protocol_results, per_protocol_stats):
+        title = pr.get("title", "Unknown")[:40]
+        status = pr.get("status", "unknown")
+        cui_pct = f"{ps['cui_rate'] * 100:.1f}%"
+        lines.append(
+            f"| {title} | {ps['criteria_count']} | {ps['inclusion_count']} "
+            f"| {ps['exclusion_count']} | {ps['entity_count']} | {cui_pct} "
+            f"| {status} |"
+        )
+
+    lines.append("")
+
+    # --- Grounding Method Distribution ---
+    lines.append("### Grounding Method Distribution")
+    lines.append("")
+
+    # Collect all methods across protocols
+    all_methods: set[str] = set()
+    for ps in per_protocol_stats:
+        all_methods.update(ps["grounding_method_distribution"].keys())
+    sorted_methods = sorted(all_methods)
+
+    if sorted_methods:
+        header = "| Protocol | " + " | ".join(sorted_methods) + " |"
+        sep = "|----------" + "".join("|---------" for _ in sorted_methods) + "|"
+        lines.append(header)
+        lines.append(sep)
+
+        for pr, ps in zip(protocol_results, per_protocol_stats):
+            title = pr.get("title", "Unknown")[:40]
+            dist = ps["grounding_method_distribution"]
+            values = " | ".join(str(dist.get(m, 0)) for m in sorted_methods)
+            lines.append(f"| {title} | {values} |")
+    else:
+        lines.append("No grounding methods recorded.")
+
+    lines.append("")
+
+    # --- Aggregate Statistics ---
+    lines.append("## Aggregate Statistics")
+    lines.append("")
+    lines.append("| Metric | Value |")
+    lines.append("|--------|-------|")
+    lines.append(f"| Total criteria | {total_criteria} |")
+    lines.append(f"| Total entities | {aggregate['total_entities']} |")
+    lines.append(f"| Mean confidence | {aggregate['mean_confidence']:.3f} |")
+    lines.append(f"| Median confidence | {aggregate['median_confidence']:.3f} |")
+    lines.append(f"| Overall CUI rate | {aggregate['overall_cui_rate'] * 100:.1f}% |")
+    lines.append("")
+
+    # --- Entity Type Distribution ---
+    lines.append("### Entity Type Distribution")
+    lines.append("")
+    lines.append("| Type | Count | Percentage |")
+    lines.append("|------|-------|------------|")
+
+    total_ent = aggregate["total_entities"]
+    for etype, count in sorted(
+        aggregate["entity_type_distribution"].items(),
+        key=lambda x: x[1],
+        reverse=True,
+    ):
+        pct = (count / total_ent * 100) if total_ent > 0 else 0.0
+        lines.append(f"| {etype} | {count} | {pct:.1f}% |")
+
+    lines.append("")
+
+    # --- Confidence Distribution ---
+    lines.append("## Confidence Distribution")
+    lines.append("")
+    lines.append("| Bucket | Count | Percentage |")
+    lines.append("|--------|-------|------------|")
+
+    for bucket_name in ["null/zero", "0-0.5", "0.5-0.7", "0.7-0.9", "0.9-1.0"]:
+        info = confidence_dist.get(bucket_name, {"count": 0, "percentage": 0.0})
+        lines.append(f"| {bucket_name} | {info['count']} | {info['percentage']}% |")
+
+    lines.append("")
+
+    # --- Per-Terminology Grounding Success ---
+    lines.append("## Per-Terminology Grounding Success")
+    lines.append("")
+    lines.append("| System | Entities with Code | Rate |")
+    lines.append("|--------|--------------------|------|")
+
+    for system_name in ["UMLS", "SNOMED", "RxNorm", "ICD-10", "LOINC", "HPO"]:
+        info = terminology.get(system_name, {"count": 0, "rate": 0.0})
+        lines.append(f"| {system_name} | {info['count']} | {info['rate']}% |")
+
+    lines.append("")
+
+    # --- LLM Heuristic Assessment (QUAL-07) ---
+    if llm_assessment is not None:
+        lines.append("## LLM Heuristic Assessment")
+        lines.append("")
+        lines.append(llm_assessment)
+        lines.append("")
+
+    # --- Bug Catalog ---
+    if bug_catalog is not None:
+        summary = bug_catalog["summary"]
+        critical_count = summary["by_severity"].get("critical", 0)
+        warning_count = summary["by_severity"].get("warning", 0)
+        info_count = summary["by_severity"].get("info", 0)
+
+        lines.append("## Bug Catalog")
+        lines.append("")
+        lines.append(
+            f"**Summary:** {summary['total_issues']} issues found "
+            f"({critical_count} critical, {warning_count} warning, "
+            f"{info_count} info)"
+        )
+        lines.append("")
+
+        # --- Critical Issues ---
+        lines.append("### Critical Issues")
+        lines.append("")
+
+        # Pipeline Errors
+        pipeline_errors = bug_catalog["pipeline_errors"]
+        lines.append(f"#### Pipeline Errors ({len(pipeline_errors)})")
+        lines.append("")
+        if pipeline_errors:
+            lines.append("| Protocol | Status | Error |")
+            lines.append("|----------|--------|-------|")
+            for issue in pipeline_errors:
+                title = issue.get("title", "Unknown")
+                status = issue.get("status", "")
+                error = issue.get("error") or "\u2014"
+                lines.append(f"| {title} | {status} | {error} |")
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Re-run failed protocols. Check pipeline logs "
+            "for extraction/grounding failures. Protocols in dead_letter status "
+            "may need manual PDF review."
+        )
+        lines.append("")
+
+        # Ungrounded Entities - Critical
+        critical_ungrounded = [
+            e for e in bug_catalog["ungrounded_entities"] if e["severity"] == "critical"
+        ]
+        lines.append(
+            f"#### Ungrounded Entities \u2014 Critical ({len(critical_ungrounded)})"
+        )
+        lines.append("")
+        if critical_ungrounded:
+            lines.append(
+                "| Entity | Type | Criterion (excerpt) | Method | Confidence |"
+            )
+            lines.append(
+                "|--------|------|---------------------|--------|------------|"
+            )
+            for issue in critical_ungrounded:
+                entity_text = issue.get("entity_text", "")
+                entity_type = issue.get("entity_type", "unknown")
+                criterion_text = issue.get("criterion_text", "")
+                method = issue.get("grounding_method") or "\u2014"
+                confidence = issue.get("grounding_confidence")
+                conf_str = f"{confidence}" if confidence is not None else "\u2014"
+                lines.append(
+                    f"| {entity_text} | {entity_type} | {criterion_text} "
+                    f"| {method} | {conf_str} |"
+                )
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Review grounding pipeline coverage. Entities "
+            "with no grounding method attempted may indicate entity types not "
+            "routed by TerminologyRouter."
+        )
+        lines.append("")
+
+        # --- Warnings ---
+        lines.append("### Warnings")
+        lines.append("")
+
+        # Ungrounded Entities - Low Confidence
+        warning_ungrounded = [
+            e for e in bug_catalog["ungrounded_entities"] if e["severity"] == "warning"
+        ]
+        lines.append(
+            f"#### Ungrounded Entities \u2014 Low Confidence "
+            f"({len(warning_ungrounded)})"
+        )
+        lines.append("")
+        if warning_ungrounded:
+            lines.append(
+                "| Entity | Type | Criterion (excerpt) | Method | Confidence |"
+            )
+            lines.append(
+                "|--------|------|---------------------|--------|------------|"
+            )
+            for issue in warning_ungrounded:
+                entity_text = issue.get("entity_text", "")
+                entity_type = issue.get("entity_type", "unknown")
+                criterion_text = issue.get("criterion_text", "")
+                method = issue.get("grounding_method") or "\u2014"
+                confidence = issue.get("grounding_confidence")
+                conf_str = f"{confidence}" if confidence is not None else "\u2014"
+                lines.append(
+                    f"| {entity_text} | {entity_type} | {criterion_text} "
+                    f"| {method} | {conf_str} |"
+                )
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** These entities attempted grounding but scored "
+            "below 0.5 confidence. Consider reviewing terminology search queries "
+            "or adding synonyms."
+        )
+        lines.append("")
+
+        # Criteria Without Entities
+        no_entity_criteria = [
+            i
+            for i in bug_catalog["structural_issues"]
+            if i.get("issue") == "no_entities"
+        ]
+        lines.append(f"#### Criteria Without Entities ({len(no_entity_criteria)})")
+        lines.append("")
+        if no_entity_criteria:
+            lines.append("| Criterion (excerpt) | Type | Protocol |")
+            lines.append("|---------------------|------|----------|")
+            for issue in no_entity_criteria:
+                criterion_text = issue.get("criterion_text", "")
+                criteria_type = issue.get("criteria_type", "unknown")
+                protocol_id = issue.get("protocol_id", "")[:8]
+                lines.append(f"| {criterion_text} | {criteria_type} | {protocol_id} |")
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Criteria without extracted entities may contain "
+            "only demographic or procedural language. Verify these are truly "
+            "entity-free or if extraction missed relevant terms."
+        )
+        lines.append("")
+
+        # --- Info ---
+        lines.append("### Info")
+        lines.append("")
+
+        # Unknown Criteria Types
+        unknown_type_criteria = [
+            i
+            for i in bug_catalog["structural_issues"]
+            if i.get("issue") == "unknown_criteria_type"
+        ]
+        lines.append(f"#### Unknown Criteria Types ({len(unknown_type_criteria)})")
+        lines.append("")
+        if unknown_type_criteria:
+            lines.append("| Criterion (excerpt) | Type | Protocol |")
+            lines.append("|---------------------|------|----------|")
+            for issue in unknown_type_criteria:
+                criterion_text = issue.get("criterion_text", "")
+                criteria_type = issue.get("criteria_type", "unknown")
+                protocol_id = issue.get("protocol_id", "")[:8]
+                lines.append(f"| {criterion_text} | {criteria_type} | {protocol_id} |")
+        else:
+            lines.append("None found.")
+        lines.append("")
+        lines.append(
+            "**Recommendation:** Criteria should be classified as inclusion or "
+            "exclusion. Unknown types may indicate extraction parsing issues."
+        )
+        lines.append("")
+
+    return "\n".join(lines)
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+
+def main() -> None:
+    """Run the quality evaluation."""
+    parser = argparse.ArgumentParser(
+        description="Quality evaluation of the unified pipeline"
+    )
+    parser.add_argument(
+        "--fresh",
+        action="store_true",
+        help="Force re-upload of PDFs even if protocols already exist",
+    )
+    parser.add_argument(
+        "--skip-upload",
+        action="store_true",
+        help="Skip PDF upload; use existing protocol data from the API",
+    )
+    parser.add_argument(
+        "--protocol-ids",
+        type=str,
+        default=None,
+        help="Comma-separated protocol IDs to evaluate (implies --skip-upload)",
+    )
+    parser.add_argument(
+        "--skip-llm",
+        action="store_true",
+        help="Skip the LLM heuristic assessment (no Gemini API call)",
+    )
+    parser.add_argument(
+        "--report-name",
+        type=str,
+        default="quality_eval.md",
+        help="Output report filename (default: quality_eval.md)",
+    )
+    args = parser.parse_args()
+
+    # --protocol-ids implies --skip-upload
+    if args.protocol_ids:
+        args.skip_upload = True
+
+    print("=" * 60)
+    print("Quality Evaluation - Unified Pipeline")
+    print(f"API: {API_URL}")
+    print("=" * 60)
+
+    client = _build_client()
+
+    # --- Step 1: Get protocol IDs ---
+    protocol_results: list[dict] = []
+
+    if args.skip_upload:
+        if args.protocol_ids:
+            ids = [pid.strip() for pid in args.protocol_ids.split(",")]
+        else:
+            # Try to list existing protocols
+            print("\nFetching existing protocols from API...")
+            try:
+                resp = client.get("/protocols")
+                resp.raise_for_status()
+                data = resp.json()
+                protocols = data if isinstance(data, list) else data.get("items", [])
+                ids = [p["id"] for p in protocols[:5]]  # Limit to 5
+            except Exception as exc:
+                print(
+                    f"\nERROR: Could not list protocols: {exc}\n"
+                    "Please provide --protocol-ids explicitly."
+                )
+                sys.exit(1)
+
+        if not ids:
+            print(
+                "\nERROR: No protocols found. Please provide --protocol-ids explicitly."
+            )
+            sys.exit(1)
+
+        for pid in ids:
+            print(f"  Fetching protocol {pid[:8]}...")
+            resp = client.get(f"/protocols/{pid}")
+            resp.raise_for_status()
+            pdata = resp.json()
+            protocol_results.append(
+                {
+                    "protocol_id": pid,
+                    "status": pdata.get("status", "unknown"),
+                    "title": pdata.get("title", pid),
+                    "pdf_path": "existing",
+                }
+            )
+        print(f"  Found {len(protocol_results)} protocol(s)")
+    else:
+        print("\nStep 1: Uploading and processing PDFs...")
+        protocol_results = upload_and_process(client, fresh=args.fresh)
+
+    # Filter to successfully processed protocols
+    successful = [
+        r
+        for r in protocol_results
+        if r.get("protocol_id") and r.get("status") != "error"
+    ]
+
+    if not successful:
+        print("\nERROR: No protocols were successfully processed.")
+        sys.exit(1)
+
+    # --- Step 2: Collect results ---
+    print("\nStep 2: Collecting criteria and entities...")
+    all_criteria_by_protocol: dict[str, list[dict]] = {}
+    for pr in successful:
+        pid = pr["protocol_id"]
+        print(f"  [{pr['title'][:30]}] Fetching criteria...")
+        criteria = collect_criteria(client, pid)
+        all_criteria_by_protocol[pid] = criteria
+        print(f"  [{pr['title'][:30]}] {len(criteria)} criteria found")
+
+    # --- Step 3: Compute statistics ---
+    print("\nStep 3: Computing statistics...")
+
+    per_protocol_stats: list[dict] = []
+    all_entities: list[dict] = []
+    total_criteria = 0
+
+    for pr in successful:
+        pid = pr["protocol_id"]
+        criteria = all_criteria_by_protocol.get(pid, [])
+        total_criteria += len(criteria)
+        stats = compute_per_protocol_stats(pid, criteria)
+        per_protocol_stats.append(stats)
+        all_entities.extend(_extract_entities(criteria))
+
+    aggregate = compute_aggregate_stats(all_entities)
+    confidence_dist = compute_confidence_distribution(all_entities)
+    terminology = compute_terminology_success(all_entities)
+
+    # --- Step 3b: Bug catalog ---
+    print("\nStep 3b: Building bug catalog...")
+    bug_catalog = catalog_bugs(protocol_results, all_criteria_by_protocol)
+    print(
+        f"  Found {bug_catalog['summary']['total_issues']} issues "
+        f"({bug_catalog['summary']['by_severity'].get('critical', 0)} critical)"
+    )
+
+    # --- Step 4: LLM Heuristic Assessment ---
+    llm_assessment: str | None = None
+
+    if args.skip_llm:
+        print("\nStep 4: Skipping LLM heuristic assessment (--skip-llm)")
+    else:
+        print("\nStep 4: Running LLM heuristic assessment...")
+        if not os.getenv("GOOGLE_API_KEY"):
+            print("  WARNING: GOOGLE_API_KEY not set. Skipping LLM assessment.")
+            llm_assessment = "*LLM assessment skipped: GOOGLE_API_KEY not set.*"
+        else:
+            llm_assessment = run_llm_assessment(
+                all_criteria_by_protocol=all_criteria_by_protocol,
+                aggregate_stats=aggregate,
+                per_protocol_stats=per_protocol_stats,
+                terminology=terminology,
+                confidence_dist=confidence_dist,
+                total_criteria=total_criteria,
+            )
+            print("  LLM assessment complete.")
+
+    # --- Step 5: Generate report ---
+    print("\nGenerating report...")
+
+    report_content = generate_report(
+        protocol_results=successful,
+        per_protocol_stats=per_protocol_stats,
+        aggregate=aggregate,
+        confidence_dist=confidence_dist,
+        terminology=terminology,
+        total_criteria=total_criteria,
+        llm_assessment=llm_assessment,
+        bug_catalog=bug_catalog,
+    )
+
+    output_dir = _REPO_ROOT / REPORT_OUTPUT_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = output_dir / args.report_name
+    report_path.write_text(report_content)
+
+    print(f"\nReport written to {report_path}")
+    print("=" * 60)
+
+    # Print 3-line summary to stdout
+    print(f"\nProtocols: {len(successful)}")
+    print(
+        f"Criteria: {total_criteria} | "
+        f"Entities: {len(all_entities)} | "
+        f"CUI rate: {aggregate['overall_cui_rate'] * 100:.1f}%"
+    )
+    if aggregate["mean_confidence"] > 0:
+        print(f"Mean confidence: {aggregate['mean_confidence']:.3f}")
+    print("Done.")
+
+    client.close()
+
+
+if __name__ == "__main__":
+    main()
