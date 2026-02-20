@@ -3,7 +3,7 @@
   "checkpoint_id": "0a707194e390",
   "strategy": "manual-commit",
   "branch": "feature/major-refactor-langgraph",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "apps/hitl-ui/src/components/CriterionCard.tsx",
     "apps/hitl-ui/src/components/CriterionModifyDialog.tsx",
@@ -23,13 +23,20 @@
       "context": "/0a/707194e390/0/context.md",
       "content_hash": "/0a/707194e390/0/content_hash.txt",
       "prompt": "/0a/707194e390/0/prompt.txt"
+    },
+    {
+      "metadata": "/0a/707194e390/1/metadata.json",
+      "transcript": "/0a/707194e390/1/full.jsonl",
+      "context": "/0a/707194e390/1/context.md",
+      "content_hash": "/0a/707194e390/1/content_hash.txt",
+      "prompt": "/0a/707194e390/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 144,
-    "cache_creation_tokens": 155797,
-    "cache_read_tokens": 14024762,
-    "output_tokens": 12858,
-    "api_call_count": 130
+    "input_tokens": 262,
+    "cache_creation_tokens": 333522,
+    "cache_read_tokens": 22692661,
+    "output_tokens": 23775,
+    "api_call_count": 228
   }
 }
