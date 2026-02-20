@@ -158,12 +158,22 @@ class ModelGardenChatModel(BaseChatModel):
     Wraps a Vertex AI endpoint that serves MedGemma (or other Gemma-family
     models) using the Gemma chat template for prompt formatting and
     exponential-backoff retry for transient errors.
+
+    The Endpoint object is instantiated once in the constructor and reused
+    across calls to enable gRPC channel reuse and avoid per-call overhead.
     """
 
     endpoint_resource_name: str
     project: str
     location: str
     max_output_tokens: int = Field(default=8192)
+    _endpoint: Any = None
+
+    def model_post_init(self, __context: Any) -> None:
+        """Initialize the Vertex AI Endpoint once for connection reuse."""
+        from google.cloud import aiplatform
+
+        self._endpoint = aiplatform.Endpoint(self.endpoint_resource_name)
 
     def _generate(
         self,
@@ -183,9 +193,7 @@ class ModelGardenChatModel(BaseChatModel):
         Returns:
             ChatResult containing the model's response.
         """
-        from google.cloud import aiplatform
-
-        endpoint = aiplatform.Endpoint(self.endpoint_resource_name)
+        endpoint = self._endpoint
 
         full_prompt = _build_gemma_prompt(messages)
 

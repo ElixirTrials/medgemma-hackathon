@@ -530,6 +530,18 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                     len(entities_to_ground),
                 )
 
+            # Pre-flight warmup: absorb MedGemma cold-start latency before
+            # the parallel batch. Non-fatal — if warmup fails, entities proceed.
+            try:
+                from protocol_processor.tools.medgemma_decider import _get_medgemma_model
+                from langchain_core.messages import HumanMessage as _HM
+
+                warmup_model = _get_medgemma_model()
+                await warmup_model.ainvoke([_HM(content="ready")])
+                logger.info("MedGemma warmup succeeded")
+            except Exception as warmup_err:
+                logger.info("MedGemma warmup skipped: %s", warmup_err)
+
             # Parallel grounding with asyncio.gather + semaphore
             # Semaphore created here (not module-level) to bind to current event loop
             semaphore = asyncio.Semaphore(4)
