@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "74d70b0d0b9a",
+  "session_id": "f45dfff6-f689-49c0-b6f8-17060c70b78d",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T08:29:37.937222Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "Makefile",
+    "README.md",
+    "docs/img/elixirtrials-logo.png",
+    "docs/jinja2-prompts.md",
+    "mkdocs.yml",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8959906abe3b",
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 18389,
+    "cache_read_tokens": 840302,
+    "output_tokens": 1247,
+    "api_call_count": 26
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T08:29:37.851742Z",
+    "agent_lines": 24,
+    "human_added": 0,
+    "human_modified": 51,
+    "human_removed": 1,
+    "total_committed": 75,
+    "agent_percentage": 32
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/f45dfff6-f689-49c0-b6f8-17060c70b78d.jsonl"
+}
