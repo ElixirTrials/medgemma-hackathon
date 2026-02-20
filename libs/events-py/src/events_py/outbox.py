@@ -183,7 +183,7 @@ class OutboxProcessor:
         """Signal the processor to stop after current poll."""
         logger.info("Outbox processor shutdown requested")
         self._shutdown_event.set()
-        self._executor.shutdown(wait=False)
+        self._executor.shutdown(wait=True)
 
 
 def persist_with_outbox(
