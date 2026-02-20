@@ -1,0 +1,854 @@
+My tests take a long time to complete and should be more limited than an entire extraction-grounding loop (like only a few criteria). Also, we want to investigate, using the mlflow tracing, why the process is so time consuming. Where are the bottlenecks. Write me a root cause and comprehensive but concise report.
+
+---
+
+Let's proceed to make a branch which we'll merge to this branch for this improvement. Then create a written plan where the first phase is investigation and the following phases are implementation.
+
+---
+
+What about the investigation into:   - MedGemma cold start: Determine if there's a keep-warm or provisioned-throughput option on Vertex AI Model Garden; the 308s outlier is unacceptable
+  - Agentic retry trigger rate: Add logging/tracing for what % of entities hit the retry loop; if >30%, the threshold (confidence < 0.5) may be too aggressive. Let's do all the investigation in phase 1.
+
+---
+
+review the plan, clear the context and begin execution (with Sonnet 4.6)
+
+---
+
+yes and then clear the context first.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the entire conversation:
+
+1. **Initial Request**: User asked to investigate why tests take a long time, specifically wanting them limited rather than running full extraction-grounding loops, and wanted an MLflow tracing investigation to find bottlenecks, culminating in a root cause report.
+
+2. **Investigation Phase**: I explored the codebase extensively:
+   - Explored overall project structure (monorepo with services/, libs/, apps/)
+   - Read ground.py (the main bottleneck - ground node)
+   - Read tracing.py (MLflow pipeline_span implementation)
+   - Read test files (test_phase2_e2e.py, test_phase3_integration.py, test_phase1b_wiring.py, test_phase3b_e2e.py)
+   - Read medgemma_decider.py, field_mapper.py, terminology_router.py, tooluniverse_client.py, omop_mapper.py, gemini_utils.py
+   - Queried the MLflow SQLite database at .mlflow/mlflow.db extensively
+
+3. **Root Cause Report**: I produced a comprehensive report identifying:
+   - Ground node = 94-95% of pipeline time
+   - Sync .invoke() calls blocking event loop
+   - MedGemma cold-start 308s outlier
+   - Two-model architecture multiplying LLM calls
+   - 7 LangGraph traces analyzed with detailed timing
+
+4. **User requested**: Branch creation + written plan with investigation phase first, then implementation phases.
+
+5. **Branch created**: `feature/perf-test-limits-and-async-grounding` from `feature/major-refactor-langgraph`
+
+6. **PERF_PLAN.md created and committed** with 5 phases
+
+7. **User feedback**: "What about the investigation into MedGemma cold start and agentic retry trigger rate?" - User wanted ALL investigation in Phase 1.
+
+8. **Plan updated**: Added Phase 1.5 (expanded MedGemma investigation) and Phase 1.6 (retry rate analysis). Committed.
+
+9. **User requested**: "review the plan, clear the context and begin execution (with Sonnet 4.6)" - switched to Opus model
+
+10. **Phase 1 Execution**: I launched 6 parallel investigation agents:
+    - 1.1: Sync invoke audit → Found 5 call sites (2 more than expected: structure_builder.py:124 and ordinal_resolver.py:87)
+    - 1.2: Baseline test durations → All 109 tests pass in ~12s (tests mock APIs, don't hit live services)
+    - 1.3: Env var behavior → Confirmed safe, read per-call inside function body
+    - 1.4: ainvoke compatibility → Confirmed RunnableSequence has genuine async ainvoke
+    - 1.5: MedGemma cold-start → Dedicated endpoint, no min_replica_count, Endpoint reinstantiated per call
+    - 1.6: Retry rate → 0-3.3%, well below concern threshold
+
+11. **Key findings that changed the plan**:
+    - Phase 2 won't speed up existing tests (they already mock APIs) - serves as guardrail
+    - Phase 3 expanded from 3 to 5 call sites
+    - Retry threshold tuning NOT needed
+    - Phase 5 confirmed warranted (cold-start + Endpoint reuse)
+
+12. **User said**: "yes and then clear the context first" - meaning update PERF_PLAN.md then clear context before executing Phase 2+
+
+13. **I updated PERF_PLAN.md** with all Phase 1 findings incorporated, Phase 1 marked COMPLETED with checkboxes, remaining phases updated to reflect findings. The file was written successfully.
+
+14. **Pending**: Need to commit the updated PERF_PLAN.md, then clear context and begin Phase 2 execution.
+
+Let me trace the exact state:
+- Branch: `feature/perf-test-limits-and-async-grounding`
+- 2 commits already made on this branch
+- PERF_PLAN.md has been rewritten but NOT yet committed
+- User wants context cleared, then Phase 2+ execution to begin
+
+Key files modified:
+- PERF_PLAN.md - created and updated multiple times
+- No production code changed yet
+
+The current working directory is /Users/noahdolevelixir/Code/medgemma-hackathon
+
+Summary:
+1. Primary Request and Intent:
+   - User's initial request: Investigate why tests take too long (should be limited to a few criteria, not full extraction-grounding loop). Use MLflow tracing to find bottlenecks. Write a root cause report.
+   - User then requested: Create a branch (to merge into `feature/major-refactor-langgraph`) with a written plan where Phase 1 is investigation and subsequent phases are implementation.
+   - User corrected: Ensure MedGemma cold-start investigation and agentic retry trigger rate analysis are both included in Phase 1.
+   - User then requested: Review the plan, clear context, and begin execution with Sonnet 4.6.
+   - User confirmed: Update PERF_PLAN.md with Phase 1 findings, then clear context before proceeding to Phase 2+ execution.
+
+2. Key Technical Concepts:
+   - **LangGraph 7-node pipeline**: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+   - **Ground node dominance**: Consumes 94-95% of total pipeline time (155-1148s out of 181-1214s)
+   - **Synchronous `.invoke()` blocking asyncio event loop**: 5 confirmed call sites using `ChatGoogleGenerativeAI.with_structured_output().invoke()` inside async code paths, nullifying `Semaphore(4)` parallelism
+   - **MedGemma via Vertex AI Model Garden**: Dedicated endpoint with `min_replica_count=0` causing cold-starts (308s max). `aiplatform.Endpoint` reinstantiated per `_generate()` call (no connection reuse)
+   - **`ModelGardenChatModel`**: No `_agenerate` implementation — `ainvoke` falls back to sync-in-thread via `run_in_executor`
+   - **Two-model architecture**: MedGemma for medical reasoning + Gemini for structured output parsing = 3-7 LLM calls per entity
+   - **`PIPELINE_MAX_CRITERIA` / `PIPELINE_MAX_ENTITIES`**: Dev knobs read via `os.getenv()` inside function body (per-call), safe for conftest.py injection
+   - **MLflow tracing**: Traces stored in `.mlflow/mlflow.db` SQLite, 5645 total traces, 7 LangGraph runs analyzed
+   - **Agentic retry rate**: 0-3.3% across all traces — `confidence < 0.5` threshold is NOT too aggressive
+   - **`ainvoke` compatibility**: `ChatGoogleGenerativeAI.with_structured_output()` returns `RunnableSequence` with genuine async `ainvoke` coroutine
+
+3. Files and Code Sections:
+   - **`PERF_PLAN.md`** (root of repo)
+     - Created as the master performance plan document
+     - Updated 3 times: initial creation, Phase 1.5/1.6 expansion, then full rewrite with Phase 1 findings
+     - Phase 1 marked COMPLETED with all checkboxes checked
+     - Phases 2-5 updated to reflect investigation findings
+     - **Most recent write has NOT been committed yet**
+   
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/ground.py`**
+     - The primary bottleneck (94-95% of pipeline time)
+     - `ground_node()` at line 425: orchestrates parallel entity grounding
+     - `_ground_entity_parallel()` at line 344: per-entity wrapper with `Semaphore(4)`
+     - `_ground_entity_with_retry()` at line 197: agentic retry loop (max 3 attempts)
+     - `PIPELINE_MAX_ENTITIES` read at line 518 inside function body via `os.getenv()`
+     - Dual grounding: `asyncio.gather(tu_task, omop_task)` at line 386
+     - Field mapping generation at line 397: `await generate_field_mappings(result, criterion_text)`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py`**
+     - **Call site 1**: `_structure_decision_with_gemini()` line 171 — sync `structured_llm.invoke(prompt)` inside sync function called from async `medgemma_decide()`
+     - **Call site 2**: `_structure_reasoning_with_gemini()` line 321 — sync `structured_llm.invoke(prompt)` inside sync function called from async `agentic_reasoning_loop()`
+     - Both need to be made `async def` with `await structured_llm.ainvoke(prompt)`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`**
+     - **Call site 3**: `generate_field_mappings()` line 117 — already `async def` but uses sync `structured_llm.invoke(prompt)`
+     - Fix: change to `await structured_llm.ainvoke(prompt)`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py`**
+     - **Call site 4**: `detect_logic_structure()` line 124 — already `async def` but uses sync `structured_llm.invoke(prompt)`
+     - Fix: change to `await structured_llm.ainvoke(prompt)`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py`**
+     - **Call site 5**: `resolve_ordinal_candidates()` line 87 — already `async def` but uses sync `structured_llm.invoke(prompt)`
+     - Fix: change to `await structured_llm.ainvoke(prompt)`
+
+   - **`libs/inference/src/inference/model_garden.py`**
+     - `ModelGardenChatModel` class — no `_agenerate`, only `_generate` (sync `requests`-based HTTP)
+     - Line 188: `endpoint = aiplatform.Endpoint(self.endpoint_resource_name)` — reinstantiated per call
+     - Phase 5 fix: move Endpoint to constructor, add pre-flight warmup
+
+   - **`services/protocol-processor-service/src/protocol_processor/tracing.py`**
+     - `pipeline_span()` context manager creates separate top-level MLflow traces per node
+     - Each node tagged with `protocol_id` (but not all nodes do this consistently)
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`**
+     - `create_structured_llm()` — creates `ChatGoogleGenerativeAI.with_structured_output()` chains
+     - Guards on `GOOGLE_API_KEY` env var
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py`**
+     - Singleton ToolUniverse with TTL cache, circuit breaker, retry logic
+     - `search_terminology()` — async function for terminology API calls
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/parse.py`**
+     - `PIPELINE_MAX_CRITERIA` read at line 71 inside function body via `os.getenv()`
+
+   - **`services/protocol-processor-service/tests/conftest.py`**
+     - Currently only sets `DATABASE_URL`
+     - Phase 2 will add `PIPELINE_MAX_CRITERIA=3` and `PIPELINE_MAX_ENTITIES=5`
+
+   - **`pyproject.toml`** (root)
+     - pytest config at lines 178-207: `testpaths`, `asyncio_mode = "auto"`, `addopts = "-n auto"`
+     - Existing markers: `e2e`, `integration`
+     - Phase 2 will add `slow` marker
+
+   - **`.mlflow/mlflow.db`**
+     - SQLite database with MLflow traces
+     - 5645 total traces, 7 LangGraph runs
+     - Tables: `trace_info`, `trace_tags`, `spans`
+     - Queried extensively for timing analysis
+
+   - **Test files examined** (all in `services/protocol-processor-service/tests/`):
+     - `test_phase2_e2e.py` — 22 tests, 2.42s, SQLite in-memory DB tests
+     - `test_phase3_integration.py` — 3 tests, 0.19s, realistic clinical criteria
+     - `test_phase1b_wiring.py` — 13 tests, 2.59s, mocked LLM calls (has `mock_chain.invoke.return_value` that needs updating to `ainvoke`)
+     - `test_phase3b_e2e.py` — 17 tests, 0.19s, ordinal scale tests
+     - `test_ordinal_full_cycle.py` — 1 test, 2.66s
+     - `test_graph.py` — 12 tests, 2.23s
+     - `test_terminology_router.py` — 11 tests, 0.05s
+     - `test_omop_mapper.py` — 30 tests, 1.85s
+
+4. Errors and Fixes:
+   - **Read directory error**: Tried to `Read` a directory path (`services/protocol-processor-service/tests`) instead of using `Glob`. Fixed by using `Glob` to list files.
+   - **MLflow DB schema mismatch**: Initial query used `ti.trace_id` but actual column was `request_id`. Fixed by inspecting schema with `PRAGMA table_info()` first.
+   - **Incorrect retry rate estimate**: Initial root cause report estimated ~50% retry rate based on Gemini/MedGemma call ratio math. Phase 1.6 investigation corrected this to 0-3.3% by actually querying span data and entity counts. The extra Gemini calls are baseline (2 per entity: decision structuring + field mapping), not retries.
+   - **Underestimated sync call sites**: Original plan identified 3 sync `.invoke()` sites. Phase 1.1 audit found 5 (added `structure_builder.py:124` and `ordinal_resolver.py:87`).
+   - **Test duration assumption wrong**: Plan assumed tests were slow due to live API calls. Phase 1.2 revealed all 109 tests complete in ~12s using mocked DBs. The 3-20min durations come from production LangGraph pipeline runs, not pytest.
+
+5. Problem Solving:
+   - **Root cause analysis completed**: Ground node is 94-95% of pipeline time, driven by high MedGemma latency (median 23s, max 308s) and sync Gemini calls blocking the event loop
+   - **MLflow data extraction**: Successfully queried SQLite DB to extract per-node timing, LLM call distributions, and retry rates across all 7 LangGraph traces
+   - **5-phase remediation plan created**: From investigation through implementation, each phase with clear completion criteria
+   - **Phase 1 fully completed**: All 6 investigation tasks executed in parallel, findings incorporated into plan
+
+6. All User Messages:
+   - "My tests take a long time to complete and should be more limited than an entire extraction-grounding loop (like only a few criteria). Also, we want to investigate, using the mlflow tracing, why the process is so time consuming. Where are the bottlenecks. Write me a root cause and comprehensive but concise report."
+   - "Let's proceed to make a branch which we'll merge to this branch for this improvement. Then create a written plan where the first phase is investigation and the following phases are implementation."
+   - "What about the investigation into: - MedGemma cold start: Determine if there's a keep-warm or provisioned-throughput option on Vertex AI Model Garden; the 308s outlier is unacceptable - Agentic retry trigger rate: Add logging/tracing for what % of entities hit the retry loop; if >30%, the threshold (confidence < 0.5) may be too aggressive. Let's do all the investigation in phase 1."
+   - (Model switch to Opus)
+   - "review the plan, clear the context first and begin execution (with Sonnet 4.6)"
+   - "yes and then clear the context first."
+
+7. Pending Tasks:
+   - **Commit updated PERF_PLAN.md** (rewritten with Phase 1 findings, not yet committed)
+   - **Execute Phase 2**: Add env vars to conftest.py, add `slow` marker to pyproject.toml, verify tests pass
+   - **Execute Phase 3**: Convert 5 sync `.invoke()` calls to `await .ainvoke()`, update test mocks, verify tests
+   - **Execute Phase 4**: Add per-entity timing and retry count to ground node MLflow spans, add protocol_id tags to all nodes
+   - **Execute Phase 5**: Move `aiplatform.Endpoint` to constructor, add pre-flight warmup call, document min_replica_count
+
+8. Current Work:
+   The PERF_PLAN.md has been fully rewritten with all Phase 1 investigation findings incorporated (Phase 1 marked COMPLETED, Phases 2-5 updated). The file was written to disk but **has not been committed yet**. The user's last instruction was "yes and then clear the context first" — meaning: (1) update PERF_PLAN.md (done), (2) commit it, (3) clear context, (4) begin Phase 2 execution.
+
+9. Optional Next Step:
+   Commit the updated PERF_PLAN.md, then clear context and begin Phase 2 execution. The user said "yes and then clear the context first" in response to "Shall I update PERF_PLAN.md with these findings and then proceed to Phase 2 execution?" — meaning commit the plan update, clear context, then execute Phase 2 (test fixture limits: add env vars to conftest.py, add `slow` marker to pyproject.toml, verify all 109 tests pass).
+
+   The branch is `feature/perf-test-limits-and-async-grounding` with 2 existing commits. The updated PERF_PLAN.md needs to be committed as the 3rd commit before clearing context and starting Phase 2.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Let's do an end to end smoketest by running some criteria through the backend
+
+---
+
+write out what you need to do and then clear your context and do it
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. This session is a continuation from a previous conversation that ran out of context. The summary from the prior session is included.
+
+2. The prior session covered:
+   - Initial investigation into test performance and MLflow tracing bottlenecks
+   - Creation of PERF_PLAN.md with 5 phases
+   - Phase 1 investigation completed (6 parallel investigation tasks)
+   - PERF_PLAN.md updated with findings but not yet committed
+
+3. This session begins with the context restoration and picks up from where the previous session left off.
+
+4. Actions in this session:
+   a. Committed updated PERF_PLAN.md with Phase 1 findings
+   b. Executed Phase 2: Added env vars to conftest.py, added slow marker to pyproject.toml, verified 207 tests pass
+   c. Executed Phase 3: Converted 5 sync .invoke() to await .ainvoke() across 5 source files and 5 test files
+   d. Executed Phase 4: Added per-entity timing and retry metrics to ground node span
+   e. Executed Phase 5: Moved aiplatform.Endpoint to constructor, added pre-flight warmup
+   f. All phases committed atomically
+
+5. User then requested an E2E smoketest. Explorer agent was launched to research how to run the pipeline.
+
+6. User then said "write out what you need to do and then clear your context and do it" - meaning I should summarize the E2E smoketest plan and then clear context to execute it.
+
+7. I read the explorer's output, the .env file, docker-compose status, E2E test files, and conftest.py to understand the setup.
+
+8. Current state:
+   - Docker: db (postgres:5432) and omop-vocab (postgres:5433) are running, but API service is NOT running
+   - .env file exists with all needed API keys configured
+   - E2E test infrastructure exists at tests/e2e/
+   - The API service needs to be started for E2E tests to work
+   - The existing E2E tests upload PDFs through the API and wait for pipeline completion
+
+Let me now compile all the details carefully.
+
+Summary:
+1. Primary Request and Intent:
+   - **Original request (prior session)**: Investigate why tests take long, limit them to a few criteria, use MLflow tracing to find bottlenecks, write a root cause report, then create a branch with a phased plan (investigation first, then implementation).
+   - **This session**: Continue from context restoration — commit updated PERF_PLAN.md, then execute Phases 2-5 of the performance plan.
+   - **Latest request**: Run an end-to-end smoketest by running some criteria through the backend. User then said: **"write out what you need to do and then clear your context and do it"** — meaning summarize the E2E smoketest execution plan, clear context, then execute it.
+
+2. Key Technical Concepts:
+   - **LangGraph 7-node pipeline**: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+   - **Ground node**: 94-95% of pipeline time, uses `asyncio.gather` with `Semaphore(4)` for parallel entity grounding
+   - **Two-model architecture**: MedGemma for medical reasoning + Gemini for structured output parsing
+   - **5 sync `.invoke()` call sites** converted to `await .ainvoke()` (Phase 3)
+   - **MedGemma via Vertex AI Model Garden**: Dedicated endpoint, `aiplatform.Endpoint` moved to constructor for gRPC reuse
+   - **Event-driven pipeline triggering**: Protocol upload → outbox event → `handle_protocol_uploaded()` → async LangGraph invocation
+   - **E2E test infrastructure**: 3-step upload flow (request URL → PUT PDF → confirm upload), `wait_for_pipeline()` polls until terminal status
+   - **Docker Compose stack**: API (port 8000), PostgreSQL (port 5432), OMOP vocab (port 5433), MLflow (port 5001)
+   - `uv run` is **required** for all Python execution (per CLAUDE.md)
+
+3. Files and Code Sections:
+
+   - **`PERF_PLAN.md`** (root)
+     - Master performance plan document with 5 phases, all now marked COMPLETED
+     - Committed 4 times across this session (Phase 1 findings, Phase 2+3 completion, Phase 4 completion, Phase 5 completion)
+
+   - **`services/protocol-processor-service/tests/conftest.py`**
+     - Added test fixture limits (Phase 2)
+     - Added lines:
+     ```python
+     # Limit grounding to 3 criteria and 5 entities in tests.
+     # Override with PIPELINE_MAX_CRITERIA=0 to run full pipeline.
+     os.environ.setdefault("PIPELINE_MAX_CRITERIA", "3")
+     os.environ.setdefault("PIPELINE_MAX_ENTITIES", "5")
+     ```
+
+   - **`pyproject.toml`** (root)
+     - Added `slow` marker to `[tool.pytest.ini_options]` markers (Phase 2)
+     - pytest config at lines 178-207: `testpaths`, `asyncio_mode = "auto"`, `addopts = "-n auto"`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py`** (Phase 3)
+     - `_structure_decision_with_gemini` changed from `def` to `async def`, `.invoke()` → `await .ainvoke()`
+     - `_structure_reasoning_with_gemini` changed from `def` to `async def`, `.invoke()` → `await .ainvoke()`
+     - Callers updated: `medgemma_decide` now uses `await _structure_decision_with_gemini()`, `agentic_reasoning_loop` now uses `await _structure_reasoning_with_gemini()`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`** (Phase 3)
+     - Line 117: `structured_llm.invoke(prompt)` → `await structured_llm.ainvoke(prompt)` (already `async def`)
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py`** (Phase 3)
+     - Line 124: `structured_llm.invoke(prompt)` → `await structured_llm.ainvoke(prompt)` (already `async def`)
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py`** (Phase 3)
+     - Line 87: `structured_llm.invoke(prompt)` → `await structured_llm.ainvoke(prompt)` (already `async def`)
+
+   - **Test files updated for Phase 3** (all `.invoke.return_value` → `.ainvoke = AsyncMock(return_value=...)`):
+     - `tests/test_phase1b_wiring.py` — 3 occurrences, also added `AsyncMock` import
+     - `tests/test_phase2_structure.py` — 2 occurrences
+     - `tests/test_ordinal_resolve.py` — multiple occurrences including `.invoke.side_effect` and `.invoke.call_args`
+     - `tests/test_ordinal_full_cycle.py` — 1 occurrence
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/ground.py`** (Phases 4 & 5)
+     - Phase 4: `_ground_entity_with_retry` return type changed to `tuple[EntityGroundingResult, int]` (returns attempt count)
+     - Phase 4: `_ground_entity_parallel` return type changed to `tuple[EntityGroundingResult | None, str | None, float, int]` (adds elapsed_ms, retries)
+     - Phase 4: `ground_node` now aggregates entity_times and total_retry_count, span outputs include `avg_entity_ms`, `max_entity_ms`, `retry_count`
+     - Phase 5: Pre-flight warmup call added before `asyncio.gather`:
+     ```python
+     try:
+         from protocol_processor.tools.medgemma_decider import _get_medgemma_model
+         from langchain_core.messages import HumanMessage as _HM
+         warmup_model = _get_medgemma_model()
+         await warmup_model.ainvoke([_HM(content="ready")])
+         logger.info("MedGemma warmup succeeded")
+     except Exception as warmup_err:
+         logger.info("MedGemma warmup skipped: %s", warmup_err)
+     ```
+
+   - **`libs/inference/src/inference/model_garden.py`** (Phase 5)
+     - `ModelGardenChatModel`: Added `_endpoint: Any = None` field
+     - Added `model_post_init()` to instantiate `aiplatform.Endpoint` once in constructor
+     - `_generate()` now uses `self._endpoint` instead of creating new `aiplatform.Endpoint` per call
+
+   - **`services/protocol-processor-service/src/protocol_processor/tracing.py`**
+     - Read only — confirmed all 7 nodes pass `protocol_id` to `pipeline_span()`
+
+   - **`tests/e2e/conftest.py`** — E2E test infrastructure
+     - Provides: `e2e_api_client` (authenticated httpx), `upload_test_pdf` (3-step upload factory), `wait_for_pipeline()` (polls until terminal status), auto-cleanup
+     - Default test PDF: `data/protocols/crc_protocols/isrctn/48616-d8fc1476.pdf`
+     - Requires Docker Compose stack running (API at localhost:8000, PostgreSQL at localhost:5432)
+
+   - **`tests/e2e/test_pipeline_full.py`** — 4 E2E tests
+     - E2E-01: Pipeline completes to pending_review
+     - E2E-02: Criteria include inclusion and exclusion
+     - E2E-03: Entities grounded with confidence
+     - E2E-06: Regression baseline thresholds met
+     - Uses `_upload_and_wait()` helper with 180s timeout
+
+   - **`.env`** — Environment configuration (exists, fully configured)
+     - `GOOGLE_API_KEY`, `UMLS_API_KEY`, `GCP_PROJECT_ID`, `VERTEX_ENDPOINT_ID`, `DATABASE_URL`, `OMOP_VOCAB_URL`, `MODEL_BACKEND=vertex`, `USE_LOCAL_STORAGE=1`, `MLFLOW_TRACKING_URI` all set
+
+   - **`infra/docker-compose.yml`** — Docker Compose stack
+     - Services: api, db, mlflow, pubsub-emulator, omop-vocab, ui
+
+4. Errors and Fixes:
+   - No errors encountered during Phases 2-5. All 207 tests passed on every run (~4.5s each time).
+   - All edits applied cleanly with `replace_all` for bulk mock updates.
+
+5. Problem Solving:
+   - **Phase 3 scope expansion**: The plan identified `test_phase1b_wiring.py` as the only test needing mock updates, but grep revealed 5 test files total needed updating (test_phase1b_wiring, test_phase2_structure, test_ordinal_resolve, test_ordinal_full_cycle). All were updated.
+   - **Phase 4 protocol_id tagging**: Confirmed all 7 nodes already pass `protocol_id` — no changes needed for that sub-task.
+   - **E2E smoketest investigation**: Docker Compose shows db and omop-vocab running, but API service is NOT running (curl to localhost:8000 fails). The API service needs to be started for E2E tests.
+
+6. All User Messages:
+   - (Context restoration from prior session summary — no explicit user message)
+   - "Let's do an end to end smoketest by running some criteria through the backend"
+   - "write out what you need to do and then clear your context and do it"
+
+7. Pending Tasks:
+   - **Run an E2E smoketest** of the pipeline with real criteria through the backend
+   - The user wants to validate the async/perf changes work end-to-end with actual API calls
+
+8. Current Work:
+   All 5 performance plan phases are complete and committed on branch `feature/perf-test-limits-and-async-grounding` (8 commits). The user then asked for an E2E smoketest. I launched an explorer agent that researched the pipeline trigger mechanism, and then I read the .env, docker-compose status, E2E test files, and conftest.py.
+
+   **Current infrastructure state**:
+   - Branch: `feature/perf-test-limits-and-async-grounding` with 8 commits
+   - Docker: `db` (postgres:5432) UP, `omop-vocab` (postgres:5433) UP, **API service NOT running**
+   - `.env` exists with all API keys configured
+   - E2E tests exist at `tests/e2e/` that can upload PDFs and wait for pipeline completion
+
+   The user said **"write out what you need to do and then clear your context and do it"**.
+
+9. Optional Next Step:
+   Execute the E2E smoketest. The steps needed:
+   
+   1. **Start the API service** — either via `docker compose -f infra/docker-compose.yml up -d` (which starts the `api` container) or by running the API service directly with `uv run`. Check if a direct `uv run` approach works since db and omop-vocab are already running.
+   2. **Wait for API health** — `curl http://localhost:8000/health` returns 200
+   3. **Run the existing E2E tests** — `uv run pytest tests/e2e/test_pipeline_full.py -v -s -m e2e` (180s timeout per test, uploads real PDF, exercises full extraction-grounding loop)
+   4. **Alternatively**, if the API container approach is problematic, run the pipeline directly via Python using `handle_protocol_uploaded()` from `protocol_processor.trigger` or direct `graph.ainvoke()`, though this requires the database and all services to be properly configured.
+   
+   The user's exact words: **"Let's do an end to end smoketest by running some criteria through the backend"** followed by **"write out what you need to do and then clear your context and do it"**.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+<task-notification>
+<task-id>a904e3a</task-id>
+<tool-use-id>toolu_01MGyJYqzUGHgt4eCAMHLtf3</tool-use-id>
+<status>completed</status>
+<summary>Agent "Explore pipeline trigger setup" completed</summary>
+<result>Perfect! Now I have all the information I need. Let me compile a comprehensive research report.
+
+## End-to-End Smoketest Research Report
+
+Based on my thorough exploration of the codebase, here's what I found:
+
+---
+
+### 1. **Pipeline Triggering Mechanism**
+
+The protocol processing pipeline is triggered via a **transactional outbox event pattern**:
+
+**File**: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/trigger.py`
+
+**How it works:**
+- When a protocol upload is confirmed via `POST /protocols/{protocol_id}/confirm-upload`, an outbox event is published (`PROTOCOL_UPLOADED`)
+- The API service (`main.py`) runs an `OutboxProcessor` in the background that continuously polls for events
+- When a `protocol_uploaded` event is found, it calls `handle_protocol_uploaded()` function
+- This function:
+  - Constructs initial pipeline state from the event payload
+  - Generates a unique thread_id for LangGraph checkpoint management
+  - Invokes the async 7-node LangGraph workflow via `asyncio.run()`
+  - Stores the thread_id in protocol metadata for retry_from_checkpoint lookups
+
+**Key entry point**: `handle_protocol_uploaded(payload)` synchronously bridges to the async graph
+
+---
+
+### 2. **Environment Variables & Services Required**
+
+**Critical environment variables** (from `.env.example` and `docker-compose.yml`):
+
+```
+DATABASE_URL=postgresql://user:password@host:5432/app
+  → PostgreSQL for protocol storage, checkpoints, and outbox events
+  
+GOOGLE_API_KEY=<your-api-key>
+  → Gemini API for extraction, structuring, ordinal resolution
+  
+UMLS_API_KEY=<your-api-key>
+  → UMLS terminology API for entity grounding (required by ground node)
+  
+MLFLOW_TRACKING_URI=http://localhost:5001
+  → Optional but recommended for experiment tracking and observability
+  
+MODEL_BACKEND=vertex | gemini
+GCP_PROJECT_ID=<your-project>
+VERTEX_ENDPOINT_ID=<endpoint-id>
+GCP_REGION=europe-west4
+  → Required only if using Vertex AI (MedGemma); otherwise use Gemini API
+  
+JWT_SECRET_KEY=<secret>
+  → For API authentication (defaults to dev-secret-key-change-in-production)
+  
+USE_LOCAL_STORAGE=1
+  → For local development; uses local file system instead of GCS
+  → Upload URL points to /local-upload/{blob_path} endpoint
+```
+
+**Required external services:**
+- PostgreSQL (port 5432) — database + checkpoint storage
+- Gemini API or Vertex AI — LLM for extraction/grounding
+- UMLS API — terminology grounding service
+- Optional: MLflow (port 5001) — experiment tracking
+- Optional: Google Cloud Storage — for production file storage
+
+---
+
+### 3. **Docker Compose Setup**
+
+**File**: `/Users/noahdolevelixir/Code/medgemma-hackathon/infra/docker-compose.yml`
+
+**Command to start full stack:**
+```bash
+docker compose -f infra/docker-compose.yml up --build
+```
+
+**Services included:**
+- `api` (port 8000) — FastAPI service with OutboxProcessor
+- `db` (PostgreSQL, port 5432) — application database
+- `mlflow` (port 5001) — experiment tracking UI
+- `pubsub-emulator` (port 8432) — Google Pub/Sub emulator
+- `omop-vocab` (port 5433) — Optional OMOP vocabulary database (requires `--profile omop`)
+- `ui` (port 3000) — React frontend
+
+**Key features:**
+- Database health checks before API startup
+- MLflow configured to auto-log LangChain traces (see `mlflow.langchain.autolog(run_tracer_inline=True)`)
+- Checkpointer (AsyncPostgresSaver) automatically creates checkpoint tables on first graph invocation
+- LOCAL_UPLOAD_DIR mounted to `/app/uploads` for file storage in dev mode
+
+---
+
+### 4. **Existing E2E Test Infrastructure**
+
+**Location**: `/Users/noahdolevelixir/Code/medgemma-hackathon/tests/e2e/`
+
+**Files:**
+- `conftest.py` — Fixtures for API client, database session, PDF upload factory
+- `test_pipeline_full.py` — 4 comprehensive E2E tests (E2E-01, E2E-02, E2E-03, E2E-06)
+- `test_infrastructure_smoke.py` — 3 infrastructure smoke tests
+- `baseline.py` — Regression thresholds for test PDFs
+
+**How to run existing tests:**
+```bash
+# Full stack must be running first:
+docker compose -f infra/docker-compose.yml up -d
+
+# Then run E2E tests:
+uv run pytest tests/e2e/ -v -m e2e
+
+# Or run only infrastructure smoke tests:
+uv run pytest tests/e2e/test_infrastructure_smoke.py -v -m e2e
+```
+
+**Test infrastructure:**
+- Auto-skips if Docker Compose stack unavailable (checks `/health` at localhost:8000 and PostgreSQL at localhost:5432)
+- Provides authenticated httpx client (JWT with synthetic test user)
+- Factory pattern for PDF uploads (mimics browser 3-step flow):
+  1. `POST /protocols/upload` → get signed/local upload URL
+  2. `PUT /local-upload/{blob_path}` → upload PDF bytes
+  3. `POST /protocols/{protocol_id}/confirm-upload` → trigger pipeline
+- Auto-cleanup fixture that deletes all test-created protocols and related data (respects foreign key constraints)
+- `wait_for_pipeline()` helper polls protocol status until terminal state (`pending_review`, `extraction_failed`, `dead_letter`, etc.)
+
+**Test datasets:**
+- Tests reference `data/protocols/clinicaltrials/Prot_000-*.pdf` PDFs (actual CRC/ClinicalTrials protocol PDFs)
+- Default test PDF: `data/protocols/clinicaltrials/Prot_000-2d2f25ab.pdf` (~90K, small for fast testing)
+
+**Regression baselines** (from `baseline.py`):
+- Only one baseline currently defined (for the default PDF)
+- Thresholds are intentionally conservative:
+  - min_criteria: 3
+  - min_inclusion: 1
+  - min_exclusion: 1
+  - min_entities: 2
+  - min_grounded_entities: 1
+
+---
+
+### 5. **API Endpoints for Pipeline Triggering**
+
+**File**: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/protocols.py`
+
+**Key endpoints:**
+
+```
+POST /protocols/upload
+  → Request signed/local upload URL
+  → Creates Protocol record with "uploaded" status
+  → Returns protocol_id, upload_url, gcs_path
+
+PUT /local-upload/{blob_path}
+  → Direct file upload (local storage only)
+  → Used in dev mode via USE_LOCAL_STORAGE=1
+
+POST /protocols/{protocol_id}/confirm-upload
+  → Confirm upload and trigger pipeline
+  → Optionally accepts pdf_bytes_base64 for quality scoring
+  → Publishes PROTOCOL_UPLOADED outbox event
+  → Returns protocol record with status
+
+POST /protocols/{protocol_id}/retry
+  → Retry failed protocol from last LangGraph checkpoint
+  → Only works for: extraction_failed, grounding_failed, dead_letter states
+  → Updates status to "processing" and resumes from checkpoint
+  → Does NOT create new outbox event (uses saved checkpoint directly)
+
+GET /protocols/{protocol_id}
+  → Fetch protocol detail (status, error_reason, quality_score, etc.)
+
+GET /protocols/{protocol_id}/batches
+  → Get all CriteriaBatch records (archived + non-archived)
+  → Shows re-extraction history in timeline view
+
+GET /reviews/batches/{batch_id}/criteria
+  → Get criteria for a batch (includes entities with grounding confidence)
+```
+
+---
+
+### 6. **Running the Pipeline Directly via Python Script**
+
+The pipeline can be invoked directly without the API/outbox:
+
+**Approach 1: Direct LangGraph invocation**
+```python
+from protocol_processor.graph import get_graph
+from protocol_processor.state import PipelineState
+import asyncio
+
+async def run_pipeline():
+    graph = await get_graph()
+    
+    initial_state = {
+        "protocol_id": "test-proto-123",
+        "file_uri": "gs://bucket/path/file.pdf",  # or "local://path/to/file.pdf"
+        "title": "Trial Protocol",
+        "batch_id": None,
+        "pdf_bytes": None,
+        "extraction_json": None,
+        "entities_json": None,
+        "grounded_entities_json": None,
+        "archived_reviewed_criteria": None,
+        "status": "processing",
+        "error": None,
+        "errors": [],
+    }
+    
+    config = {"configurable": {"thread_id": "test-thread-1"}}
+    result = await graph.ainvoke(initial_state, config)
+    return result
+
+asyncio.run(run_pipeline())
+```
+
+**Approach 2: Simulate the outbox handler directly**
+```python
+from protocol_processor.trigger import handle_protocol_uploaded
+import asyncio
+
+payload = {
+    "protocol_id": "test-proto-456",
+    "file_uri": "local://data/protocols/clinicaltrials/Prot_000-2d2f25ab.pdf",
+    "title": "Sample Protocol",
+}
+
+handle_protocol_uploaded(payload)  # Synchronous; internally runs asyncio.run()
+```
+
+**Important note**: The `retry_from_checkpoint()` function requires the protocol to already exist in the database with a saved checkpoint. It reads the thread_id from `protocol.metadata_["pipeline_thread_id"]` and resumes from there.
+
+---
+
+### 7. **Simplest Way to Run a Full Smoketest**
+
+**Recommended approach:** Use the existing E2E test infrastructure + a new simple smoketest script
+
+**Steps:**
+
+```bash
+# 1. Ensure .env is configured
+cp .env.example .env
+# Then manually set: GOOGLE_API_KEY, UMLS_API_KEY, GCLOUD_PROFILE (if using Vertex)
+
+# 2. Start full Docker Compose stack
+docker compose -f infra/docker-compose.yml up -d
+
+# 3. Wait for all services to be healthy (especially db and api)
+# You can check: curl http://localhost:8000/health
+
+# 4. Run existing E2E tests (they cover extraction-grounding loop)
+uv run pytest tests/e2e/test_pipeline_full.py::TestFullPipeline::test_pipeline_completes_successfully -v
+
+# 5. Or run the infrastructure smoke test (faster, just checks upload works)
+uv run pytest tests/e2e/test_infrastructure_smoke.py -v
+```
+
+**To test with a specific PDF:**
+```bash
+# Use custom PDF via conftest.py fixture
+uv run pytest tests/e2e/ -v --pdf-path="data/protocols/clinicaltrials/Prot_000-92094ef3.pdf"
+# (Note: fixture doesn't yet support CLI arg, would need conftest modification)
+```
+
+**Minimal smoke test (no Docker):**
+
+If you only want to test the Python pipeline code without running the full stack:
+
+```bash
+# Run unit tests for individual nodes (if they exist)
+uv run pytest services/protocol-processor-service/tests -v -k "not slow"
+
+# Run pytest with integration markers
+uv run pytest -v -m "not slow"  # Skips slow extraction/grounding tests
+```
+
+---
+
+### 8. **Pipeline Architecture (7-Node LangGraph)**
+
+**File**: `/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/graph.py`
+
+**Flow:**
+```
+START -> ingest -> extract -> parse -> ground -> persist -> structure -> ordinal_resolve -> END
+         |          |        |
+         +-----ERROR ROUTING (conditional edges)
+                     |
+                     v
+                    END (on fatal error)
+```
+
+**Nodes:**
+
+| Node | Purpose | Error Handling |
+|------|---------|---|
+| **ingest** | Fetch PDF bytes from GCS/local storage | Fatal error routes to END |
+| **extract** | Gemini extraction of inclusion/exclusion criteria | Fatal error routes to END |
+| **parse** | Parse extracted JSON into Criteria records; create CriteriaBatch | Fatal error routes to END |
+| **ground** | UMLS grounding + entity confidence scoring | Error accumulation (partial failures preserved) |
+| **persist** | Save Criteria + Entity records to database | Handles partial/total failures internally |
+| **structure** | Build expression trees from criteria free-text | Error accumulation |
+| **ordinal_resolve** | Detect & map ordinal scales (NYHA, ECOG, etc.) | Error accumulation |
+
+**State management:**
+- Minimal flat state using JSON strings for complex data
+- Fields populated on-demand as pipeline progresses
+- Checkpointing: AsyncPostgresSaver persists state after each node
+- Retry support: Resume from last checkpoint by thread_id
+
+---
+
+### 9. **Required Test Files/Datasets**
+
+**Available test PDFs:**
+```
+data/protocols/clinicaltrials/
+  ├── Prot_000-2d2f25ab.pdf    (default, ~90K - fastest)
+  ├── Prot_000-23b31694.pdf
+  ├── Prot_000-598bd24d.pdf
+  ├── Prot_000-92094ef3.pdf
+  └── ... (many more)
+```
+
+**Note**: The tests reference `data/protocols/crc_protocols/isrctn/` in some comments, but the actual PDFs are in `data/protocols/clinicaltrials/`.
+
+---
+
+### 10. **Key Configuration Files**
+
+| File | Purpose |
+|------|---------|
+| `.env.example` | Template for environment variables |
+| `.env` | Active config (git-ignored, must be created) |
+| `infra/docker-compose.yml` | Full stack orchestration |
+| `pyproject.toml` | Python dependencies, pytest config, mypy config |
+| `services/api-service/src/api_service/main.py` | API service with OutboxProcessor |
+| `services/protocol-processor-service/src/protocol_processor/trigger.py` | Pipeline entry point |
+| `services/protocol-processor-service/src/protocol_processor/graph.py` | LangGraph definition |
+| `tests/e2e/conftest.py` | E2E test fixtures |
+
+---
+
+### Summary
+
+**Quickest smoketest path:**
+
+1. Configure `.env` with API keys (GOOGLE_API_KEY, UMLS_API_KEY)
+2. Start Docker Compose: `docker compose -f infra/docker-compose.yml up -d`
+3. Wait for services to be healthy (~30s)
+4. Run E2E test: `uv run pytest tests/e2e/test_infrastructure_smoke.py::TestInfrastructureSmoke::test_upload_creates_protocol -v`
+5. For full extraction-grounding test: `uv run pytest tests/e2e/test_pipeline_full.py::TestFullPipeline::test_pipeline_completes_successfully -v -s` (180s timeout)
+
+**Key insight**: The pipeline is **event-driven and asynchronous**. Once you confirm upload, the OutboxProcessor automatically triggers the LangGraph workflow in the background. The E2E tests poll the protocol status endpoint until the pipeline reaches a terminal state.</result>
+<usage><total_tokens>62967</total_tokens><tool_uses>85</tool_uses><duration_ms>150736</duration_ms></usage>
+</task-notification>
+Full transcript available at: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/a904e3a.output
+
+---
+
+<task-notification>
+<task-id>b1600d6</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Background command "Run E2E smoketest with 600s timeout" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b7f15bd</task-id>
+<tool-use-id>toolu_01JWaHknBMo7rfuSJEMd8knJ</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Background command "Run E2E smoketest (600s timeout)" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b05048a</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>failed</status>
+<summary>Background command "Run E2E smoketest (fresh upload, 600s timeout)" failed with exit code 1</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+<task-notification>
+<task-id>b7aa7a3</task-id>
+<tool-use-id>toolu_014f9Pkkc2EKvJEGUZcTcqqn</tool-use-id>
+<output-file>/private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/b7aa7a3.output</output-file>
+<status>completed</status>
+<summary>Background command "Poll protocol status every minute" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/b7aa7a3.output
+
+---
+
+[Request interrupted by user]
+
+---
+
+<task-notification>
+<task-id>b082d30</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Check Vertex AI endpoint availability" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: REDACTED.output
+
+---
+
+Kill the stuck pipeline
+
+---
+
+This is my dedicated endpoint, see if you can reach it: mg-endpoint-d2d17a3d-7ccf-43f3-9f9b-798ff0bed7f9.europe-west4-461821350308.prediction.vertexai.goog
+
+---
+
+okay, merge this with our major refactor branch
