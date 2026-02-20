@@ -11,6 +11,7 @@ from typing import Any
 from shared.models import AtomicCriterion
 
 from api_service.exporters import ProtocolExportData
+from api_service.exporters.concept_utils import get_concept_id
 
 # Map our entity_domain values to CIRCE domain table names
 _DOMAIN_TO_CIRCE: dict[str, str] = {
@@ -94,16 +95,9 @@ def build_circe_export(data: ProtocolExportData) -> dict[str, Any]:
 def _get_concept_id(atomic: AtomicCriterion) -> int | None:
     """Get the best concept ID for an atomic criterion.
 
-    Prefers omop_concept_id, falls back to entity_concept_id.
-    Returns None if neither is a valid integer.
+    Delegates to the shared get_concept_id() helper.
     """
-    for field_val in (atomic.omop_concept_id, atomic.entity_concept_id):
-        if field_val is not None:
-            try:
-                return int(field_val)
-            except (ValueError, TypeError):
-                continue
-    return None
+    return get_concept_id(atomic)
 
 
 def _ensure_concept_set(

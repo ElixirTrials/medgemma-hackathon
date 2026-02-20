@@ -14,12 +14,15 @@ Follows the detect_logic_structure() pattern from structure_builder.py:
 from __future__ import annotations
 
 import logging
-import os
 from typing import Any
 
 from protocol_processor.schemas.ordinal import (
     OrdinalResolutionResponse,
     OrdinalScaleProposal,
+)
+from protocol_processor.tools.gemini_utils import (
+    create_structured_llm,
+    parse_structured_output,
 )
 
 logger = logging.getLogger(__name__)
@@ -40,21 +43,11 @@ async def resolve_ordinal_candidates(
     if not candidates:
         return None
 
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    if not google_api_key:
-        logger.warning("GOOGLE_API_KEY not set — skipping ordinal resolution")
+    structured_llm = create_structured_llm(OrdinalResolutionResponse)
+    if structured_llm is None:
         return None
 
     try:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-
-        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        gemini = ChatGoogleGenerativeAI(
-            model=gemini_model_name,
-            google_api_key=google_api_key,
-        )
-        structured_llm = gemini.with_structured_output(OrdinalResolutionResponse)
-
         # Build indexed entity list for the prompt
         entity_lines = []
         for i, c in enumerate(candidates):
@@ -92,10 +85,7 @@ async def resolve_ordinal_candidates(
         )
 
         result = structured_llm.invoke(prompt)
-        if isinstance(result, dict):
-            response = OrdinalResolutionResponse.model_validate(result)
-        else:
-            response = result  # type: ignore[assignment]
+        response = parse_structured_output(result, OrdinalResolutionResponse)
 
         # Filter to confirmed ordinals with sufficient confidence
         confirmed: list[OrdinalScaleProposal] = [

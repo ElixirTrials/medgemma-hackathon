@@ -2,6 +2,14 @@
 
 Generates ready-to-run SQL that evaluates a protocol's eligibility criteria
 against an OMOP CDM database. The SQL is returned as text, not executed.
+
+Limitation: This builder uses a flat AND/OR model. All inclusion atomics are
+combined with AND (all required); all exclusion atomics use NOT EXISTS (any
+disqualifies). The expression tree's nested AND/OR/NOT structure is NOT
+respected. For example, "HbA1c >= 7% OR fasting glucose >= 126" is evaluated
+as requiring both rather than either. The CIRCE and FHIR Group builders
+correctly walk the expression tree. A future enhancement could add tree-aware
+SQL generation using recursive CTE grouping.
 """
 
 from __future__ import annotations
@@ -9,6 +17,7 @@ from __future__ import annotations
 from shared.models import AtomicCriterion
 
 from api_service.exporters import ProtocolExportData
+from api_service.exporters.concept_utils import get_concept_id
 
 # Map entity_domain to OMOP CDM table + concept_id column
 _DOMAIN_TABLE: dict[str, tuple[str, str]] = {
@@ -121,14 +130,11 @@ def build_evaluation_sql(data: ProtocolExportData) -> str:
 
 
 def _get_valid_concept_id(atomic: AtomicCriterion) -> int | None:
-    """Get a validated integer concept ID for SQL interpolation."""
-    for val in (atomic.omop_concept_id, atomic.entity_concept_id):
-        if val is not None:
-            try:
-                return int(val)
-            except (ValueError, TypeError):
-                continue
-    return None
+    """Get a validated integer concept ID for SQL interpolation.
+
+    Delegates to the shared get_concept_id() helper.
+    """
+    return get_concept_id(atomic)
 
 
 def _build_atomic_cte(atomic: AtomicCriterion, concept_id: int, cte_name: str) -> str:

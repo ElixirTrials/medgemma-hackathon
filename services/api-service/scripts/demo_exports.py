@@ -282,8 +282,6 @@ def _seed(session: Session) -> ProtocolExportData:
         composites=all_composites,
         relationships=all_rels,
         atomics_by_id={a.id: a for a in all_atomics},
-        composites_by_id={c.id: c for c in all_composites},
-        children_by_parent={},
         criteria_by_id={c.id: c for c in all_criteria},
     )
 

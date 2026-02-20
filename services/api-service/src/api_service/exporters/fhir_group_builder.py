@@ -12,6 +12,7 @@ from uuid import uuid4
 from shared.models import AtomicCriterion
 
 from api_service.exporters import ProtocolExportData
+from api_service.exporters.concept_utils import get_concept_code
 
 # Map entity_concept_system to FHIR system URIs
 _SYSTEM_URI_MAP: dict[str, str] = {
@@ -167,11 +168,11 @@ def _get_system_uri(system: str | None) -> str:
 
 
 def _get_concept_code(atomic: AtomicCriterion) -> str | None:
-    """Get the best concept code for an atomic criterion."""
-    for val in (atomic.omop_concept_id, atomic.entity_concept_id):
-        if val is not None:
-            return str(val)
-    return None
+    """Get the best concept code for an atomic criterion.
+
+    Delegates to the shared get_concept_code() helper.
+    """
+    return get_concept_code(atomic)
 
 
 def _build_demographic_characteristic(

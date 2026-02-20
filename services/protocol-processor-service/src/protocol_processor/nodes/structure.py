@@ -152,9 +152,9 @@ async def structure_node(state: PipelineState) -> dict[str, Any]:
                 results = await asyncio.gather(*tasks)
 
                 # Collect errors
-                for error in results:
-                    if error is not None:
-                        accumulated_errors.append(error)
+                new_errors = [e for e in results if e is not None]
+                accumulated_errors.extend(new_errors)
+                error_count = len(new_errors)
 
                 # Write audit log
                 audit = AuditLog(
@@ -165,7 +165,7 @@ async def structure_node(state: PipelineState) -> dict[str, Any]:
                     details={
                         "protocol_id": protocol_id,
                         "criteria_processed": len(qualifying),
-                        "errors": len([e for e in results if e is not None]),
+                        "errors": error_count,
                     },
                 )
                 session.add(audit)
@@ -176,13 +176,13 @@ async def structure_node(state: PipelineState) -> dict[str, Any]:
                 " %d criteria processed, %d errors",
                 protocol_id,
                 len(qualifying),
-                len([e for e in results if e is not None]),
+                error_count,
             )
 
             span.set_outputs(
                 {
                     "criteria_processed": len(qualifying),
-                    "errors": len([e for e in results if e is not None]),
+                    "errors": error_count,
                     "status": "completed",
                 }
             )
