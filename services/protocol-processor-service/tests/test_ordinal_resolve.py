@@ -254,7 +254,9 @@ class TestResolveOrdinalCandidatesUnit:
             with patch("langchain_google_genai.ChatGoogleGenerativeAI") as mock_cls:
                 mock_model = mock_cls.return_value
                 mock_structured = mock_model.with_structured_output.return_value
-                mock_structured.ainvoke = AsyncMock(side_effect=RuntimeError("API down"))
+                mock_structured.ainvoke = AsyncMock(
+                    side_effect=RuntimeError("API down")
+                )
 
                 result = await resolve_ordinal_candidates(
                     [candidate],
