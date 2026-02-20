@@ -122,3 +122,4 @@ nav:
   - Guides:
       - Testing Guide: testing-guide.md
       - Gemini & Vertex Auth: development/gemini-vertex-auth.md
+      - Jinja2 Prompts Reference: jinja2-prompts.md

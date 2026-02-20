@@ -116,7 +116,7 @@ docs-serve:
 
 docs-openapi:
 	@echo "Exporting OpenAPI spec..."
-	uv run --project services/api-service python services/api-service/scripts/export_openapi.py
+	@set -o pipefail; uv run --project services/api-service python services/api-service/scripts/export_openapi.py 2>&1 | uv run python -c 'import sys; [sys.stdout.write(line) for line in sys.stdin if "builtin type swigvarlink has no __module__ attribute" not in line]'
 
 kill-processes:
 	@echo "Killing running processes..."
