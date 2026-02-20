@@ -1,0 +1,40 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0585b4e73973",
+  "session_id": "a1a154b0-5ab0-435c-aec8-113d1359c834",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T15:22:37.472217Z",
+  "branch": "feature/perf-test-limits-and-async-grounding",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py",
+    "services/protocol-processor-service/tests/test_ordinal_resolve.py",
+    "services/protocol-processor-service/tests/test_phase1b_wiring.py",
+    "services/protocol-processor-service/tests/test_phase2_structure.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "c292ea89e660",
+  "checkpoint_transcript_start": 671,
+  "transcript_lines_at_start": 671,
+  "token_usage": {
+    "input_tokens": 28,
+    "cache_creation_tokens": 47450,
+    "cache_read_tokens": 2557068,
+    "output_tokens": 1617,
+    "api_call_count": 28
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T15:22:36.810576Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 25,
+    "human_removed": 0,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/a1a154b0-5ab0-435c-aec8-113d1359c834.jsonl"
+}
