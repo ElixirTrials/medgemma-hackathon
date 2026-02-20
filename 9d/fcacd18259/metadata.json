@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9dfcacd18259",
+  "strategy": "manual-commit",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/claude.yml",
+    "pyproject.toml",
+    "services/api-service/pyproject.toml",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/tests/conftest.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py",
+    "services/protocol-processor-service/tests/test_ordinal_resolve.py",
+    "services/protocol-processor-service/tests/test_phase2_e2e.py",
+    "services/protocol-processor-service/tests/test_phase3_integration.py",
+    "services/protocol-processor-service/tests/test_phase3b_e2e.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/9d/fcacd18259/0/metadata.json",
+      "transcript": "/9d/fcacd18259/0/full.jsonl",
+      "context": "/9d/fcacd18259/0/context.md",
+      "content_hash": "/9d/fcacd18259/0/content_hash.txt",
+      "prompt": "/9d/fcacd18259/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 144,
+    "cache_creation_tokens": 155797,
+    "cache_read_tokens": 14024762,
+    "output_tokens": 12858,
+    "api_call_count": 130
+  }
+}
