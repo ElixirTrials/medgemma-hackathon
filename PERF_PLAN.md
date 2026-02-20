@@ -204,7 +204,7 @@ uv run pytest services/protocol-processor-service/tests/ -v --tb=short -n0
 
 ---
 
-## Phase 4 — Per-Entity Tracing in Ground Node
+## Phase 4 — Per-Entity Tracing in Ground Node (COMPLETED)
 
 **Goal:** Add entity-level span data to the ground node's MLflow trace so
 future bottleneck investigations don't require log-grepping.
@@ -239,9 +239,9 @@ for a single pipeline run can be grouped in the MLflow UI.
 
 ### Phase 4 Completion Criteria
 
-- [ ] `ground_node` span outputs include `avg_entity_ms`, `max_entity_ms`, `retry_count`
-- [ ] All 7 pipeline nodes tag their trace with `protocol_id`
-- [ ] All tests pass
+- [x] `ground_node` span outputs include `avg_entity_ms`, `max_entity_ms`, `retry_count`
+- [x] All 7 pipeline nodes tag their trace with `protocol_id` (verified: all pass protocol_id)
+- [x] All 207 tests pass
 
 ---
 

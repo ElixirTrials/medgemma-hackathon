@@ -198,7 +198,7 @@ async def _ground_entity_with_retry(
     entity: dict[str, Any],
     router: TerminologyRouter,
     criterion_text: str,
-) -> EntityGroundingResult:
+) -> tuple[EntityGroundingResult, int]:
     """Ground a single entity with agentic retry loop (max 3 attempts).
 
     Implements the MedGemma agentic reasoning loop:
@@ -213,7 +213,8 @@ async def _ground_entity_with_retry(
         criterion_text: Full criterion text for context.
 
     Returns:
-        EntityGroundingResult. May have expert_review marker in reasoning.
+        Tuple of (EntityGroundingResult, attempt_count). May have expert_review
+        marker in reasoning.
     """
     entity_text = entity.get("text", "")
     entity_type = entity.get("entity_type", "")
@@ -265,7 +266,7 @@ async def _ground_entity_with_retry(
                 entity_text[:50],
                 attempt,
             )
-            return EntityGroundingResult(
+            return (EntityGroundingResult(
                 entity_text=entity_text,
                 entity_type=entity_type,
                 selected_code=None,
@@ -277,7 +278,7 @@ async def _ground_entity_with_retry(
                     f"Skipped by agentic reasoning (attempt {attempt}): "
                     f"{reasoning_result.reasoning}"
                 ),
-            )
+            ), attempt)
 
         new_query = (
             reasoning_result.rephrased_query
@@ -300,7 +301,7 @@ async def _ground_entity_with_retry(
             result = await medgemma_decide(retry_entity, new_candidates, criterion_text)
             if result.selected_code and result.confidence >= 0.5:
                 # Success — preserve original entity_text
-                return EntityGroundingResult(
+                return (EntityGroundingResult(
                     entity_text=entity_text,
                     entity_type=result.entity_type,
                     selected_code=result.selected_code,
@@ -312,7 +313,7 @@ async def _ground_entity_with_retry(
                         f"[Attempt {attempt}, query='{new_query}'] {result.reasoning}"
                     ),
                     field_mappings=result.field_mappings,
-                )
+                ), attempt)
 
     # Route to expert_review if all attempts exhausted without success
     if result.selected_code is None and attempt >= 2:
@@ -323,7 +324,7 @@ async def _ground_entity_with_retry(
             entity_type,
             attempt,
         )
-        return EntityGroundingResult(
+        return (EntityGroundingResult(
             entity_text=result.entity_text,
             entity_type=result.entity_type,
             selected_code=result.selected_code,
@@ -336,9 +337,9 @@ async def _ground_entity_with_retry(
                 f"{attempt} failed grounding attempts. "
                 f"Last reasoning: {result.reasoning}"
             ),
-        )
+        ), attempt)
 
-    return result
+    return (result, attempt)
 
 
 async def _ground_entity_parallel(
@@ -348,7 +349,7 @@ async def _ground_entity_parallel(
     entity_num: int,
     total: int,
     semaphore: asyncio.Semaphore,
-) -> tuple[EntityGroundingResult | None, str | None]:
+) -> tuple[EntityGroundingResult | None, str | None, float, int]:
     """Ground a single entity with concurrency control and timing.
 
     Acquires the semaphore before grounding to cap concurrent API calls.
@@ -364,7 +365,8 @@ async def _ground_entity_parallel(
         semaphore: Concurrency limiter (Semaphore(4)).
 
     Returns:
-        (EntityGroundingResult, None) on success, or (None, error_message) on failure.
+        (EntityGroundingResult, None, elapsed_ms, retry_attempts) on success,
+        or (None, error_message, elapsed_ms, 0) on failure.
     """
     async with semaphore:
         entity_text = entity.get("text", "")[:50]
@@ -383,7 +385,9 @@ async def _ground_entity_parallel(
             full_entity_text = entity.get("text", "")
             tu_task = _ground_entity_with_retry(entity, router, criterion_text)
             omop_task = lookup_omop_concept(full_entity_text, entity_type)
-            result, omop_result = await asyncio.gather(tu_task, omop_task)
+            (result, retry_attempts), omop_result = await asyncio.gather(
+                tu_task, omop_task
+            )
 
             # Reconcile dual grounding results
             result = _reconcile_dual_grounding(result, omop_result)
@@ -398,6 +402,7 @@ async def _ground_entity_parallel(
             result.field_mappings = field_mappings if field_mappings else None
 
             elapsed = time.monotonic() - start
+            elapsed_ms = elapsed * 1000
             logger.info(
                 "Entity %d/%d '%s' grounded in %.1fs: code=%s, omop=%s, conf=%.2f",
                 entity_num,
@@ -408,9 +413,10 @@ async def _ground_entity_parallel(
                 result.omop_concept_id or "N/A",
                 result.confidence,
             )
-            return (result, None)
+            return (result, None, elapsed_ms, retry_attempts)
         except Exception as e:
             elapsed = time.monotonic() - start
+            elapsed_ms = elapsed * 1000
             logger.error(
                 "Entity %d/%d '%s' failed in %.1fs: %s",
                 entity_num,
@@ -419,7 +425,7 @@ async def _ground_entity_parallel(
                 elapsed,
                 e,
             )
-            return (None, str(e))
+            return (None, str(e), elapsed_ms, 0)
 
 
 async def ground_node(state: PipelineState) -> dict[str, Any]:
@@ -544,7 +550,13 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
 
             # Process outcomes and collect audit entries for batch write
             pending_audits: list[tuple[str, dict[str, Any], list[Any], Any]] = []
-            for (idx, entity), (result, error) in zip(entities_to_ground, outcomes):
+            entity_times: list[float] = []
+            total_retry_count = 0
+            for (idx, entity), (result, error, elapsed_ms, retries) in zip(
+                entities_to_ground, outcomes
+            ):
+                entity_times.append(elapsed_ms)
+                total_retry_count += max(0, retries - 1)  # retries beyond first attempt
                 entity_text = entity.get("text", "")
                 criterion_id = entity.get("criterion_id", "")
 
@@ -577,6 +589,9 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                 {
                     "grounded_count": len(grounding_results),
                     "error_count": len(accumulated_errors),
+                    "avg_entity_ms": round(sum(entity_times) / len(entity_times)) if entity_times else 0,
+                    "max_entity_ms": round(max(entity_times)) if entity_times else 0,
+                    "retry_count": total_retry_count,
                 }
             )
 
