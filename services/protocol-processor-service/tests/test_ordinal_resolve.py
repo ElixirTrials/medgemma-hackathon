@@ -6,7 +6,6 @@ to verify the full flow from AtomicCriterion query through DB update.
 
 from __future__ import annotations
 
-import gc
 import json
 import os
 from typing import Any, Generator
@@ -46,7 +45,6 @@ def engine():
         yield eng
     finally:
         eng.dispose()
-        gc.collect()
 
 
 @pytest.fixture()
