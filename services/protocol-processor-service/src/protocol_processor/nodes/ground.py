@@ -27,6 +27,7 @@ import time
 from typing import Any
 
 from api_service.storage import engine
+from rapidfuzz import fuzz
 from shared.models import AuditLog
 from sqlmodel import Session
 
@@ -85,10 +86,10 @@ def _reconcile_dual_grounding(
 
     if tu_ok and omop_ok:
         result.omop_concept_id = omop_result.omop_concept_id
-        # Simple agreement check: do the preferred terms overlap?
+        # Fuzzy agreement check using token_set_ratio (order-insensitive)
         tu_term = (result.preferred_term or "").lower()
         omop_term = (omop_result.omop_concept_name or "").lower()
-        if tu_term and omop_term and (tu_term in omop_term or omop_term in tu_term):
+        if tu_term and omop_term and fuzz.token_set_ratio(tu_term, omop_term) >= 80:
             result.reconciliation_status = "agree"
         else:
             result.reconciliation_status = "disagreement"
@@ -159,6 +160,38 @@ def _log_grounding_audit(
         },
     )
     session.add(audit)
+
+
+def _flush_audit_logs(
+    protocol_id: str,
+    pending_audits: list[tuple[str, dict[str, Any], list[Any], Any]],
+) -> None:
+    """Batch-write audit log entries in a single session.
+
+    Args:
+        protocol_id: Protocol ID for context.
+        pending_audits: List of (criterion_id, entity, candidates, result) tuples.
+    """
+    if not pending_audits:
+        return
+    try:
+        with Session(engine) as session:
+            for criterion_id, entity, candidates, result in pending_audits:
+                _log_grounding_audit(
+                    session,
+                    protocol_id,
+                    criterion_id,
+                    entity,
+                    candidates,
+                    result,
+                )
+            session.commit()
+    except Exception as audit_error:
+        logger.warning(
+            "Failed to batch-write %d AuditLog entries: %s",
+            len(pending_audits),
+            audit_error,
+        )
 
 
 async def _ground_entity_with_retry(
@@ -509,31 +542,16 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
 
             outcomes = await asyncio.gather(*tasks)
 
-            # Process outcomes
+            # Process outcomes and collect audit entries for batch write
+            pending_audits: list[tuple[str, dict[str, Any], list[Any], Any]] = []
             for (idx, entity), (result, error) in zip(entities_to_ground, outcomes):
                 entity_text = entity.get("text", "")
                 criterion_id = entity.get("criterion_id", "")
 
                 if result is not None:
-                    # Log grounding decision to AuditLog
-                    try:
-                        with Session(engine) as session:
-                            _log_grounding_audit(
-                                session,
-                                protocol_id,
-                                criterion_id,
-                                entity,
-                                result.candidates,
-                                result,
-                            )
-                            session.commit()
-                    except Exception as audit_error:
-                        logger.warning(
-                            "Failed to write AuditLog for entity '%s': %s",
-                            entity_text[:50],
-                            audit_error,
-                        )
-
+                    pending_audits.append(
+                        (criterion_id, entity, result.candidates, result)
+                    )
                     grounding_results.append(result.model_dump())
                 else:
                     # Entity failed — create expert_review fallback
@@ -544,6 +562,9 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                     )
                     logger.error(error_msg)
                     accumulated_errors.append(error_msg)
+
+            # Batch-write all audit log entries in a single session
+            _flush_audit_logs(protocol_id, pending_audits)
 
             logger.info(
                 "Ground node complete for protocol %s: %d grounded, %d errors",

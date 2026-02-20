@@ -27,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
+# Lazy singleton for Gemini client (avoids re-creating per request)
+_genai_client: Any = None
+
 _AI_PARSE_ERROR = (
     "AI could not produce a valid structured result. Try rephrasing your feedback."
 )
@@ -146,7 +149,10 @@ Return ONLY valid JSON with these fields:
     api_key = os.getenv("GOOGLE_API_KEY")
     model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
-    client = genai.Client(api_key=api_key)
+    global _genai_client  # noqa: PLW0603
+    if _genai_client is None:
+        _genai_client = genai.Client(api_key=api_key)
+    client = _genai_client
 
     try:
         response = await client.aio.models.generate_content(

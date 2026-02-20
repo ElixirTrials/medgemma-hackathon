@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict
 
 import jwt
@@ -35,7 +35,16 @@ oauth.register(
 )
 
 # JWT secret from environment
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-secret-key-change-in-production")
+_DEFAULT_JWT_SECRET = "dev-secret-key-change-in-production"
+SECRET_KEY = os.getenv("JWT_SECRET_KEY", _DEFAULT_JWT_SECRET)
+
+# Validate secrets at import time in production
+if os.getenv("ENVIRONMENT", "").lower() == "production":
+    if SECRET_KEY == _DEFAULT_JWT_SECRET:
+        raise RuntimeError(
+            "JWT_SECRET_KEY must be set to a secure value in production. "
+            "The default dev secret is not allowed."
+        )
 
 # Block redirects when OAuth is unconfigured or using a known-deleted client
 # (stops Cursor/IDE popups).
@@ -146,7 +155,7 @@ async def auth_callback(
             "sub": user.id,
             "email": user.email,
             "name": user.name,
-            "exp": datetime.utcnow() + timedelta(hours=24),
+            "exp": datetime.now(tz=timezone.utc) + timedelta(hours=24),
         }
         access_token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
@@ -209,7 +218,7 @@ def dev_login(db: Session = Depends(get_db)) -> TokenResponse:
         "sub": user.id,
         "email": user.email,
         "name": user.name,
-        "exp": datetime.utcnow() + timedelta(hours=24),
+        "exp": datetime.now(tz=timezone.utc) + timedelta(hours=24),
     }
     access_token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 

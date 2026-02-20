@@ -18,7 +18,7 @@ import json
 import logging
 from typing import Any
 
-from api_service.protocols import _apply_review_inheritance
+from api_service.protocols import apply_review_inheritance
 from api_service.storage import engine
 from shared.models import AuditLog, Criteria, CriteriaBatch, Entity, Protocol
 from sqlmodel import Session
@@ -389,7 +389,7 @@ async def persist_node(state: PipelineState) -> dict[str, Any]:
             if archived_reviewed and protocol_id:
                 try:
                     with Session(engine) as inheritance_session:
-                        _apply_review_inheritance(
+                        apply_review_inheritance(
                             inheritance_session,
                             protocol_id,
                             archived_reviewed,

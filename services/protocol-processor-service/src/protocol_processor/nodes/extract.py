@@ -61,7 +61,7 @@ async def extract_node(state: PipelineState) -> dict[str, Any]:
                     else 0,
                 }
             )
-            return {"extraction_json": extraction_json}
+            return {"extraction_json": extraction_json, "pdf_bytes": None}
 
         except Exception as e:
             logger.exception(

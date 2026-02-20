@@ -149,8 +149,17 @@ def upgrade() -> None:
                 sa.ForeignKey("composite_criteria.id"),
                 primary_key=True,
             ),
+            # child_criterion_id intentionally has no FK constraint: it is a
+            # polymorphic reference that may point to atomic_criteria.id OR
+            # composite_criteria.id depending on child_type. Standard FK
+            # constraints cannot express this polymorphic relationship.
             sa.Column("child_criterion_id", sa.String(), primary_key=True),
-            sa.Column("child_type", sa.String(), nullable=False),
+            sa.Column(
+                "child_type",
+                sa.String(),
+                nullable=False,
+                comment="atomic|composite — target table for child_criterion_id",
+            ),
             sa.Column("child_sequence", sa.Integer(), default=0, nullable=False),
         )
 

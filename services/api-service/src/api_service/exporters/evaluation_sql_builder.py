@@ -88,6 +88,12 @@ def build_evaluation_sql(data: ProtocolExportData) -> str:
 
     parts: list[str] = []
     parts.append("-- Auto-generated OMOP CDM v5.4 eligibility evaluation SQL")
+    parts.append(
+        "-- WARNING: This SQL uses flat AND/OR semantics. All inclusion criteria\n"
+        "-- are combined with AND (all required); exclusion criteria use NOT EXISTS.\n"
+        "-- Nested AND/OR/NOT structure from the expression tree is NOT respected.\n"
+        "-- Use the CIRCE or FHIR Group export for tree-aware logic."
+    )
     parts.append(f"-- Protocol: {data.protocol.title} ({data.protocol.id})")
     parts.append(f"-- Generated from {len(ctes)} atomic criteria\n")
     parts.append("WITH")
@@ -163,11 +169,13 @@ def _build_atomic_cte(atomic: AtomicCriterion, concept_id: int, cte_name: str) -
         and atomic.relation_operator
         and atomic.value_numeric is not None
     )
-    if is_measurement:
+    if is_measurement and atomic.value_numeric is not None:
         sql_op = _SQL_OP.get(atomic.relation_operator or "=", "=")
-        lines.append(f"    AND t.value_as_number {sql_op} {atomic.value_numeric}")
+        val = float(atomic.value_numeric)
+        lines.append(f"    AND t.value_as_number {sql_op} {val}")
         if atomic.unit_concept_id is not None:
-            lines.append(f"    AND t.unit_concept_id = {atomic.unit_concept_id}")
+            unit_id = int(atomic.unit_concept_id)
+            lines.append(f"    AND t.unit_concept_id = {unit_id}")
 
     lines.append(")")
     return "\n".join(lines)

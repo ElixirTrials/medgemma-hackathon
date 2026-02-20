@@ -109,9 +109,17 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 # Add SessionMiddleware for OAuth state (must be before CORS)
+_DEFAULT_SESSION_SECRET = "dev-session-secret"
+_session_secret = os.getenv("SESSION_SECRET", _DEFAULT_SESSION_SECRET)
+_is_production = os.getenv("ENVIRONMENT", "").lower() == "production"
+if _is_production and _session_secret == _DEFAULT_SESSION_SECRET:
+    raise RuntimeError(
+        "SESSION_SECRET must be set to a secure value in production. "
+        "The default dev secret is not allowed."
+    )
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET", "dev-session-secret"),
+    secret_key=_session_secret,
 )
 
 # Configure CORS

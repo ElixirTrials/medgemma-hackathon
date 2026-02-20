@@ -429,7 +429,6 @@ async def lookup_omop_concept(entity_text: str, entity_type: str) -> OmopLookupR
         domain_id,
     )
 
-    loop = asyncio.get_event_loop()
-    result = await loop.run_in_executor(None, _sync_lookup, entity_text, domain_id)
+    result = await asyncio.to_thread(_sync_lookup, entity_text, domain_id)
 
     return result
