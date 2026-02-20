@@ -1,7 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 
 import { LogOut, User } from 'lucide-react';
-import { type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { Button } from './components/ui/Button';
 import { useAuth } from './hooks/useAuth';
 import Dashboard from './screens/Dashboard';
@@ -51,13 +51,62 @@ function App() {
 
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
-                <Route path="/" element={<RequireAuth><Dashboard /></RequireAuth>} />
-                <Route path="/protocols" element={<RequireAuth><ProtocolList /></RequireAuth>} />
-                <Route path="/protocols/:id" element={<RequireAuth><ProtocolDetail /></RequireAuth>} />
-                <Route path="/reviews" element={<RequireAuth><ReviewQueue /></RequireAuth>} />
-                <Route path="/reviews/:batchId" element={<RequireAuth><ReviewPage /></RequireAuth>} />
-                <Route path="/entities/:batchId" element={<RequireAuth><EntityList /></RequireAuth>} />
-                <Route path="/search" element={<RequireAuth><SearchPage /></RequireAuth>} />
+                <Route
+                    path="/"
+                    element={
+                        <RequireAuth>
+                            <Dashboard />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/protocols"
+                    element={
+                        <RequireAuth>
+                            <ProtocolList />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/protocols/:id"
+                    element={
+                        <RequireAuth>
+                            <ProtocolDetail />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/reviews"
+                    element={
+                        <RequireAuth>
+                            <ReviewQueue />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/reviews/:batchId"
+                    element={
+                        <RequireAuth>
+                            <ReviewPage />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/entities/:batchId"
+                    element={
+                        <RequireAuth>
+                            <EntityList />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/search"
+                    element={
+                        <RequireAuth>
+                            <SearchPage />
+                        </RequireAuth>
+                    }
+                />
             </Routes>
         </div>
     );

@@ -1,6 +1,18 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
 import * as Collapsible from '@radix-ui/react-collapsible';
-import { AlertTriangle, ArrowLeft, BarChart3, Check, ChevronDown, ChevronRight, ClipboardList, Copy, History, Loader2, RefreshCw } from 'lucide-react';
+import {
+    AlertTriangle,
+    ArrowLeft,
+    BarChart3,
+    Check,
+    ChevronDown,
+    ChevronRight,
+    ClipboardList,
+    Copy,
+    History,
+    Loader2,
+    RefreshCw,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 
@@ -127,7 +139,8 @@ function ReExtractButton({ protocolId, protocolStatus }: ReExtractButtonProps) {
                         </AlertDialog.Title>
                         <AlertDialog.Description className="text-sm text-muted-foreground">
                             Old batches will be saved but not available in the dashboard. Existing
-                            reviews will be preserved and automatically applied to matching criteria.
+                            reviews will be preserved and automatically applied to matching
+                            criteria.
                         </AlertDialog.Description>
                         <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                             <AlertDialog.Cancel asChild>
@@ -213,7 +226,11 @@ export default function ProtocolDetail() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
 
-    const { data: protocol, isLoading, error } = useProtocol(id ?? '', {
+    const {
+        data: protocol,
+        isLoading,
+        error,
+    } = useProtocol(id ?? '', {
         refetchInterval: 5000,
         refetchIntervalInBackground: false,
     });
@@ -440,17 +457,13 @@ export default function ProtocolDetail() {
                     <Link to="/protocols">Back to List</Link>
                 </Button>
                 {latestBatch && protocol.status === 'pending_review' && (
-                    <Button
-                        onClick={() => navigate(`/reviews/${latestBatch.id}`)}
-                    >
+                    <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
                         <ClipboardList className="h-4 w-4 mr-2" />
                         Review New Criteria ({latestBatch.criteria_count})
                     </Button>
                 )}
                 {latestBatch && protocol.status !== 'pending_review' && (
-                    <Button
-                        onClick={() => navigate(`/reviews/${latestBatch.id}`)}
-                    >
+                    <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
                         <ClipboardList className="h-4 w-4 mr-2" />
                         Review Criteria ({latestBatch.criteria_count})
                     </Button>

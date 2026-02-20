@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient, type UseQueryOptions } from '@tanstack/react-query';
+import { type UseQueryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useAuthStore } from '../stores/authStore';
 
@@ -53,7 +53,7 @@ export interface Protocol {
     metadata_: Record<string, unknown>;
     created_at: string;
     updated_at: string;
-    version_count?: number;  // Present when deduplicate=true
+    version_count?: number; // Present when deduplicate=true
 }
 
 export interface ProtocolListResponse {
@@ -72,7 +72,12 @@ export interface UploadResponse {
 
 // --- Hooks ---
 
-export function useProtocolList(page: number, pageSize: number, status?: string, deduplicate?: boolean) {
+export function useProtocolList(
+    page: number,
+    pageSize: number,
+    status?: string,
+    deduplicate?: boolean
+) {
     const params = new URLSearchParams({
         page: String(page),
         page_size: String(pageSize),
@@ -90,10 +95,7 @@ export function useProtocolList(page: number, pageSize: number, status?: string,
     });
 }
 
-export function useProtocol(
-    id: string,
-    options?: Partial<UseQueryOptions<Protocol, Error>>
-) {
+export function useProtocol(id: string, options?: Partial<UseQueryOptions<Protocol, Error>>) {
     return useQuery({
         queryKey: ['protocols', id],
         queryFn: () => fetchApi<Protocol>(`/protocols/${id}`),

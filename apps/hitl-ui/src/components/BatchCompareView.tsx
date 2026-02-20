@@ -53,9 +53,7 @@ export function BatchCompareView({ batchA, batchB }: BatchCompareViewProps) {
     if (error || !data) {
         return (
             <div className="rounded-lg border bg-card p-4 shadow-sm">
-                <p className="text-sm text-muted-foreground">
-                    Could not load comparison data.
-                </p>
+                <p className="text-sm text-muted-foreground">Could not load comparison data.</p>
             </div>
         );
     }
@@ -73,7 +71,9 @@ export function BatchCompareView({ batchA, batchB }: BatchCompareViewProps) {
                         )}
                     >
                         <div className="text-xl font-bold">{data[key]}</div>
-                        <div className="text-xs font-medium capitalize">{STATUS_CONFIG[key].label}</div>
+                        <div className="text-xs font-medium capitalize">
+                            {STATUS_CONFIG[key].label}
+                        </div>
                     </div>
                 ))}
             </div>
@@ -83,14 +83,19 @@ export function BatchCompareView({ batchA, batchB }: BatchCompareViewProps) {
                 {data.rows
                     .filter((row) => row.status !== 'unchanged')
                     .concat(data.rows.filter((row) => row.status === 'unchanged'))
-                    .map((row, idx) => {
+                    .map((row) => {
                         const config = STATUS_CONFIG[row.status];
                         const textA = getCriterionText(row.batch_a_criterion);
                         const textB = getCriterionText(row.batch_b_criterion);
+                        const rowKey = String(
+                            row.batch_a_criterion?.id ??
+                                row.batch_b_criterion?.id ??
+                                `${row.status}-${textA ?? textB}`
+                        );
 
                         return (
                             <div
-                                key={idx}
+                                key={rowKey}
                                 className={cn(
                                     'border-l-4 pl-3 py-2 text-sm rounded-r-lg border border-l-0',
                                     config.borderColor

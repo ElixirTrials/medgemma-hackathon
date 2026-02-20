@@ -1,106 +1,87 @@
-site_name: Clinical Trial Criteria Extraction System
+site_name: ElixirTrials — Clinical Trial Criteria Extraction
 site_description: AI-powered system for extracting and grounding clinical trial eligibility criteria from protocol PDFs
-site_author: MedGemma Hackathon Team
+site_author: ElixirTrials Team
 site_url: https://noahdolevelixir.github.io/medgemma-hackathon/
-site_dir: site/docs
+site_dir: site
 docs_dir: docs
 repo_name: noahdolevelixir/medgemma-hackathon
 repo_url: https://github.com/noahdolevelixir/medgemma-hackathon
 edit_uri: edit/main/docs/
-exclude_docs: '**/node_modules/**
-
+exclude_docs: |
+  **/node_modules/**
   **/.pytest_cache/**
-
   **/.ruff_cache/**
-
   **/.mypy_cache/**
-
   **/__pycache__/**
-
   **/src/**
-
   **/tests/**
-
   **/scripts/**
-
   **/alembic/**
-
   **/e2e/**
-
   **/dist/**
-
   **/.vite/**
-
-  # Exclude frontend app entry HTML files (not documentation)
-
   hitl-ui/index.html
 
-  '
 theme:
-  name: material
-  features:
-  - navigation.tabs
-  - navigation.sections
-  - navigation.expand
-  - navigation.top
-  - search.suggest
-  - search.highlight
-  - content.code.copy
-  - content.code.annotate
-  palette:
-  - media: (prefers-color-scheme)
-    scheme: default
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-auto
-      name: Switch to dark mode
-  - media: '(prefers-color-scheme: dark)'
-    scheme: slate
-    primary: indigo
-    accent: indigo
-    toggle:
-      icon: material/brightness-7
-      name: Switch to light mode
+  name: mkdocs
+  navigation_depth: 3
+  locale: en
+
+extra_css:
+  - assets/custom.css
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js
+  - assets/mermaid-init.js
+
 plugins:
-- search
-- monorepo
-- mkdocstrings:
-    default_handler: python
-    handlers:
-      python:
-        paths:
-        - services/*/src
-        - libs/*/src
-        options:
-          show_source: true
-          show_root_heading: true
-          show_category_heading: true
-          show_signature_annotations: true
-          show_bases: true
-          heading_level: 2
-          members_order: source
-          docstring_style: google
-          filters:
-          - '!^_'
-          merge_init_into_class: true
-          show_if_no_docstring: false
-          separate_signature: true
-          signature_crossrefs: true
-          show_submodules: true
-          show_inheritance_diagram: true
-          show_root_toc_entry: true
+  - search
+  - monorepo
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths:
+            - services/*/src
+            - libs/*/src
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+            show_signature_annotations: true
+            show_bases: true
+            heading_level: 2
+            members_order: source
+            docstring_style: google
+            filters:
+              - "!^_"
+            merge_init_into_class: true
+            show_if_no_docstring: false
+            separate_signature: true
+            signature_crossrefs: true
+            show_submodules: true
+            show_root_toc_entry: true
+
 markdown_extensions:
+  - admonition
+  - pymdownx.details
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
           class: mermaid
-          format: !!python/name:pymdownx.superfences.fence_code_format
+          format: !!python/name:pymdownx.superfences.fence_div_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
 validation:
   omitted_files: warn
   absolute_links: warn
   unrecognized_links: warn
   anchors: warn
+
 nav:
   - Home: index.md
   - Onboarding: onboarding.md
@@ -113,27 +94,24 @@ nav:
   - User Journeys:
       - Overview: journeys/index.md
       - Upload & Extraction: journeys/upload-extraction.md
-      - Grounding & HITL Review: journeys/grounding-review.md
+      - Grounding, Structuring & HITL Review: journeys/grounding-review.md
 
   - Components:
       - Overview: components/index.md
-      - extraction-service: '!include ./services/extraction-service/mkdocs.yml'
-      - grounding-service: '!include ./services/grounding-service/mkdocs.yml'
-      - api-service: '!include ./services/api-service/mkdocs.yml'
-      - data-pipeline: '!include ./libs/data-pipeline/mkdocs.yml'
-      - evaluation: '!include ./libs/evaluation/mkdocs.yml'
-      - events-py: '!include ./libs/events-py/mkdocs.yml'
-      - events-ts: '!include ./libs/events-ts/mkdocs.yml'
-      - hitl-ui: '!include ./apps/hitl-ui/mkdocs.yml'
-      - inference: '!include ./libs/inference/mkdocs.yml'
-      - model-training: '!include ./libs/model-training/mkdocs.yml'
-      - shared: '!include ./libs/shared/mkdocs.yml'
-      - shared-ts: '!include ./libs/shared-ts/mkdocs.yml'
+      - api-service: "!include ./services/api-service/mkdocs.yml"
+      - protocol-processor-service: "!include ./services/protocol-processor-service/mkdocs.yml"
+      - hitl-ui: "!include ./apps/hitl-ui/mkdocs.yml"
+      - shared: "!include ./libs/shared/mkdocs.yml"
+      - events-py: "!include ./libs/events-py/mkdocs.yml"
+      - data-pipeline: "!include ./libs/data-pipeline/mkdocs.yml"
+      - evaluation: "!include ./libs/evaluation/mkdocs.yml"
+      - inference: "!include ./libs/inference/mkdocs.yml"
+      - model-training: "!include ./libs/model-training/mkdocs.yml"
 
   - Diagrams:
       - HITL Flow: diagrams/hitl-flow.md
       - Agent Flow: diagrams/agent-flow.md
-      - LangGraph Architecture: diagrams/langgraph-architecture.md
+      - LangGraph Pipeline: diagrams/langgraph-architecture.md
 
   - Status:
       - Overview: status/index.md
@@ -143,4 +121,4 @@ nav:
 
   - Guides:
       - Testing Guide: testing-guide.md
-      - Gemini & Vertex auth: development/gemini-vertex-auth.md
+      - Gemini & Vertex Auth: development/gemini-vertex-auth.md

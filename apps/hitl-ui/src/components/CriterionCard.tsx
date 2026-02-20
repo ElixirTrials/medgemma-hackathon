@@ -1,4 +1,13 @@
-import { CheckCircle, Clock, Hash, ListChecks, Loader2, Pencil, Wand2, XCircle } from 'lucide-react';
+import {
+    CheckCircle,
+    Clock,
+    Hash,
+    ListChecks,
+    Loader2,
+    Pencil,
+    Wand2,
+    XCircle,
+} from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import type { Criterion, ReviewActionRequest } from '../hooks/useReviews';
@@ -7,8 +16,8 @@ import { CriterionAuditHistory } from './CriterionAuditHistory';
 import { CriterionRerunPanel } from './CriterionRerunPanel';
 import FieldMappingBadges from './FieldMappingBadges';
 import RejectDialog from './RejectDialog';
-import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
 import { StructuredFieldEditor } from './structured-editor/StructuredFieldEditor';
+import { DEFAULT_FIELD_VALUES } from './structured-editor/constants';
 import type {
     FieldMapping,
     FieldValue,
@@ -22,8 +31,8 @@ interface CriterionCardProps {
     criterion: Criterion;
     onAction: (criterionId: string, action: ReviewActionRequest) => void;
     isSubmitting: boolean;
-    onCriterionClick?: (criterion: Criterion) => void;  // NEW
-    isActive?: boolean;  // NEW - whether this criterion is the active/highlighted one
+    onCriterionClick?: (criterion: Criterion) => void; // NEW
+    isActive?: boolean; // NEW - whether this criterion is the active/highlighted one
 }
 
 function ConfidenceBadge({ confidence }: { confidence: number }) {
@@ -108,7 +117,7 @@ function formatTemporalConstraint(tc: Record<string, unknown>): string {
         at_least: 'At least',
     };
 
-    const relationText = relation ? (relationMap[relation] || relation) : '';
+    const relationText = relation ? relationMap[relation] || relation : '';
     const parts = [relationText, duration];
     if (referencePoint) parts.push('of', referencePoint);
 
@@ -130,9 +139,7 @@ function formatNumericThreshold(threshold: Record<string, unknown>): string {
     return `${comparator}${value} ${unit}`.trim();
 }
 
-function extractThresholdsList(
-    nt: Record<string, unknown> | null
-): Array<Record<string, unknown>> {
+function extractThresholdsList(nt: Record<string, unknown> | null): Array<Record<string, unknown>> {
     if (!nt) return [];
 
     // Shape 1: {"thresholds": [...]} wrapper object
@@ -162,7 +169,7 @@ function mapComparator(comparator: string): RelationOperator | '' {
         '<': '<',
         '==': '=',
         '=': '=',
-        'range': 'within',
+        range: 'within',
     };
     return map[comparator] ?? '';
 }
@@ -241,7 +248,10 @@ function buildInitialValues(criterion: Criterion): StructuredFieldFormValues {
 
     // Simple matching: pair thresholds with relevant entities by type
     const measurableEntities = entities.filter(
-        (e) => e.entity_type === 'Lab_Value' || e.entity_type === 'Biomarker' || e.entity_type === 'Demographic'
+        (e) =>
+            e.entity_type === 'Lab_Value' ||
+            e.entity_type === 'Biomarker' ||
+            e.entity_type === 'Demographic'
     );
 
     for (let i = 0; i < thresholds.length; i++) {
@@ -275,7 +285,10 @@ function buildInitialValues(criterion: Criterion): StructuredFieldFormValues {
 
     // Entities without a matching threshold get their own mapping (entity only)
     const unmatchedEntities = entities.filter(
-        (e) => e.entity_type === 'Condition' || e.entity_type === 'Medication' || e.entity_type === 'Procedure'
+        (e) =>
+            e.entity_type === 'Condition' ||
+            e.entity_type === 'Medication' ||
+            e.entity_type === 'Procedure'
     );
     for (const e of unmatchedEntities) {
         mappings.push({
@@ -307,7 +320,13 @@ function buildInitialValues(criterion: Criterion): StructuredFieldFormValues {
 
 type EditMode = 'none' | 'text' | 'structured';
 
-export default function CriterionCard({ criterion, onAction, isSubmitting, onCriterionClick, isActive }: CriterionCardProps) {
+export default function CriterionCard({
+    criterion,
+    onAction,
+    isSubmitting,
+    onCriterionClick,
+    isActive,
+}: CriterionCardProps) {
     const [editMode, setEditMode] = useState<EditMode>('none');
     const [editText, setEditText] = useState(criterion.text);
     const [editType, setEditType] = useState(criterion.criteria_type);
@@ -363,7 +382,9 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
         setEditMode('none');
     }
 
-    function handleStructuredSave(values: { mappings: Array<{ entity: string; relation: string; value: unknown }> }) {
+    function handleStructuredSave(values: {
+        mappings: Array<{ entity: string; relation: string; value: unknown }>;
+    }) {
         // Convert StructuredFieldFormValues to the modified_structured_fields payload
         // Extract the mappings array and send as field_mappings
         onAction(criterion.id, {
@@ -383,7 +404,7 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
                 criterion.review_status === 'approved' && 'border-l-green-500',
                 criterion.review_status === 'rejected' && 'border-l-red-500',
                 criterion.review_status === 'modified' && 'border-l-blue-500',
-                !criterion.review_status && 'border-l-yellow-400',
+                !criterion.review_status && 'border-l-yellow-400'
             )}
         >
             {/* Header row */}
@@ -501,16 +522,32 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
             ) : (
                 <p
                     className={cn(
-                        "text-sm text-foreground mb-3",
-                        criterion.page_number != null && "cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 transition-colors",
-                        isActive && "bg-accent/30 rounded px-1 -mx-1"
+                        'text-sm text-foreground mb-3',
+                        criterion.page_number != null &&
+                            'cursor-pointer hover:bg-accent/50 rounded px-1 -mx-1 transition-colors',
+                        isActive && 'bg-accent/30 rounded px-1 -mx-1'
                     )}
                     onClick={() => {
                         if (criterion.page_number != null && onCriterionClick) {
                             onCriterionClick(criterion);
                         }
                     }}
-                    title={criterion.page_number != null ? `Click to view source (page ${criterion.page_number})` : undefined}
+                    onKeyDown={(e) => {
+                        if (
+                            (e.key === 'Enter' || e.key === ' ') &&
+                            criterion.page_number != null &&
+                            onCriterionClick
+                        ) {
+                            onCriterionClick(criterion);
+                        }
+                    }}
+                    role={criterion.page_number != null ? 'button' : undefined}
+                    tabIndex={criterion.page_number != null ? 0 : undefined}
+                    title={
+                        criterion.page_number != null
+                            ? `Click to view source (page ${criterion.page_number})`
+                            : undefined
+                    }
                 >
                     {criterion.text}
                 </p>
@@ -534,24 +571,25 @@ export default function CriterionCard({ criterion, onAction, isSubmitting, onCri
             )}
 
             {/* Temporal constraint */}
-            {criterion.temporal_constraint && formatTemporalConstraint(criterion.temporal_constraint) && (
-                <div className="mb-3 flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-indigo-600" />
-                    <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
-                        {formatTemporalConstraint(criterion.temporal_constraint)}
-                    </span>
-                </div>
-            )}
+            {criterion.temporal_constraint &&
+                formatTemporalConstraint(criterion.temporal_constraint) && (
+                    <div className="mb-3 flex items-center gap-1.5">
+                        <Clock className="h-3.5 w-3.5 text-indigo-600" />
+                        <span className="inline-flex items-center rounded-full bg-indigo-100 px-2.5 py-0.5 text-xs font-medium text-indigo-800">
+                            {formatTemporalConstraint(criterion.temporal_constraint)}
+                        </span>
+                    </div>
+                )}
 
             {/* Numeric thresholds */}
             {extractThresholdsList(criterion.numeric_thresholds).length > 0 && (
                 <div className="mb-3 flex flex-wrap items-center gap-1.5">
                     <Hash className="h-3.5 w-3.5 text-teal-600" />
-                    {extractThresholdsList(criterion.numeric_thresholds).map((threshold, idx) => {
+                    {extractThresholdsList(criterion.numeric_thresholds).map((threshold) => {
                         const text = formatNumericThreshold(threshold);
                         return text ? (
                             <span
-                                key={idx}
+                                key={text}
                                 className="inline-flex items-center rounded-full bg-teal-100 px-2.5 py-0.5 text-xs font-medium text-teal-800"
                             >
                                 {text}

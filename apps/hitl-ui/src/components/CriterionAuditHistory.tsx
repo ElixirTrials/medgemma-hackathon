@@ -1,6 +1,6 @@
-import { useState } from 'react';
 import * as Collapsible from '@radix-ui/react-collapsible';
 import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
 
 import { useAuditLog } from '../hooks/useReviews';
 
@@ -10,12 +10,7 @@ interface CriterionAuditHistoryProps {
 
 export function CriterionAuditHistory({ criterionId }: CriterionAuditHistoryProps) {
     const [open, setOpen] = useState(false);
-    const { data: auditData, isLoading } = useAuditLog(
-        1,
-        20,
-        'criteria',
-        criterionId
-    );
+    const { data: auditData, isLoading } = useAuditLog(1, 20, 'criteria', criterionId);
 
     const entryCount = auditData?.total ?? 0;
 
@@ -23,10 +18,15 @@ export function CriterionAuditHistory({ criterionId }: CriterionAuditHistoryProp
         <Collapsible.Root open={open} onOpenChange={setOpen} className="mt-3 border-t pt-3">
             <Collapsible.Trigger asChild>
                 <button
+                    type="button"
                     className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
                     aria-label={`Show audit history (${entryCount} entries)`}
                 >
-                    {open ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    {open ? (
+                        <ChevronDown className="h-4 w-4" />
+                    ) : (
+                        <ChevronRight className="h-4 w-4" />
+                    )}
                     <span>History ({entryCount})</span>
                 </button>
             </Collapsible.Trigger>

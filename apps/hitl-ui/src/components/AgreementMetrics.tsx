@@ -15,12 +15,7 @@ function formatBreakdownKey(key: string): string {
         structured_edits: 'Structured Edits',
         field_mapping_changes: 'Field Mapping Changes',
     };
-    return (
-        map[key] ??
-        key
-            .replace(/_/g, ' ')
-            .replace(/\b\w/g, (c) => c.toUpperCase())
-    );
+    return map[key] ?? key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 interface MetricCardProps {
@@ -132,9 +127,16 @@ export function AgreementMetrics({ batchId }: AgreementMetricsProps) {
                     <Collapsible.Content className="mt-2 space-y-2">
                         <div className="rounded-lg border bg-background p-3 space-y-1.5">
                             {breakdownKeys.map((key) => (
-                                <div key={key} className="flex items-center justify-between text-sm">
-                                    <span className="text-muted-foreground">{formatBreakdownKey(key)}</span>
-                                    <span className="font-medium">{metrics.modification_breakdown[key]}</span>
+                                <div
+                                    key={key}
+                                    className="flex items-center justify-between text-sm"
+                                >
+                                    <span className="text-muted-foreground">
+                                        {formatBreakdownKey(key)}
+                                    </span>
+                                    <span className="font-medium">
+                                        {metrics.modification_breakdown[key]}
+                                    </span>
                                 </div>
                             ))}
                         </div>
@@ -142,9 +144,21 @@ export function AgreementMetrics({ batchId }: AgreementMetricsProps) {
                         {/* Layer 3: Per-criterion details (nested Collapsibles) */}
                         <div className="space-y-2 pt-1">
                             {[
-                                { label: 'Approved criteria', items: approvedCriteria, colorClass: 'border-l-green-400' },
-                                { label: 'Rejected criteria', items: rejectedCriteria, colorClass: 'border-l-red-400' },
-                                { label: 'Modified criteria', items: modifiedCriteria, colorClass: 'border-l-yellow-400' },
+                                {
+                                    label: 'Approved criteria',
+                                    items: approvedCriteria,
+                                    colorClass: 'border-l-green-400',
+                                },
+                                {
+                                    label: 'Rejected criteria',
+                                    items: rejectedCriteria,
+                                    colorClass: 'border-l-red-400',
+                                },
+                                {
+                                    label: 'Modified criteria',
+                                    items: modifiedCriteria,
+                                    colorClass: 'border-l-yellow-400',
+                                },
                             ]
                                 .filter(({ items }) => items.length > 0)
                                 .map(({ label, items, colorClass }) => (

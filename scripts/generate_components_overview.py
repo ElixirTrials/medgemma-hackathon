@@ -1,70 +1,65 @@
+"""Generate docs/components/index.md from workspace member directories.
+
+Scans services/, libs/, and apps/ for component directories and writes
+a summary page with links to each component's docs (if present).
+
+Called by: make docs-components-gen
+"""
+
+from __future__ import annotations
+
+import os
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = ROOT / "docs" / "components"
 
-def generate_overview():
-    """
-    Scans services/, libs/, and apps/ and generates a markdown overview page
-    with links to each component's documentation.
-    """
-    docs_dir = Path("docs")
-    docs_dir.mkdir(parents=True, exist_ok=True)
+COMPONENT_DIRS = [
+    ("Services", ROOT / "services"),
+    ("Libraries", ROOT / "libs"),
+    ("Applications", ROOT / "apps"),
+]
 
-    overview_file = docs_dir / "components-overview.md"
 
-    content = [
+def main() -> None:
+    DOCS_DIR.mkdir(parents=True, exist_ok=True)
+    out = DOCS_DIR / "index.md"
+
+    lines: list[str] = [
         "# Components Overview",
         "",
-        "This page provides an overview of all microservices and shared libraries in this monorepo.",
+        "Auto-generated list of workspace components.",
         "",
-        "## Available Components",
-        "",
-        "| Component | Description | Documentation |",
-        "| :--- | :--- | :--- |",
     ]
 
-    root_dirs = [Path("services"), Path("libs"), Path("apps")]
-    found_any = False
-    items_with_path = []
-    for parent in root_dirs:
-        if not parent.exists():
+    for section_name, base_dir in COMPONENT_DIRS:
+        if not base_dir.is_dir():
             continue
-        for item in parent.iterdir():
-            if item.is_dir() and (item / "mkdocs.yml").exists():
-                items_with_path.append(item)
+        children = sorted(
+            p for p in base_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
+        )
+        if not children:
+            continue
 
-    for item in sorted(items_with_path, key=lambda p: p.name):
-        found_any = True
-        description = "No description available."
-        readme = item / "README.md"
+        lines.append(f"## {section_name}")
+        lines.append("")
+        lines.append("| Component | Has Docs | pyproject.toml |")
+        lines.append("|-----------|----------|----------------|")
 
-        if readme.exists():
-            with open(readme, "r") as f:
-                lines = f.readlines()
-                for i, line in enumerate(lines):
-                    if line.startswith("## Purpose") or line.startswith(
-                        "## Description"
-                    ):
-                        for j in range(i + 1, min(i + 4, len(lines))):
-                            if lines[j].strip():
-                                description = lines[j].strip()
-                                break
-                        break
-                    if not description or description == "No description available.":
-                        if line.strip() and not line.startswith("#"):
-                            description = line.strip()
+        for child in children:
+            has_docs = (child / "docs").is_dir()
+            has_pyproj = (child / "pyproject.toml").is_file()
+            has_pkg = (child / "package.json").is_file()
+            config = "yes" if (has_pyproj or has_pkg) else "no"
+            docs_status = "yes" if has_docs else "no"
+            rel = os.path.relpath(child, ROOT)
+            lines.append(f"| `{rel}` | {docs_status} | {config} |")
 
-        # Link to component's API reference (each sub-project has docs_dir: docs, nav: api/index.md)
-        link = f"{item.name}/api/index.md"
-        content.append(f"| **{item.name}** | {description} | [API Reference]({link}) |")
+        lines.append("")
 
-    if not found_any:
-        content.append("| - | No components found | - |")
-
-    with open(overview_file, "w") as f:
-        f.write("\n".join(content) + "\n")
-
-    print(f"Generated {overview_file}")
+    out.write_text("\n".join(lines) + "\n")
+    print(f"Generated {out}")
 
 
 if __name__ == "__main__":
-    generate_overview()
+    main()

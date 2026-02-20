@@ -88,23 +88,20 @@ export function ActivityFeed() {
                 };
 
                 return (
-                    <li
-                        key={entry.id}
-                        className="flex items-start gap-2 text-sm cursor-pointer hover:bg-muted/30 rounded px-1 py-1 transition-colors"
-                        onClick={handleClick}
-                        onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') handleClick();
-                        }}
-                        tabIndex={0}
-                        role="button"
-                    >
-                        <span className="shrink-0 mt-0.5">{icon}</span>
-                        <div>
-                            <p className="truncate">{description}</p>
-                            <p className="text-xs text-muted-foreground">
-                                {formatRelativeTime(entry.created_at)}
-                            </p>
-                        </div>
+                    <li key={entry.id}>
+                        <button
+                            type="button"
+                            className="flex w-full items-start gap-2 text-sm text-left cursor-pointer hover:bg-muted/30 rounded px-1 py-1 transition-colors"
+                            onClick={handleClick}
+                        >
+                            <span className="shrink-0 mt-0.5">{icon}</span>
+                            <div>
+                                <p className="truncate">{description}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {formatRelativeTime(entry.created_at)}
+                                </p>
+                            </div>
+                        </button>
                     </li>
                 );
             })}

@@ -13,8 +13,8 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
 
 interface PdfViewerProps {
     url: string;
-    targetPage?: number | null;    // Page to scroll to (1-based)
-    highlightText?: string | null;  // Text to highlight on the target page
+    targetPage?: number | null; // Page to scroll to (1-based)
+    highlightText?: string | null; // Text to highlight on the target page
 }
 
 export default function PdfViewer({ url, targetPage, highlightText }: PdfViewerProps) {
@@ -36,7 +36,7 @@ export default function PdfViewer({ url, targetPage, highlightText }: PdfViewerP
     useEffect(() => {
         if (targetPage && targetPage >= 1 && numPages && targetPage <= numPages) {
             setPageNumber(targetPage);
-            setFlashKey(prev => prev + 1);
+            setFlashKey((prev) => prev + 1);
         }
     }, [targetPage, numPages]);
 

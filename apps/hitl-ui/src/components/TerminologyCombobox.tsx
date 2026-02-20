@@ -3,10 +3,10 @@ import { Command } from 'cmdk';
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 
-import type { TerminologySystem } from './TerminologyBadge';
 import type { TerminologySearchResult } from '../hooks/useTerminologySearch';
 import { useTerminologySearch } from '../hooks/useTerminologySearch';
 import { cn } from '../lib/utils';
+import type { TerminologySystem } from './TerminologyBadge';
 
 const SYSTEM_LABELS: Record<TerminologySystem, string> = {
     rxnorm: 'RxNorm',
@@ -37,7 +37,10 @@ export function TerminologyCombobox({
     const [open, setOpen] = useState(false);
     const [inputValue, setInputValue] = useState(value);
 
-    const { results, isLoading, isCircuitOpen, validationHint } = useTerminologySearch(system, inputValue);
+    const { results, isLoading, isCircuitOpen, validationHint } = useTerminologySearch(
+        system,
+        inputValue
+    );
 
     const systemLabel = SYSTEM_LABELS[system];
     const resolvedPlaceholder = placeholder ?? `Search ${systemLabel}...`;
@@ -127,7 +130,9 @@ export function TerminologyCombobox({
                                         )}
                                     >
                                         <div className="flex items-center justify-between w-full">
-                                            <span className="font-medium text-sm">{result.display}</span>
+                                            <span className="font-medium text-sm">
+                                                {result.display}
+                                            </span>
                                             <span className="text-xs text-muted-foreground ml-2">
                                                 {result.code}
                                             </span>
@@ -145,11 +150,7 @@ export function TerminologyCombobox({
                 </Popover.Portal>
             </Popover.Root>
 
-            {validationHint && (
-                <p className="mt-1 text-xs text-amber-600">
-                    {validationHint}
-                </p>
-            )}
+            {validationHint && <p className="mt-1 text-xs text-amber-600">{validationHint}</p>}
         </div>
     );
 }

@@ -220,9 +220,7 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                 {entity.rxnorm_code && (
                     <TerminologyBadge system="rxnorm" code={entity.rxnorm_code} />
                 )}
-                {entity.icd10_code && (
-                    <TerminologyBadge system="icd10" code={entity.icd10_code} />
-                )}
+                {entity.icd10_code && <TerminologyBadge system="icd10" code={entity.icd10_code} />}
                 {entity.snomed_code && (
                     <TerminologyBadge
                         system="snomed"
@@ -230,12 +228,8 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                         display={entity.preferred_term ?? undefined}
                     />
                 )}
-                {entity.loinc_code && (
-                    <TerminologyBadge system="loinc" code={entity.loinc_code} />
-                )}
-                {entity.hpo_code && (
-                    <TerminologyBadge system="hpo" code={entity.hpo_code} />
-                )}
+                {entity.loinc_code && <TerminologyBadge system="loinc" code={entity.loinc_code} />}
+                {entity.hpo_code && <TerminologyBadge system="hpo" code={entity.hpo_code} />}
                 {entity.umls_cui && (
                     <a
                         href={`https://uts.nlm.nih.gov/cts/umls/concept/${entity.umls_cui}`}
@@ -247,9 +241,7 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                         <ExternalLink className="h-3 w-3" />
                     </a>
                 )}
-                {entity.grounding_error && (
-                    <ErrorBadge errorReason={entity.grounding_error} />
-                )}
+                {entity.grounding_error && <ErrorBadge errorReason={entity.grounding_error} />}
                 {!hasCodes && !entity.grounding_error && (
                     <span className="inline-flex items-center rounded-full border border-gray-200 bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-500">
                         Not grounded
@@ -263,9 +255,9 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     {/* Per-system comboboxes for relevant systems */}
                     {relevantSystems.includes('rxnorm') && (
                         <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 RxNorm
-                            </label>
+                            </span>
                             <TerminologyCombobox
                                 system="rxnorm"
                                 value={editRxnorm}
@@ -278,9 +270,9 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     )}
                     {relevantSystems.includes('icd10') && (
                         <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 ICD-10
-                            </label>
+                            </span>
                             <TerminologyCombobox
                                 system="icd10"
                                 value={editIcd10}
@@ -293,9 +285,9 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     )}
                     {relevantSystems.includes('snomed') && (
                         <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 SNOMED
-                            </label>
+                            </span>
                             <TerminologyCombobox
                                 system="snomed"
                                 value={editSnomed}
@@ -309,9 +301,9 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     )}
                     {relevantSystems.includes('loinc') && (
                         <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 LOINC
-                            </label>
+                            </span>
                             <TerminologyCombobox
                                 system="loinc"
                                 value={editLoinc}
@@ -324,9 +316,9 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     )}
                     {relevantSystems.includes('hpo') && (
                         <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 HPO
-                            </label>
+                            </span>
                             <TerminologyCombobox
                                 system="hpo"
                                 value={editHpo}
@@ -339,9 +331,9 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     )}
                     {/* UMLS always shown */}
                     <div>
-                        <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        <span className="block text-xs font-medium text-muted-foreground mb-1">
                             UMLS
-                        </label>
+                        </span>
                         <TerminologyCombobox
                             system="umls"
                             value={editPreferredTerm}
@@ -354,28 +346,28 @@ export default function EntityCard({ entity, onAction, isSubmitting }: EntityCar
                     </div>
                     {/* Manual CUI input fallback */}
                     <div className="grid grid-cols-2 gap-2">
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        <label className="block">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 CUI (manual)
-                            </label>
+                            </span>
                             <input
                                 type="text"
                                 value={editCui}
                                 onChange={(e) => setEditCui(e.target.value)}
                                 className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-medium text-muted-foreground mb-1">
+                        </label>
+                        <label className="block">
+                            <span className="block text-xs font-medium text-muted-foreground mb-1">
                                 SNOMED (manual)
-                            </label>
+                            </span>
                             <input
                                 type="text"
                                 value={editSnomed}
                                 onChange={(e) => setEditSnomed(e.target.value)}
                                 className="w-full rounded-md border border-input bg-muted/50 px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             />
-                        </div>
+                        </label>
                     </div>
                     <div className="flex items-center gap-2">
                         <Button size="sm" onClick={handleModifySave} disabled={isSubmitting}>
