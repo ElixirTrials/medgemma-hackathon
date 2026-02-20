@@ -1,71 +1,157 @@
-# ElixirTrials  Template
+# ElixirTrials
 
-This is a comprehensive mono-repo template designed for building production-ready AI applications. It combines Python backend services, LangGraph AI agents, and a React/Vite Human-in-the-Loop (HITL) frontend into a unified, high-performance architecture.
+AI-powered extraction and structuring of clinical trial eligibility criteria from protocol PDFs.
 
-## 🚀 Quick Start
+ElixirTrials takes a clinical trial protocol PDF and produces structured, coded eligibility criteria ready for cohort identification. Upload a protocol, and the system extracts inclusion/exclusion criteria, grounds medical entities to standard terminologies, builds expression trees, and presents everything for human review.
+
+## Key Capabilities
+
+- **Gemini-powered extraction** -- LLM reads the PDF and extracts inclusion/exclusion criteria with confidence scores
+- **Multi-terminology grounding** -- entities are linked to SNOMED CT, LOINC, RxNorm, ICD-10 via UMLS and OMOP CDM
+- **Expression tree structuring** -- criteria are decomposed into atomic conditions with AND/OR/NOT logic
+- **Ordinal scale resolution** -- detects ordinal scales (e.g. NYHA class, ECOG) and maps to OMOP unit concepts
+- **Human-in-the-loop review** -- clinicians review, approve, or modify AI-generated criteria in a split-pane UI
+- **Standard exports** -- output in OHDSI CIRCE JSON, FHIR R4 Group, and OMOP CDM evaluation SQL
+
+## Architecture
+
+```
+hitl-ui (React/Vite)
+    |
+    | HTTP
+    v
+api-service (FastAPI) ----> PostgreSQL
+    |
+    | outbox event
+    v
+protocol-processor-service (LangGraph)
+    |
+    |---> Gemini 2.5 Flash (extraction, structuring, ordinal resolution)
+    |---> UMLS API + OMOP CDM (terminology grounding)
+    |---> MLflow (experiment tracking)
+```
+
+The processing pipeline is a 7-node LangGraph StateGraph:
+
+**ingest** -> **extract** -> **parse** -> **ground** -> **persist** -> **structure** -> **ordinal_resolve**
+
+Each node is checkpointed to PostgreSQL, so failed runs can be retried from the last successful step.
+
+## Quick Start
 
 ### Prerequisites
-- **Python 3.12+**
-- **Node.js 20+**
-- **uv** (Modern Python package manager)
-- **Docker & Docker Compose**
-- **Google Cloud:** For Gemini set `GOOGLE_API_KEY` in `.env`. For Vertex AI (MedGemma) and GCS, run `gcloud auth application-default login` once, then `make setup-adc`. See [Gemini & Vertex auth](docs/development/gemini-vertex-auth.md).
 
-### Installation
-Clone the repository and sync dependencies:
+- Python 3.12+
+- Node.js 20+
+- [uv](https://docs.astral.sh/uv/) (Python package manager)
+- Docker & Docker Compose
+- A [Google AI Studio API key](https://aistudio.google.com/apikey) for Gemini
+- A [UMLS API key](https://uts.nlm.nih.gov/uts/signup-login) for terminology grounding
+
+### Setup
 
 ```bash
-# Sync Python dependencies using uv
+# 1. Clone the repo
+git clone https://github.com/noahdolevelixir/medgemma-hackathon.git
+cd medgemma-hackathon
+
+# 2. Install dependencies
 uv sync
-
-# Install frontend dependencies
 cd apps/hitl-ui && npm install && cd ../..
+
+# 3. Configure environment
+cp .env.example .env
+# Edit .env -- set GOOGLE_API_KEY and UMLS_API_KEY at minimum
+
+# 4. Start everything (DB + MLflow + API + UI)
+make run-dev
 ```
 
-## 🛠️ Template Usage
+The UI opens at [http://localhost:3000](http://localhost:3000) and the API at [http://localhost:8000](http://localhost:8000).
 
-This template provides several automation commands to streamline development.
-
-### Creating a New Service or Library
-To add a new microservice or library (under `services/`, `libs/`, or `apps/`):
+### Verify API Access
 
 ```bash
-make create-service
+make verify-gemini    # Test Gemini API connectivity
 ```
-*This will prompt for a name and language (py|ts) and scaffold the directory structure. Use `scripts/create-service.sh [--lang py|ts] [--lib | --app] <name>` for non-interactive use (default: services/; use --lib for libs/, --app for apps/).*
 
-### Documentation Site
-We use MkDocs for comprehensive documentation.
+## Project Structure
+
+```
+medgemma-hackathon/
+  services/
+    api-service/             # FastAPI -- upload, review, export endpoints
+    protocol-processor-service/  # LangGraph pipeline -- extraction through structuring
+  libs/
+    shared/                  # SQLModel domain models, shared utilities
+    inference/               # Model loading and inference helpers
+    data-pipeline/           # Data loading and transformation
+    evaluation/              # Quality evaluation framework
+    events-py/               # Event system (transactional outbox)
+    model-training/          # Fine-tuning utilities
+  apps/
+    hitl-ui/                 # React + Vite -- review dashboard
+  infra/                     # Docker Compose, deployment config
+  docs/                      # MkDocs documentation site
+```
+
+## Development
+
+### Common Commands
+
+| Command | Description |
+|---------|-------------|
+| `make run-dev` | Start DB + MLflow + API + UI (all-in-one) |
+| `make run-api` | Start API service only |
+| `make run-ui` | Start UI dev server only |
+| `make check` | Run linters, type checkers, and tests |
+| `make check-fix` | Run all checks with auto-fix |
+| `make lint-fix` | Auto-fix lint issues (ruff + Biome) |
+| `make typecheck` | Run mypy and tsc |
+| `make test` | Run pytest and vitest |
+| `make docs-build` | Build documentation site |
+| `make docs-serve` | Serve docs at localhost:8000 |
+| `make db-migrate` | Apply database migrations |
+| `make db-revision msg="..."` | Create a new Alembic migration |
+
+### Authentication
+
+ElixirTrials supports two Gemini backends:
+
+- **Gemini Developer API** (default) -- set `GOOGLE_API_KEY` in `.env`
+- **Vertex AI** -- for MedGemma; requires GCP project, ADC, and `VERTEX_ENDPOINT_ID`
+
+Google OAuth is available for UI login but optional for local development. See the [auth guide](docs/development/gemini-vertex-auth.md) for details.
+
+### Running with Docker
 
 ```bash
-# Build the documentation site
-make docs-build
-
-# Serve the documentation locally (after building)
-make docs-serve
+docker compose -f infra/docker-compose.yml up
 ```
-*The site will be available at [http://localhost:8000](http://localhost:8000).*
 
-### Database Management
-We use SQLModel and Alembic for schema migrations.
+## Documentation
+
+Full documentation is available as a local MkDocs site:
 
 ```bash
-# Create a new migration revision
-make db-revision msg="Add table name"
-
-# Apply migrations
-make db-migrate
+make docs-build && make docs-serve
 ```
 
-## 🏗️ Architecture Overview
+This includes architecture diagrams, data model references, user journey walkthroughs, a code tour, and API documentation.
 
-- **`services/api-service`**: Central FastAPI orchestrator.
-- **`services/agent-*-service`**: Specialized AI agent workflows using LangGraph.
-- **`libs/inference`**: Shared AI library for model loading and logic.
-- **`apps/hitl-ui`**: React/Vite dashboard for human-in-the-loop review.
-- **`libs/shared`**: Common models and utility functions.
-- **`infra/`**: Deployment aid (Docker Compose, optional Terraform/K8s later).
-- **`docs/`**: Markdown-based documentation and system diagrams.
+## Tech Stack
 
-## 📚 Further Reading
-For detailed implementation guides and API references, refer to the [Local Documentation Site](docs/index.md) (or run `make docs-serve`).
+| Layer | Technology |
+|-------|-----------|
+| LLM | Gemini 2.5 Flash (Google AI / Vertex AI) |
+| Pipeline | LangGraph with PostgreSQL checkpointing |
+| API | FastAPI + SQLModel + Alembic |
+| Database | PostgreSQL |
+| Frontend | React 18 + Vite + Tailwind CSS + Radix UI |
+| Terminology | UMLS API, OMOP CDM |
+| Tracking | MLflow |
+| Docs | MkDocs |
+
+## License
+
+This project was built for the [Google MedGemma Hackathon](https://cloud.google.com/blog/topics/healthcare-life-sciences/medgemma-hackathon).

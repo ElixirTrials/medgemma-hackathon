@@ -5,6 +5,1986 @@
     "version": "0.1.0"
   },
   "paths": {
+    "/auth/login": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Login",
+        "description": "Redirect to Google OAuth login page.\n\nReturns 503 if OAuth is not configured or uses a known-deleted client ID,\nso IDEs (e.g. Cursor) restoring a login tab do not trigger a redirect popup.",
+        "operationId": "login_auth_login_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Login Auth Login Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/callback": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Auth Callback",
+        "description": "Handle OAuth callback from Google and issue JWT.\n\nExchanges the authorization code for an access token, retrieves\nuser info, creates or updates the User record, and issues a JWT.",
+        "operationId": "auth_callback_auth_callback_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Get Me",
+        "description": "Get current user info from JWT token.\n\nReturns the user information decoded from the JWT Bearer token.",
+        "operationId": "get_me_auth_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserInfo"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/dev-login": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Dev Login",
+        "description": "Issue a JWT for local development without Google OAuth.\n\nOnly available when ALLOW_DEV_LOGIN=1 is set in the environment.\nCreates or reuses a dev user and returns a 24-hour token.",
+        "operationId": "dev_login_auth_dev_login_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/upload": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Upload Protocol",
+        "description": "Generate a signed URL for uploading a protocol PDF.\n\nValidates the content type (must be PDF) and file size (max 50MB),\ncreates a Protocol record in the database, and returns a signed\nURL for direct browser upload to GCS.",
+        "operationId": "upload_protocol_protocols_upload_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UploadResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/confirm-upload": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Confirm Upload",
+        "description": "Confirm a protocol upload and optionally trigger quality analysis.\n\nLooks up the protocol by ID. If pdf_bytes_base64 is provided,\ndecodes the PDF bytes and computes a quality score including\ntext extractability, page count, and encoding type.",
+        "operationId": "confirm_upload_protocols__protocol_id__confirm_upload_post",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmUploadRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/retry": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Retry Protocol",
+        "description": "Retry a failed protocol by resuming from the last LangGraph checkpoint.\n\nAccepts protocols in extraction_failed, grounding_failed, or dead_letter states.\nUpdates the protocol status to processing, then resumes the pipeline from the\nlast successful checkpoint (via LangGraph PostgresSaver) \u2014 skipping nodes\nthat already succeeded (ingest, extract, parse) and retrying from the failed node.\n\nThis does NOT create a new outbox event. The retry goes directly through\nthe graph using the saved checkpoint. Initial pipeline runs still use the\noutbox trigger pattern (handle_protocol_uploaded).",
+        "operationId": "retry_protocol_protocols__protocol_id__retry_post",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/archive": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Archive Protocol",
+        "description": "Archive a failed or dead-letter protocol.\n\nOnly protocols in dead_letter, extraction_failed, or grounding_failed\nstates may be manually archived. Returns 400 for non-archivable states.",
+        "operationId": "archive_protocol_protocols__protocol_id__archive_post",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/re-extract": {
+      "post": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Re Extract Protocol",
+        "description": "Trigger re-extraction on an existing protocol without re-uploading the PDF.\n\nArchives all existing non-archived batches for this protocol (preserves them\nin the database but hides them from the dashboard and review page). Collects\nreviewed criteria from the archived batches to enable review inheritance.\nTriggers the extraction pipeline via outbox event (same flow as initial upload).\n\nThe extraction pipeline will create a new batch. Review decisions from archived\ncriteria are auto-inherited for criteria with >90% fuzzy text match (same type).\n\nReturns 404 if protocol not found.\nReturns 409 if protocol is in a processing state (extracting, grounding) to\nprevent race conditions \u2014 only terminal states are re-extractable.",
+        "operationId": "re_extract_protocol_protocols__protocol_id__re_extract_post",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReExtractResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols": {
+      "get": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "List Protocols",
+        "description": "List protocols with pagination and optional status filter.\n\nReturns a paginated list sorted by creation date (newest first).\nIncludes total count, page number, page size, and total pages.\nExcludes archived protocols from default view unless explicitly filtered.\n\nWhen deduplicate=True, returns one protocol per unique title (the latest\nversion) with a version_count field indicating how many versions exist.\nArchived protocols are excluded from deduplication queries.",
+        "operationId": "list_protocols_protocols_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "deduplicate",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Deduplicate"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}": {
+      "get": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "Get Protocol",
+        "description": "Get protocol detail including quality score and metadata.\n\nPerforms lazy archival: if a protocol is in dead_letter status and\nhasn't been updated in 7+ days, it is automatically transitioned to archived.",
+        "operationId": "get_protocol_protocols__protocol_id__get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProtocolResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/batches": {
+      "get": {
+        "tags": [
+          "protocols"
+        ],
+        "summary": "List Protocol Batches",
+        "description": "List ALL batches for a protocol including archived ones.\n\nReturns batches in chronological order (oldest first) for the batch\ntimeline view. Unlike GET /reviews/batches which excludes archived\nbatches for the review workflow, this endpoint includes them so that\nreviewers can see the full re-extraction history.\n\nThis is intentionally separate from the existing batch listing endpoint\nto preserve the review workflow's correct exclusion of archived batches\n(per research anti-pattern guidance).\n\nReturns 404 if protocol doesn't exist.",
+        "operationId": "list_protocol_batches_protocols__protocol_id__batches_get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/BatchSummaryResponse"
+                  },
+                  "title": "Response List Protocol Batches Protocols  Protocol Id  Batches Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/batches": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "List Batches",
+        "description": "List criteria batches with pagination, protocol info, and review progress.\n\nReturns batches ordered by creation date (newest first) with:\n- Protocol title from joined Protocol table\n- Count of linked criteria per batch\n- Count of reviewed criteria (review_status IS NOT NULL) for progress",
+        "operationId": "list_batches_reviews_batches_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          },
+          {
+            "name": "protocol_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/batches/{batch_id}/metrics": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Batch Metrics",
+        "description": "Return agreement metrics for a criteria batch.\n\nCounts criteria by review_status and computes percentages.\nBreaks down modify actions by schema_version from AuditLog details.\nIncludes per_criterion_details for reviewed criteria (drill-down layer 2).\n\nUses exactly 2 SQL queries (criteria + audit logs) \u2014 no N+1.",
+        "operationId": "get_batch_metrics_reviews_batches__batch_id__metrics_get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchMetricsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/batches/{batch_id}/criteria": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "List Batch Criteria",
+        "description": "List all criteria for a batch, sorted by confidence (low first by default).\n\nLow-confidence criteria appear first so reviewers focus on items\nthat most need human judgment (REQ-04.3).",
+        "operationId": "list_batch_criteria_reviews_batches__batch_id__criteria_get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "confidence",
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "asc",
+              "title": "Sort Order"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CriterionResponse"
+                  },
+                  "title": "Response List Batch Criteria Reviews Batches  Batch Id  Criteria Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/criteria/{criteria_id}/action": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Submit Review Action",
+        "description": "Submit an approve/reject/modify action for a criterion.\n\nCreates Review and AuditLog records atomically. Updates the parent\nbatch status based on review progress:\n- pending_review -> in_progress (first review submitted)\n- in_progress -> approved (all criteria reviewed, none rejected)\n- in_progress -> rejected (all criteria reviewed, any rejected)",
+        "operationId": "submit_review_action_reviews_criteria__criteria_id__action_post",
+        "parameters": [
+          {
+            "name": "criteria_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Criteria Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/protocols/{protocol_id}/pdf-url": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Pdf Url",
+        "description": "Get a signed download URL for a protocol PDF.\n\nReturns a pre-signed GCS URL valid for 60 minutes.",
+        "operationId": "get_pdf_url_reviews_protocols__protocol_id__pdf_url_get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PdfUrlResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/pending-summary": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Pending Summary",
+        "description": "Get summary of pending review work.\n\nReturns counts of batches and criteria needing review.\nPending = batches with at least one unreviewed criterion.",
+        "operationId": "get_pending_summary_reviews_pending_summary_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/audit-log": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "List Audit Log",
+        "description": "List audit log entries with pagination and optional filters.\n\nSupports filtering by target_type, target_id, and batch_id.\nWhen batch_id is provided, returns audit entries for all criteria\nin that batch (joins through Criteria table).",
+        "operationId": "list_audit_log_reviews_audit_log_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "target_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Type"
+            }
+          },
+          {
+            "name": "target_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Target Id"
+            }
+          },
+          {
+            "name": "batch_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entities/criteria/{criteria_id}": {
+      "get": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "List Entities For Criteria",
+        "description": "List all entities for a criterion, sorted by span_start (reading order).\n\nReturns entities in the order they appear in the criterion text.",
+        "operationId": "list_entities_for_criteria_entities_criteria__criteria_id__get",
+        "parameters": [
+          {
+            "name": "criteria_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Criteria Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntityResponse"
+                  },
+                  "title": "Response List Entities For Criteria Entities Criteria  Criteria Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entities/batch/{batch_id}": {
+      "get": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "List Entities For Batch",
+        "description": "List all entities for all criteria in a batch.\n\nJoins Entity to Criteria via criteria_id, filters by batch_id.\nReturns entities sorted by criteria_id then span_start.",
+        "operationId": "list_entities_for_batch_entities_batch__batch_id__get",
+        "parameters": [
+          {
+            "name": "batch_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Batch Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/EntityResponse"
+                  },
+                  "title": "Response List Entities For Batch Entities Batch  Batch Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/entities/{entity_id}/action": {
+      "post": {
+        "tags": [
+          "entities"
+        ],
+        "summary": "Submit Entity Action",
+        "description": "Submit an approve/reject/modify action for an entity.\n\nUpdates Entity.review_status and creates Review + AuditLog records.",
+        "operationId": "submit_entity_action_entities__entity_id__action_post",
+        "parameters": [
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EntityActionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EntityResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/criteria/search": {
+      "get": {
+        "tags": [
+          "search"
+        ],
+        "summary": "Search Criteria",
+        "description": "Full-text search over criteria with optional filters.\n\nUses PostgreSQL full-text search with GIN index for performance.\nFalls back to LIKE search for SQLite dev environments.",
+        "operationId": "search_criteria_criteria_search_get",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "protocol_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "criteria_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Criteria Type"
+            }
+          },
+          {
+            "name": "review_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Review Status"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 20,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/terminology/{system}/search": {
+      "get": {
+        "tags": [
+          "terminology"
+        ],
+        "summary": "Search Terminology",
+        "description": "Search a specific terminology system by term via ToolUniverse.\n\nRoutes to the ToolUniverse SDK for all supported systems. Results are\ncached in the tooluniverse_client TTLCache.\n\nArgs:\n    system: Terminology system to search. One of: rxnorm, icd10, loinc,\n        hpo, umls, snomed.\n    q: Search query (minimum 3 characters).\n    max_results: Maximum number of results to return (1-20, default 5).\n\nReturns:\n    List of TerminologySearchResult objects for the matched concepts.\n\nRaises:\n    HTTPException: 400 if system is invalid or query too short,\n        502 if ToolUniverse API fails.",
+        "operationId": "search_terminology_api_terminology__system__search_get",
+        "parameters": [
+          {
+            "name": "system",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "System"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 3,
+              "title": "Q"
+            }
+          },
+          {
+            "name": "max_results",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 20,
+              "minimum": 1,
+              "default": 5,
+              "title": "Max Results"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/integrity/check": {
+      "get": {
+        "tags": [
+          "integrity"
+        ],
+        "summary": "Check Integrity",
+        "description": "Run all data integrity checks and return a structured issue list.\n\nOptionally scope checks to a single protocol via protocol_id.\nChecks performed (all READ-ONLY):\n1. orphaned_entity (error): Entity rows with no matching Criteria\n2. audit_log (warning): review_action entries missing keys\n3. entity_grounding (warning): Entities with no codes and no error\n4. criteria_state (warning): Reviewed criteria with no AuditLog",
+        "operationId": "check_integrity_integrity_check_get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntegrityCheckResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/criteria/{criterion_id}/rerun": {
+      "post": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Rerun Criterion",
+        "description": "Re-extract a single criterion using reviewer feedback as guidance.\n\nSends the original criterion and reviewer feedback to Gemini and returns\na structured revised extraction. This endpoint NEVER writes to the database.\nIt returns a proposal only. The reviewer must call\nPOST /reviews/criteria/{id}/action with action=modify to commit changes.\n\nReturns 404 if criterion not found.\nReturns 422 if Gemini cannot produce a valid structured result.",
+        "operationId": "rerun_criterion_reviews_criteria__criterion_id__rerun_post",
+        "parameters": [
+          {
+            "name": "criterion_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Criterion Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriterionRerunRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriterionRerunResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reviews/batch-compare": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Compare Batches",
+        "description": "Compare criteria between two extraction batches.\n\nUses fuzzy matching (token_set_ratio) to align criteria between the two\nbatches. Criteria type is checked before text comparison to prevent false\npositives between semantically opposite inclusion/exclusion criteria.\n\nThresholds:\n- match_score >= 90.0 -> unchanged\n- 70.0 <= match_score < 90.0 -> changed\n- match_score < 70.0 -> removed (from batch A) or added (from batch B)\n\nReturns 404 if either batch doesn't exist.",
+        "operationId": "compare_batches_reviews_batch_compare_get",
+        "parameters": [
+          {
+            "name": "batch_a",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the reference batch (older)",
+              "title": "Batch A"
+            },
+            "description": "ID of the reference batch (older)"
+          },
+          {
+            "name": "batch_b",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "description": "ID of the comparison batch (newer)",
+              "title": "Batch B"
+            },
+            "description": "ID of the comparison batch (newer)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BatchCompareResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/export/circe": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Export Circe",
+        "description": "Export protocol criteria as OHDSI CIRCE CohortExpression JSON.",
+        "operationId": "export_circe_protocols__protocol_id__export_circe_get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CirceExportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/export/fhir-group": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Export Fhir Group",
+        "description": "Export protocol criteria as FHIR R4 Group resource.",
+        "operationId": "export_fhir_group_protocols__protocol_id__export_fhir_group_get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FhirGroupExportResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/protocols/{protocol_id}/export/evaluation-sql": {
+      "get": {
+        "tags": [
+          "exports"
+        ],
+        "summary": "Export Evaluation Sql",
+        "description": "Export protocol criteria as OMOP CDM evaluation SQL.",
+        "operationId": "export_evaluation_sql_protocols__protocol_id__export_evaluation_sql_get",
+        "parameters": [
+          {
+            "name": "protocol_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
@@ -54,6 +2034,1938 @@
             }
           }
         }
+      }
+    },
+    "/local-upload/{blob_path}": {
+      "put": {
+        "summary": "Local Upload",
+        "description": "Receive a file upload and store it locally (dev mode).",
+        "operationId": "local_upload_local_upload__blob_path__put",
+        "parameters": [
+          {
+            "name": "blob_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blob Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/local-files/{blob_path}": {
+      "get": {
+        "summary": "Local Files",
+        "description": "Serve a locally stored file (dev mode).",
+        "operationId": "local_files_local_files__blob_path__get",
+        "parameters": [
+          {
+            "name": "blob_path",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Blob Path"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AuditLogListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditLogResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "AuditLogListResponse",
+        "description": "Paginated list of audit log entries."
+      },
+      "AuditLogResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "actor_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
+          },
+          "target_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Type"
+          },
+          "target_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Target Id"
+          },
+          "details": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Details"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "event_type",
+          "actor_id",
+          "target_type",
+          "target_id",
+          "details",
+          "created_at"
+        ],
+        "title": "AuditLogResponse",
+        "description": "Response model for a single audit log entry."
+      },
+      "BatchCompareResponse": {
+        "properties": {
+          "batch_a_id": {
+            "type": "string",
+            "title": "Batch A Id"
+          },
+          "batch_b_id": {
+            "type": "string",
+            "title": "Batch B Id"
+          },
+          "added": {
+            "type": "integer",
+            "title": "Added"
+          },
+          "removed": {
+            "type": "integer",
+            "title": "Removed"
+          },
+          "changed": {
+            "type": "integer",
+            "title": "Changed"
+          },
+          "unchanged": {
+            "type": "integer",
+            "title": "Unchanged"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionCompareRow"
+            },
+            "type": "array",
+            "title": "Rows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_a_id",
+          "batch_b_id",
+          "added",
+          "removed",
+          "changed",
+          "unchanged",
+          "rows"
+        ],
+        "title": "BatchCompareResponse",
+        "description": "Response for the batch comparison endpoint."
+      },
+      "BatchListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/BatchResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "BatchListResponse",
+        "description": "Paginated list of criteria batches."
+      },
+      "BatchMetricsResponse": {
+        "properties": {
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "total_criteria": {
+            "type": "integer",
+            "title": "Total Criteria"
+          },
+          "approved": {
+            "type": "integer",
+            "title": "Approved"
+          },
+          "rejected": {
+            "type": "integer",
+            "title": "Rejected"
+          },
+          "modified": {
+            "type": "integer",
+            "title": "Modified"
+          },
+          "pending": {
+            "type": "integer",
+            "title": "Pending"
+          },
+          "approved_pct": {
+            "type": "number",
+            "title": "Approved Pct"
+          },
+          "rejected_pct": {
+            "type": "number",
+            "title": "Rejected Pct"
+          },
+          "modified_pct": {
+            "type": "number",
+            "title": "Modified Pct"
+          },
+          "modification_breakdown": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Modification Breakdown"
+          },
+          "per_criterion_details": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Per Criterion Details"
+          }
+        },
+        "type": "object",
+        "required": [
+          "batch_id",
+          "total_criteria",
+          "approved",
+          "rejected",
+          "modified",
+          "pending",
+          "approved_pct",
+          "rejected_pct",
+          "modified_pct",
+          "modification_breakdown",
+          "per_criterion_details"
+        ],
+        "title": "BatchMetricsResponse",
+        "description": "Per-batch review agreement metrics response."
+      },
+      "BatchResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "protocol_id": {
+            "type": "string",
+            "title": "Protocol Id"
+          },
+          "protocol_title": {
+            "type": "string",
+            "title": "Protocol Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "extraction_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Model"
+          },
+          "criteria_count": {
+            "type": "integer",
+            "title": "Criteria Count"
+          },
+          "reviewed_count": {
+            "type": "integer",
+            "title": "Reviewed Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "protocol_id",
+          "protocol_title",
+          "status",
+          "extraction_model",
+          "criteria_count",
+          "reviewed_count",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BatchResponse",
+        "description": "Response model for a single criteria batch."
+      },
+      "BatchSummaryResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "protocol_id": {
+            "type": "string",
+            "title": "Protocol Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "is_archived": {
+            "type": "boolean",
+            "title": "Is Archived"
+          },
+          "criteria_count": {
+            "type": "integer",
+            "title": "Criteria Count"
+          },
+          "reviewed_count": {
+            "type": "integer",
+            "title": "Reviewed Count"
+          },
+          "extraction_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Model"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "protocol_id",
+          "status",
+          "is_archived",
+          "criteria_count",
+          "reviewed_count",
+          "extraction_model",
+          "created_at"
+        ],
+        "title": "BatchSummaryResponse",
+        "description": "Response model for a single batch summary in the protocol timeline.\n\nIncludes ALL batches (archived and non-archived) ordered chronologically.\nUsed by the batch timeline view to show re-extraction history."
+      },
+      "CirceExportResponse": {
+        "properties": {
+          "expression": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Expression"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ExportStats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expression",
+          "stats"
+        ],
+        "title": "CirceExportResponse",
+        "description": "CIRCE CohortExpression export response."
+      },
+      "ConfirmUploadRequest": {
+        "properties": {
+          "pdf_bytes_base64": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pdf Bytes Base64"
+          }
+        },
+        "type": "object",
+        "title": "ConfirmUploadRequest",
+        "description": "Request body for confirming upload and triggering quality analysis.\n\nThe pdf_bytes_base64 field is optional. If provided, the server\ndecodes it and runs quality analysis. If omitted, quality scoring\nis skipped (useful when the browser uploaded directly to GCS)."
+      },
+      "CriterionCompareRow": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "added",
+              "removed",
+              "changed",
+              "unchanged"
+            ],
+            "title": "Status"
+          },
+          "batch_a_criterion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch A Criterion"
+          },
+          "batch_b_criterion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Batch B Criterion"
+          },
+          "match_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Score"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "batch_a_criterion",
+          "batch_b_criterion",
+          "match_score"
+        ],
+        "title": "CriterionCompareRow",
+        "description": "A single criterion alignment row in the batch comparison result."
+      },
+      "CriterionEntityResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "umls_cui": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Umls Cui"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "preferred_term": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Term"
+          },
+          "grounding_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Confidence"
+          },
+          "grounding_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Method"
+          },
+          "rxnorm_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rxnorm Code"
+          },
+          "icd10_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icd10 Code"
+          },
+          "loinc_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loinc Code"
+          },
+          "hpo_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hpo Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entity_type",
+          "text",
+          "umls_cui",
+          "snomed_code",
+          "preferred_term",
+          "grounding_confidence",
+          "grounding_method",
+          "rxnorm_code",
+          "icd10_code",
+          "loinc_code",
+          "hpo_code"
+        ],
+        "title": "CriterionEntityResponse",
+        "description": "Embedded entity summary within a criterion response."
+      },
+      "CriterionRerunRequest": {
+        "properties": {
+          "reviewer_feedback": {
+            "type": "string",
+            "title": "Reviewer Feedback"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reviewer_feedback"
+        ],
+        "title": "CriterionRerunRequest",
+        "description": "Request body for the criterion re-run endpoint."
+      },
+      "CriterionRerunResponse": {
+        "properties": {
+          "original_criterion": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Original Criterion"
+          },
+          "revised_criterion": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Revised Criterion"
+          }
+        },
+        "type": "object",
+        "required": [
+          "original_criterion",
+          "revised_criterion"
+        ],
+        "title": "CriterionRerunResponse",
+        "description": "Response containing original and revised structured criterion fields."
+      },
+      "CriterionResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "criteria_type": {
+            "type": "string",
+            "title": "Criteria Type"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "temporal_constraint": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temporal Constraint"
+          },
+          "conditions": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conditions"
+          },
+          "numeric_thresholds": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Numeric Thresholds"
+          },
+          "assertion_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assertion Status"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "source_section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Section"
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Number"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/CriterionEntityResponse"
+            },
+            "type": "array",
+            "title": "Entities",
+            "default": []
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "batch_id",
+          "criteria_type",
+          "category",
+          "text",
+          "temporal_constraint",
+          "conditions",
+          "numeric_thresholds",
+          "assertion_status",
+          "confidence",
+          "source_section",
+          "review_status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "CriterionResponse",
+        "description": "Response model for a single criterion."
+      },
+      "EntityActionRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject",
+              "modify"
+            ],
+            "title": "Action"
+          },
+          "reviewer_id": {
+            "type": "string",
+            "title": "Reviewer Id"
+          },
+          "modified_umls_cui": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Umls Cui"
+          },
+          "modified_snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Snomed Code"
+          },
+          "modified_preferred_term": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Preferred Term"
+          },
+          "modified_rxnorm_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Rxnorm Code"
+          },
+          "modified_icd10_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Icd10 Code"
+          },
+          "modified_loinc_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Loinc Code"
+          },
+          "modified_hpo_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Hpo Code"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "reviewer_id"
+        ],
+        "title": "EntityActionRequest",
+        "description": "Request body for entity approval action."
+      },
+      "EntityResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "criteria_id": {
+            "type": "string",
+            "title": "Criteria Id"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "span_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span Start"
+          },
+          "span_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Span End"
+          },
+          "umls_cui": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Umls Cui"
+          },
+          "snomed_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snomed Code"
+          },
+          "preferred_term": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Term"
+          },
+          "grounding_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Confidence"
+          },
+          "grounding_method": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Method"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "context_window": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Context Window"
+          },
+          "rxnorm_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rxnorm Code"
+          },
+          "icd10_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icd10 Code"
+          },
+          "loinc_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loinc Code"
+          },
+          "hpo_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hpo Code"
+          },
+          "grounding_system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding System"
+          },
+          "grounding_error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Error"
+          },
+          "omop_concept_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Omop Concept Id"
+          },
+          "reconciliation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Status"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "criteria_id",
+          "entity_type",
+          "text",
+          "span_start",
+          "span_end",
+          "umls_cui",
+          "snomed_code",
+          "preferred_term",
+          "grounding_confidence",
+          "grounding_method",
+          "review_status",
+          "context_window",
+          "rxnorm_code",
+          "icd10_code",
+          "loinc_code",
+          "hpo_code",
+          "grounding_system",
+          "grounding_error",
+          "omop_concept_id",
+          "reconciliation_status",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "EntityResponse",
+        "description": "Response model for a single entity."
+      },
+      "ExportStats": {
+        "properties": {
+          "criteria_count": {
+            "type": "integer",
+            "title": "Criteria Count"
+          },
+          "atomic_count": {
+            "type": "integer",
+            "title": "Atomic Count"
+          },
+          "composite_count": {
+            "type": "integer",
+            "title": "Composite Count"
+          },
+          "relationship_count": {
+            "type": "integer",
+            "title": "Relationship Count"
+          }
+        },
+        "type": "object",
+        "required": [
+          "criteria_count",
+          "atomic_count",
+          "composite_count",
+          "relationship_count"
+        ],
+        "title": "ExportStats",
+        "description": "Summary statistics for an export."
+      },
+      "FhirGroupExportResponse": {
+        "properties": {
+          "resource": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Resource"
+          },
+          "stats": {
+            "$ref": "#/components/schemas/ExportStats"
+          }
+        },
+        "type": "object",
+        "required": [
+          "resource",
+          "stats"
+        ],
+        "title": "FhirGroupExportResponse",
+        "description": "FHIR Group resource export response."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "IntegrityCheckResponse": {
+        "properties": {
+          "protocol_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Id"
+          },
+          "checked_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Checked At"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/IntegrityIssue"
+            },
+            "type": "array",
+            "title": "Issues"
+          },
+          "summary": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Summary"
+          },
+          "passed": {
+            "type": "boolean",
+            "title": "Passed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "checked_at",
+          "issues",
+          "summary",
+          "passed"
+        ],
+        "title": "IntegrityCheckResponse",
+        "description": "Full result of an integrity check run."
+      },
+      "IntegrityIssue": {
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "criteria_state",
+              "audit_log",
+              "entity_grounding",
+              "orphaned_entity"
+            ],
+            "title": "Category"
+          },
+          "severity": {
+            "type": "string",
+            "enum": [
+              "error",
+              "warning"
+            ],
+            "title": "Severity"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "affected_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "category",
+          "severity",
+          "description",
+          "affected_id"
+        ],
+        "title": "IntegrityIssue",
+        "description": "A single data integrity issue found during the check."
+      },
+      "PdfUrlResponse": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "expires_in_minutes": {
+            "type": "integer",
+            "title": "Expires In Minutes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "expires_in_minutes"
+        ],
+        "title": "PdfUrlResponse",
+        "description": "Response with signed PDF download URL."
+      },
+      "PendingSummaryResponse": {
+        "properties": {
+          "pending_batches": {
+            "type": "integer",
+            "title": "Pending Batches"
+          },
+          "pending_criteria": {
+            "type": "integer",
+            "title": "Pending Criteria"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pending_batches",
+          "pending_criteria",
+          "message"
+        ],
+        "title": "PendingSummaryResponse",
+        "description": "Summary of pending review work."
+      },
+      "ProtocolListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProtocolResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "ProtocolListResponse",
+        "description": "Paginated list of protocols."
+      },
+      "ProtocolResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "file_uri": {
+            "type": "string",
+            "title": "File Uri"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "page_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Count"
+          },
+          "quality_score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quality Score"
+          },
+          "metadata_": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Metadata"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          },
+          "error_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Reason"
+          },
+          "version_count": {
+            "type": "integer",
+            "title": "Version Count",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "file_uri",
+          "status",
+          "page_count",
+          "quality_score",
+          "metadata_",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "ProtocolResponse",
+        "description": "Response model for a single protocol."
+      },
+      "ReExtractResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "protocol_id": {
+            "type": "string",
+            "title": "Protocol Id"
+          },
+          "archived_batches": {
+            "type": "integer",
+            "title": "Archived Batches"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "protocol_id",
+          "archived_batches"
+        ],
+        "title": "ReExtractResponse",
+        "description": "Response for re-extraction endpoint."
+      },
+      "RetryResponse": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "protocol_id": {
+            "type": "string",
+            "title": "Protocol Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "protocol_id"
+        ],
+        "title": "RetryResponse",
+        "description": "Response for retry endpoint."
+      },
+      "ReviewActionRequest": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "approve",
+              "reject",
+              "modify"
+            ],
+            "title": "Action"
+          },
+          "reviewer_id": {
+            "type": "string",
+            "title": "Reviewer Id"
+          },
+          "modified_text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Text"
+          },
+          "modified_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Type"
+          },
+          "modified_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Category"
+          },
+          "modified_structured_fields": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modified Structured Fields"
+          },
+          "comment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Comment"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "reviewer_id"
+        ],
+        "title": "ReviewActionRequest",
+        "description": "Request body for submitting a review action."
+      },
+      "SearchResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SearchResult"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          },
+          "query": {
+            "type": "string",
+            "title": "Query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages",
+          "query"
+        ],
+        "title": "SearchResponse",
+        "description": "Paginated search results."
+      },
+      "SearchResult": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "batch_id": {
+            "type": "string",
+            "title": "Batch Id"
+          },
+          "protocol_id": {
+            "type": "string",
+            "title": "Protocol Id"
+          },
+          "protocol_title": {
+            "type": "string",
+            "title": "Protocol Title"
+          },
+          "criteria_type": {
+            "type": "string",
+            "title": "Criteria Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "rank": {
+            "type": "number",
+            "title": "Rank"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "batch_id",
+          "protocol_id",
+          "protocol_title",
+          "criteria_type",
+          "text",
+          "confidence",
+          "review_status",
+          "rank"
+        ],
+        "title": "SearchResult",
+        "description": "Single search result with protocol context."
+      },
+      "TokenResponse": {
+        "properties": {
+          "access_token": {
+            "type": "string",
+            "title": "Access Token"
+          },
+          "token_type": {
+            "type": "string",
+            "title": "Token Type"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserInfo"
+          }
+        },
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "user"
+        ],
+        "title": "TokenResponse",
+        "description": "Response from successful authentication."
+      },
+      "UploadRequest": {
+        "properties": {
+          "filename": {
+            "type": "string",
+            "title": "Filename"
+          },
+          "content_type": {
+            "type": "string",
+            "title": "Content Type",
+            "default": "application/pdf"
+          },
+          "file_size_bytes": {
+            "type": "integer",
+            "title": "File Size Bytes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "filename",
+          "file_size_bytes"
+        ],
+        "title": "UploadRequest",
+        "description": "Request body for initiating a protocol PDF upload."
+      },
+      "UploadResponse": {
+        "properties": {
+          "protocol_id": {
+            "type": "string",
+            "title": "Protocol Id"
+          },
+          "upload_url": {
+            "type": "string",
+            "title": "Upload Url"
+          },
+          "gcs_path": {
+            "type": "string",
+            "title": "Gcs Path"
+          },
+          "warning": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Warning"
+          }
+        },
+        "type": "object",
+        "required": [
+          "protocol_id",
+          "upload_url",
+          "gcs_path"
+        ],
+        "title": "UploadResponse",
+        "description": "Response with signed upload URL and protocol metadata."
+      },
+      "UserInfo": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "email": {
+            "type": "string",
+            "title": "Email"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "name"
+        ],
+        "title": "UserInfo",
+        "description": "User information included in auth responses."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "ctx": {
+            "type": "object",
+            "title": "Context"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
       }
     }
   }

@@ -39,7 +39,11 @@ function formatFieldValue(value: unknown): string {
     return JSON.stringify(value, null, 2);
 }
 
-function fieldChanged(original: Record<string, unknown>, revised: Record<string, unknown>, field: string): boolean {
+function fieldChanged(
+    original: Record<string, unknown>,
+    revised: Record<string, unknown>,
+    field: string
+): boolean {
     return JSON.stringify(original[field]) !== JSON.stringify(revised[field]);
 }
 
@@ -92,8 +96,8 @@ export function CriterionRerunPanel({
                                 Correct with AI
                             </Dialog.Title>
                             <Dialog.Description className="text-sm text-muted-foreground mt-1">
-                                Describe what's wrong with the extraction. The AI will propose a revised
-                                structured criterion for your review.
+                                Describe what's wrong with the extraction. The AI will propose a
+                                revised structured criterion for your review.
                             </Dialog.Description>
                         </div>
                         <Dialog.Close asChild>
@@ -138,7 +142,8 @@ export function CriterionRerunPanel({
 
                             {rerunMutation.isError && (
                                 <p className="text-sm text-red-600">
-                                    AI could not produce a valid result. Try rephrasing your feedback.
+                                    AI could not produce a valid result. Try rephrasing your
+                                    feedback.
                                 </p>
                             )}
 

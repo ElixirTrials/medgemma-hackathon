@@ -43,15 +43,11 @@ export function BatchTimeline({ protocolId }: BatchTimelineProps) {
     }
 
     if (error || !batches) {
-        return (
-            <p className="text-sm text-muted-foreground">Could not load batch history.</p>
-        );
+        return <p className="text-sm text-muted-foreground">Could not load batch history.</p>;
     }
 
     if (batches.length === 0) {
-        return (
-            <p className="text-sm text-muted-foreground">No batches yet.</p>
-        );
+        return <p className="text-sm text-muted-foreground">No batches yet.</p>;
     }
 
     const toggleSelect = (id: string) => {
@@ -120,9 +116,12 @@ export function BatchTimeline({ protocolId }: BatchTimelineProps) {
                                     )}
                                 </div>
                                 <div className="text-xs text-muted-foreground">
-                                    {batch.reviewed_count} / {batch.criteria_count} criteria reviewed
+                                    {batch.reviewed_count} / {batch.criteria_count} criteria
+                                    reviewed
                                     {batch.extraction_model && (
-                                        <span className="ml-2 font-mono">{batch.extraction_model}</span>
+                                        <span className="ml-2 font-mono">
+                                            {batch.extraction_model}
+                                        </span>
                                     )}
                                 </div>
                             </div>

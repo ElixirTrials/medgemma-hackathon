@@ -1,104 +1,117 @@
----
-title: System Architecture
-date_verified: 2026-02-17
-status: current
----
-
 # System Architecture
-
-This document provides the C4 Container (Level 2) view of the Clinical Trial Criteria Extraction System. It shows the system's high-level structure, technology stack choices, and how services communicate with each other and external systems.
 
 ## Container Diagram
 
-The following diagram shows the major deployable containers in the system, their technologies, and their relationships.
-
 ```mermaid
-C4Container
-    title Container Diagram: Clinical Trial Criteria Extraction System
+graph TB
+    subgraph "Browser"
+        UI["hitl-ui<br/>(React + Vite + Radix UI)"]
+    end
 
-    Person(researcher, "Clinical Researcher", "Reviews extracted criteria and approves/rejects them")
+    subgraph "Backend"
+        API["api-service<br/>(FastAPI + SQLModel)"]
+        OBX["OutboxProcessor<br/>(events-py)"]
+        PP["protocol-processor-service<br/>(LangGraph StateGraph)"]
+    end
 
-    System_Boundary(system, "Criteria Extraction System") {
-        Container(ui, "HITL Review UI", "React, TypeScript, Vite", "Web interface for protocol upload and criteria review")
-        Container(api, "API Service", "FastAPI, Python", "REST API orchestrating workflows and serving frontend")
-        Container(pp, "Protocol Processor Service", "LangGraph, Python", "Unified 5-node pipeline: ingest → extract → parse → ground → persist")
-        ContainerDb(db, "Database", "PostgreSQL", "Stores protocols, criteria, entities, audit logs")
-    }
+    subgraph "Infrastructure"
+        DB[(PostgreSQL 16)]
+        MLF["MLflow v3.9"]
+        OMOP[(OMOP Vocab DB<br/>optional)]
+    end
 
-    Container_Ext(gcs, "GCS Bucket", "Google Cloud Storage", "PDF storage")
-    Container_Ext(gemini, "Gemini API", "Google AI", "Criteria extraction LLM and JSON structuring")
-    Container_Ext(medgemma, "MedGemma", "Vertex AI", "Medical entity reasoning and grounding decisions")
-    Container_Ext(tooluniverse, "ToolUniverse SDK", "Harvard MIMS", "Unified terminology lookup: UMLS, SNOMED, ICD-10, LOINC, RxNorm, HPO")
+    subgraph "External Services"
+        GEMINI["Gemini 2.5 Flash<br/>(Google AI / Vertex AI)"]
+        UMLS["UMLS API<br/>(NLM)"]
+        GCS["GCS / Local Storage"]
+    end
 
-    Rel(researcher, ui, "Uses", "HTTPS")
-    Rel(ui, api, "API calls", "REST/JSON")
-    Rel(api, db, "Reads/writes", "SQLAlchemy")
-    Rel(api, pp, "Triggers via outbox events", "Transactional outbox")
-    Rel(api, gcs, "Signed URLs", "GCS client")
-    Rel(pp, gemini, "LLM calls for extraction and structuring", "Google AI SDK")
-    Rel(pp, medgemma, "Medical reasoning and grounding decisions", "Vertex AI SDK")
-    Rel(pp, tooluniverse, "Terminology lookup (all 6 systems)", "ToolUniverse Python SDK")
+    UI -->|"HTTP REST"| API
+    API --> DB
+    API --> OBX
+    OBX -->|"protocol_uploaded"| PP
+    PP --> DB
+    PP -->|"PDF extraction"| GEMINI
+    PP -->|"Entity grounding"| UMLS
+    PP -->|"Concept resolution"| OMOP
+    PP -->|"PDF fetch"| GCS
+    API -->|"Traces"| MLF
+    PP -->|"Traces"| MLF
 ```
 
-## Service Communication Patterns
+## Communication Paths
 
-The system uses three distinct communication patterns for different interaction types.
+### Synchronous HTTP (UI to API)
 
-### Frontend <-> Backend: REST over HTTPS
+All UI interactions flow through the FastAPI REST API:
 
-The HITL Review UI communicates with the API Service via synchronous REST calls using JSON payloads.
+| Path | Description | Key file |
+|------|-------------|----------|
+| `POST /protocols/upload` | Generate signed upload URL | `services/api-service/src/api_service/protocols.py` |
+| `POST /protocols/{id}/confirm-upload` | Confirm upload, trigger pipeline | `protocols.py` |
+| `GET /protocols` | List protocols (paginated) | `protocols.py` |
+| `GET /reviews/batches/{id}/criteria` | Fetch criteria for review | `reviews.py` |
+| `POST /reviews/criteria/{id}/action` | Submit review decision | `reviews.py` |
+| `GET /exports/{id}/circe` | Export as CIRCE JSON | `exports.py` |
+| `GET /exports/{id}/fhir-group` | Export as FHIR R4 Group | `exports.py` |
+| `GET /exports/{id}/evaluation-sql` | Export as OMOP SQL | `exports.py` |
 
-**Key characteristics:**
+### Asynchronous Event Processing (Outbox to Pipeline)
 
-- Synchronous request/response via JSON payloads
-- All endpoints documented in OpenAPI spec (accessible via `/docs`)
-- Authentication via Google OAuth session cookies + JWT
-- Pagination for large result sets (protocol lists, criteria batches)
-- Error responses follow standard HTTP status codes
+The pipeline is triggered via the transactional outbox pattern:
 
-This pattern is appropriate for user-facing operations where immediate feedback is expected.
+1. `confirm-upload` endpoint calls `persist_with_outbox()` — writes `Protocol` record + `OutboxEvent` in a single DB transaction
+2. `OutboxProcessor` polls the `outboxevent` table every 2 seconds
+3. When it finds a `protocol_uploaded` event, it calls `handle_protocol_uploaded()` in a thread executor
+4. The handler invokes the 7-node LangGraph pipeline via `asyncio.run()`
 
-### Backend <-> Agents: Transactional Outbox Pattern
+```mermaid
+sequenceDiagram
+    participant UI as hitl-ui
+    participant API as api-service
+    participant DB as PostgreSQL
+    participant OBX as OutboxProcessor
+    participant PP as protocol-processor
 
-The API Service triggers the Protocol Processor Service asynchronously via the **transactional outbox pattern** to ensure reliable event delivery without the dual-write problem.
+    UI->>API: POST /protocols/{id}/confirm-upload
+    API->>DB: INSERT Protocol + OutboxEvent (single tx)
+    API-->>UI: 200 OK
 
-**Pattern flow:**
+    loop Every 2s
+        OBX->>DB: SELECT FROM outboxevent WHERE status='pending'
+    end
+    OBX->>PP: handle_protocol_uploaded(payload)
+    PP->>DB: UPDATE protocol.status = 'extracting'
+    PP->>PP: Run 7-node LangGraph pipeline
+    PP->>DB: INSERT criteria, entities, atomics
+    PP->>DB: UPDATE protocol.status = 'pending_review'
+```
 
-1. API Service commits database transaction (e.g., create Protocol record)
-2. Within the same transaction, insert OutboxEvent record with event type (e.g., `ProtocolUploaded`)
-3. OutboxProcessor polls pending events (every 5s)
-4. Processor invokes agent trigger handler (e.g., `handle_protocol_uploaded` in protocol-processor-service)
-5. On success, mark OutboxEvent as `published`; on failure, increment `retry_count` with exponential backoff
+### Storage Paths
 
-**Benefits:**
+- **Local dev**: Files stored in `./uploads/` directory, served by `api-service` at `/local-files/{path}`
+- **Production**: Files uploaded to GCS via signed URL, fetched by pipeline from `gs://` URI
 
-- **No dual-write problem:** Database write and event publish are atomic within a single transaction
-- **Guaranteed delivery:** Events are persisted durably and retried until successful
-- **Idempotency:** Each event has an `idempotency_key` to prevent duplicate processing
+### Observability
 
-**Event types:**
+- **MLflow**: Traces emitted by both `api-service` (request middleware) and pipeline nodes (per-node spans)
+- **Tracking URI**: `http://localhost:5001` (local), `http://mlflow:5000` (Docker)
+- **Experiment**: `protocol-processing`
+- **Orphan cleanup**: `trigger.py` closes stale IN_PROGRESS traces at startup
 
-| Event Type | Trigger | Target Service | Outcome |
-|------------|---------|----------------|---------|
-| `ProtocolUploaded` | Protocol created | protocol-processor-service | Runs full 5-node pipeline: extract criteria, parse, ground entities, persist |
-| `ReviewCompleted` | Review approved | Future analytics | Triggers downstream analytics (future phase) |
+## Authentication
 
-**Note:** This shows the happy path. See Production Hardening documentation for error handling, dead letter queues, and circuit breaker patterns.
+- **Google OAuth 2.0** via `api-service/auth.py`
+- Session middleware with JWT tokens
+- All API routes (except `/auth/*` and `/health`) require authentication
+- Dev mode works without OAuth configured
 
-### Agents <-> External Services: SDK Calls
+## Error Handling
 
-Agents communicate with external services via their respective SDKs:
-
-- **Gemini API:** `google-genai` SDK for LLM-based criteria extraction from protocol PDFs and JSON structuring of MedGemma output
-- **MedGemma (Vertex AI):** `vertexai` SDK for medical entity reasoning and grounding decision selection
-- **ToolUniverse SDK:** `tooluniverse` Python package for unified terminology lookup across UMLS, SNOMED, ICD-10, LOINC, RxNorm, and HPO (Harvard MIMS lab; replaces all previous direct NLM API calls)
-
-**Reliability characteristics:**
-
-- All external calls include 30-second timeout configuration
-- Exponential backoff retry logic (via `tenacity` library, max 3 retries)
-- In-memory TTL cache (`cachetools.TTLCache`) for ToolUniverse results to reduce autocomplete latency
-- MedGemma agentic reasoning loop (3 questions) before each retry on failed grounding attempts
-- Max 3 grounding attempts per entity; after 3 failures, entity routes to `expert_review` queue
-
-**Note:** This shows happy path behavior. See Production Hardening for timeout handling, fallback strategies, and degraded mode operations.
+| Error type | Behavior | Status |
+|------------|----------|--------|
+| Fatal (PDF corrupt, auth fail) | Pipeline stops at failed node | `extraction_failed` |
+| Partial (some entities fail grounding) | Pipeline continues, errors accumulated | `pending_review` with `errors[]` |
+| Total grounding failure | All entities failed | `grounding_failed` |
+| Outbox exhaustion (3 retries) | Event marked dead_letter | `dead_letter` |
+| Dead letter aging (7+ days) | Lazy archival on next access | `archived` |

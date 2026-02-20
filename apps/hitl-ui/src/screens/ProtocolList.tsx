@@ -136,9 +136,12 @@ function ArchiveInlineButton({ protocolId }: { protocolId: string }) {
             <AlertDialog.Portal>
                 <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
                 <AlertDialog.Content className="fixed left-[50%] top-[50%] z-50 grid w-full max-w-sm translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border bg-background p-6 shadow-lg">
-                    <AlertDialog.Title className="text-lg font-semibold">Archive this protocol?</AlertDialog.Title>
+                    <AlertDialog.Title className="text-lg font-semibold">
+                        Archive this protocol?
+                    </AlertDialog.Title>
                     <AlertDialog.Description className="text-sm text-muted-foreground">
-                        It will be hidden from the default list view. You can show it again using the &quot;Show Archived&quot; filter.
+                        It will be hidden from the default list view. You can show it again using
+                        the &quot;Show Archived&quot; filter.
                     </AlertDialog.Description>
                     <div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2">
                         <AlertDialog.Cancel asChild>
@@ -171,7 +174,12 @@ export default function ProtocolList() {
 
     const navigate = useNavigate();
     const effectiveStatus = showArchived ? 'archived' : statusFilter;
-    const { data, isLoading, error } = useProtocolList(page, pageSize, effectiveStatus, !showArchived);
+    const { data, isLoading, error } = useProtocolList(
+        page,
+        pageSize,
+        effectiveStatus,
+        !showArchived
+    );
 
     const handleRowClick = (protocol: Protocol) => {
         navigate(`/protocols/${protocol.id}`);
@@ -217,7 +225,10 @@ export default function ProtocolList() {
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-background text-foreground border-input hover:bg-accent'
                     )}
-                    onClick={() => { setShowArchived((v) => !v); setPage(1); }}
+                    onClick={() => {
+                        setShowArchived((v) => !v);
+                        setPage(1);
+                    }}
                 >
                     {showArchived ? 'Hide Archived' : 'Show Archived'}
                 </button>
@@ -279,7 +290,11 @@ export default function ProtocolList() {
                         </thead>
                         <tbody>
                             {data.items.map((protocol) => {
-                                const isActionable = ['dead_letter', 'extraction_failed', 'grounding_failed'].includes(protocol.status);
+                                const isActionable = [
+                                    'dead_letter',
+                                    'extraction_failed',
+                                    'grounding_failed',
+                                ].includes(protocol.status);
                                 return (
                                     <tr
                                         key={protocol.id}
@@ -319,7 +334,11 @@ export default function ProtocolList() {
                                         <td className="px-4 py-3 text-sm text-muted-foreground">
                                             {formatRelativeTime(protocol.created_at)}
                                         </td>
-                                        <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                        <td
+                                            className="px-4 py-3"
+                                            onClick={(e) => e.stopPropagation()}
+                                            onKeyDown={(e) => e.stopPropagation()}
+                                        >
                                             {isActionable && (
                                                 <div className="flex items-center gap-1.5">
                                                     <RetryInlineButton protocolId={protocol.id} />

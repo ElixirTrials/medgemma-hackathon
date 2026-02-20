@@ -1,70 +1,99 @@
-# Gemini & Vertex AI authentication
+# Gemini & Vertex AI Authentication
 
-This project uses two Google auth paths:
+ElixirTrials supports two backends for Gemini model access: the **Gemini Developer API** (default) and **Vertex AI** (for MedGemma).
 
-| Use case | Auth method | Env / config |
-|----------|-------------|--------------|
-| **Gemini API** (extraction, criterion rerun, grounding structuring) | API key | `GOOGLE_API_KEY` (see below) |
-| **Vertex AI** (MedGemma endpoint, GCS) | Application Default Credentials (ADC) | `gcloud auth application-default login` + quota project |
+## Gemini Developer API (Default)
 
-## 1. Gemini API (GOOGLE_API_KEY)
+Used for criteria extraction, entity decomposition, logic detection, and ordinal resolution.
 
-To **use Google Cloud credits** (recommended): create the API key in your GCP project so usage bills to that project:
+### Setup
 
-1. In [Cloud Console](https://console.cloud.google.com/apis/credentials) select the same project as `GCP_PROJECT_ID`.
-2. Ensure **Generative Language API** is enabled: [Enable API](https://console.cloud.google.com/apis/library/generativelanguage.googleapis.com).
-3. **Create credentials** → **API key**. (Optional: restrict the key to “Generative Language API”.)
-4. Set `GOOGLE_API_KEY=` in `.env` to that key.
+1. Get an API key from [Google AI Studio](https://aistudio.google.com/apikey)
+2. Add to `.env`:
 
-Alternative: you can use a key from [Google AI Studio](https://aistudio.google.com/apikey); billing then uses the project linked to that key (may not use your GCP credits).
+```bash
+GOOGLE_API_KEY=your-key-here
+GEMINI_MODEL_NAME=gemini-2.5-flash   # default
+```
 
-If `.env` (or your API key) was ever committed or exposed, create a new key and revoke the old one.
+### Verify
 
-## 2. Vertex AI & GCS (Application Default Credentials)
+```bash
+make verify-gemini
+```
 
-Vertex AI and Google Cloud Storage use **Application Default Credentials**. For local development:
+This runs `scripts/verify_gemini_access.py` which makes a test call to the Gemini API.
 
-### One-time: create ADC
+## Vertex AI (MedGemma)
+
+Used for agentic grounding retry loop (MedGemma reasoning).
+
+### Setup
+
+1. Create a GCP project with Vertex AI enabled
+2. Deploy MedGemma to a Vertex AI endpoint
+3. Configure Application Default Credentials:
 
 ```bash
 gcloud auth application-default login
+make setup-adc    # Sets quota project from .env
 ```
 
-This opens a browser and writes credentials to `~/.config/gcloud/application_default_credentials.json`. Do **not** set `GOOGLE_APPLICATION_CREDENTIALS` if you want to use these user credentials.
-
-### Set the quota project
-
-Without a quota project, Vertex/GCS calls can fail with 403 (billing/quota not attributed). Set the project that should be billed and quota-limited:
+4. Add to `.env`:
 
 ```bash
-# From repo root; reads GCP_PROJECT_ID or GOOGLE_CLOUD_QUOTA_PROJECT from .env
-make setup-adc
+MODEL_BACKEND=vertex
+GCP_PROJECT_ID=your-project-id
+GCP_REGION=europe-west4
+VERTEX_ENDPOINT_ID=your-endpoint-id
 ```
 
-Or manually:
+### ADC Setup Script
+
+The `make setup-adc` command runs `scripts/setup-gcloud-adc.sh`, which:
+
+1. Reads `GCP_PROJECT_ID` or `GOOGLE_CLOUD_QUOTA_PROJECT` from `.env`
+2. Sets the quota project on your Application Default Credentials
+3. Required when using user-level ADC (not service accounts) for Vertex AI
+
+### Docker Compose
+
+For Docker deployment, ADC credentials are mounted as a read-only volume:
+
+```yaml
+volumes:
+  - ${GOOGLE_ADC_PATH:-~/.config/gcloud/application_default_credentials.json}:/tmp/keys/application_default_credentials.json:ro
+environment:
+  - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json
+```
+
+## Google OAuth (UI Login)
+
+For the HITL UI authentication:
+
+1. Create OAuth 2.0 credentials at [GCP Console → APIs & Services → Credentials](https://console.cloud.google.com/apis/credentials)
+2. Set redirect URI to `http://localhost:8000/auth/callback`
+3. Add to `.env`:
 
 ```bash
-gcloud auth application-default set-quota-project YOUR_PROJECT_ID
+GOOGLE_CLIENT_ID=your-client-id
+GOOGLE_CLIENT_SECRET=your-client-secret
 ```
 
-Your account must have `serviceusage.services.use` on that project. The same project should usually have Vertex AI and billing enabled.
+OAuth is optional for local development — the API works without it configured.
 
-### Optional: use a service account key
+## Environment Variable Reference
 
-For CI or when user ADC is not desired, set:
-
-```bash
-export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
-```
-
-The quota project is then the project that owns the service account; you do not need `set-quota-project`.
-
-## 3. Quotas
-
-- **Gemini API (API key):** For Cloud Console keys, quotas and billing use your GCP project; adjust in [Quotas](https://console.cloud.google.com/iam-admin/quotas) (filter by “Generative Language API”). For AI Studio keys, use [AI Studio](https://aistudio.google.com/).
-- **Vertex AI:** Quotas are per project in [Cloud Console → IAM & Admin → Quotas](https://console.cloud.google.com/iam-admin/quotas). Filter by “Vertex AI” or “AI Platform” and request increases if needed.
-
-## 4. Quick check
-
-- **Gemini API:** From repo root run `uv run python scripts/verify_gemini_access.py`. It uses `GOOGLE_API_KEY` from `.env` and calls Gemini with a simple prompt.
-- **Vertex / ADC:** Run `make setup-adc` (after `gcloud auth application-default login`), then start the stack with `make run-dev` and trigger a flow that uses the MedGemma endpoint or GCS.
+| Variable | Required for | Default |
+|----------|-------------|---------|
+| `GOOGLE_API_KEY` | Gemini Developer API | — |
+| `GEMINI_MODEL_NAME` | Gemini model selection | `gemini-2.5-flash` |
+| `MODEL_BACKEND` | Backend selection | (Gemini Developer API) |
+| `GCP_PROJECT_ID` | Vertex AI | — |
+| `GCP_REGION` | Vertex AI | `europe-west4` |
+| `VERTEX_ENDPOINT_ID` | MedGemma endpoint | — |
+| `GOOGLE_CLIENT_ID` | OAuth login | — |
+| `GOOGLE_CLIENT_SECRET` | OAuth login | — |
+| `GCLOUD_PROFILE` | gcloud config profile | — |
+| `MLFLOW_TRACKING_URI` | Experiment tracking | `http://localhost:5001` |
+| `UMLS_API_KEY` | UMLS grounding | — |
