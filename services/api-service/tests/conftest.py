@@ -4,6 +4,7 @@ Provides database, HTTP client, and async client fixtures used
 by all test modules in this directory.
 """
 
+import gc
 import os
 from datetime import datetime, timedelta
 from typing import AsyncGenerator, Generator
@@ -41,6 +42,7 @@ def db_engine():
         yield engine
     finally:
         engine.dispose()
+        gc.collect()
 
 
 @pytest.fixture(scope="function")
@@ -49,11 +51,12 @@ def db_session(db_engine) -> Generator[Session, None, None]:
 
     Automatically rolls back changes after each test.
     """
-    with Session(db_engine) as session:
-        try:
-            yield session
-        finally:
-            session.rollback()
+    session = Session(db_engine)
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()
 
 
 @pytest.fixture(scope="function")

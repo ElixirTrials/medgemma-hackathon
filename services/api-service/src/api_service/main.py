@@ -101,6 +101,8 @@ async def lifespan(app: FastAPI):
     if _running_tasks:
         logger.info(f"Waiting for {len(_running_tasks)} tasks to complete...")
         await asyncio.gather(*_running_tasks, return_exceptions=True)
+
+    engine.dispose()
     logger.info("Shutdown complete")
 
 

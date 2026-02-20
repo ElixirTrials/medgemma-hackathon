@@ -22,6 +22,7 @@ Run 2 (known scale):
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 from typing import Any, Generator
@@ -67,12 +68,16 @@ def engine():
         yield eng
     finally:
         eng.dispose()
+        gc.collect()
 
 
 @pytest.fixture()
 def session(engine) -> Generator[Session, None, None]:
-    with Session(engine) as s:
+    s = Session(engine)
+    try:
         yield s
+    finally:
+        s.close()
 
 
 # ── Helpers ───────────────────────────────────────────────────────────
