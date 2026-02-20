@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9dfcacd18259",
+  "session_id": "8dbcec95-91ef-4b3f-a202-82acc3a9d333",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T08:45:54.943403Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".github/workflows/claude-code-review.yml",
+    ".github/workflows/claude.yml",
+    "pyproject.toml",
+    "services/api-service/pyproject.toml",
+    "services/protocol-processor-service/tests/test_ordinal_resolve.py",
+    "services/protocol-processor-service/tests/test_phase2_e2e.py",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/tests/conftest.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py",
+    "services/protocol-processor-service/tests/test_phase3_integration.py",
+    "services/protocol-processor-service/tests/test_phase3b_e2e.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "cd2e70be7a63",
+  "checkpoint_transcript_start": 375,
+  "transcript_lines_at_start": 375,
+  "token_usage": {
+    "input_tokens": 57,
+    "cache_creation_tokens": 109768,
+    "cache_read_tokens": 3343939,
+    "output_tokens": 11124,
+    "api_call_count": 47
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T08:45:54.578128Z",
+    "agent_lines": 0,
+    "human_added": 122,
+    "human_modified": 12,
+    "human_removed": 0,
+    "total_committed": 122,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/8dbcec95-91ef-4b3f-a202-82acc3a9d333.jsonl"
+}
