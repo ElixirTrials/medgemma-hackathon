@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "74d70b0d0b9a",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-20T08:29:48.004842Z",
+  "branch": "feature/major-refactor-langgraph",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "docs/img/elixirtrials-logo.png"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f1f7932e78af",
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-20T08:29:47.996431Z",
+    "agent_lines": 0,
+    "human_added": 127,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 127,
+    "agent_percentage": 0
+  }
+}
