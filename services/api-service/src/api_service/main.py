@@ -219,7 +219,7 @@ def _check_gcs() -> str:
             if isinstance(e, RefreshError):
                 return "auth_expired"
         except ImportError:
-            pass
+            pass  # google-auth not installed; skip RefreshError detection
         return "unavailable"
 
 

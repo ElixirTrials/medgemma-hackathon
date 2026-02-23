@@ -137,7 +137,7 @@ def _is_retryable_error(exception: BaseException) -> bool:
         ):
             return False
     except ImportError:
-        pass
+        pass  # google-api-core not installed; skip Google-specific checks
 
     # Do NOT retry on expired credentials — no point retrying with the same creds
     try:
@@ -146,7 +146,7 @@ def _is_retryable_error(exception: BaseException) -> bool:
         if isinstance(exception, RefreshError):
             return False
     except ImportError:
-        pass
+        pass  # google-auth not installed; skip RefreshError check
 
     return False
 
