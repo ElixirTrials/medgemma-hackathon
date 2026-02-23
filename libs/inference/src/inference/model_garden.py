@@ -1,8 +1,20 @@
-"""Vertex AI Model Garden integration for MedGemma.
+"""MedGemma model loading for Vertex AI and local GPU backends.
 
-Provides ModelGardenChatModel (a LangChain BaseChatModel wrapper for
-Vertex AI Model Garden endpoints) and a factory function for creating
-lazy model loaders.
+Provides two deployment paths for MedGemma (google/medgemma-4b-it):
+
+1. **Vertex AI Model Garden** (``MODEL_BACKEND=vertex``):
+   Uses ``ModelGardenChatModel``, a LangChain BaseChatModel wrapper that
+   calls a Vertex AI endpoint with Gemma chat template formatting and
+   exponential-backoff retry for transient errors.
+
+2. **Local GPU** (``MODEL_BACKEND=local``):
+   Uses ``LocalMedGemmaChatModel``, which loads the HuggingFace model
+   locally with optional 4-bit/8-bit quantization via bitsandbytes.
+   Requires an NVIDIA GPU with 8 GB+ VRAM for the default 4-bit config.
+
+Both backends expose a standard LangChain ``BaseChatModel`` interface so
+the rest of the pipeline (``medgemma_decider.py``, ``ground.py``) is
+backend-agnostic.
 """
 
 from __future__ import annotations
@@ -275,8 +287,158 @@ def _validate_vertex_config(cfg: AgentConfig) -> tuple[str, str, str, str]:
     return project_id, region, endpoint_id, vertex_model_name
 
 
+class LocalMedGemmaChatModel(BaseChatModel):
+    """LangChain ChatModel wrapper for locally-loaded MedGemma.
+
+    Loads google/medgemma-4b-it (or a custom model path) via HuggingFace
+    ``transformers`` with optional bitsandbytes quantization. The model
+    and tokenizer are loaded once on first call and reused.
+
+    Requires:
+        - NVIDIA GPU with sufficient VRAM (8 GB+ for 4-bit, 16 GB+ for 8-bit)
+        - ``torch``, ``transformers``, ``accelerate`` packages
+        - ``bitsandbytes`` package (for quantized loading)
+    """
+
+    model_path: str = Field(default="google/medgemma-4b-it")
+    quantization: str = Field(default="4bit")
+    max_output_tokens: int = Field(default=4096)
+    _model: Any = None
+    _tokenizer: Any = None
+
+    def model_post_init(self, __context: Any) -> None:
+        """Validate that required packages are available."""
+        pass  # Defer actual loading to first call for fast startup
+
+    def _ensure_loaded(self) -> None:
+        """Load model and tokenizer on first use."""
+        if self._model is not None:
+            return
+
+        try:
+            import torch
+            from transformers import AutoModelForCausalLM, AutoTokenizer
+        except ImportError as exc:
+            raise ImportError(
+                "Local MedGemma backend requires torch, transformers, and "
+                "accelerate installed. Install with: "
+                "pip install torch transformers accelerate bitsandbytes"
+            ) from exc
+
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Local MedGemma backend requires an NVIDIA GPU with CUDA. "
+                "No CUDA device detected. Use MODEL_BACKEND=vertex for "
+                "cloud-based inference instead."
+            )
+
+        logger.info(
+            "Loading MedGemma locally: model=%s, quantization=%s",
+            self.model_path,
+            self.quantization,
+        )
+
+        model_kwargs: dict[str, Any] = {
+            "device_map": "auto",
+            "torch_dtype": torch.bfloat16,
+        }
+
+        if self.quantization in ("4bit", "8bit"):
+            try:
+                from transformers import BitsAndBytesConfig
+            except ImportError as exc:
+                raise ImportError(
+                    "Quantized loading requires bitsandbytes. "
+                    "Install with: pip install bitsandbytes"
+                ) from exc
+
+            if self.quantization == "4bit":
+                model_kwargs["quantization_config"] = BitsAndBytesConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_compute_dtype=torch.bfloat16,
+                    bnb_4bit_use_double_quant=True,
+                    bnb_4bit_quant_type="nf4",
+                )
+            else:
+                model_kwargs["quantization_config"] = BitsAndBytesConfig(
+                    load_in_8bit=True,
+                )
+
+        start_time = time.time()
+        self._tokenizer = AutoTokenizer.from_pretrained(self.model_path)
+        self._model = AutoModelForCausalLM.from_pretrained(
+            self.model_path, **model_kwargs
+        )
+        duration = time.time() - start_time
+        logger.info("MedGemma loaded in %.1f seconds", duration)
+
+    def _generate(
+        self,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: CallbackManagerForLLMRun | None = None,
+        **kwargs: Any,
+    ) -> ChatResult:
+        """Generate a response using the locally-loaded MedGemma model.
+
+        Args:
+            messages: List of LangChain messages.
+            stop: Optional stop sequences.
+            run_manager: Optional callback manager.
+            **kwargs: Additional keyword arguments (e.g. temperature).
+
+        Returns:
+            ChatResult containing the model's response.
+        """
+        import torch
+
+        self._ensure_loaded()
+
+        full_prompt = _build_gemma_prompt(messages)
+
+        inputs = self._tokenizer(full_prompt, return_tensors="pt").to(
+            self._model.device
+        )
+        input_length = inputs["input_ids"].shape[1]
+
+        start_time = time.time()
+        with torch.no_grad():
+            outputs = self._model.generate(
+                **inputs,
+                max_new_tokens=self.max_output_tokens,
+                temperature=kwargs.get("temperature", 0.1),
+                top_p=0.95,
+                top_k=40,
+                do_sample=True,
+            )
+        duration = time.time() - start_time
+
+        # Decode only the generated tokens (exclude prompt)
+        generated_tokens = outputs[0][input_length:]
+        text = self._tokenizer.decode(generated_tokens, skip_special_tokens=True)
+        text = _strip_model_garden_artifacts(text, full_prompt)
+
+        logger.debug(
+            "Local MedGemma generated %d tokens in %.2f seconds",
+            len(generated_tokens),
+            duration,
+        )
+
+        message = AIMessage(content=text)
+        generation = ChatGeneration(message=message)
+        return ChatResult(generations=[generation])
+
+    @property
+    def _llm_type(self) -> str:
+        return "local_medgemma"
+
+
 def create_model_loader(config: AgentConfig | None = None) -> Callable[[], Any]:
     """Create a lazy MedGemma model loader for the configured backend.
+
+    Supports two backends:
+        - ``vertex``: Vertex AI Model Garden (cloud, recommended for production)
+        - ``local``: Local GPU with HuggingFace transformers (requires NVIDIA GPU)
 
     Args:
         config: Agent configuration. Defaults to ``AgentConfig.from_env()``.
@@ -285,15 +447,14 @@ def create_model_loader(config: AgentConfig | None = None) -> Callable[[], Any]:
         Callable that loads and returns a LangChain chat model when invoked.
 
     Raises:
-        ValueError: If required Vertex configuration is missing.
-        NotImplementedError: If backend is "local" (not yet ported).
+        ValueError: If required configuration is missing for the selected backend.
     """
     cfg = config or AgentConfig.from_env()
 
     if cfg.backend == "vertex":
         return _create_vertex_model_loader(cfg)
 
-    raise NotImplementedError("Local MedGemma loading not yet ported")
+    return _create_local_model_loader(cfg)
 
 
 def _create_vertex_model_loader(cfg: AgentConfig) -> Callable[[], Any]:
@@ -341,6 +502,35 @@ def _create_vertex_model_loader(cfg: AgentConfig) -> Callable[[], Any]:
             endpoint_resource_name=endpoint_resource_name,
             project=project_id,
             location=region,
+            max_output_tokens=cfg.max_new_tokens,
+        )
+
+    return load_model
+
+
+def _create_local_model_loader(cfg: AgentConfig) -> Callable[[], Any]:
+    """Create a lazy local MedGemma model loader.
+
+    Loads MedGemma (default: google/medgemma-4b-it) from HuggingFace
+    with optional 4-bit or 8-bit quantization via bitsandbytes.
+
+    Args:
+        cfg: AgentConfig with backend=="local".
+
+    Returns:
+        Callable that lazily initializes and returns the model.
+    """
+
+    @lazy_singleton
+    def load_model() -> Any:
+        logger.info(
+            "Initializing local MedGemma: model=%s, quantization=%s",
+            cfg.model_path,
+            cfg.quantization,
+        )
+        return LocalMedGemmaChatModel(
+            model_path=cfg.model_path,
+            quantization=cfg.quantization,
             max_output_tokens=cfg.max_new_tokens,
         )
 
