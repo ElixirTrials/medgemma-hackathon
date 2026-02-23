@@ -19,6 +19,7 @@ from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.field_mapper import (
     FieldMappingItem,
     FieldMappingResponse,
+    FieldMappingValue,
     generate_field_mappings,
 )
 
@@ -67,7 +68,11 @@ class TestFieldMappingConceptIds:
         """Mapping dicts should contain all three concept ID keys."""
         response = FieldMappingResponse(
             mappings=[
-                FieldMappingItem(entity="HbA1c", relation="<", value="7", unit="%")
+                FieldMappingItem(
+                    entity="HbA1c",
+                    relation="<",
+                    value=FieldMappingValue(type="standard", value="7", unit="%"),
+                )
             ]
         )
         mock_chain = MagicMock()
@@ -87,8 +92,8 @@ class TestFieldMappingConceptIds:
         mappings = await generate_field_mappings(entity, "HbA1c < 7%")
 
         assert len(mappings) == 1
-        assert mappings[0]["entity_concept_id"] == "C0011847"
-        assert mappings[0]["entity_concept_system"] == "umls"
+        assert mappings[0]["entity_code"] == "C0011847"
+        assert mappings[0]["entity_system"] == "umls"
         assert mappings[0]["omop_concept_id"] == "201826"
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"})
@@ -97,7 +102,11 @@ class TestFieldMappingConceptIds:
         """Missing omop_concept_id yields None in mapping."""
         response = FieldMappingResponse(
             mappings=[
-                FieldMappingItem(entity="eGFR", relation=">", value="30", unit="mL/min")
+                FieldMappingItem(
+                    entity="eGFR",
+                    relation=">",
+                    value=FieldMappingValue(type="standard", value="30", unit="mL/min"),
+                )
             ]
         )
         mock_chain = MagicMock()
@@ -117,8 +126,8 @@ class TestFieldMappingConceptIds:
         mappings = await generate_field_mappings(entity, "eGFR > 30 mL/min")
 
         assert len(mappings) == 1
-        assert mappings[0]["entity_concept_id"] == "C0017654"
-        assert mappings[0]["entity_concept_system"] == "umls"
+        assert mappings[0]["entity_code"] == "C0017654"
+        assert mappings[0]["entity_system"] == "umls"
         assert mappings[0]["omop_concept_id"] is None
 
     @patch.dict(os.environ, {"GOOGLE_API_KEY": "test-key"})
@@ -127,7 +136,11 @@ class TestFieldMappingConceptIds:
         """No selected_code means concept ID fields are None."""
         response = FieldMappingResponse(
             mappings=[
-                FieldMappingItem(entity="BMI", relation="<", value="40", unit="kg/m2")
+                FieldMappingItem(
+                    entity="BMI",
+                    relation="<",
+                    value=FieldMappingValue(type="standard", value="40", unit="kg/m2"),
+                )
             ]
         )
         mock_chain = MagicMock()
@@ -147,8 +160,8 @@ class TestFieldMappingConceptIds:
         mappings = await generate_field_mappings(entity, "BMI < 40 kg/m2")
 
         assert len(mappings) == 1
-        assert mappings[0]["entity_concept_id"] is None
-        assert mappings[0]["entity_concept_system"] is None
+        assert mappings[0]["entity_code"] is None
+        assert mappings[0]["entity_system"] is None
         assert mappings[0]["omop_concept_id"] is None
 
 
