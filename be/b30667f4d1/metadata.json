@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "beb30667f4d1",
+  "strategy": "manual-commit",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "libs/inference/src/inference/py.typed"
+  ],
+  "sessions": [
+    {
+      "metadata": "/be/b30667f4d1/0/metadata.json",
+      "transcript": "/be/b30667f4d1/0/full.jsonl",
+      "context": "/be/b30667f4d1/0/context.md",
+      "content_hash": "/be/b30667f4d1/0/content_hash.txt",
+      "prompt": "/be/b30667f4d1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  }
+}
