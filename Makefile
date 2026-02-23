@@ -213,7 +213,7 @@ typecheck:
 
 test:
 	@echo "Running tests..."
-	uv run pytest services/api-service/tests libs/events-py/tests -q
+	uv run pytest services/api-service/tests libs/events-py/events_py_tests -q
 	@if [ -d "apps/hitl-ui/node_modules" ]; then \
 		cd apps/hitl-ui && npm test -- --run; \
 	fi

@@ -10,6 +10,13 @@ from typing import AsyncGenerator, Generator
 
 # Set DATABASE_URL before any app imports (storage.py requires it at import time)
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
+# Disable the outbox background processor during tests — it polls the DB every
+# second and the shutdown handshake adds ~1-2s per TestClient instantiation.
+os.environ["TESTING"] = "1"
+# Prevent MLflow from retrying connections to a non-running tracking server
+# (7 retries with backoff burns ~15s per TestClient creation).
+# Set to empty string so load_dotenv(override=False) won't re-set it from .env.
+os.environ["MLFLOW_TRACKING_URI"] = ""
 
 import jwt as pyjwt
 import pytest

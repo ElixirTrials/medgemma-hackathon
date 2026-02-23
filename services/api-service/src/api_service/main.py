@@ -82,24 +82,28 @@ async def lifespan(app: FastAPI):
             exc_info=True,
         )
 
-    # Start outbox processor as background task
-    # Per PIPE-03: criteria_extracted outbox removed. protocol_uploaded retained.
-    # protocol_processor.trigger.handle_protocol_uploaded replaces both the
-    # old extraction_service.trigger and grounding_service.trigger handlers.
-    processor = OutboxProcessor(
-        engine=engine,
-        handlers={
-            "protocol_uploaded": [handle_protocol_uploaded],
-        },
-    )
-    task = asyncio.create_task(processor.start())
-    _running_tasks.add(task)
-    task.add_done_callback(_running_tasks.discard)
+    # Start outbox processor as background task (skip in tests — the poll loop
+    # and executor shutdown add seconds of overhead per TestClient instantiation).
+    processor = None
+    if not os.environ.get("TESTING"):
+        # Per PIPE-03: criteria_extracted outbox removed. protocol_uploaded retained.
+        # protocol_processor.trigger.handle_protocol_uploaded replaces both the
+        # old extraction_service.trigger and grounding_service.trigger handlers.
+        processor = OutboxProcessor(
+            engine=engine,
+            handlers={
+                "protocol_uploaded": [handle_protocol_uploaded],
+            },
+        )
+        task = asyncio.create_task(processor.start())
+        _running_tasks.add(task)
+        task.add_done_callback(_running_tasks.discard)
 
     yield
 
     # Shutdown - stop outbox processor first
-    await processor.stop()
+    if processor:
+        await processor.stop()
 
     # Wait for background tasks to complete
     if _running_tasks:
