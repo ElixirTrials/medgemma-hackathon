@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a0ccac48de95",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useApi.ts",
+    "apps/hitl-ui/src/screens/Dashboard.tsx",
+    "services/api-service/src/api_service/main.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a0/ccac48de95/0/metadata.json",
+      "transcript": "/a0/ccac48de95/0/full.jsonl",
+      "context": "/a0/ccac48de95/0/context.md",
+      "content_hash": "/a0/ccac48de95/0/content_hash.txt",
+      "prompt": "/a0/ccac48de95/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  }
+}
