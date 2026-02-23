@@ -18,8 +18,15 @@ async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> 
     return response.json();
 }
 
+interface HealthChecks {
+    database: string;
+    omop_vocab: string;
+    omop_concept_count?: number;
+}
+
 interface HealthResponse {
     status: string;
+    checks?: HealthChecks;
 }
 
 export function useHealthCheck() {

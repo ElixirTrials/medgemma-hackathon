@@ -194,17 +194,40 @@ def _check_omop_vocab() -> dict:
 
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
-    """Health check — reports healthy only when main DB and OMOP vocab are ready."""
+    """Health check — main DB required, OMOP informational."""
     checks: dict = {}
 
-    # Main database
+    # Main database (required)
+    try:
+        db.execute(text("SELECT 1"))
+        checks["database"] = "connected"
+    except Exception:
+        checks["database"] = "unavailable"
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "checks": checks},
+        )
+
+    # OMOP vocabulary database (informational — doesn't block health)
+    omop = _check_omop_vocab()
+    checks["omop_vocab"] = omop["status"]
+    if omop.get("concept_count"):
+        checks["omop_concept_count"] = omop["concept_count"]
+
+    return {"status": "healthy", "checks": checks}
+
+
+@app.get("/ready")
+async def readiness_check(db: Session = Depends(get_db)):
+    """Readiness probe — all dependencies including OMOP must be available."""
+    checks: dict = {}
+
     try:
         db.execute(text("SELECT 1"))
         checks["database"] = "connected"
     except Exception:
         checks["database"] = "unavailable"
 
-    # OMOP vocabulary database
     omop = _check_omop_vocab()
     checks["omop_vocab"] = omop["status"]
     if omop.get("concept_count"):
@@ -216,25 +239,7 @@ async def health_check(db: Session = Depends(get_db)):
             status_code=503,
             content={"status": "not_ready", "checks": checks},
         )
-    return {"status": "healthy", "checks": checks}
-
-
-@app.get("/ready")
-async def readiness_check(db: Session = Depends(get_db)):
-    """Readiness probe - can the service handle requests?"""
-    try:
-        # Test database connection
-        db.execute(text("SELECT 1"))
-        return {"status": "ready", "database": "connected"}
-    except Exception as e:
-        logger.error(f"Readiness check failed: {e}")
-        return JSONResponse(
-            status_code=503,
-            content={
-                "status": "not_ready",
-                "error": "Database unavailable",
-            },
-        )
+    return {"status": "ready", "checks": checks}
 
 
 @app.get("/")
