@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6bf524acd236",
+  "strategy": "manual-commit",
+  "branch": "claude/busy-knuth",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6b/f524acd236/0/metadata.json",
+      "transcript": "/6b/f524acd236/0/full.jsonl",
+      "context": "/6b/f524acd236/0/context.md",
+      "content_hash": "/6b/f524acd236/0/content_hash.txt",
+      "prompt": "/6b/f524acd236/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 24,
+    "cache_creation_tokens": 62015,
+    "cache_read_tokens": 1293282,
+    "output_tokens": 2968,
+    "api_call_count": 22
+  }
+}
