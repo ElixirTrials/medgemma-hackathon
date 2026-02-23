@@ -16,6 +16,7 @@ from typing import Any, Dict
 import jwt
 from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from shared.models import User
 from sqlmodel import Session, select
@@ -100,15 +101,19 @@ async def login(request: Request) -> Dict[str, Any]:
                 "client in Google Cloud Console or use Dev Login."
             ),
         )
+    # Store popup flag in session so callback can return postMessage HTML
+    if request.query_params.get("popup") == "1":
+        request.session["oauth_popup"] = True
+
     redirect_uri = request.url_for("auth_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
-@router.get("/callback")
+@router.get("/callback", response_model=None)
 async def auth_callback(
     request: Request,
     db: Session = Depends(get_db),
-) -> TokenResponse:
+) -> TokenResponse | HTMLResponse:
     """Handle OAuth callback from Google and issue JWT.
 
     Exchanges the authorization code for an access token, retrieves
@@ -159,7 +164,7 @@ async def auth_callback(
         }
         access_token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
 
-        return TokenResponse(
+        token_response = TokenResponse(
             access_token=access_token,
             token_type="bearer",
             user=UserInfo(
@@ -168,6 +173,31 @@ async def auth_callback(
                 name=user.name,
             ),
         )
+
+        # If this was a popup OAuth flow, return HTML that posts token to opener
+        is_popup = request.session.pop("oauth_popup", False)
+        if is_popup:
+            import json
+
+            payload_json = json.dumps(
+                {
+                    "access_token": access_token,
+                    "user": {
+                        "id": user.id,
+                        "email": user.email,
+                        "name": user.name,
+                    },
+                }
+            )
+            return HTMLResponse(
+                content=f"""<!DOCTYPE html>
+<html><body><script>
+window.opener.postMessage({payload_json}, window.location.origin);
+window.close();
+</script><p>Authenticated. You may close this window.</p></body></html>"""
+            )
+
+        return token_response
 
     except Exception as e:
         logger.error(f"OAuth callback error: {e}")

@@ -192,9 +192,47 @@ def _check_omop_vocab() -> dict:
         return {"status": "unavailable", "error": str(e)}
 
 
+def _check_gcs() -> str:
+    """Check GCS connectivity and credential validity.
+
+    Returns one of: "ok" | "auth_expired" | "unavailable" | "local_storage".
+    """
+    from api_service.gcs import _use_local_storage, get_bucket_name, get_gcs_client
+
+    if _use_local_storage():
+        return "local_storage"
+    try:
+        client = get_gcs_client()
+        if client is None:
+            return "unavailable"
+        bucket_name = get_bucket_name()
+        client.bucket(bucket_name).exists()
+        return "ok"
+    except Exception as e:
+        try:
+            from google.auth.exceptions import RefreshError
+
+            if isinstance(e, RefreshError):
+                return "auth_expired"
+        except ImportError:
+            pass
+        return "unavailable"
+
+
+def _check_breakers() -> dict:
+    """Return circuit breaker states as a dict."""
+    from shared.resilience import gcs_breaker, gemini_breaker, vertex_ai_breaker
+
+    return {
+        "gemini": str(gemini_breaker.current_state),
+        "gcs": str(gcs_breaker.current_state),
+        "vertex_ai": str(vertex_ai_breaker.current_state),
+    }
+
+
 @app.get("/health")
 async def health_check(db: Session = Depends(get_db)):
-    """Health check — main DB required, OMOP informational."""
+    """Health check — main DB required, OMOP/GCS/breakers informational."""
     checks: dict = {}
 
     # Main database (required)
@@ -213,6 +251,12 @@ async def health_check(db: Session = Depends(get_db)):
     checks["omop_vocab"] = omop["status"]
     if omop.get("concept_count"):
         checks["omop_concept_count"] = omop["concept_count"]
+
+    # GCS / Google API credentials (informational)
+    checks["gcs"] = _check_gcs()
+
+    # Circuit breaker states (informational)
+    checks["breakers"] = _check_breakers()
 
     return {"status": "healthy", "checks": checks}
 

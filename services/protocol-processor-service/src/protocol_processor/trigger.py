@@ -127,8 +127,8 @@ def _categorize_pipeline_error(e: Exception) -> str:
         return "File storage service unavailable"
 
     # Auth / credential errors
-    if "credential" in error_str or "auth" in error_str:
-        return "Service authentication failed"
+    if "credential" in error_str or "auth" in error_str or "refresherror" in error_str:
+        return "Google credentials expired — run: gcloud auth application-default login"
 
     # UMLS / grounding errors
     if "mcp" in error_str or "subprocess" in error_str:

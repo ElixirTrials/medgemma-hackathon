@@ -139,6 +139,15 @@ def _is_retryable_error(exception: BaseException) -> bool:
     except ImportError:
         pass
 
+    # Do NOT retry on expired credentials — no point retrying with the same creds
+    try:
+        from google.auth.exceptions import RefreshError
+
+        if isinstance(exception, RefreshError):
+            return False
+    except ImportError:
+        pass
+
     return False
 
 

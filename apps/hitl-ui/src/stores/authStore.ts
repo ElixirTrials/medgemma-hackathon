@@ -11,7 +11,9 @@ interface User {
 interface AuthState {
     token: string | null;
     user: User | null;
+    isSessionExpired: boolean;
     setAuth: (token: string, user: User) => void;
+    setSessionExpired: () => void;
     logout: () => void;
     isAuthenticated: () => boolean;
 }
@@ -30,15 +32,21 @@ function getStoredAuth(): { token: string | null; user: User | null } {
 
 export const useAuthStore = create<AuthState>((set, get) => ({
     ...getStoredAuth(),
+    isSessionExpired: false,
     setAuth: (token: string, user: User) => {
         localStorage.setItem('auth_token', token);
         localStorage.setItem('auth_user', JSON.stringify(user));
-        set({ token, user });
+        set({ token, user, isSessionExpired: false });
+    },
+    setSessionExpired: () => {
+        // Guard against cascading calls from multiple simultaneous 401s
+        if (get().isSessionExpired) return;
+        set({ isSessionExpired: true });
     },
     logout: () => {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('auth_user');
-        set({ token: null, user: null });
+        set({ token: null, user: null, isSessionExpired: false });
     },
     isAuthenticated: () => {
         const state = get();

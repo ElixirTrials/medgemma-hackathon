@@ -58,6 +58,37 @@ export default function Dashboard() {
                                           : ''}
                                 </span>
                             </div>
+                            {health.checks?.gcs && health.checks.gcs !== 'local_storage' && (
+                                <div className="flex items-center gap-2">
+                                    <span
+                                        className={`h-2.5 w-2.5 rounded-full ${health.checks.gcs === 'ok' ? 'bg-green-500' : health.checks.gcs === 'auth_expired' ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                    />
+                                    <span className="text-sm">
+                                        Cloud Storage
+                                        {health.checks.gcs === 'auth_expired'
+                                            ? ' — Credentials expired'
+                                            : health.checks.gcs === 'unavailable'
+                                              ? ' — Unavailable'
+                                              : ''}
+                                    </span>
+                                </div>
+                            )}
+                            {health.checks?.breakers &&
+                                Object.entries(health.checks.breakers).some(
+                                    ([, v]) => v === 'open'
+                                ) && (
+                                    <div className="flex items-center gap-2">
+                                        <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                                        <span className="text-sm">
+                                            AI services degraded (
+                                            {Object.entries(health.checks.breakers)
+                                                .filter(([, v]) => v === 'open')
+                                                .map(([k]) => k)
+                                                .join(', ')}
+                                            )
+                                        </span>
+                                    </div>
+                                )}
                         </div>
                     )}
                 </DashboardCard>

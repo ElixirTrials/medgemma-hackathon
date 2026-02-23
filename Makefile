@@ -195,7 +195,7 @@ lint-fix:
 
 typecheck:
 	@echo "Running type checkers..."
-	uv run mypy libs/shared/src services/api-service/src libs/inference/src services/extraction-service/src services/grounding-service/src libs/data-pipeline/src libs/evaluation/src libs/events-py/src libs/model-training/src
+	uv run mypy libs/shared/src services/api-service/src libs/inference/src libs/data-pipeline/src libs/evaluation/src libs/events-py/src libs/model-training/src services/protocol-processor-service/src
 	@if [ -d "apps/hitl-ui/node_modules" ]; then \
 		cd apps/hitl-ui && npx tsc --noEmit; \
 	fi
@@ -224,6 +224,14 @@ help:
 	@echo "  make run-api     - Start API service (port 8000)"
 	@echo "  make run-ui      - Start UI dev server (port 3000)"
 	@echo ""
+	@echo "Setup / GCP:"
+	@echo "  make setup-adc     - Set ADC quota project from .env (run after gcloud auth application-default login)"
+	@echo "  make verify-gemini - Verify Gemini API access (GOOGLE_API_KEY in .env)"
+	@echo ""
+	@echo "Scaffolding:"
+	@echo "  make create-component - Create a new component (prompts for name)"
+	@echo "  make create-service   - Create a new service (prompts for name and language py|ts)"
+	@echo ""
 	@echo "Production (Docker):"
 	@echo "  docker compose -f infra/docker-compose.yml up  - Full stack with Docker MLflow"
 	@echo ""
@@ -237,8 +245,11 @@ help:
 	@echo "  make test       - Run pytest and vitest"
 	@echo ""
 	@echo "Documentation:"
-	@echo "  make docs-build - Build documentation site"
-	@echo "  make docs-serve - Serve documentation locally"
+	@echo "  make docs-build         - Build documentation site"
+	@echo "  make docs-serve         - Serve documentation locally"
+	@echo "  make docs-openapi       - Export OpenAPI spec"
+	@echo "  make docs-components-gen - Generate components overview page"
+	@echo "  make docs-nav-update    - Update root navigation"
 	@echo ""
 	@echo "Database:"
 	@echo "  make db-migrate          - Apply database migrations"
@@ -251,3 +262,7 @@ help:
 	@echo "Quality Evaluation:"
 	@echo "  make quality-eval       - Run quality evaluation on sample PDFs"
 	@echo "  make quality-eval-fresh - Re-upload PDFs and run fresh evaluation"
+	@echo ""
+	@echo "Utilities:"
+	@echo "  make kill-processes - Kill running API/UI/MLflow processes"
+	@echo "  make clean         - Remove site/, .cache/, docs/.uv_cache/"
