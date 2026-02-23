@@ -35,6 +35,7 @@ export interface FieldMapping {
     entity: string;
     entity_code?: string;
     entity_system?: string;
+    omop_concept_id?: string;
     relation: string;
     value: unknown;
 }

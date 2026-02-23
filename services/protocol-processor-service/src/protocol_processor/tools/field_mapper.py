@@ -13,7 +13,7 @@ criterion text. These are best-effort suggestions — reviewer can edit in UI.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -25,6 +25,49 @@ from protocol_processor.tools.gemini_utils import (
 
 logger = logging.getLogger(__name__)
 
+# Mapping from legacy/LLM relation operators to the frontend's RelationOperator set
+_RELATION_MAP: dict[str, str] = {
+    "has": "contains",
+    "is": "=",
+    "not": "not_contains",
+    "==": "=",
+    "range": "within",
+}
+
+
+def _normalize_relation(rel: str) -> str:
+    """Normalize a relation operator to the frontend's accepted set.
+
+    Maps legacy operators (has, is, not, ==, range) to the standard set:
+    =, !=, >, >=, <, <=, within, not_in_last, contains, not_contains.
+    """
+    return _RELATION_MAP.get(rel, rel)
+
+
+class FieldMappingValue(BaseModel):
+    """Typed value object for field mappings with type discriminator.
+
+    Supports three value shapes:
+    - standard: single value + unit (e.g. HbA1c < 7%)
+    - range: min/max + unit (e.g. Age 18-65 years)
+    - temporal: duration + unit (e.g. within 6 months)
+    """
+
+    type: Literal["standard", "range", "temporal"] = Field(
+        description="Value type discriminator"
+    )
+    value: str | None = Field(
+        default=None, description="Value for standard type (e.g. '7')"
+    )
+    unit: str | None = Field(
+        default=None, description="Unit of measurement (e.g. '%', 'mg/dL', 'months')"
+    )
+    min: str | None = Field(default=None, description="Minimum value for range type")
+    max: str | None = Field(default=None, description="Maximum value for range type")
+    duration: str | None = Field(
+        default=None, description="Duration value for temporal type"
+    )
+
 
 class FieldMappingItem(BaseModel):
     """A single AutoCriteria field mapping decomposition.
@@ -35,12 +78,10 @@ class FieldMappingItem(BaseModel):
 
     entity: str = Field(description="The medical entity name (e.g. 'HbA1c')")
     relation: str = Field(
-        description="The logical operator/relation (e.g. '<', '>', '=', 'has', 'is')"
+        description="The logical operator/relation (e.g. '<', '>', '=', 'contains')"
     )
-    value: str = Field(
-        description=(
-            "The specific value or threshold (e.g. '7%', 'positive', 'confirmed')"
-        )
+    value: FieldMappingValue = Field(
+        description="Typed value object with type discriminator"
     )
     unit: str | None = Field(
         default=None,
@@ -74,7 +115,8 @@ async def generate_field_mappings(
         criterion_text: Full criterion text for context.
 
     Returns:
-        List of field mapping dicts with keys: entity, relation, value, unit.
+        List of field mapping dicts with keys: entity, relation, value,
+        entity_code, entity_system, omop_concept_id, entity_type.
         Empty list if generation fails.
     """
     if not criterion_text:
@@ -103,15 +145,18 @@ async def generate_field_mappings(
             " as a separate mapping\n"
             "- entity: the specific measurement or concept"
             " (e.g. 'HbA1c', 'Age', 'eGFR')\n"
-            "- relation: the logical operator"
-            " (<, >, >=, <=, =, has, is, within, not)\n"
-            "- value: the specific threshold or value"
-            " (e.g. '7', 'positive', 'confirmed')\n"
-            "- unit: the unit if applicable (e.g. '%', 'mg/dL', 'years')"
-            " or null\n"
+            "- relation: MUST be one of: =, !=, >, >=, <, <=, within,"
+            " not_in_last, contains, not_contains\n"
+            '- value: a typed object with a "type" discriminator:\n'
+            '  - Standard: {"type": "standard", "value": "7", "unit": "%"}\n'
+            '  - Range: {"type": "range", "min": "18", "max": "65",'
+            ' "unit": "years"}\n'
+            '  - Temporal: {"type": "temporal", "duration": "6",'
+            ' "unit": "months"}\n'
             "- Create one mapping per discrete condition in the criterion\n"
             "- If no clear measurement exists, create one mapping with"
-            " relation='has', value='confirmed'"
+            " relation='contains',"
+            ' value={"type": "standard", "value": "confirmed", "unit": ""}'
         )
 
         result = await structured_llm.ainvoke(prompt)
@@ -120,11 +165,10 @@ async def generate_field_mappings(
         mappings = [
             {
                 "entity": m.entity,
-                "relation": m.relation,
-                "value": m.value,
-                "unit": m.unit,
-                "entity_concept_id": entity.selected_code,
-                "entity_concept_system": entity.selected_system,
+                "relation": _normalize_relation(m.relation),
+                "value": m.value.model_dump(exclude_none=True),
+                "entity_code": entity.selected_code,
+                "entity_system": entity.selected_system,
                 "omop_concept_id": entity.omop_concept_id,
                 "entity_type": entity.entity_type,
             }
