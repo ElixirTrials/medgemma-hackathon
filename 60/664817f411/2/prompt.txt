@@ -1,0 +1,29 @@
+my pytests are taking forever to run. Can we check what is happening? If we do something end to end, it should be on a very small number of criteria or a small snippet from a protocol and not a lot of API calls.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+Set timeouts. And don't wait forever to make your diagnosis.
+
+---
+
+I see this warning in the console: can you take care of it, /Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/_pytest/main.py:353: PluggyTeardownRaisedWarning: A plugin raised an exception during an old-style hookwrapper teardown.
+Plugin: 4509903104, Hook: pytest_sessionfinish
+OSError: cannot send (already closed?)
+For more information see https://pluggy.readthedocs.io/en/stable/api_reference.html#pluggy.PluggyTeardownRaisedWarning
+  config.hook.pytest_sessionfinish(
+
+---
+
+Now, write a well-formulated PR and monitor the results of the CI/CD and comments to see what needs to be addressed.
+
+---
+
+[Request interrupted by user]
+
+---
+
+No let's make one PR for all the changes

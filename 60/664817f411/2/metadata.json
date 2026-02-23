@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "60664817f411",
+  "session_id": "d5fc143d-bc6d-4109-afff-c8d5b051e7a1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T19:12:02.286191Z",
+  "branch": "feat/graceful-credential-expiry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/api-service/src/api_service/main.py",
+    "libs/inference/src/inference/model_garden.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "699a9af905cd",
+  "transcript_identifier_at_start": "f7ede9b7-4aee-4df2-9725-be8cbc79c8e9",
+  "checkpoint_transcript_start": 754,
+  "transcript_lines_at_start": 754,
+  "token_usage": {
+    "input_tokens": 22,
+    "cache_creation_tokens": 16963,
+    "cache_read_tokens": 1654301,
+    "output_tokens": 1845,
+    "api_call_count": 18
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T19:12:01.927015Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/d5fc143d-bc6d-4109-afff-c8d5b051e7a1.jsonl"
+}
