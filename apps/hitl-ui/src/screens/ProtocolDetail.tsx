@@ -251,13 +251,22 @@ export default function ProtocolDetail() {
     if (error || !protocol) {
         return (
             <div className="container mx-auto p-6">
-                <Link
-                    to="/protocols"
-                    className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
-                >
-                    <ArrowLeft className="h-4 w-4 mr-1" />
-                    Back to Protocols
-                </Link>
+                <div className="flex flex-wrap items-center gap-3 mb-6">
+                    <Link
+                        to="/"
+                        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-1" />
+                        Back to Dashboard
+                    </Link>
+                    <Link
+                        to="/protocols"
+                        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                    >
+                        <ArrowLeft className="h-4 w-4 mr-1" />
+                        Back to Protocols
+                    </Link>
+                </div>
                 <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-6 text-center">
                     <p className="text-destructive">Protocol not found</p>
                 </div>
@@ -283,14 +292,23 @@ export default function ProtocolDetail() {
 
     return (
         <div className="container mx-auto p-6">
-            {/* Back link */}
-            <Link
-                to="/protocols"
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
-            >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to Protocols
-            </Link>
+            {/* Back links */}
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+                <Link
+                    to="/"
+                    className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Back to Dashboard
+                </Link>
+                <Link
+                    to="/protocols"
+                    className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground"
+                >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    Back to Protocols
+                </Link>
+            </div>
 
             {/* Title and status */}
             <div className="flex items-start justify-between mb-6">

@@ -139,6 +139,19 @@ export interface PendingSummary {
     message: string;
 }
 
+export interface ErrorProtocolItem {
+    id: string;
+    title: string;
+    status: string;
+}
+
+export interface PipelineSummary {
+    criteria_extracted: number;
+    protocols_in_grounding: number;
+    error_count: number;
+    error_protocols: ErrorProtocolItem[];
+}
+
 // --- Hooks ---
 
 export function useBatchList(page: number, pageSize: number, status?: string) {
@@ -244,6 +257,14 @@ export function usePendingSummary() {
     return useQuery({
         queryKey: ['pending-summary'],
         queryFn: () => fetchApi<PendingSummary>('/reviews/pending-summary'),
+        staleTime: 30 * 1000,
+    });
+}
+
+export function usePipelineSummary() {
+    return useQuery({
+        queryKey: ['pipeline-summary'],
+        queryFn: () => fetchApi<PipelineSummary>('/reviews/pipeline-summary'),
         staleTime: 30 * 1000,
     });
 }

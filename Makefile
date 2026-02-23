@@ -6,20 +6,24 @@ SHELL := /bin/bash
 run-dev:
 	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-dev"; exit 1; }
 	@echo "Starting infrastructure + API + UI..."
-	@echo "1. Activating gcloud profile..."
-	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env | cut -d= -f2); \
+	@echo "1. GCloud auth (browser) and profile..."
+	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	if [ -n "$$GCLOUD_PROFILE" ]; then \
+		ACCOUNT=$$(gcloud config configurations describe $$GCLOUD_PROFILE --format='value(properties.core.account)' 2>/dev/null || true); \
+		echo "2. Signing in via browser (no password in terminal)..."; \
+		gcloud auth login --force $${ACCOUNT:+$$ACCOUNT}; \
+		echo "3. Activating gcloud profile $$GCLOUD_PROFILE..."; \
 		gcloud config configurations activate $$GCLOUD_PROFILE; \
 	else \
-		echo "GCLOUD_PROFILE not set in .env, skipping"; \
+		echo "GCLOUD_PROFILE not set in .env, skipping gcloud"; \
 	fi
-	@echo "2. Starting DB..."
+	@echo "4. Starting DB..."
 	docker compose -f infra/docker-compose.yml up -d db
-	@echo "3. Waiting for Postgres..."
+	@echo "5. Waiting for Postgres..."
 	@until docker compose -f infra/docker-compose.yml exec db pg_isready -U postgres 2>/dev/null; do sleep 1; done
-	@echo "4. Starting local MLflow server..."
+	@echo "6. Starting local MLflow server..."
 	@mkdir -p .mlflow
-	@echo "5. Finding available ports and starting API + UI + MLflow..."
+	@echo "7. Finding available ports and starting API + UI + MLflow..."
 	@if [ ! -d "apps/hitl-ui/node_modules" ]; then \
 		echo "  Installing hitl-ui dependencies (npm install)..."; \
 		cd apps/hitl-ui && npm install && cd ../..; \
