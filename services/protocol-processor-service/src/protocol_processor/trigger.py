@@ -71,7 +71,10 @@ def _cleanup_orphan_traces() -> None:
                     )
                     closed += 1
                 except Exception:
-                    pass  # Trace may have already been closed
+                    logger.debug(
+                        "Trace %s already closed, skipping",
+                        trace.info.request_id,
+                    )
         if closed:
             logger.info(
                 "Startup orphan cleanup: closed %d stale IN_PROGRESS trace(s)",
@@ -99,7 +102,7 @@ def _ensure_mlflow() -> bool:
             mlflow.set_experiment("protocol-processing")
             return True
     except ImportError:
-        pass
+        logger.debug("mlflow not installed, skipping tracing setup")
     return False
 
 

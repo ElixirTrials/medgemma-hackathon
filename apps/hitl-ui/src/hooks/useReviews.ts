@@ -61,6 +61,8 @@ export interface BatchListResponse {
 // Field mapping for structured criteria edits (entity/relation/value triplet)
 export interface FieldMapping {
     entity: string;
+    entity_code?: string;
+    entity_system?: string;
     relation: string;
     value: unknown;
 }

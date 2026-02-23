@@ -60,8 +60,6 @@ def engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    import shared.models  # noqa: F401
-
     SQLModel.metadata.create_all(eng)
     try:
         yield eng

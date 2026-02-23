@@ -10,9 +10,12 @@ grouped and filtered in the MLflow UI.
 
 from __future__ import annotations
 
+import logging
 import os
 from contextlib import contextmanager
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
@@ -46,13 +49,13 @@ def pipeline_span(
                             tags={"protocol_id": protocol_id},
                         )
                     except Exception:
-                        pass  # Tag failure is non-fatal
+                        logger.debug("MLflow tag update failed (non-fatal)")
                 yield span
                 return
     except ImportError:
-        pass
+        logger.debug("mlflow not installed, skipping tracing")
     except Exception:
-        pass
+        logger.debug("MLflow span creation failed, falling back to no-op")
 
     # Fallback: no-op span
     yield _NoOpSpan()

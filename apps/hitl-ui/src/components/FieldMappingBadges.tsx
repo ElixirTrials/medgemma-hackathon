@@ -6,11 +6,19 @@ interface FieldMappingBadgesProps {
 }
 
 function formatMappingValue(value: Record<string, unknown>): string {
-    if (typeof value !== 'object' || value === null) return '';
+    if (typeof value !== 'object') return '';
     if (value.type === 'range')
         return `${value.min}–${value.max}${value.unit ? ` ${value.unit}` : ''}`;
     if (value.type === 'temporal') return `${value.duration} ${value.unit}`;
     if (value.type === 'standard') return `${value.value}${value.unit ? ` ${value.unit}` : ''}`;
+    return '';
+}
+
+function renderValue(value: unknown): string {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number') return String(value);
+    if (typeof value === 'object') return formatMappingValue(value as Record<string, unknown>);
     return '';
 }
 
@@ -20,12 +28,36 @@ export default function FieldMappingBadges({ criterion, onEditClick }: FieldMapp
         cond && 'field_mappings' in cond && Array.isArray(cond.field_mappings)
             ? (cond.field_mappings as Array<{
                   entity: string;
+                  entity_code?: string;
+                  entity_system?: string;
                   relation: string;
-                  value: Record<string, unknown>;
+                  value: unknown;
               }>)
             : null;
 
     if (!fieldMappings || fieldMappings.length === 0) return null;
+
+    const badgeContent = (mapping: (typeof fieldMappings)[number]) => {
+        const valueText = renderValue(mapping.value);
+        return (
+            <>
+                <span className="font-semibold text-blue-900">{mapping.entity || '—'}</span>
+                {mapping.entity_code && (
+                    <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-1.5 py-0 text-[10px] text-green-700">
+                        {mapping.entity_system?.toUpperCase()}: {mapping.entity_code}
+                    </span>
+                )}
+                {mapping.relation && (
+                    <span className="text-blue-600 font-mono text-xs">{mapping.relation}</span>
+                )}
+                {mapping.relation && valueText ? (
+                    <span className="text-blue-800">{valueText}</span>
+                ) : mapping.relation && !valueText ? (
+                    <span className="text-muted-foreground/50 italic text-xs">no value</span>
+                ) : null}
+            </>
+        );
+    };
 
     return (
         <div className="mb-3">
@@ -49,35 +81,11 @@ export default function FieldMappingBadges({ criterion, onEditClick }: FieldMapp
                                 title="Click to edit field mappings"
                                 type="button"
                             >
-                                <span className="font-semibold text-blue-900">
-                                    {mapping.entity || '—'}
-                                </span>
-                                {mapping.relation && (
-                                    <>
-                                        <span className="text-blue-600 font-mono text-xs">
-                                            {mapping.relation}
-                                        </span>
-                                        <span className="text-blue-800">
-                                            {formatMappingValue(mapping.value)}
-                                        </span>
-                                    </>
-                                )}
+                                {badgeContent(mapping)}
                             </button>
                         ) : (
                             <div className="w-full flex items-center gap-2 rounded-md border bg-blue-50/50 border-blue-200 px-3 py-2 text-sm">
-                                <span className="font-semibold text-blue-900">
-                                    {mapping.entity || '—'}
-                                </span>
-                                {mapping.relation && (
-                                    <>
-                                        <span className="text-blue-600 font-mono text-xs">
-                                            {mapping.relation}
-                                        </span>
-                                        <span className="text-blue-800">
-                                            {formatMappingValue(mapping.value)}
-                                        </span>
-                                    </>
-                                )}
+                                {badgeContent(mapping)}
                             </div>
                         )}
                     </div>

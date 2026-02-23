@@ -1,9 +1,12 @@
 // Main structured field editor component with multiple entity/relation/value mappings
 
 import { Loader2, Plus, Trash2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Controller, useFieldArray, useForm } from 'react-hook-form';
 
+import type { TerminologySearchResult } from '../../hooks/useTerminologySearch';
+import type { TerminologySystem } from '../TerminologyBadge';
+import { TerminologyCombobox } from '../TerminologyCombobox';
 import { Button } from '../ui/Button';
 import { RelationSelect } from './RelationSelect';
 import { ValueInput } from './ValueInput';
@@ -18,6 +21,15 @@ import type {
     StructuredFieldEditorProps,
     StructuredFieldFormValues,
 } from './types';
+
+const TERMINOLOGY_SYSTEMS: Array<{ value: TerminologySystem; label: string }> = [
+    { value: 'snomed', label: 'SNOMED' },
+    { value: 'loinc', label: 'LOINC' },
+    { value: 'rxnorm', label: 'RxNorm' },
+    { value: 'icd10', label: 'ICD-10' },
+    { value: 'hpo', label: 'HPO' },
+    { value: 'umls', label: 'UMLS' },
+];
 
 export function StructuredFieldEditor({
     criterionId,
@@ -34,6 +46,23 @@ export function StructuredFieldEditor({
         control,
         name: 'mappings',
     });
+
+    // Per-mapping terminology system selector state
+    const [systemSelections, setSystemSelections] = useState<Record<number, TerminologySystem>>(
+        () => {
+            const initial: Record<number, TerminologySystem> = {};
+            const mappings = initialValues?.mappings ?? DEFAULT_FIELD_VALUES.mappings;
+            for (let i = 0; i < mappings.length; i++) {
+                initial[i] = (mappings[i].entity_system as TerminologySystem) || 'snomed';
+            }
+            return initial;
+        }
+    );
+
+    const getSystem = (index: number): TerminologySystem => systemSelections[index] ?? 'snomed';
+
+    const setSystem = (index: number, system: TerminologySystem) =>
+        setSystemSelections((prev) => ({ ...prev, [index]: system }));
 
     // Watch all mappings for validation
     const allMappings = watch('mappings');
@@ -110,7 +139,7 @@ export function StructuredFieldEditor({
                             </Button>
                         </div>
 
-                        {/* Entity field */}
+                        {/* Entity field with terminology search */}
                         <div className="mb-3">
                             <label
                                 htmlFor={`entity-${criterionId}-${index}`}
@@ -118,20 +147,66 @@ export function StructuredFieldEditor({
                             >
                                 Entity
                             </label>
-                            <Controller
-                                name={`mappings.${index}.entity`}
-                                control={control}
-                                render={({ field }) => (
-                                    <input
-                                        id={`entity-${criterionId}-${index}`}
-                                        type="text"
-                                        placeholder="e.g., Age, HbA1c, Acetaminophen"
-                                        {...field}
-                                        disabled={isSubmitting}
-                                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed"
-                                    />
-                                )}
-                            />
+                            <div className="flex gap-2">
+                                <select
+                                    value={getSystem(index)}
+                                    onChange={(e) =>
+                                        setSystem(index, e.target.value as TerminologySystem)
+                                    }
+                                    disabled={isSubmitting}
+                                    className="rounded-md border border-input bg-background px-2 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 disabled:cursor-not-allowed w-[100px] shrink-0"
+                                >
+                                    {TERMINOLOGY_SYSTEMS.map((s) => (
+                                        <option key={s.value} value={s.value}>
+                                            {s.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <Controller
+                                    name={`mappings.${index}.entity`}
+                                    control={control}
+                                    render={({ field }) => (
+                                        <div className="flex-1">
+                                            <TerminologyCombobox
+                                                system={getSystem(index)}
+                                                value={field.value}
+                                                onChange={(val) => {
+                                                    field.onChange(val);
+                                                    // Clear code/system when user types freely
+                                                    setValue(
+                                                        `mappings.${index}.entity_code`,
+                                                        undefined
+                                                    );
+                                                    setValue(
+                                                        `mappings.${index}.entity_system`,
+                                                        undefined
+                                                    );
+                                                }}
+                                                onSelect={(result: TerminologySearchResult) => {
+                                                    field.onChange(result.display);
+                                                    setValue(
+                                                        `mappings.${index}.entity_code`,
+                                                        result.code
+                                                    );
+                                                    setValue(
+                                                        `mappings.${index}.entity_system`,
+                                                        getSystem(index)
+                                                    );
+                                                }}
+                                                placeholder="Search terminology..."
+                                            />
+                                        </div>
+                                    )}
+                                />
+                            </div>
+                            {mapping?.entity_code && (
+                                <div className="mt-1">
+                                    <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs text-green-700">
+                                        {mapping.entity_system?.toUpperCase()}:{' '}
+                                        {mapping.entity_code}
+                                    </span>
+                                </div>
+                            )}
                         </div>
 
                         {/* Relation field */}

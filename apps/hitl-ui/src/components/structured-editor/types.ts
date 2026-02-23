@@ -40,6 +40,8 @@ export type FieldValue = StandardValue | RangeValue | TemporalValue;
 // Single field mapping with all possible fields
 export interface FieldMapping {
     entity: string;
+    entity_code?: string;
+    entity_system?: string;
     relation: RelationOperator | '';
     value: FieldValue;
 }

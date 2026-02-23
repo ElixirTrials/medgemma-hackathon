@@ -169,7 +169,10 @@ function mapComparator(comparator: string): RelationOperator | '' {
 }
 
 /** Parse a duration string like "6 months" into {value, unit}. */
-function parseDuration(duration: string): { value: string; unit: TemporalUnit } {
+function parseDuration(duration: string): {
+    value: string;
+    unit: TemporalUnit;
+} {
     const match = duration.match(/^(\d+)\s*(days?|weeks?|months?|years?)$/i);
     if (match) {
         const raw = match[2].toLowerCase().replace(/s$/, '');
@@ -219,6 +222,8 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
             }
             return {
                 entity: String(fm.entity ?? ''),
+                entity_code: fm.entity_code ? String(fm.entity_code) : undefined,
+                entity_system: fm.entity_system ? String(fm.entity_system) : undefined,
                 relation: (rel as RelationOperator) || '',
                 value,
             };
@@ -253,10 +258,18 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
 
         const matchedEntity = measurableEntities[i];
         const entity = matchedEntity ? entityLabel(matchedEntity) : '';
+        const entityCode = matchedEntity?.snomed_code ?? matchedEntity?.umls_cui ?? undefined;
+        const entitySystem = matchedEntity?.snomed_code
+            ? 'snomed'
+            : matchedEntity?.umls_cui
+              ? 'umls'
+              : undefined;
 
         if (comparator === 'range' && upperVal != null) {
             mappings.push({
                 entity,
+                entity_code: entityCode,
+                entity_system: entitySystem,
                 relation: 'within' as RelationOperator,
                 value: { type: 'range', min: String(val), max: String(upperVal), unit },
             });
@@ -264,6 +277,8 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
             const relation = mapComparator(comparator);
             mappings.push({
                 entity,
+                entity_code: entityCode,
+                entity_system: entitySystem,
                 relation,
                 value: { type: 'standard', value: String(val), unit },
             });
@@ -277,8 +292,12 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
             e.entity_type === 'Procedure'
     );
     for (const e of unmatchedEntities) {
+        const code = e.snomed_code ?? e.umls_cui ?? undefined;
+        const system = e.snomed_code ? 'snomed' : e.umls_cui ? 'umls' : undefined;
         mappings.push({
             entity: entityLabel(e),
+            entity_code: code,
+            entity_system: system,
             relation: '',
             value: { type: 'standard', value: '', unit: '' },
         });
