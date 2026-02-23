@@ -33,6 +33,26 @@ logger = logging.getLogger(__name__)
 # Local storage directory (relative to repo root)
 _LOCAL_UPLOAD_DIR = Path(os.getenv("LOCAL_UPLOAD_DIR", "uploads/protocols"))
 
+
+def _safe_resolve(base: Path, untrusted: str) -> Path:
+    """Resolve an untrusted path relative to *base* and guard against traversal.
+
+    Args:
+        base: Trusted base directory.
+        untrusted: Untrusted relative path (e.g. from user input).
+
+    Returns:
+        The resolved ``Path`` that is guaranteed to be inside *base*.
+
+    Raises:
+        ValueError: If the resolved path escapes *base*.
+    """
+    resolved = (base / untrusted).resolve()
+    base_resolved = base.resolve()
+    if not str(resolved).startswith(str(base_resolved) + os.sep) and resolved != base_resolved:
+        raise ValueError(f"Path traversal blocked: {untrusted!r}")
+    return resolved
+
 # Shared retry decorator for GCS operations
 # Retry on any Exception EXCEPT ValueError (config errors)
 _gcs_retry = retry(
@@ -199,7 +219,7 @@ def local_save_file(blob_path: str, data: bytes) -> None:
         blob_path: Relative path within the local upload directory.
         data: Raw file bytes to store.
     """
-    file_path = _LOCAL_UPLOAD_DIR / blob_path
+    file_path = _safe_resolve(_LOCAL_UPLOAD_DIR, blob_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     content_hash = _content_hash(data)
@@ -241,8 +261,12 @@ def local_save_file(blob_path: str, data: bytes) -> None:
 
 
 def local_get_file_path(blob_path: str) -> Path | None:
-    """Get the local filesystem path for a stored file."""
-    file_path = _LOCAL_UPLOAD_DIR / blob_path
+    """Get the local filesystem path for a stored file.
+
+    Raises:
+        ValueError: If *blob_path* attempts directory traversal.
+    """
+    file_path = _safe_resolve(_LOCAL_UPLOAD_DIR, blob_path)
     return file_path if file_path.exists() else None
 
 
