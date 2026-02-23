@@ -62,12 +62,8 @@ class FieldMappingValue(BaseModel):
     unit: str | None = Field(
         default=None, description="Unit of measurement (e.g. '%', 'mg/dL', 'months')"
     )
-    min: str | None = Field(
-        default=None, description="Minimum value for range type"
-    )
-    max: str | None = Field(
-        default=None, description="Maximum value for range type"
-    )
+    min: str | None = Field(default=None, description="Minimum value for range type")
+    max: str | None = Field(default=None, description="Maximum value for range type")
     duration: str | None = Field(
         default=None, description="Duration value for temporal type"
     )

@@ -42,8 +42,18 @@ class TestNormalizeRelation:
         assert _normalize_relation("range") == "within"
 
     def test_passthrough_standard_operators(self) -> None:
-        for op in ["=", "!=", ">", ">=", "<", "<=", "within", "not_in_last",
-                    "contains", "not_contains"]:
+        for op in [
+            "=",
+            "!=",
+            ">",
+            ">=",
+            "<",
+            "<=",
+            "within",
+            "not_in_last",
+            "contains",
+            "not_contains",
+        ]:
             assert _normalize_relation(op) == op
 
     def test_passthrough_unknown_operator(self) -> None:
@@ -90,11 +100,14 @@ class TestGenerateFieldMappingsFormat:
             )
         )
 
-        with patch(
-            "protocol_processor.tools.field_mapper.create_structured_llm"
-        ) as mock_llm_factory, patch(
-            "protocol_processor.tools.field_mapper.parse_structured_output",
-            return_value=response,
+        with (
+            patch(
+                "protocol_processor.tools.field_mapper.create_structured_llm"
+            ) as mock_llm_factory,
+            patch(
+                "protocol_processor.tools.field_mapper.parse_structured_output",
+                return_value=response,
+            ),
         ):
             mock_llm = AsyncMock()
             mock_llm_factory.return_value = mock_llm
@@ -120,11 +133,14 @@ class TestGenerateFieldMappingsFormat:
             )
         )
 
-        with patch(
-            "protocol_processor.tools.field_mapper.create_structured_llm"
-        ) as mock_llm_factory, patch(
-            "protocol_processor.tools.field_mapper.parse_structured_output",
-            return_value=response,
+        with (
+            patch(
+                "protocol_processor.tools.field_mapper.create_structured_llm"
+            ) as mock_llm_factory,
+            patch(
+                "protocol_processor.tools.field_mapper.parse_structured_output",
+                return_value=response,
+            ),
         ):
             mock_llm = AsyncMock()
             mock_llm_factory.return_value = mock_llm
@@ -150,11 +166,14 @@ class TestGenerateFieldMappingsFormat:
             )
         )
 
-        with patch(
-            "protocol_processor.tools.field_mapper.create_structured_llm"
-        ) as mock_llm_factory, patch(
-            "protocol_processor.tools.field_mapper.parse_structured_output",
-            return_value=response,
+        with (
+            patch(
+                "protocol_processor.tools.field_mapper.create_structured_llm"
+            ) as mock_llm_factory,
+            patch(
+                "protocol_processor.tools.field_mapper.parse_structured_output",
+                return_value=response,
+            ),
         ):
             mock_llm = AsyncMock()
             mock_llm_factory.return_value = mock_llm
@@ -171,17 +190,18 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="Diabetes",
                 relation="has",
-                value=FieldMappingValue(
-                    type="standard", value="confirmed", unit=""
-                ),
+                value=FieldMappingValue(type="standard", value="confirmed", unit=""),
             )
         )
 
-        with patch(
-            "protocol_processor.tools.field_mapper.create_structured_llm"
-        ) as mock_llm_factory, patch(
-            "protocol_processor.tools.field_mapper.parse_structured_output",
-            return_value=response,
+        with (
+            patch(
+                "protocol_processor.tools.field_mapper.create_structured_llm"
+            ) as mock_llm_factory,
+            patch(
+                "protocol_processor.tools.field_mapper.parse_structured_output",
+                return_value=response,
+            ),
         ):
             mock_llm = AsyncMock()
             mock_llm_factory.return_value = mock_llm
@@ -198,17 +218,18 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="Age",
                 relation="within",
-                value=FieldMappingValue(
-                    type="range", min="18", max="65", unit="years"
-                ),
+                value=FieldMappingValue(type="range", min="18", max="65", unit="years"),
             )
         )
 
-        with patch(
-            "protocol_processor.tools.field_mapper.create_structured_llm"
-        ) as mock_llm_factory, patch(
-            "protocol_processor.tools.field_mapper.parse_structured_output",
-            return_value=response,
+        with (
+            patch(
+                "protocol_processor.tools.field_mapper.create_structured_llm"
+            ) as mock_llm_factory,
+            patch(
+                "protocol_processor.tools.field_mapper.parse_structured_output",
+                return_value=response,
+            ),
         ):
             mock_llm = AsyncMock()
             mock_llm_factory.return_value = mock_llm
