@@ -22,6 +22,13 @@
       "context": "/10/deddbd0559/1/context.md",
       "content_hash": "/10/deddbd0559/1/content_hash.txt",
       "prompt": "/10/deddbd0559/1/prompt.txt"
+    },
+    {
+      "metadata": "/10/deddbd0559/2/metadata.json",
+      "transcript": "/10/deddbd0559/2/full.jsonl",
+      "context": "",
+      "content_hash": "/10/deddbd0559/2/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
