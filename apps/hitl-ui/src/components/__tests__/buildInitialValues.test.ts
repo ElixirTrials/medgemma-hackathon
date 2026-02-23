@@ -1,22 +1,22 @@
 /**
  * Tests for buildInitialValues, normalizeFieldValue, and normalizeRelation
- * in CriterionCard.tsx.
+ * extracted in fieldMappingUtils.ts.
  *
  * Covers new typed format, legacy flat format, relation normalization,
  * key fallbacks, omop_concept_id passthrough, and Priority 2 fallback.
  */
 
-import { describe, expect, it, vi } from 'vitest';
-
-// Mock react-pdf to avoid DOMMatrix dependency in jsdom
-vi.mock('react-pdf', () => ({
-    pdfjs: { GlobalWorkerOptions: { workerSrc: '' } },
-    Document: 'div',
-    Page: 'div',
-}));
+import { describe, expect, it } from 'vitest';
 
 import type { Criterion } from '../../hooks/useReviews';
-import { buildInitialValues, normalizeFieldValue, normalizeRelation } from '../CriterionCard';
+import {
+    buildInitialValues,
+    extractThresholdsList,
+    formatNumericThreshold,
+    formatTemporalConstraint,
+    normalizeFieldValue,
+    normalizeRelation,
+} from '../fieldMappingUtils';
 
 // Minimal criterion factory for testing
 function makeCriterion(overrides: Partial<Criterion> = {}): Criterion {
@@ -365,5 +365,243 @@ describe('buildInitialValues Priority 2 (inference from entities + thresholds)',
         expect(result.mappings[0].entity).toBe('T2DM');
         expect(result.mappings[0].relation).toBe('');
         expect(result.mappings[0].entity_code).toBe('C0011860');
+    });
+
+    it('handles range comparator in thresholds', () => {
+        const criterion = makeCriterion({
+            entities: [
+                {
+                    id: 'e1',
+                    entity_type: 'Demographic',
+                    text: 'Age',
+                    umls_cui: null,
+                    snomed_code: '397669002',
+                    preferred_term: 'Age',
+                    grounding_confidence: 0.95,
+                },
+            ],
+            numeric_thresholds: {
+                thresholds: [{ comparator: 'range', value: 18, upper_value: 65, unit: 'years' }],
+            },
+        });
+
+        const result = buildInitialValues(criterion);
+        expect(result.mappings[0].entity).toBe('Age');
+        expect(result.mappings[0].relation).toBe('within');
+        expect(result.mappings[0].value).toEqual({
+            type: 'range',
+            min: '18',
+            max: '65',
+            unit: 'years',
+        });
+    });
+
+    it('handles temporal constraint with duration', () => {
+        const criterion = makeCriterion({
+            temporal_constraint: {
+                duration: '6 months',
+                reference_point: 'enrollment',
+            },
+        });
+
+        const result = buildInitialValues(criterion);
+        expect(result.mappings[0].entity).toBe('enrollment');
+        expect(result.mappings[0].relation).toBe('not_in_last');
+        expect(result.mappings[0].value).toEqual({
+            type: 'temporal',
+            duration: '6',
+            unit: 'months',
+        });
+    });
+
+    it('returns DEFAULT_FIELD_VALUES when no data', () => {
+        const criterion = makeCriterion();
+        const result = buildInitialValues(criterion);
+        expect(result.mappings).toHaveLength(1);
+        expect(result.mappings[0].entity).toBe('');
+    });
+
+    it('uses entity text when preferred_term is null', () => {
+        const criterion = makeCriterion({
+            entities: [
+                {
+                    id: 'e1',
+                    entity_type: 'Condition',
+                    text: 'diabetes mellitus',
+                    umls_cui: null,
+                    snomed_code: null,
+                    preferred_term: null,
+                    grounding_confidence: 0.8,
+                },
+            ],
+        });
+
+        const result = buildInitialValues(criterion);
+        expect(result.mappings[0].entity).toBe('diabetes mellitus');
+    });
+
+    it('handles Medication and Procedure entity types', () => {
+        const criterion = makeCriterion({
+            entities: [
+                {
+                    id: 'e1',
+                    entity_type: 'Medication',
+                    text: 'Metformin',
+                    umls_cui: null,
+                    snomed_code: '109081006',
+                    preferred_term: 'Metformin',
+                    grounding_confidence: 0.9,
+                },
+                {
+                    id: 'e2',
+                    entity_type: 'Procedure',
+                    text: 'biopsy',
+                    umls_cui: 'C0005558',
+                    snomed_code: null,
+                    preferred_term: 'Biopsy',
+                    grounding_confidence: 0.85,
+                },
+            ],
+        });
+
+        const result = buildInitialValues(criterion);
+        expect(result.mappings).toHaveLength(2);
+        expect(result.mappings[0].entity).toBe('Metformin');
+        expect(result.mappings[0].entity_code).toBe('109081006');
+        expect(result.mappings[0].entity_system).toBe('snomed');
+        expect(result.mappings[1].entity).toBe('Biopsy');
+        expect(result.mappings[1].entity_code).toBe('C0005558');
+        expect(result.mappings[1].entity_system).toBe('umls');
+    });
+
+    it('skips thresholds with null value', () => {
+        const criterion = makeCriterion({
+            entities: [
+                {
+                    id: 'e1',
+                    entity_type: 'Lab_Value',
+                    text: 'HbA1c',
+                    umls_cui: 'C0019018',
+                    snomed_code: null,
+                    preferred_term: 'HbA1c',
+                    grounding_confidence: 0.9,
+                },
+            ],
+            numeric_thresholds: {
+                thresholds: [
+                    { comparator: '<', value: null, unit: '%' },
+                    { comparator: '>=', value: 5, unit: '%' },
+                ],
+            },
+        });
+
+        const result = buildInitialValues(criterion);
+        // Only the second threshold (value=5) should produce a mapping
+        expect(result.mappings[0].entity).toBe('HbA1c');
+        expect(result.mappings[0].value).toEqual({
+            type: 'standard',
+            value: '5',
+            unit: '%',
+        });
+    });
+});
+
+// --- formatTemporalConstraint tests ---
+
+describe('formatTemporalConstraint', () => {
+    it('formats a full temporal constraint', () => {
+        const tc = { duration: '6 months', relation: 'within', reference_point: 'enrollment' };
+        expect(formatTemporalConstraint(tc)).toBe('Within 6 months of enrollment');
+    });
+
+    it('formats without reference point', () => {
+        const tc = { duration: '3 weeks', relation: 'before' };
+        expect(formatTemporalConstraint(tc)).toBe('Before 3 weeks');
+    });
+
+    it('returns empty string when no duration', () => {
+        const tc = { relation: 'within' };
+        expect(formatTemporalConstraint(tc)).toBe('');
+    });
+
+    it('uses raw relation string if not in map', () => {
+        const tc = { duration: '1 day', relation: 'concurrent' };
+        expect(formatTemporalConstraint(tc)).toBe('concurrent 1 day');
+    });
+
+    it('formats with at_least relation', () => {
+        const tc = { duration: '2 years', relation: 'at_least' };
+        expect(formatTemporalConstraint(tc)).toBe('At least 2 years');
+    });
+
+    it('formats with after relation', () => {
+        const tc = { duration: '1 week', relation: 'after', reference_point: 'surgery' };
+        expect(formatTemporalConstraint(tc)).toBe('After 1 week of surgery');
+    });
+
+    it('formats with no relation', () => {
+        const tc = { duration: '6 months' };
+        expect(formatTemporalConstraint(tc)).toBe('6 months');
+    });
+});
+
+// --- formatNumericThreshold tests ---
+
+describe('formatNumericThreshold', () => {
+    it('formats standard threshold', () => {
+        expect(formatNumericThreshold({ comparator: '<', value: 7, unit: '%' })).toBe('<7 %');
+    });
+
+    it('formats range threshold', () => {
+        expect(
+            formatNumericThreshold({
+                comparator: 'range',
+                value: 18,
+                upper_value: 65,
+                unit: 'years',
+            })
+        ).toBe('18-65 years');
+    });
+
+    it('returns empty when value is null', () => {
+        expect(formatNumericThreshold({ comparator: '<', value: null, unit: '%' })).toBe('');
+    });
+
+    it('formats without unit', () => {
+        expect(formatNumericThreshold({ comparator: '>=', value: 30 })).toBe('>=30');
+    });
+
+    it('formats range without upper_value as standard', () => {
+        expect(formatNumericThreshold({ comparator: 'range', value: 5, unit: 'mg' })).toBe(
+            'range5 mg'
+        );
+    });
+});
+
+// --- extractThresholdsList tests ---
+
+describe('extractThresholdsList', () => {
+    it('returns empty for null', () => {
+        expect(extractThresholdsList(null)).toEqual([]);
+    });
+
+    it('extracts from wrapper object', () => {
+        const nt = { thresholds: [{ value: 7, comparator: '<' }] };
+        expect(extractThresholdsList(nt)).toEqual([{ value: 7, comparator: '<' }]);
+    });
+
+    it('extracts from raw array', () => {
+        const nt = [{ value: 7, comparator: '<' }] as unknown as Record<string, unknown>;
+        expect(extractThresholdsList(nt)).toEqual([{ value: 7, comparator: '<' }]);
+    });
+
+    it('wraps single threshold object', () => {
+        const nt = { value: 7, comparator: '<', unit: '%' };
+        expect(extractThresholdsList(nt)).toEqual([{ value: 7, comparator: '<', unit: '%' }]);
+    });
+
+    it('returns empty for unrecognized shape', () => {
+        const nt = { some_other_key: 'value' };
+        expect(extractThresholdsList(nt)).toEqual([]);
     });
 });
