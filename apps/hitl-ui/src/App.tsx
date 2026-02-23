@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
+import { Toaster } from 'sonner';
 
 import { LogOut, User } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { SessionExpiredModal } from './components/SessionExpiredModal';
 import { Button } from './components/ui/Button';
 import { useAuth } from './hooks/useAuth';
 import Dashboard from './screens/Dashboard';
@@ -14,8 +16,9 @@ import ReviewQueue from './screens/ReviewQueue';
 import SearchPage from './screens/SearchPage';
 
 function RequireAuth({ children }: { children: ReactNode }) {
-    const { isAuthenticated } = useAuth();
-    if (!isAuthenticated) {
+    const { isAuthenticated, isSessionExpired } = useAuth();
+    // If session expired, keep showing children behind the modal overlay
+    if (!isAuthenticated && !isSessionExpired) {
         return <Navigate to="/login" replace />;
     }
     return <>{children}</>;
@@ -108,6 +111,9 @@ function App() {
                     }
                 />
             </Routes>
+
+            <SessionExpiredModal />
+            <Toaster richColors position="top-right" />
         </div>
     );
 }

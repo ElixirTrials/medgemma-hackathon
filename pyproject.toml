@@ -205,7 +205,8 @@ pythonpath = [
 ]
 asyncio_mode = "auto"
 # Coverage is optional - use `pytest --cov` to enable
-addopts = "-n auto"
+# Parallel: run `pytest -n auto -p xdist` explicitly when desired
+addopts = "-p no:xdist"
 
 [tool.coverage.run]
 source = [

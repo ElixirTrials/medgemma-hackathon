@@ -6,14 +6,31 @@ import { BrowserRouter } from 'react-router-dom';
 
 import App from './App';
 import './index.css';
+import { SessionExpiredError } from './lib/fetchApi';
+import { useAuthStore } from './stores/authStore';
 
 const queryClient = new QueryClient({
     defaultOptions: {
         queries: {
             staleTime: 1000 * 60 * 5, // 5 minutes
-            retry: 1,
+            retry: (failureCount, error) => {
+                // Never retry auth errors
+                if (error instanceof SessionExpiredError) return false;
+                return failureCount < 1;
+            },
         },
     },
+});
+
+// When session expires, cancel all in-flight queries.
+// When session is restored, invalidate all queries to refetch.
+useAuthStore.subscribe((state, prev) => {
+    if (state.isSessionExpired && !prev.isSessionExpired) {
+        queryClient.cancelQueries();
+    }
+    if (!state.isSessionExpired && prev.isSessionExpired) {
+        queryClient.invalidateQueries();
+    }
 });
 
 const rootElement = document.getElementById('root');

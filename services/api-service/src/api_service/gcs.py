@@ -10,6 +10,7 @@ Otherwise requires GCS_BUCKET_NAME and valid GCP credentials.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import logging
@@ -18,6 +19,7 @@ from datetime import timedelta
 from pathlib import Path
 from uuid import uuid4
 
+from google.auth.exceptions import RefreshError
 from shared.resilience import gcs_breaker
 from tenacity import (
     before_sleep_log,
@@ -60,11 +62,32 @@ def _validate_blob_path(untrusted: str) -> str:
     return os.path.normpath(untrusted)
 
 
-# Shared retry decorator for GCS operations
-# Retry on any Exception EXCEPT ValueError (config errors)
+def _reset_client_on_refresh_error(fn):
+    """Decorator that resets the GCS client singleton on RefreshError.
+
+    Wraps a GCS operation so that if it raises RefreshError, the cached
+    client is cleared before re-raising. This ensures the next call
+    re-initializes with fresh credentials after ``gcloud auth
+    application-default login``.
+    """
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            return fn(*args, **kwargs)
+        except RefreshError:
+            reset_gcs_client()
+            raise
+
+    return wrapper
+
+
+# Shared retry decorator for GCS operations.
+# Retry on any Exception except ValueError (config) and RefreshError (expired creds).
 _gcs_retry = retry(
     retry=(
-        retry_if_exception_type(Exception) & retry_if_not_exception_type(ValueError)
+        retry_if_exception_type(Exception)
+        & retry_if_not_exception_type((ValueError, RefreshError))
     ),
     stop=stop_after_attempt(3),
     wait=wait_random_exponential(multiplier=1, min=2, max=10),
@@ -101,6 +124,17 @@ def get_gcs_client():
             )
             _gcs_client = None
     return _gcs_client
+
+
+def reset_gcs_client() -> None:
+    """Reset the cached GCS client so the next call re-initializes.
+
+    Call this when credentials have been refreshed (e.g. after a
+    ``RefreshError``) so the next ``get_gcs_client()`` picks up new creds.
+    """
+    global _gcs_client  # noqa: PLW0603
+    _gcs_client = None
+    logger.info("GCS client singleton reset — will re-initialize on next call")
 
 
 def get_bucket_name() -> str:
@@ -282,6 +316,7 @@ def local_get_file_path(blob_path: str) -> Path | None:
 # --- GCS backend ---
 
 
+@_reset_client_on_refresh_error
 @gcs_breaker
 @_gcs_retry
 def _gcs_generate_upload_url(
@@ -311,6 +346,7 @@ def _gcs_generate_upload_url(
     return (signed_url, gcs_path)
 
 
+@_reset_client_on_refresh_error
 @gcs_breaker
 @_gcs_retry
 def _gcs_set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
@@ -327,6 +363,7 @@ def _gcs_set_blob_metadata(gcs_path: str, metadata: dict[str, str]) -> None:
     logger.info("Set metadata on %s: %s", gcs_path, metadata)
 
 
+@_reset_client_on_refresh_error
 @gcs_breaker
 @_gcs_retry
 def _gcs_generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> str:
