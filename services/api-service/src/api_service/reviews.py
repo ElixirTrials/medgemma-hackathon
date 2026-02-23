@@ -621,7 +621,7 @@ def get_pipeline_summary(db: Session = Depends(get_db)) -> PipelineSummaryRespon
     error_list_stmt = (
         select(Protocol)
         .where(col(Protocol.status).in_(error_states))
-        .order_by(Protocol.updated_at.desc())
+        .order_by(col(Protocol.updated_at).desc())
         .limit(5)
     )
     error_protocols_rows = db.exec(error_list_stmt).all()
