@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "feb9823a9d3d",
+  "strategy": "manual-commit",
+  "branch": "claude/busy-knuth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/components/CriterionCard.tsx",
+    "apps/hitl-ui/src/components/FieldMappingBadges.tsx",
+    "apps/hitl-ui/src/components/__tests__/buildInitialValues.test.ts",
+    "services/protocol-processor-service/tests/tools/test_field_mapper_format.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fe/b9823a9d3d/0/metadata.json",
+      "transcript": "/fe/b9823a9d3d/0/full.jsonl",
+      "context": "/fe/b9823a9d3d/0/context.md",
+      "content_hash": "/fe/b9823a9d3d/0/content_hash.txt",
+      "prompt": "/fe/b9823a9d3d/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 80,
+    "cache_creation_tokens": 244773,
+    "cache_read_tokens": 6191920,
+    "output_tokens": 9073,
+    "api_call_count": 76
+  }
+}
