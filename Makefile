@@ -51,15 +51,26 @@ run-dev:
 	echo "  API on port $$API_PORT (UI will use VITE_API_URL=http://localhost:$$API_PORT)"; \
 	export VITE_API_URL="http://localhost:$$API_PORT"; \
 	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads/protocols}"; \
-	cleanup() { kill $$API_PID $$UI_PID 2>/dev/null; wait $$API_PID $$UI_PID 2>/dev/null; kill $$MLFLOW_PID 2>/dev/null; wait $$MLFLOW_PID 2>/dev/null; pkill -9 -f "mlflow.server.jobs" 2>/dev/null; pkill -9 -f "huey_consumer.py mlflow" 2>/dev/null; }; \
+	cleanup() { \
+		pkill -9 -f "mlflow.server.jobs" 2>/dev/null || true; \
+		pkill -9 -f "huey_consumer.py mlflow" 2>/dev/null || true; \
+		pkill -f "mlflow server" 2>/dev/null || true; \
+		kill $$API_PID $$UI_PID $$MLFLOW_PID 2>/dev/null || true; \
+		sleep 0.5; \
+		kill -9 $$API_PID $$UI_PID $$MLFLOW_PID 2>/dev/null || true; \
+		pkill -9 -f "mlflow.server.jobs" 2>/dev/null || true; \
+		pkill -9 -f "huey_consumer.py mlflow" 2>/dev/null || true; \
+		pkill -9 -f "mlflow server" 2>/dev/null || true; \
+		wait $$API_PID $$UI_PID $$MLFLOW_PID 2>/dev/null || true; \
+	}; \
 	trap 'cleanup; exit 130' SIGINT; \
 	trap 'cleanup; exit 143' SIGTERM; \
 	trap cleanup EXIT; \
 	(trap '' INT TERM; exec uv run mlflow server --host 0.0.0.0 --port $$MLFLOW_PORT --backend-store-uri sqlite:///.mlflow/mlflow.db --artifacts-destination .mlflow/artifacts) & \
 	MLFLOW_PID=$$!; \
-	(trap '' INT; exec uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src) & \
+	(trap '' INT TERM; exec uv run uvicorn api_service.main:app --reload --host 0.0.0.0 --port $$API_PORT --app-dir services/api-service/src) & \
 	API_PID=$$!; \
-	(trap '' INT; cd apps/hitl-ui && exec npm run dev) & \
+	(trap '' INT TERM; cd apps/hitl-ui && exec npm run dev) & \
 	UI_PID=$$!; \
 	wait
 
