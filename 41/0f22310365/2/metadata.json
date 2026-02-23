@@ -1,0 +1,23 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "410f22310365",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T16:22:57.521456Z",
+  "branch": "feat/graceful-credential-expiry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "Makefile"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "90852c7186af",
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T16:22:57.510535Z",
+    "agent_lines": 0,
+    "human_added": 11,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 11,
+    "agent_percentage": 0
+  }
+}
