@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f50c7f9f3748",
+  "strategy": "manual-commit",
+  "branch": "claude/vigilant-curran",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".env.example",
+    "AGENTIC_WORKFLOW.md",
+    "LICENSE",
+    "MEDGEMMA_INTEGRATION.md",
+    "README.md",
+    "apps/hitl-ui/Dockerfile",
+    "apps/hitl-ui/nginx.conf",
+    "docs/kaggle-writeup.md",
+    "libs/inference/src/inference/model_garden.py",
+    "pyproject.toml"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f5/0c7f9f3748/0/metadata.json",
+      "transcript": "/f5/0c7f9f3748/0/full.jsonl",
+      "context": "/f5/0c7f9f3748/0/context.md",
+      "content_hash": "/f5/0c7f9f3748/0/content_hash.txt",
+      "prompt": "/f5/0c7f9f3748/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 47,
+    "cache_creation_tokens": 203984,
+    "cache_read_tokens": 3692213,
+    "output_tokens": 403,
+    "api_call_count": 41
+  }
+}
