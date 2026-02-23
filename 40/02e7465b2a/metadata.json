@@ -1,0 +1,45 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4002e7465b2a",
+  "strategy": "manual-commit",
+  "branch": "feat/graceful-credential-expiry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "apps/hitl-ui/src/App.tsx",
+    "apps/hitl-ui/src/components/SessionExpiredModal.tsx",
+    "apps/hitl-ui/src/hooks/useApi.ts",
+    "apps/hitl-ui/src/hooks/useAuth.ts",
+    "apps/hitl-ui/src/hooks/useCorpus.ts",
+    "apps/hitl-ui/src/hooks/useEntities.ts",
+    "apps/hitl-ui/src/hooks/useProtocols.ts",
+    "apps/hitl-ui/src/hooks/useReviews.ts",
+    "apps/hitl-ui/src/hooks/useSearch.ts",
+    "apps/hitl-ui/src/hooks/useTerminologySearch.ts",
+    "apps/hitl-ui/src/lib/fetchApi.ts",
+    "apps/hitl-ui/src/main.tsx",
+    "apps/hitl-ui/src/screens/Dashboard.tsx",
+    "apps/hitl-ui/src/stores/authStore.ts",
+    "libs/inference/src/inference/model_garden.py",
+    "services/api-service/src/api_service/auth.py",
+    "services/api-service/src/api_service/gcs.py",
+    "services/api-service/src/api_service/main.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/40/02e7465b2a/0/metadata.json",
+      "transcript": "/40/02e7465b2a/0/full.jsonl",
+      "context": "/40/02e7465b2a/0/context.md",
+      "content_hash": "/40/02e7465b2a/0/content_hash.txt",
+      "prompt": "/40/02e7465b2a/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  }
+}
