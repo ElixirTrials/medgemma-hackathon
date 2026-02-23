@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "339799045299",
+  "strategy": "manual-commit",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/api-service/src/api_service/gcs.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/33/9799045299/0/metadata.json",
+      "transcript": "/33/9799045299/0/full.jsonl",
+      "context": "/33/9799045299/0/context.md",
+      "content_hash": "/33/9799045299/0/content_hash.txt",
+      "prompt": "/33/9799045299/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  }
+}
