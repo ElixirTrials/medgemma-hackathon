@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.field_mapper import (
     FieldMappingItem,
     FieldMappingResponse,
@@ -18,8 +19,6 @@ from protocol_processor.tools.field_mapper import (
     _normalize_relation,
     generate_field_mappings,
 )
-from protocol_processor.schemas.grounding import EntityGroundingResult
-
 
 # --- _normalize_relation tests ---
 

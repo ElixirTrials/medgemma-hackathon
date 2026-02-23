@@ -15,12 +15,8 @@ vi.mock('react-pdf', () => ({
     Page: 'div',
 }));
 
-import {
-    buildInitialValues,
-    normalizeFieldValue,
-    normalizeRelation,
-} from '../CriterionCard';
 import type { Criterion } from '../../hooks/useReviews';
+import { buildInitialValues, normalizeFieldValue, normalizeRelation } from '../CriterionCard';
 
 // Minimal criterion factory for testing
 function makeCriterion(overrides: Partial<Criterion> = {}): Criterion {
@@ -69,7 +65,18 @@ describe('normalizeRelation', () => {
     });
 
     it('passes through valid operators unchanged', () => {
-        const validOps = ['=', '!=', '>', '>=', '<', '<=', 'within', 'not_in_last', 'contains', 'not_contains'];
+        const validOps = [
+            '=',
+            '!=',
+            '>',
+            '>=',
+            '<',
+            '<=',
+            'within',
+            'not_in_last',
+            'contains',
+            'not_contains',
+        ];
         for (const op of validOps) {
             expect(normalizeRelation(op)).toBe(op);
         }

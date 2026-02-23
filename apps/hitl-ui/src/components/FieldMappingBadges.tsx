@@ -84,9 +84,7 @@ export default function FieldMappingBadges({ criterion, onEditClick }: FieldMapp
                         OMOP: {mapping.omop_concept_id}
                     </span>
                 )}
-                {relation && (
-                    <span className="text-blue-600 font-mono text-xs">{relation}</span>
-                )}
+                {relation && <span className="text-blue-600 font-mono text-xs">{relation}</span>}
                 {relation && valueText ? (
                     <span className="text-blue-800">{valueText}</span>
                 ) : relation && !valueText ? (

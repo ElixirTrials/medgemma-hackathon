@@ -189,7 +189,16 @@ function parseDuration(duration: string): {
 
 /** Valid frontend relation operators. */
 const VALID_RELATIONS = new Set<string>([
-    '=', '!=', '>', '>=', '<', '<=', 'within', 'not_in_last', 'contains', 'not_contains',
+    '=',
+    '!=',
+    '>',
+    '>=',
+    '<',
+    '<=',
+    'within',
+    'not_in_last',
+    'contains',
+    'not_contains',
 ]);
 
 /** Normalize a raw relation string to a valid RelationOperator or empty. */
@@ -262,15 +271,15 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
             const value = normalizeFieldValue(fm);
             return {
                 entity: String(fm.entity ?? ''),
-                entity_code: (fm.entity_code ?? fm.entity_concept_id)
-                    ? String(fm.entity_code ?? fm.entity_concept_id)
-                    : undefined,
-                entity_system: (fm.entity_system ?? fm.entity_concept_system)
-                    ? String(fm.entity_system ?? fm.entity_concept_system)
-                    : undefined,
-                omop_concept_id: fm.omop_concept_id
-                    ? String(fm.omop_concept_id)
-                    : undefined,
+                entity_code:
+                    (fm.entity_code ?? fm.entity_concept_id)
+                        ? String(fm.entity_code ?? fm.entity_concept_id)
+                        : undefined,
+                entity_system:
+                    (fm.entity_system ?? fm.entity_concept_system)
+                        ? String(fm.entity_system ?? fm.entity_concept_system)
+                        : undefined,
+                omop_concept_id: fm.omop_concept_id ? String(fm.omop_concept_id) : undefined,
                 relation: normalizeRelation(rel),
                 value,
             };
