@@ -1,6 +1,7 @@
 r"""Clear all uploaded protocols and extracted criteria from the database.
 
-Deletes rows in FK-safe order: review, entity, criteria, criteriabatch, protocol,
+Deletes rows in FK-safe order: review, entity, criterion_relationships,
+atomic_criteria, composite_criteria, criteria, criteriabatch, protocol,
 then auditlog and outboxevent. Requires DATABASE_URL in the environment.
 
 Run from repo root with .env loaded, e.g.:
@@ -22,9 +23,12 @@ _src = Path(__file__).resolve().parent.parent / "src"
 sys.path.insert(0, str(_src))
 
 from shared.models import (  # noqa: E402
+    AtomicCriterion,
     AuditLog,
+    CompositeCriterion,
     Criteria,
     CriteriaBatch,
+    CriterionRelationship,
     Entity,
     OutboxEvent,
     Protocol,
@@ -39,6 +43,11 @@ def clear_protocols_and_criteria() -> None:
     with Session(engine) as session:
         session.execute(delete(Review))
         session.execute(delete(Entity))
+        # Expression-tree tables reference criteria/composite_criteria;
+        # delete before Criteria.
+        session.execute(delete(CriterionRelationship))
+        session.execute(delete(AtomicCriterion))
+        session.execute(delete(CompositeCriterion))
         session.execute(delete(Criteria))
         session.execute(delete(CriteriaBatch))
         session.execute(delete(Protocol))
@@ -46,8 +55,8 @@ def clear_protocols_and_criteria() -> None:
         session.execute(delete(OutboxEvent))
         session.commit()
     print(
-        "Cleared: review, entity, criteria, criteriabatch, protocol, "
-        "auditlog, outboxevent."
+        "Cleared: review, entity, criterion_relationships, atomic_criteria, "
+        "composite_criteria, criteria, criteriabatch, protocol, auditlog, outboxevent."
     )
 
 
