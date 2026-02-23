@@ -250,7 +250,7 @@ def local_save_file(blob_path: str, data: bytes) -> None:
         )
         # Create symlink to existing file (saves disk space)
         if existing_path.exists() and not file_path.exists():
-            file_path.symlink_to(existing_path)
+            file_path.symlink_to(existing_path.resolve())
         elif not file_path.exists():
             # Fallback: existing file gone, store normally and update index
             file_path.write_bytes(data)
