@@ -1,7 +1,7 @@
 [project]
-name = "elixirtrials--template"
+name = "elixirtrials"
 version = "0.1.0"
-description = "Template Repo ElixirTrials "
+description = "AI-powered extraction and structuring of clinical trial eligibility criteria"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
