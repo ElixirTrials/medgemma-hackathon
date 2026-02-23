@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "9587f57bb691",
+  "strategy": "manual-commit",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    ".gitignore",
+    "apps/hitl-ui/coverage/base.css",
+    "apps/hitl-ui/coverage/block-navigation.js",
+    "apps/hitl-ui/coverage/coverage-final.json",
+    "apps/hitl-ui/coverage/favicon.png",
+    "apps/hitl-ui/coverage/index.html",
+    "apps/hitl-ui/coverage/prettify.css",
+    "apps/hitl-ui/coverage/prettify.js",
+    "apps/hitl-ui/coverage/sort-arrow-sprite.png",
+    "apps/hitl-ui/coverage/sorter.js"
+  ],
+  "sessions": [
+    {
+      "metadata": "/95/87f57bb691/0/metadata.json",
+      "transcript": "/95/87f57bb691/0/full.jsonl",
+      "context": "/95/87f57bb691/0/context.md",
+      "content_hash": "/95/87f57bb691/0/content_hash.txt",
+      "prompt": "/95/87f57bb691/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  }
+}
