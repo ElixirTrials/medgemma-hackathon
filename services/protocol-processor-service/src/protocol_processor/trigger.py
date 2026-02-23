@@ -71,7 +71,10 @@ def _cleanup_orphan_traces() -> None:
                     )
                     closed += 1
                 except Exception:
-                    logger.debug("Trace %s already closed, skipping", trace.info.request_id)
+                    logger.debug(
+                        "Trace %s already closed, skipping",
+                        trace.info.request_id,
+                    )
         if closed:
             logger.info(
                 "Startup orphan cleanup: closed %d stale IN_PROGRESS trace(s)",

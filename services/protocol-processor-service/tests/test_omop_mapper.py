@@ -16,8 +16,8 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
-import protocol_processor.tools.omop_mapper as omop_mapper_mod
 
+import protocol_processor.tools.omop_mapper as omop_mapper_mod
 from protocol_processor.nodes.ground import _reconcile_dual_grounding
 from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.omop_mapper import (

@@ -49,9 +49,11 @@ def _safe_resolve(base: Path, untrusted: str) -> Path:
     """
     resolved = (base / untrusted).resolve()
     base_resolved = base.resolve()
-    if not str(resolved).startswith(str(base_resolved) + os.sep) and resolved != base_resolved:
+    base_str = str(base_resolved) + os.sep
+    if not str(resolved).startswith(base_str) and resolved != base_resolved:
         raise ValueError(f"Path traversal blocked: {untrusted!r}")
     return resolved
+
 
 # Shared retry decorator for GCS operations
 # Retry on any Exception EXCEPT ValueError (config errors)
