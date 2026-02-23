@@ -4,14 +4,13 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { ActivityFeed } from '../features/dashboard/ActivityFeed';
 import { DashboardCard } from '../features/dashboard/DashboardCard';
+import { PipelineStatusCard } from '../features/dashboard/PipelineStatusCard';
 import { useHealthCheck } from '../hooks/useApi';
 import { usePendingSummary } from '../hooks/useReviews';
-import { useAppStore } from '../stores/useAppStore';
 
 export default function Dashboard() {
     const { data: health, isLoading, error } = useHealthCheck();
     const { data: pendingSummary } = usePendingSummary();
-    const { sidebarOpen, toggleSidebar } = useAppStore();
     const navigate = useNavigate();
 
     const pendingBatches = pendingSummary?.pending_batches ?? 0;
@@ -20,14 +19,7 @@ export default function Dashboard() {
     return (
         <div className="container mx-auto p-6">
             <header className="mb-8">
-                <div className="flex items-center justify-between">
-                    <h1 className="text-3xl font-bold text-foreground">
-                        Human in the Loop Dashboard
-                    </h1>
-                    <Button onClick={toggleSidebar} variant="outline">
-                        {sidebarOpen ? 'Close Sidebar' : 'Open Sidebar'}
-                    </Button>
-                </div>
+                <h1 className="text-3xl font-bold text-foreground">Human in the Loop Dashboard</h1>
                 <p className="mt-2 text-muted-foreground">
                     Review and approve AI-generated content
                 </p>
@@ -80,6 +72,13 @@ export default function Dashboard() {
                     >
                         View Protocols
                     </Button>
+                </DashboardCard>
+
+                <DashboardCard
+                    title="Pipeline status"
+                    description="Extraction and grounding progress"
+                >
+                    <PipelineStatusCard />
                 </DashboardCard>
 
                 <DashboardCard title="Search" description="Search across all criteria">

@@ -1,7 +1,7 @@
 import * as AlertDialog from '@radix-ui/react-alert-dialog';
-import { Archive, ChevronLeft, ChevronRight, Loader2, RotateCcw } from 'lucide-react';
+import { Archive, ArrowLeft, ChevronLeft, ChevronRight, Loader2, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 import { ProtocolUploadDialog } from '../components/ProtocolUploadDialog';
 import { Button } from '../components/ui/Button';
@@ -187,6 +187,14 @@ export default function ProtocolList() {
 
     return (
         <div className="container mx-auto p-6">
+            {/* Back to Dashboard */}
+            <Link
+                to="/"
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-4"
+            >
+                <ArrowLeft className="h-4 w-4 mr-1" />
+                Back to Dashboard
+            </Link>
             {/* Header */}
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-bold text-foreground">Protocols</h1>

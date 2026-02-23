@@ -81,6 +81,51 @@ class TestListBatches:
         assert batch_item["reviewed_count"] == 1
 
 
+class TestPipelineSummary:
+    """GET /reviews/pipeline-summary."""
+
+    def test_pipeline_summary_returns_all_fields(self, test_client, db_session) -> None:
+        r = test_client.get("/reviews/pipeline-summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert "criteria_extracted" in data
+        assert "protocols_in_grounding" in data
+        assert "error_count" in data
+        assert "error_protocols" in data
+        assert isinstance(data["criteria_extracted"], int)
+        assert isinstance(data["protocols_in_grounding"], int)
+        assert isinstance(data["error_count"], int)
+        assert isinstance(data["error_protocols"], list)
+
+    def test_pipeline_summary_counts_criteria_and_errors(self, test_client, db_session) -> None:
+        p = _add_protocol(db_session, title="Pipeline Test")
+        b = _add_batch(db_session, p.id)
+        _add_criterion(db_session, b.id)
+        r = test_client.get("/reviews/pipeline-summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["criteria_extracted"] >= 1
+        assert data["protocols_in_grounding"] >= 0
+        assert data["error_count"] >= 0
+
+        # Set protocol to grounding and check count
+        p.status = "grounding"
+        db_session.add(p)
+        db_session.commit()
+        r2 = test_client.get("/reviews/pipeline-summary")
+        assert r2.status_code == 200
+        assert r2.json()["protocols_in_grounding"] >= 1
+
+        # Set protocol to extraction_failed and check error count
+        p.status = "extraction_failed"
+        db_session.add(p)
+        db_session.commit()
+        r3 = test_client.get("/reviews/pipeline-summary")
+        assert r3.status_code == 200
+        assert r3.json()["error_count"] >= 1
+        assert len(r3.json()["error_protocols"]) >= 1
+
+
 class TestListBatchCriteria:
     """GET /reviews/batches/{batch_id}/criteria."""
 

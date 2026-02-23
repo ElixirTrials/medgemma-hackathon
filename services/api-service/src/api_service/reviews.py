@@ -143,6 +143,23 @@ class PendingSummaryResponse(BaseModel):
     message: str
 
 
+class ErrorProtocolItem(BaseModel):
+    """Minimal protocol info for pipeline error list."""
+
+    id: str
+    title: str
+    status: str
+
+
+class PipelineSummaryResponse(BaseModel):
+    """Pipeline status: criteria extracted, in grounding, errors."""
+
+    criteria_extracted: int
+    protocols_in_grounding: int
+    error_count: int
+    error_protocols: list[ErrorProtocolItem] = []
+
+
 class BatchMetricsResponse(BaseModel):
     """Per-batch review agreement metrics response."""
 
@@ -566,6 +583,58 @@ def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse
         pending_batches=pending_batches,
         pending_criteria=pending_criteria,
         message=message,
+    )
+
+
+@router.get("/pipeline-summary", response_model=PipelineSummaryResponse)
+def get_pipeline_summary(db: Session = Depends(get_db)) -> PipelineSummaryResponse:
+    """Get pipeline status: criteria extracted, protocols in grounding, errors.
+
+    Used by the dashboard to show extraction/grounding progress and any
+    protocols in failed states (extraction_failed, grounding_failed, dead_letter).
+    """
+    # Criteria count: total criteria in non-archived batches
+    criteria_stmt = (
+        select(func.count())
+        .select_from(Criteria)
+        .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
+        .where(CriteriaBatch.is_archived == False)  # noqa: E712
+    )
+    criteria_extracted = db.exec(criteria_stmt).one()
+
+    # Protocols in grounding
+    grounding_stmt = (
+        select(func.count()).select_from(Protocol).where(Protocol.status == "grounding")
+    )
+    protocols_in_grounding = db.exec(grounding_stmt).one()
+
+    # Error protocols: extraction_failed, grounding_failed, dead_letter
+    error_states = ["extraction_failed", "grounding_failed", "dead_letter"]
+    error_count_stmt = (
+        select(func.count())
+        .select_from(Protocol)
+        .where(col(Protocol.status).in_(error_states))
+    )
+    error_count = db.exec(error_count_stmt).one()
+
+    # Optional: up to 5 error protocols for display
+    error_list_stmt = (
+        select(Protocol)
+        .where(col(Protocol.status).in_(error_states))
+        .order_by(Protocol.updated_at.desc())
+        .limit(5)
+    )
+    error_protocols_rows = db.exec(error_list_stmt).all()
+    error_protocols = [
+        ErrorProtocolItem(id=p.id, title=p.title, status=p.status)
+        for p in error_protocols_rows
+    ]
+
+    return PipelineSummaryResponse(
+        criteria_extracted=criteria_extracted,
+        protocols_in_grounding=protocols_in_grounding,
+        error_count=error_count,
+        error_protocols=error_protocols,
     )
 
 
