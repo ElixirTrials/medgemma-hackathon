@@ -207,7 +207,10 @@ async def local_upload(blob_path: str, request: Request):
     from api_service.gcs import local_save_file
 
     body = await request.body()
-    local_save_file(blob_path, body)
+    try:
+        local_save_file(blob_path, body)
+    except ValueError:
+        return JSONResponse(status_code=400, content={"detail": "Invalid file path"})
     return JSONResponse(status_code=200, content={"status": "ok"})
 
 
@@ -216,7 +219,10 @@ async def local_files(blob_path: str):
     """Serve a locally stored file (dev mode)."""
     from api_service.gcs import local_get_file_path
 
-    file_path = local_get_file_path(blob_path)
+    try:
+        file_path = local_get_file_path(blob_path)
+    except ValueError:
+        return JSONResponse(status_code=400, content={"detail": "Invalid file path"})
     if file_path is None:
         return JSONResponse(status_code=404, content={"detail": "File not found"})
     return FileResponse(str(file_path), media_type="application/pdf")

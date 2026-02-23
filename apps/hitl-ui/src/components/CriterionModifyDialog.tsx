@@ -73,6 +73,8 @@ export default function CriterionModifyDialog({
             action.modified_structured_fields = {
                 field_mappings: structuredValues.mappings as Array<{
                     entity: string;
+                    entity_code?: string;
+                    entity_system?: string;
                     relation: string;
                     value: unknown;
                 }>,
