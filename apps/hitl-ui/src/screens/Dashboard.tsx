@@ -32,19 +32,26 @@ export default function Dashboard() {
                 >
                     {isLoading && <p className="text-muted-foreground">Connecting to backend...</p>}
                     {error && (
-                        <p className="text-destructive">Backend unavailable — is make run-dev running?</p>
+                        <p className="text-destructive">
+                            Backend unavailable — is make run-dev running?
+                        </p>
                     )}
                     {health && (
                         <div className="space-y-1.5">
                             <div className="flex items-center gap-2">
-                                <span className={`h-2.5 w-2.5 rounded-full ${health.checks?.database === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span
+                                    className={`h-2.5 w-2.5 rounded-full ${health.checks?.database === 'connected' ? 'bg-green-500' : 'bg-red-500'}`}
+                                />
                                 <span className="text-sm">Database</span>
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className={`h-2.5 w-2.5 rounded-full ${health.checks?.omop_vocab === 'ok' ? 'bg-green-500' : health.checks?.omop_vocab === 'unavailable' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`} />
+                                <span
+                                    className={`h-2.5 w-2.5 rounded-full ${health.checks?.omop_vocab === 'ok' ? 'bg-green-500' : health.checks?.omop_vocab === 'unavailable' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`}
+                                />
                                 <span className="text-sm">
                                     OMOP Vocabulary
-                                    {health.checks?.omop_vocab === 'ok' && health.checks.omop_concept_count
+                                    {health.checks?.omop_vocab === 'ok' &&
+                                    health.checks.omop_concept_count
                                         ? ` (${(health.checks.omop_concept_count / 1e6).toFixed(1)}M concepts)`
                                         : health.checks?.omop_vocab !== 'ok'
                                           ? ' — loading...'
