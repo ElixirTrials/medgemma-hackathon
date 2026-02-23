@@ -10,8 +10,19 @@ run-dev:
 	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	if [ -n "$$GCLOUD_PROFILE" ]; then \
 		ACCOUNT=$$(gcloud config configurations describe $$GCLOUD_PROFILE --format='value(properties.core.account)' 2>/dev/null || true); \
-		echo "2. Signing in via browser (no password in terminal)..."; \
-		gcloud auth login --force $${ACCOUNT:+$$ACCOUNT}; \
+		ACTIVE=$$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | tr '\n' ' '); \
+		NEED_LOGIN=1; \
+		if [ -n "$$ACCOUNT" ]; then \
+			echo "$$ACTIVE" | tr ' ' '\n' | grep -Fxq "$$ACCOUNT" && NEED_LOGIN=0; \
+		else \
+			[ -n "$$ACTIVE" ] && NEED_LOGIN=0; \
+		fi; \
+		if [ "$$NEED_LOGIN" = 1 ]; then \
+			echo "2. Signing in via browser (no password in terminal)..."; \
+			gcloud auth login --force $${ACCOUNT:+$$ACCOUNT}; \
+		else \
+			echo "2. Already logged in to gcloud, skipping auth."; \
+		fi; \
 		echo "3. Activating gcloud profile $$GCLOUD_PROFILE..."; \
 		gcloud config configurations activate $$GCLOUD_PROFILE; \
 	else \
