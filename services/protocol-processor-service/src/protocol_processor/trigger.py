@@ -209,6 +209,7 @@ async def _run_pipeline(
         import mlflow
 
         mlflow.langchain.autolog(run_tracer_inline=True)
+        logging.getLogger("mlflow.utils.autologging_utils").setLevel(logging.ERROR)
 
     return await graph.ainvoke(initial_state, config)
 

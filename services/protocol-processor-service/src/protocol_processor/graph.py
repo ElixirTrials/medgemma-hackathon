@@ -113,7 +113,7 @@ async def _get_checkpointer_async() -> Any:
     """Get or create the AsyncPostgresSaver checkpointer singleton.
 
     Creates an AsyncPostgresSaver using DATABASE_URL from the environment.
-    Uses the async context manager and calls asetup() to ensure checkpoint
+    Uses the async context manager and calls setup() to ensure checkpoint
     tables exist. The context is kept open for the process lifetime.
 
     Returns:
@@ -129,7 +129,7 @@ async def _get_checkpointer_async() -> Any:
         db_url = os.environ["DATABASE_URL"]
         _checkpointer_cm = AsyncPostgresSaver.from_conn_string(db_url)
         _checkpointer = await _checkpointer_cm.__aenter__()
-        await _checkpointer.asetup()  # Create checkpoint tables if they don't exist
+        await _checkpointer.setup()  # Create checkpoint tables if they don't exist
     return _checkpointer
 
 
