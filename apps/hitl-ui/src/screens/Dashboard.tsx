@@ -30,18 +30,27 @@ export default function Dashboard() {
                     title="System Status"
                     description="Current health of the backend services"
                 >
-                    {isLoading && <p className="text-muted-foreground">Checking health...</p>}
+                    {isLoading && <p className="text-muted-foreground">Connecting to backend...</p>}
                     {error && (
-                        <p className="text-destructive">Error: Unable to connect to backend</p>
+                        <p className="text-destructive">Backend unavailable — is make run-dev running?</p>
                     )}
                     {health && (
-                        <div className="flex items-center gap-2">
-                            <span
-                                className={`h-3 w-3 rounded-full ${
-                                    health.status === 'healthy' ? 'bg-green-500' : 'bg-red-500'
-                                }`}
-                            />
-                            <span className="font-medium capitalize">{health.status}</span>
+                        <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                                <span className={`h-2.5 w-2.5 rounded-full ${health.checks?.database === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
+                                <span className="text-sm">Database</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <span className={`h-2.5 w-2.5 rounded-full ${health.checks?.omop_vocab === 'ok' ? 'bg-green-500' : health.checks?.omop_vocab === 'unavailable' ? 'bg-yellow-500 animate-pulse' : 'bg-red-500'}`} />
+                                <span className="text-sm">
+                                    OMOP Vocabulary
+                                    {health.checks?.omop_vocab === 'ok' && health.checks.omop_concept_count
+                                        ? ` (${(health.checks.omop_concept_count / 1e6).toFixed(1)}M concepts)`
+                                        : health.checks?.omop_vocab !== 'ok'
+                                          ? ' — loading...'
+                                          : ''}
+                                </span>
+                            </div>
                         </div>
                     )}
                 </DashboardCard>
