@@ -12,9 +12,11 @@ All tests run without a live database. DB calls are mocked/patched.
 
 from __future__ import annotations
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+import protocol_processor.tools.omop_mapper as omop_mapper_mod
 
 from protocol_processor.nodes.ground import _reconcile_dual_grounding
 from protocol_processor.schemas.grounding import EntityGroundingResult
@@ -254,17 +256,13 @@ class TestOmopEngineValidation:
     @patch.dict("os.environ", {}, clear=False)
     def test_missing_omop_vocab_url_raises(self) -> None:
         """_get_omop_engine raises RuntimeError when OMOP_VOCAB_URL unset."""
-        import protocol_processor.tools.omop_mapper as mod
-
         # Reset the cached engine
-        mod._omop_engine = None
+        omop_mapper_mod._omop_engine = None
         # Remove the env var if present
-        import os
-
         os.environ.pop("OMOP_VOCAB_URL", None)
 
         with pytest.raises(RuntimeError, match="OMOP_VOCAB_URL"):
-            mod._get_omop_engine()
+            omop_mapper_mod._get_omop_engine()
 
     @patch("protocol_processor.tools.omop_mapper.create_engine")
     @patch.dict(
@@ -273,14 +271,12 @@ class TestOmopEngineValidation:
     )
     def test_creates_engine_when_url_set(self, mock_create_engine: MagicMock) -> None:
         """_get_omop_engine creates engine from OMOP_VOCAB_URL."""
-        import protocol_processor.tools.omop_mapper as mod
-
-        mod._omop_engine = None  # Reset cached engine
+        omop_mapper_mod._omop_engine = None  # Reset cached engine
 
         mock_engine = MagicMock()
         mock_create_engine.return_value = mock_engine
 
-        engine = mod._get_omop_engine()
+        engine = omop_mapper_mod._get_omop_engine()
 
         assert engine is mock_engine
         mock_create_engine.assert_called_once_with(
@@ -289,7 +285,7 @@ class TestOmopEngineValidation:
         )
 
         # Cleanup
-        mod._omop_engine = None
+        omop_mapper_mod._omop_engine = None
 
 
 # ===========================================================================

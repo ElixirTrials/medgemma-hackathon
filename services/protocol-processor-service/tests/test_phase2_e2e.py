@@ -18,6 +18,16 @@ from typing import Any, Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
+import shared.models  # noqa: F401 — register tables for SQLModel.metadata
+from shared.models import (
+    AtomicCriterion,
+    AuditLog,
+    CompositeCriterion,
+    Criteria,
+    CriteriaBatch,
+    CriterionRelationship,
+    Protocol,
+)
 from sqlalchemy import inspect
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -35,9 +45,6 @@ def e2e_engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    # Import all models so SQLModel metadata is populated
-    import shared.models  # noqa: F401
-
     SQLModel.metadata.create_all(engine)
     try:
         yield engine
@@ -178,8 +185,6 @@ class TestOrmCrud:
 
     def test_create_and_read_atomic_criterion(self, e2e_session) -> None:
         """AtomicCriterion can be created, flushed, and queried."""
-        from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
-
         # Create parent records
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")
         e2e_session.add(protocol)
@@ -224,15 +229,6 @@ class TestOrmCrud:
 
     def test_create_composite_and_relationships(self, e2e_session) -> None:
         """CompositeCriterion + CriterionRelationship tree can be built."""
-        from shared.models import (
-            AtomicCriterion,
-            CompositeCriterion,
-            Criteria,
-            CriteriaBatch,
-            CriterionRelationship,
-            Protocol,
-        )
-
         # Create parent records
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")
         e2e_session.add(protocol)
@@ -318,8 +314,6 @@ class TestOrmCrud:
 
     def test_criteria_structured_criterion_jsonb(self, e2e_session) -> None:
         """Criteria.structured_criterion round-trips JSONB data."""
-        from shared.models import Criteria, CriteriaBatch, Protocol
-
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")
         e2e_session.add(protocol)
         e2e_session.flush()
@@ -371,8 +365,6 @@ class TestStructureBuilderE2e:
 
     async def test_single_mapping_creates_one_atomic(self, e2e_session) -> None:
         """Single field_mapping -> 1 AtomicCriterion in DB."""
-        from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
-
         from protocol_processor.tools.structure_builder import build_expression_tree
 
         # Setup parent records
@@ -423,15 +415,6 @@ class TestStructureBuilderE2e:
 
     async def test_multi_mapping_fallback_creates_and_tree(self, e2e_session) -> None:
         """Multiple field_mappings with LLM fallback -> AND tree in DB."""
-        from shared.models import (
-            AtomicCriterion,
-            CompositeCriterion,
-            Criteria,
-            CriteriaBatch,
-            CriterionRelationship,
-            Protocol,
-        )
-
         from protocol_processor.tools.structure_builder import build_expression_tree
 
         # Setup
@@ -511,8 +494,6 @@ class TestStructureBuilderE2e:
 
     async def test_value_text_for_non_numeric(self, e2e_session) -> None:
         """Non-numeric values stored as value_text, not value_numeric."""
-        from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
-
         from protocol_processor.tools.structure_builder import build_expression_tree
 
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")
@@ -570,15 +551,6 @@ class TestStructureNodeE2e:
         self, mock_span_fn: MagicMock, e2e_engine, e2e_session
     ) -> None:
         """Structure node reads criteria from DB, builds trees, writes back."""
-        from shared.models import (
-            AtomicCriterion,
-            AuditLog,
-            CompositeCriterion,
-            Criteria,
-            CriteriaBatch,
-            Protocol,
-        )
-
         # Setup span mock
         mock_span = MagicMock()
         mock_span.__enter__ = MagicMock(return_value=mock_span)
@@ -789,8 +761,6 @@ class TestPhase3UnitNormalization:
 
     async def test_unit_normalization_persists(self, e2e_session) -> None:
         """Structure builder should populate unit_concept_id for '%' -> 8554."""
-        from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
-
         from protocol_processor.tools.structure_builder import build_expression_tree
 
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")
@@ -828,8 +798,6 @@ class TestPhase3UnitNormalization:
 
     async def test_value_normalization_persists(self, e2e_session) -> None:
         """Builder should populate value_concept_id: positive -> 45884084."""
-        from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
-
         from protocol_processor.tools.structure_builder import build_expression_tree
 
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")
@@ -875,8 +843,6 @@ class TestPhase3UnitNormalization:
 
     async def test_unrecognized_unit_stays_none(self, e2e_session) -> None:
         """Unrecognized unit should leave unit_concept_id as None."""
-        from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
-
         from protocol_processor.tools.structure_builder import build_expression_tree
 
         protocol = Protocol(title="Test Protocol", file_uri="local://test.pdf")

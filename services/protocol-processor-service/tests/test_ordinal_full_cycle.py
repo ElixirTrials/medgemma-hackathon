@@ -28,6 +28,7 @@ from typing import Any, Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
+import shared.models  # noqa: F401 — register tables for SQLModel.metadata
 from shared.models import (
     AtomicCriterion,
     AuditLog,
@@ -60,8 +61,6 @@ def engine():
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
-    import shared.models  # noqa: F401
-
     SQLModel.metadata.create_all(eng)
     try:
         yield eng
