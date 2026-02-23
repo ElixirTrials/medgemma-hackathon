@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7da238b6c8f1",
+  "strategy": "manual-commit",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/tests/test_omop_mapper.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py",
+    "services/protocol-processor-service/tests/test_phase2_e2e.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7d/a238b6c8f1/0/metadata.json",
+      "transcript": "/7d/a238b6c8f1/0/full.jsonl",
+      "context": "/7d/a238b6c8f1/0/context.md",
+      "content_hash": "/7d/a238b6c8f1/0/content_hash.txt",
+      "prompt": "/7d/a238b6c8f1/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  }
+}
