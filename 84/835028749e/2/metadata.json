@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "84835028749e",
+  "session_id": "d5fc143d-bc6d-4109-afff-c8d5b051e7a1",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T18:58:58.850246Z",
+  "branch": "feat/graceful-credential-expiry",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "Makefile",
+    "pyproject.toml",
+    "services/api-service/pyproject.toml",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/tests/conftest.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "1907eec79551",
+  "transcript_identifier_at_start": "82801a2b-ada9-4d06-b90f-375914e98d6b",
+  "token_usage": {
+    "input_tokens": 47,
+    "cache_creation_tokens": 136441,
+    "cache_read_tokens": 2541646,
+    "output_tokens": 2317,
+    "api_call_count": 41
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T18:58:58.570541Z",
+    "agent_lines": 44,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 44,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/d5fc143d-bc6d-4109-afff-c8d5b051e7a1.jsonl"
+}
