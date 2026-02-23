@@ -20,13 +20,6 @@ import pytest
 import protocol_processor.tools.omop_mapper as omop_mapper_mod
 from protocol_processor.nodes.ground import _reconcile_dual_grounding
 from protocol_processor.schemas.grounding import EntityGroundingResult
-from protocol_processor.tools.omop_mapper import (
-    ENTITY_TYPE_TO_OMOP_DOMAIN,
-    OmopLookupResult,
-    _get_domain_filter,
-    _score_candidates,
-    lookup_omop_concept,
-)
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -74,7 +67,9 @@ class TestScoreCandidates:
     def test_exact_match_gets_highest_score(self) -> None:
         """An exact case-insensitive match should receive a 0.25 bonus."""
         candidates = [_make_candidate("Type 2 Diabetes Mellitus")]
-        scored = _score_candidates("type 2 diabetes mellitus", candidates)
+        scored = omop_mapper_mod._score_candidates(
+            "type 2 diabetes mellitus", candidates
+        )
         # SequenceMatcher ratio for identical strings is 1.0
         # bonus for exact match is 0.25, but capped at 1.0
         assert scored[0]["score"] == 1.0
@@ -82,7 +77,7 @@ class TestScoreCandidates:
     def test_substring_containment_gets_bonus(self) -> None:
         """Substring containment (either direction) should add a 0.15 bonus."""
         candidates = [_make_candidate("Type 2 Diabetes Mellitus")]
-        scored = _score_candidates("diabetes", candidates)
+        scored = omop_mapper_mod._score_candidates("diabetes", candidates)
         # "diabetes" is a substring of "type 2 diabetes mellitus"
         # So bonus should be 0.15 (not 0.25, since not exact)
         assert scored[0]["score"] > 0.0
@@ -95,7 +90,7 @@ class TestScoreCandidates:
     def test_non_matching_gets_only_base_score(self) -> None:
         """A candidate with no substring overlap gets only the base score."""
         candidates = [_make_candidate("Hypertension")]
-        scored = _score_candidates("metformin", candidates)
+        scored = omop_mapper_mod._score_candidates("metformin", candidates)
         from difflib import SequenceMatcher
 
         expected_base = SequenceMatcher(None, "metformin", "hypertension").ratio()
@@ -108,33 +103,33 @@ class TestScoreCandidates:
             _make_candidate("Type 2 Diabetes Mellitus"),
             _make_candidate("Diabetes"),
         ]
-        scored = _score_candidates("diabetes", candidates)
+        scored = omop_mapper_mod._score_candidates("diabetes", candidates)
         scores = [c["score"] for c in scored]
         assert scores == sorted(scores, reverse=True)
 
     def test_empty_candidates_returns_empty(self) -> None:
         """An empty candidate list should return an empty list."""
-        scored = _score_candidates("diabetes", [])
+        scored = omop_mapper_mod._score_candidates("diabetes", [])
         assert scored == []
 
     def test_score_capped_at_one(self) -> None:
         """Score must never exceed 1.0 even with bonus."""
         # Exact match: base=1.0 + bonus=0.25 should be capped to 1.0
         candidates = [_make_candidate("metformin")]
-        scored = _score_candidates("metformin", candidates)
+        scored = omop_mapper_mod._score_candidates("metformin", candidates)
         assert scored[0]["score"] <= 1.0
 
     def test_case_insensitive_matching(self) -> None:
         """Scoring should be case-insensitive."""
         candidates = [_make_candidate("METFORMIN")]
-        scored = _score_candidates("metformin", candidates)
+        scored = omop_mapper_mod._score_candidates("metformin", candidates)
         # Exact case-insensitive match
         assert scored[0]["score"] == 1.0
 
     def test_whitespace_stripped(self) -> None:
         """Leading/trailing whitespace should not affect scoring."""
         candidates = [_make_candidate("  metformin  ")]
-        scored = _score_candidates("  metformin  ", candidates)
+        scored = omop_mapper_mod._score_candidates("  metformin  ", candidates)
         assert scored[0]["score"] == 1.0
 
 
@@ -148,27 +143,27 @@ class TestGetDomainFilter:
 
     def test_condition_maps_to_condition(self) -> None:
         """'Condition' entity type maps to 'Condition' OMOP domain."""
-        assert _get_domain_filter("Condition") == "Condition"
+        assert omop_mapper_mod._get_domain_filter("Condition") == "Condition"
 
     def test_medication_maps_to_drug(self) -> None:
         """'Medication' entity type maps to 'Drug' OMOP domain."""
-        assert _get_domain_filter("Medication") == "Drug"
+        assert omop_mapper_mod._get_domain_filter("Medication") == "Drug"
 
     def test_lab_value_maps_to_measurement(self) -> None:
         """'Lab_Value' entity type maps to 'Measurement' OMOP domain."""
-        assert _get_domain_filter("Lab_Value") == "Measurement"
+        assert omop_mapper_mod._get_domain_filter("Lab_Value") == "Measurement"
 
     def test_procedure_maps_to_procedure(self) -> None:
         """'Procedure' entity type maps to 'Procedure' OMOP domain."""
-        assert _get_domain_filter("Procedure") == "Procedure"
+        assert omop_mapper_mod._get_domain_filter("Procedure") == "Procedure"
 
     def test_demographic_maps_to_observation(self) -> None:
         """'Demographic' entity type maps to 'Observation' OMOP domain."""
-        assert _get_domain_filter("Demographic") == "Observation"
+        assert omop_mapper_mod._get_domain_filter("Demographic") == "Observation"
 
     def test_unknown_type_falls_back_to_observation(self) -> None:
         """Unknown entity types should fall back to 'Observation'."""
-        assert _get_domain_filter("UnknownEntityType") == "Observation"
+        assert omop_mapper_mod._get_domain_filter("UnknownEntityType") == "Observation"
 
     def test_all_mapped_types_present(self) -> None:
         """All documented entity types must be present in the mapping dict."""
@@ -179,7 +174,7 @@ class TestGetDomainFilter:
             "Procedure",
             "Demographic",
         }
-        assert expected_keys == set(ENTITY_TYPE_TO_OMOP_DOMAIN.keys())
+        assert expected_keys == set(omop_mapper_mod.ENTITY_TYPE_TO_OMOP_DOMAIN.keys())
 
 
 # ===========================================================================
@@ -193,19 +188,19 @@ class TestLookupOmopConcept:
     async def test_empty_entity_text_raises_value_error(self) -> None:
         """Empty entity_text should raise ValueError."""
         with pytest.raises(ValueError, match="Empty entity_text"):
-            await lookup_omop_concept("", "Condition")
+            await omop_mapper_mod.lookup_omop_concept("", "Condition")
 
     async def test_whitespace_entity_text_raises_value_error(self) -> None:
         """Whitespace-only entity_text should raise ValueError."""
         with pytest.raises(ValueError, match="Empty entity_text"):
-            await lookup_omop_concept("   ", "Condition")
+            await omop_mapper_mod.lookup_omop_concept("   ", "Condition")
 
     @patch("protocol_processor.tools.omop_mapper._sync_lookup")
     async def test_valid_lookup_returns_result(
         self, mock_sync_lookup: MagicMock
     ) -> None:
         """A successful lookup should return the OmopLookupResult."""
-        expected = OmopLookupResult(
+        expected = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="201826",
             omop_concept_name="Type 2 diabetes mellitus",
             omop_vocabulary_id="SNOMED",
@@ -215,7 +210,9 @@ class TestLookupOmopConcept:
         )
         mock_sync_lookup.return_value = expected
 
-        result = await lookup_omop_concept("type 2 diabetes", "Condition")
+        result = await omop_mapper_mod.lookup_omop_concept(
+            "type 2 diabetes", "Condition"
+        )
 
         assert result.omop_concept_id == "201826"
         assert result.omop_concept_name == "Type 2 diabetes mellitus"
@@ -227,9 +224,9 @@ class TestLookupOmopConcept:
         self, mock_sync_lookup: MagicMock
     ) -> None:
         """Medication entity type should resolve to 'Drug' domain_id."""
-        mock_sync_lookup.return_value = OmopLookupResult()
+        mock_sync_lookup.return_value = omop_mapper_mod.OmopLookupResult()
 
-        await lookup_omop_concept("metformin", "Medication")
+        await omop_mapper_mod.lookup_omop_concept("metformin", "Medication")
 
         mock_sync_lookup.assert_called_once_with("metformin", "Drug")
 
@@ -238,9 +235,9 @@ class TestLookupOmopConcept:
         self, mock_sync_lookup: MagicMock
     ) -> None:
         """Unknown entity type should fall back to 'Observation' domain."""
-        mock_sync_lookup.return_value = OmopLookupResult()
+        mock_sync_lookup.return_value = omop_mapper_mod.OmopLookupResult()
 
-        await lookup_omop_concept("some entity", "WeirdType")
+        await omop_mapper_mod.lookup_omop_concept("some entity", "WeirdType")
 
         mock_sync_lookup.assert_called_once_with("some entity", "Observation")
 
@@ -302,7 +299,7 @@ class TestReconcileDualGrounding:
             selected_code="C0011847",
             preferred_term="Type 2 Diabetes Mellitus",
         )
-        omop_result = OmopLookupResult(
+        omop_result = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="201826",
             omop_concept_name="Type 2 Diabetes Mellitus",
             match_score=0.95,
@@ -319,7 +316,7 @@ class TestReconcileDualGrounding:
             selected_code="C0011847",
             preferred_term="Diabetes",
         )
-        omop_result = OmopLookupResult(
+        omop_result = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="201826",
             omop_concept_name="Type 2 Diabetes Mellitus",
             match_score=0.90,
@@ -335,7 +332,7 @@ class TestReconcileDualGrounding:
             selected_code="C0011847",
             preferred_term="Type 2 Diabetes Mellitus",
         )
-        omop_result = OmopLookupResult(
+        omop_result = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="999999",
             omop_concept_name="Hypertension",
             match_score=0.80,
@@ -352,7 +349,7 @@ class TestReconcileDualGrounding:
             selected_code="C0011847",
             preferred_term="Type 2 Diabetes Mellitus",
         )
-        omop_result = OmopLookupResult()  # empty — no match
+        omop_result = omop_mapper_mod.OmopLookupResult()  # empty — no match
 
         reconciled = _reconcile_dual_grounding(result, omop_result)
 
@@ -365,7 +362,7 @@ class TestReconcileDualGrounding:
             selected_code=None,
             preferred_term=None,
         )
-        omop_result = OmopLookupResult(
+        omop_result = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="201826",
             omop_concept_name="Type 2 Diabetes Mellitus",
             match_score=0.90,
@@ -382,7 +379,7 @@ class TestReconcileDualGrounding:
             selected_code=None,
             preferred_term=None,
         )
-        omop_result = OmopLookupResult()  # empty
+        omop_result = omop_mapper_mod.OmopLookupResult()  # empty
 
         reconciled = _reconcile_dual_grounding(result, omop_result)
 
@@ -395,7 +392,7 @@ class TestReconcileDualGrounding:
             selected_code="C0011847",
             preferred_term="Diabetes",
         )
-        omop_result = OmopLookupResult(
+        omop_result = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="201826",
             omop_concept_name="Diabetes",
             match_score=0.95,
@@ -411,7 +408,7 @@ class TestReconcileDualGrounding:
             selected_code="C0011847",
             preferred_term="METFORMIN",
         )
-        omop_result = OmopLookupResult(
+        omop_result = omop_mapper_mod.OmopLookupResult(
             omop_concept_id="1503297",
             omop_concept_name="metformin",
             match_score=0.95,

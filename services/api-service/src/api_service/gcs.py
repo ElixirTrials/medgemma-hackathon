@@ -34,21 +34,22 @@ logger = logging.getLogger(__name__)
 _LOCAL_UPLOAD_DIR = Path(os.getenv("LOCAL_UPLOAD_DIR", "uploads/protocols"))
 
 
-def _safe_resolve(base: Path, untrusted: str) -> Path:
-    """Resolve an untrusted path relative to *base* and guard against traversal.
+def _validate_blob_path(untrusted: str) -> str:
+    """Validate and sanitize an untrusted blob path.
+
+    Rejects path traversal attempts (``..``), absolute paths, and
+    home-directory references (``~``) **before** the value is ever used
+    to construct a filesystem ``Path``.
 
     Args:
-        base: Trusted base directory.
-        untrusted: Untrusted relative path (e.g. from user input).
+        untrusted: Untrusted relative blob path from user input.
 
     Returns:
-        The resolved ``Path`` that is guaranteed to be inside *base*.
+        The sanitized, normalized relative path string.
 
     Raises:
-        ValueError: If the resolved path escapes *base*.
+        ValueError: If the path fails validation.
     """
-    # Reject traversal components before constructing a filesystem path.
-    # Using PurePosixPath to normalize regardless of OS, then checking parts.
     from pathlib import PurePosixPath
 
     parts = PurePosixPath(untrusted).parts
@@ -56,15 +57,7 @@ def _safe_resolve(base: Path, untrusted: str) -> Path:
         raise ValueError(f"Path traversal blocked: {untrusted!r}")
     if PurePosixPath(untrusted).is_absolute():
         raise ValueError(f"Path traversal blocked: {untrusted!r}")
-
-    # Now safe to construct the real path
-    sanitized = os.path.normpath(untrusted)
-    resolved = (base / sanitized).resolve()
-    base_resolved = base.resolve()
-    base_str = str(base_resolved) + os.sep
-    if not str(resolved).startswith(base_str) and resolved != base_resolved:
-        raise ValueError(f"Path traversal blocked: {untrusted!r}")
-    return resolved
+    return os.path.normpath(untrusted)
 
 
 # Shared retry decorator for GCS operations
@@ -233,7 +226,8 @@ def local_save_file(blob_path: str, data: bytes) -> None:
         blob_path: Relative path within the local upload directory.
         data: Raw file bytes to store.
     """
-    file_path = _safe_resolve(_LOCAL_UPLOAD_DIR, blob_path)
+    safe_rel = _validate_blob_path(blob_path)
+    file_path = _LOCAL_UPLOAD_DIR / safe_rel
     file_path.parent.mkdir(parents=True, exist_ok=True)
 
     content_hash = _content_hash(data)
@@ -280,7 +274,8 @@ def local_get_file_path(blob_path: str) -> Path | None:
     Raises:
         ValueError: If *blob_path* attempts directory traversal.
     """
-    file_path = _safe_resolve(_LOCAL_UPLOAD_DIR, blob_path)
+    safe_rel = _validate_blob_path(blob_path)
+    file_path = _LOCAL_UPLOAD_DIR / safe_rel
     return file_path if file_path.exists() else None
 
 

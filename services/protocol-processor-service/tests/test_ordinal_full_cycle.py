@@ -28,7 +28,6 @@ from typing import Any, Generator
 from unittest.mock import AsyncMock, patch
 
 import pytest
-import shared.models  # noqa: F401 — register tables for SQLModel.metadata
 from shared.models import (
     AtomicCriterion,
     AuditLog,

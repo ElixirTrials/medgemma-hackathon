@@ -6,7 +6,7 @@ interface FieldMappingBadgesProps {
 }
 
 function formatMappingValue(value: Record<string, unknown>): string {
-    if (typeof value !== 'object' || value === null) return '';
+    if (typeof value !== 'object') return '';
     if (value.type === 'range')
         return `${value.min}–${value.max}${value.unit ? ` ${value.unit}` : ''}`;
     if (value.type === 'temporal') return `${value.duration} ${value.unit}`;
