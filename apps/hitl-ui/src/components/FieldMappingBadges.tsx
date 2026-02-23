@@ -5,6 +5,19 @@ interface FieldMappingBadgesProps {
     onEditClick?: () => void;
 }
 
+/** Mapping from legacy relation operators to frontend-standard operators. */
+const RELATION_DISPLAY_MAP: Record<string, string> = {
+    has: 'contains',
+    is: '=',
+    not: 'not_contains',
+    '==': '=',
+    range: 'within',
+};
+
+function normalizeRelationDisplay(rel: string): string {
+    return RELATION_DISPLAY_MAP[rel] ?? rel;
+}
+
 function formatMappingValue(value: Record<string, unknown>): string {
     if (typeof value !== 'object') return '';
     if (value.type === 'range')
@@ -22,37 +35,61 @@ function renderValue(value: unknown): string {
     return '';
 }
 
+interface RawFieldMapping {
+    entity: string;
+    entity_code?: string;
+    entity_concept_id?: string;
+    entity_system?: string;
+    entity_concept_system?: string;
+    omop_concept_id?: string;
+    relation: string;
+    value: unknown;
+    unit?: string;
+}
+
 export default function FieldMappingBadges({ criterion, onEditClick }: FieldMappingBadgesProps) {
     const cond = criterion.conditions as Record<string, unknown> | null;
     const fieldMappings =
         cond && 'field_mappings' in cond && Array.isArray(cond.field_mappings)
-            ? (cond.field_mappings as Array<{
-                  entity: string;
-                  entity_code?: string;
-                  entity_system?: string;
-                  relation: string;
-                  value: unknown;
-              }>)
+            ? (cond.field_mappings as Array<RawFieldMapping>)
             : null;
 
     if (!fieldMappings || fieldMappings.length === 0) return null;
 
-    const badgeContent = (mapping: (typeof fieldMappings)[number]) => {
-        const valueText = renderValue(mapping.value);
+    const badgeContent = (mapping: RawFieldMapping) => {
+        // Legacy key fallbacks
+        const entityCode = mapping.entity_code ?? mapping.entity_concept_id;
+        const entitySystem = mapping.entity_system ?? mapping.entity_concept_system;
+        const relation = normalizeRelationDisplay(mapping.relation);
+
+        // Handle flat value format (string/number) alongside typed object format
+        let valueText: string;
+        if (typeof mapping.value === 'string' || typeof mapping.value === 'number') {
+            const unit = mapping.unit ? ` ${mapping.unit}` : '';
+            valueText = `${mapping.value}${unit}`;
+        } else {
+            valueText = renderValue(mapping.value);
+        }
+
         return (
             <>
                 <span className="font-semibold text-blue-900">{mapping.entity || '—'}</span>
-                {mapping.entity_code && (
+                {entityCode && (
                     <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-1.5 py-0 text-[10px] text-green-700">
-                        {mapping.entity_system?.toUpperCase()}: {mapping.entity_code}
+                        {entitySystem?.toUpperCase()}: {entityCode}
                     </span>
                 )}
-                {mapping.relation && (
-                    <span className="text-blue-600 font-mono text-xs">{mapping.relation}</span>
+                {mapping.omop_concept_id && (
+                    <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0 text-[10px] text-amber-700">
+                        OMOP: {mapping.omop_concept_id}
+                    </span>
                 )}
-                {mapping.relation && valueText ? (
+                {relation && (
+                    <span className="text-blue-600 font-mono text-xs">{relation}</span>
+                )}
+                {relation && valueText ? (
                     <span className="text-blue-800">{valueText}</span>
-                ) : mapping.relation && !valueText ? (
+                ) : relation && !valueText ? (
                     <span className="text-muted-foreground/50 italic text-xs">no value</span>
                 ) : null}
             </>

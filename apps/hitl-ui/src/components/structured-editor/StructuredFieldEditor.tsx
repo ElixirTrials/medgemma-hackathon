@@ -199,12 +199,19 @@ export function StructuredFieldEditor({
                                     )}
                                 />
                             </div>
-                            {mapping?.entity_code && (
-                                <div className="mt-1">
-                                    <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs text-green-700">
-                                        {mapping.entity_system?.toUpperCase()}:{' '}
-                                        {mapping.entity_code}
-                                    </span>
+                            {(mapping?.entity_code || mapping?.omop_concept_id) && (
+                                <div className="mt-1 flex gap-1 flex-wrap">
+                                    {mapping?.entity_code && (
+                                        <span className="inline-flex items-center rounded-full bg-green-50 border border-green-200 px-2 py-0.5 text-xs text-green-700">
+                                            {mapping.entity_system?.toUpperCase()}:{' '}
+                                            {mapping.entity_code}
+                                        </span>
+                                    )}
+                                    {mapping?.omop_concept_id && (
+                                        <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-2 py-0.5 text-xs text-amber-700">
+                                            OMOP: {mapping.omop_concept_id}
+                                        </span>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -187,6 +187,67 @@ function parseDuration(duration: string): {
     return { value: duration, unit: 'days' };
 }
 
+/** Valid frontend relation operators. */
+const VALID_RELATIONS = new Set<string>([
+    '=', '!=', '>', '>=', '<', '<=', 'within', 'not_in_last', 'contains', 'not_contains',
+]);
+
+/** Normalize a raw relation string to a valid RelationOperator or empty. */
+export function normalizeRelation(raw: string): RelationOperator | '' {
+    const map: Record<string, RelationOperator> = {
+        has: 'contains',
+        is: '=',
+        not: 'not_contains',
+        '==': '=',
+        range: 'within',
+    };
+    const mapped = map[raw] ?? raw;
+    return VALID_RELATIONS.has(mapped) ? (mapped as RelationOperator) : '';
+}
+
+/** Normalize a field mapping's value to a typed FieldValue. */
+export function normalizeFieldValue(fm: Record<string, unknown>): FieldValue {
+    const rawVal = fm.value;
+
+    // New typed format: value is an object with a 'type' key
+    if (rawVal && typeof rawVal === 'object' && !Array.isArray(rawVal)) {
+        const obj = rawVal as Record<string, unknown>;
+        if (obj.type === 'range') {
+            return {
+                type: 'range',
+                min: String(obj.min ?? ''),
+                max: String(obj.max ?? ''),
+                unit: String(obj.unit ?? ''),
+            };
+        }
+        if (obj.type === 'temporal') {
+            return {
+                type: 'temporal',
+                duration: String(obj.duration ?? ''),
+                unit: (obj.unit as TemporalUnit) ?? 'days',
+            };
+        }
+        if (obj.type === 'standard') {
+            return {
+                type: 'standard',
+                value: String(obj.value ?? ''),
+                unit: String(obj.unit ?? ''),
+            };
+        }
+    }
+
+    // Legacy flat format: value is a string or number
+    if (typeof rawVal === 'string' || typeof rawVal === 'number') {
+        return {
+            type: 'standard',
+            value: String(rawVal),
+            unit: String(fm.unit ?? ''),
+        };
+    }
+
+    return { type: 'standard', value: '', unit: '' };
+}
+
 /**
  * Build initial form values for the structured editor from a criterion's
  * AI-extracted data (numeric_thresholds, temporal_constraint, conditions).
@@ -198,33 +259,19 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
         const fms = cond.field_mappings as Array<Record<string, unknown>>;
         const mappings: FieldMapping[] = fms.map((fm) => {
             const rel = (fm.relation as string) ?? '';
-            const rawVal = fm.value as Record<string, unknown> | undefined;
-            let value: FieldValue = { type: 'standard', value: '', unit: '' };
-            if (rawVal && rawVal.type === 'range') {
-                value = {
-                    type: 'range',
-                    min: String(rawVal.min ?? ''),
-                    max: String(rawVal.max ?? ''),
-                    unit: String(rawVal.unit ?? ''),
-                };
-            } else if (rawVal && rawVal.type === 'temporal') {
-                value = {
-                    type: 'temporal',
-                    duration: String(rawVal.duration ?? ''),
-                    unit: (rawVal.unit as TemporalUnit) ?? 'days',
-                };
-            } else if (rawVal && rawVal.type === 'standard') {
-                value = {
-                    type: 'standard',
-                    value: String(rawVal.value ?? ''),
-                    unit: String(rawVal.unit ?? ''),
-                };
-            }
+            const value = normalizeFieldValue(fm);
             return {
                 entity: String(fm.entity ?? ''),
-                entity_code: fm.entity_code ? String(fm.entity_code) : undefined,
-                entity_system: fm.entity_system ? String(fm.entity_system) : undefined,
-                relation: (rel as RelationOperator) || '',
+                entity_code: (fm.entity_code ?? fm.entity_concept_id)
+                    ? String(fm.entity_code ?? fm.entity_concept_id)
+                    : undefined,
+                entity_system: (fm.entity_system ?? fm.entity_concept_system)
+                    ? String(fm.entity_system ?? fm.entity_concept_system)
+                    : undefined,
+                omop_concept_id: fm.omop_concept_id
+                    ? String(fm.omop_concept_id)
+                    : undefined,
+                relation: normalizeRelation(rel),
                 value,
             };
         });
@@ -247,6 +294,8 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
             e.entity_type === 'Demographic'
     );
 
+    const usedEntityIndices = new Set<number>();
+
     for (let i = 0; i < thresholds.length; i++) {
         const t = thresholds[i];
         const comparator = (t.comparator as string) ?? '';
@@ -256,7 +305,15 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
 
         if (val === null || val === undefined) continue;
 
-        const matchedEntity = measurableEntities[i];
+        // Find the next unused measurable entity
+        let matchedEntity: (typeof measurableEntities)[number] | undefined;
+        for (let j = 0; j < measurableEntities.length; j++) {
+            if (!usedEntityIndices.has(j)) {
+                matchedEntity = measurableEntities[j];
+                usedEntityIndices.add(j);
+                break;
+            }
+        }
         const entity = matchedEntity ? entityLabel(matchedEntity) : '';
         const entityCode = matchedEntity?.snomed_code ?? matchedEntity?.umls_cui ?? undefined;
         const entitySystem = matchedEntity?.snomed_code
@@ -281,6 +338,22 @@ export function buildInitialValues(criterion: Criterion): StructuredFieldFormVal
                 entity_system: entitySystem,
                 relation,
                 value: { type: 'standard', value: String(val), unit },
+            });
+        }
+    }
+
+    // Add remaining unmatched measurable entities with empty relation/value
+    for (let j = 0; j < measurableEntities.length; j++) {
+        if (!usedEntityIndices.has(j)) {
+            const e = measurableEntities[j];
+            const code = e.snomed_code ?? e.umls_cui ?? undefined;
+            const system = e.snomed_code ? 'snomed' : e.umls_cui ? 'umls' : undefined;
+            mappings.push({
+                entity: entityLabel(e),
+                entity_code: code,
+                entity_system: system,
+                relation: '',
+                value: { type: 'standard', value: '', unit: '' },
             });
         }
     }
