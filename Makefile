@@ -40,7 +40,7 @@ run-dev:
 	echo "  API on port $$API_PORT (UI will use VITE_API_URL=http://localhost:$$API_PORT)"; \
 	export VITE_API_URL="http://localhost:$$API_PORT"; \
 	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads/protocols}"; \
-	cleanup() { kill $$API_PID $$UI_PID 2>/dev/null; wait $$API_PID $$UI_PID 2>/dev/null; kill $$MLFLOW_PID 2>/dev/null; wait $$MLFLOW_PID 2>/dev/null; }; \
+	cleanup() { kill $$API_PID $$UI_PID 2>/dev/null; wait $$API_PID $$UI_PID 2>/dev/null; kill $$MLFLOW_PID 2>/dev/null; wait $$MLFLOW_PID 2>/dev/null; pkill -9 -f "mlflow.server.jobs" 2>/dev/null; pkill -9 -f "huey_consumer.py mlflow" 2>/dev/null; }; \
 	trap 'cleanup; exit 130' SIGINT; \
 	trap 'cleanup; exit 143' SIGTERM; \
 	trap cleanup EXIT; \
