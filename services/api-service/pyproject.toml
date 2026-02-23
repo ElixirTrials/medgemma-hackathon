@@ -65,7 +65,8 @@ pythonpath = [
 ]
 testpaths = ["tests"]
 # Coverage is optional - use `pytest --cov=api_service` to enable
-addopts = "-n auto"
+# Parallel: run `pytest -n auto -p xdist` explicitly when desired
+addopts = "-p no:xdist"
 markers = [
     "unit: Unit tests (fast, no external dependencies)",
     "integration: Integration tests (database, API endpoints)",

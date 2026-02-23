@@ -2,9 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import type { TerminologySystem } from '../components/TerminologyBadge';
+import { API_BASE_URL, SessionExpiredError } from '../lib/fetchApi';
 import { useAuthStore } from '../stores/authStore';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export interface TerminologySearchResult {
     code: string;
@@ -24,7 +23,7 @@ export function useTerminologySearch(
     isCircuitOpen: boolean;
     validationHint: string | null;
 } {
-    // Debounce query by 300ms
+    // Debounce query by 150ms
     const [debouncedQuery, setDebouncedQuery] = useState(query);
     const [isCircuitOpen, setIsCircuitOpen] = useState(false);
 
@@ -62,8 +61,8 @@ export function useTerminologySearch(
             );
 
             if (response.status === 401) {
-                useAuthStore.getState().logout();
-                throw new Error('Session expired');
+                useAuthStore.getState().setSessionExpired();
+                throw new SessionExpiredError();
             }
 
             // 503 signals circuit breaker is open — track state separately

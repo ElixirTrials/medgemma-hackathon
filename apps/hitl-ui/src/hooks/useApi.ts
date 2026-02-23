@@ -1,27 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-
-async function fetchApi<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
-    });
-
-    if (!response.ok) {
-        throw new Error(`API Error: ${response.status} ${response.statusText}`);
-    }
-
-    return response.json();
-}
+import { fetchApi, fetchPublicApi } from '../lib/fetchApi';
 
 interface HealthChecks {
     database: string;
     omop_vocab: string;
     omop_concept_count?: number;
+    gcs?: string;
+    breakers?: Record<string, string>;
 }
 
 interface HealthResponse {
@@ -32,7 +18,7 @@ interface HealthResponse {
 export function useHealthCheck() {
     return useQuery({
         queryKey: ['health'],
-        queryFn: () => fetchApi<HealthResponse>('/health'),
+        queryFn: () => fetchPublicApi<HealthResponse>('/health'),
         refetchInterval: 30000, // Check every 30 seconds
         retry: 5,
         retryDelay: (attemptIndex) => {
@@ -50,7 +36,7 @@ interface ReadinessResponse {
 export function useReadinessCheck() {
     return useQuery({
         queryKey: ['ready'],
-        queryFn: () => fetchApi<ReadinessResponse>('/ready'),
+        queryFn: () => fetchPublicApi<ReadinessResponse>('/ready'),
     });
 }
 
