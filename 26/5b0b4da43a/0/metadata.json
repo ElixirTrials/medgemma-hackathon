@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "265b0b4da43a",
+  "session_id": "7d735052-1516-4ec9-8e2f-3eaf179499f4",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T09:23:26.977947Z",
+  "branch": "feature/terminology-search-entity-editor",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/tests/test_phase2_e2e.py",
+    "apps/hitl-ui/src/components/FieldMappingBadges.tsx",
+    "services/api-service/src/api_service/gcs.py",
+    "services/protocol-processor-service/tests/test_omop_mapper.py",
+    "services/protocol-processor-service/tests/test_ordinal_full_cycle.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "fae51614200a",
+  "token_usage": {
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T09:23:26.493123Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 50,
+    "human_removed": 10,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/7d735052-1516-4ec9-8e2f-3eaf179499f4.jsonl"
+}
