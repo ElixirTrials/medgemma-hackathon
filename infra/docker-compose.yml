@@ -77,8 +77,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
-    profiles:
-      - omop
 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v3.9.0

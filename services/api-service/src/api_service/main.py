@@ -6,13 +6,14 @@ from typing import Set
 
 from dotenv import load_dotenv
 
-load_dotenv(override=True)
+load_dotenv(override=False)
 
 from events_py.outbox import OutboxProcessor  # noqa: E402
 from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
 from protocol_processor.trigger import handle_protocol_uploaded  # noqa: E402
+from sqlalchemy import create_engine as sa_create_engine  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
@@ -61,7 +62,9 @@ async def lifespan(app: FastAPI):
             # Enable LangChain autolog for extraction/grounding agent traces
             try:
                 mlflow.langchain.autolog(run_tracer_inline=True)
-                logging.getLogger("mlflow.utils.autologging_utils").setLevel(logging.ERROR)
+                logging.getLogger("mlflow.utils.autologging_utils").setLevel(
+                    logging.ERROR
+                )
                 logger.info("MLflow LangChain autolog enabled (run_tracer_inline=True)")
             except Exception:
                 logger.debug("MLflow LangChain autolog failed", exc_info=True)
@@ -169,10 +172,51 @@ app.include_router(batch_compare_router, dependencies=[Depends(get_current_user)
 app.include_router(exports_router, dependencies=[Depends(get_current_user)])
 
 
+def _check_omop_vocab() -> dict:
+    """Check OMOP vocab DB connectivity and that tables are loaded.
+
+    Returns dict with 'status' ('ok' | 'unavailable' | 'not_loaded')
+    and optional 'concept_count'.
+    """
+    omop_url = os.getenv("OMOP_VOCAB_URL")
+    if not omop_url:
+        return {"status": "unavailable", "error": "OMOP_VOCAB_URL not set"}
+    try:
+        omop_engine = sa_create_engine(omop_url, pool_pre_ping=True)
+        with omop_engine.connect() as conn:
+            row = conn.execute(text("SELECT COUNT(*) FROM concept")).scalar()
+            if not row or row == 0:
+                return {"status": "not_loaded", "concept_count": 0}
+            return {"status": "ok", "concept_count": row}
+    except Exception as e:
+        return {"status": "unavailable", "error": str(e)}
+
+
 @app.get("/health")
-async def health_check():
-    """Liveness probe - is the service running?"""
-    return {"status": "healthy"}
+async def health_check(db: Session = Depends(get_db)):
+    """Health check — reports healthy only when main DB and OMOP vocab are ready."""
+    checks: dict = {}
+
+    # Main database
+    try:
+        db.execute(text("SELECT 1"))
+        checks["database"] = "connected"
+    except Exception:
+        checks["database"] = "unavailable"
+
+    # OMOP vocabulary database
+    omop = _check_omop_vocab()
+    checks["omop_vocab"] = omop["status"]
+    if omop.get("concept_count"):
+        checks["omop_concept_count"] = omop["concept_count"]
+
+    all_ok = checks["database"] == "connected" and omop["status"] == "ok"
+    if not all_ok:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "not_ready", "checks": checks},
+        )
+    return {"status": "healthy", "checks": checks}
 
 
 @app.get("/ready")

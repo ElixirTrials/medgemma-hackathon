@@ -3,6 +3,9 @@
 # Kill FastAPI/Uvicorn
 pkill -f "uvicorn api_service.main:app" || true
 
+# Kill MLflow server
+pkill -f "mlflow server" || true
+
 # Kill Python http server (docs)
 pkill -f "python -m http.server 8000" || true
 
