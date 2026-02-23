@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4002e7465b2a",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T16:21:48.763215Z",
+  "branch": "feat/graceful-credential-expiry",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useAuth.ts",
+    "apps/hitl-ui/src/hooks/useCorpus.ts",
+    "apps/hitl-ui/src/hooks/useEntities.ts",
+    "apps/hitl-ui/src/main.tsx",
+    "apps/hitl-ui/src/components/SessionExpiredModal.tsx",
+    "libs/inference/src/inference/model_garden.py",
+    "services/api-service/src/api_service/gcs.py",
+    "apps/hitl-ui/src/screens/Dashboard.tsx",
+    "apps/hitl-ui/src/stores/authStore.ts",
+    "services/api-service/src/api_service/main.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py",
+    "Makefile",
+    "apps/hitl-ui/src/hooks/useProtocols.ts",
+    "apps/hitl-ui/src/hooks/useReviews.ts",
+    "apps/hitl-ui/src/hooks/useSearch.ts",
+    "apps/hitl-ui/src/hooks/useTerminologySearch.ts",
+    "apps/hitl-ui/src/lib/fetchApi.ts",
+    "services/api-service/src/api_service/auth.py",
+    "apps/hitl-ui/src/App.tsx",
+    "apps/hitl-ui/src/hooks/useApi.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "90852c7186af",
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T16:21:48.750824Z",
+    "agent_lines": 0,
+    "human_added": 216,
+    "human_modified": 186,
+    "human_removed": 0,
+    "total_committed": 240,
+    "agent_percentage": 0
+  }
+}
