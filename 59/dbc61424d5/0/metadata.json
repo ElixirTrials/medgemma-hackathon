@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "59dbc61424d5",
+  "session_id": "6fc82e32-5756-419f-a5fe-b990de22520e",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-23T20:26:13.315996Z",
+  "branch": "claude/busy-knuth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/tests/tools/__init__.py",
+    "services/protocol-processor-service/tests/tools/test_field_mapper_format.py",
+    "apps/hitl-ui/src/components/__tests__/buildInitialValues.test.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "465fa7b00ecb",
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 149895,
+    "cache_read_tokens": 3838083,
+    "output_tokens": 6275,
+    "api_call_count": 53
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-23T20:26:13.085693Z",
+    "agent_lines": 0,
+    "human_added": 604,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 604,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon--claude-worktrees-busy-knuth/6fc82e32-5756-419f-a5fe-b990de22520e.jsonl"
+}

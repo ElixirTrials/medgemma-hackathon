@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "59dbc61424d5",
+  "strategy": "manual-commit",
+  "branch": "claude/busy-knuth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/components/__tests__/buildInitialValues.test.ts",
+    "services/protocol-processor-service/tests/tools/__init__.py",
+    "services/protocol-processor-service/tests/tools/test_field_mapper_format.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/59/dbc61424d5/0/metadata.json",
+      "transcript": "/59/dbc61424d5/0/full.jsonl",
+      "context": "/59/dbc61424d5/0/context.md",
+      "content_hash": "/59/dbc61424d5/0/content_hash.txt",
+      "prompt": "/59/dbc61424d5/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 149895,
+    "cache_read_tokens": 3838083,
+    "output_tokens": 6275,
+    "api_call_count": 53
+  }
+}
