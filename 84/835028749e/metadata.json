@@ -3,7 +3,7 @@
   "checkpoint_id": "84835028749e",
   "strategy": "manual-commit",
   "branch": "feat/graceful-credential-expiry",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "Makefile",
     "pyproject.toml",
@@ -25,13 +25,20 @@
       "context": "/84/835028749e/1/context.md",
       "content_hash": "/84/835028749e/1/content_hash.txt",
       "prompt": "/84/835028749e/1/prompt.txt"
+    },
+    {
+      "metadata": "/84/835028749e/2/metadata.json",
+      "transcript": "/84/835028749e/2/full.jsonl",
+      "context": "/84/835028749e/2/context.md",
+      "content_hash": "/84/835028749e/2/content_hash.txt",
+      "prompt": "/84/835028749e/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5019,
-    "cache_creation_tokens": 446750,
-    "cache_read_tokens": 22148491,
-    "output_tokens": 23503,
-    "api_call_count": 245
+    "input_tokens": 5066,
+    "cache_creation_tokens": 583191,
+    "cache_read_tokens": 24690137,
+    "output_tokens": 25820,
+    "api_call_count": 286
   }
 }
