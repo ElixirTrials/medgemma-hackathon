@@ -47,7 +47,19 @@ def _safe_resolve(base: Path, untrusted: str) -> Path:
     Raises:
         ValueError: If the resolved path escapes *base*.
     """
-    resolved = (base / untrusted).resolve()
+    # Reject traversal components before constructing a filesystem path.
+    # Using PurePosixPath to normalize regardless of OS, then checking parts.
+    from pathlib import PurePosixPath
+
+    parts = PurePosixPath(untrusted).parts
+    if ".." in parts or any(p.startswith("~") for p in parts):
+        raise ValueError(f"Path traversal blocked: {untrusted!r}")
+    if PurePosixPath(untrusted).is_absolute():
+        raise ValueError(f"Path traversal blocked: {untrusted!r}")
+
+    # Now safe to construct the real path
+    sanitized = os.path.normpath(untrusted)
+    resolved = (base / sanitized).resolve()
     base_resolved = base.resolve()
     base_str = str(base_resolved) + os.sep
     if not str(resolved).startswith(base_str) and resolved != base_resolved:
