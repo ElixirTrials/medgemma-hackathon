@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a65f1d8ab292",
+  "strategy": "manual-commit",
+  "branch": "claude/busy-knuth",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/api-service/alembic/versions/45_01_normalize_field_mappings.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a6/5f1d8ab292/0/metadata.json",
+      "transcript": "/a6/5f1d8ab292/0/full.jsonl",
+      "context": "/a6/5f1d8ab292/0/context.md",
+      "content_hash": "/a6/5f1d8ab292/0/content_hash.txt",
+      "prompt": "/a6/5f1d8ab292/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 41,
+    "cache_creation_tokens": 136457,
+    "cache_read_tokens": 2581481,
+    "output_tokens": 4844,
+    "api_call_count": 39
+  }
+}
