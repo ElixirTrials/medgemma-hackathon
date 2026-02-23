@@ -61,6 +61,7 @@ async def lifespan(app: FastAPI):
             # Enable LangChain autolog for extraction/grounding agent traces
             try:
                 mlflow.langchain.autolog(run_tracer_inline=True)
+                logging.getLogger("mlflow.utils.autologging_utils").setLevel(logging.ERROR)
                 logger.info("MLflow LangChain autolog enabled (run_tracer_inline=True)")
             except Exception:
                 logger.debug("MLflow LangChain autolog failed", exc_info=True)
