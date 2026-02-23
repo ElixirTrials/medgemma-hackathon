@@ -97,7 +97,11 @@ class TestPipelineSummary:
         assert isinstance(data["error_count"], int)
         assert isinstance(data["error_protocols"], list)
 
-    def test_pipeline_summary_counts_criteria_and_errors(self, test_client, db_session) -> None:
+    def test_pipeline_summary_counts_criteria_and_errors(
+        self,
+        test_client,
+        db_session,
+    ) -> None:
         p = _add_protocol(db_session, title="Pipeline Test")
         b = _add_batch(db_session, p.id)
         _add_criterion(db_session, b.id)
