@@ -29,6 +29,13 @@
       "context": "/bc/dba1e74414/2/context.md",
       "content_hash": "/bc/dba1e74414/2/content_hash.txt",
       "prompt": "/bc/dba1e74414/2/prompt.txt"
+    },
+    {
+      "metadata": "/bc/dba1e74414/3/metadata.json",
+      "transcript": "/bc/dba1e74414/3/full.jsonl",
+      "context": "",
+      "content_hash": "/bc/dba1e74414/3/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
