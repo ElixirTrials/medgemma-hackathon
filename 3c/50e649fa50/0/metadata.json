@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3c50e649fa50",
+  "session_id": "329f898f-9d0b-4ef9-a3db-79953033b18d",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T22:43:48.809429Z",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "tests/e2e/test_grounding_snippets.py",
+    "tests/e2e/test_snippets.json"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f3a5bfd5de10",
+  "token_usage": {
+    "input_tokens": 92,
+    "cache_creation_tokens": 90948,
+    "cache_read_tokens": 5566279,
+    "output_tokens": 12077,
+    "api_call_count": 70
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T22:43:48.43469Z",
+    "agent_lines": 0,
+    "human_added": 62,
+    "human_modified": 85,
+    "human_removed": 0,
+    "total_committed": 67,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/329f898f-9d0b-4ef9-a3db-79953033b18d.jsonl"
+}
