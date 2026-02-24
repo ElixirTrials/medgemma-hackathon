@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import logging
 import operator
 import os
 import shutil
@@ -45,8 +46,9 @@ def pipeline_span(name: str, protocol_id: str = ""):
             tags["run_id"] = rid
         try:
             mlflow.update_current_trace(tags=tags)
-        except Exception:
-            pass
+        except Exception as e:
+            # Non-fatal: tag updates failing shouldn't break verification runs
+            logging.getLogger(__name__).debug("Trace tag update failed: %s", e)
         yield span
 
 
