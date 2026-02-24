@@ -45,7 +45,10 @@
             "system": "UMLS",
             "code": "C0201975",
             "relation": ">",
-            "value": "1.5 times ULN"
+            "value": "1.5 times ULN",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           }
         ]
       },
@@ -57,7 +60,10 @@
             "system": "UMLS",
             "code": "C0858118",
             "relation": "<",
-            "value": "45 ml/min"
+            "value": "45",
+            "unit": "mL/min",
+            "unit_ucum": "mL/min",
+            "unit_omop_concept_id": 8795
           }
         ]
       },
@@ -69,14 +75,20 @@
             "system": "UMLS",
             "code": "C0005910",
             "relation": "<",
-            "value": "50 kg"
+            "value": "50",
+            "unit": "kg",
+            "unit_ucum": "kg",
+            "unit_omop_concept_id": 8576
           },
           {
             "entity_name": "Body Mass Index",
             "system": "UMLS",
             "code": "C1305855",
             "relation": ">",
-            "value": "44 kg/m2"
+            "value": "44",
+            "unit": "kg/m2",
+            "unit_ucum": "kg/m2",
+            "unit_omop_concept_id": 9531
           }
         ]
       },
@@ -88,14 +100,20 @@
             "system": "UMLS",
             "code": "C0038013",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           },
           {
             "entity_name": "Radiologic examination",
             "system": "UMLS",
             "code": "C0034693",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           }
         ]
       },
@@ -107,28 +125,40 @@
             "system": "UMLS",
             "code": "C1706180",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           },
           {
             "entity_name": "Female Phenotype",
             "system": "UMLS",
             "code": "C1705498",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           },
           {
             "entity_name": "Parkinson's Disease",
             "system": "UMLS",
             "code": "C0030567",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           },
           {
             "entity_name": "GBA gene mutation",
             "system": "UMLS",
             "code": "C4225361",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           }
         ]
       },
@@ -140,7 +170,10 @@
             "system": "UMLS",
             "code": "C0450990",
             "relation": "=",
-            "value": "1, 2, or 3"
+            "value": "1, 2, or 3",
+            "unit": "{score}",
+            "unit_ucum": "{score}",
+            "unit_omop_concept_id": 8527
           }
         ]
       },
@@ -152,14 +185,20 @@
             "system": "UMLS",
             "code": "C1705498",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           },
           {
             "entity_name": "Female Sterilization",
             "system": "SNOMED",
             "code": "C0015787",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           }
         ]
       },
@@ -171,7 +210,10 @@
             "system": "UMLS",
             "code": "C1548758",
             "relation": "=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           }
         ]
       },
@@ -183,7 +225,10 @@
             "system": "SNOMED",
             "code": "C0032961",
             "relation": "!=",
-            "value": "True"
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
           }
         ]
       }

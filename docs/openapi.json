@@ -42,9 +42,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenResponse"
-                }
+                "schema": {}
               }
             }
           }
@@ -1075,6 +1073,56 @@
         }
       }
     },
+    "/reviews/pipeline-summary": {
+      "get": {
+        "tags": [
+          "reviews"
+        ],
+        "summary": "Get Pipeline Summary",
+        "description": "Get pipeline status: criteria extracted, protocols in grounding, errors.\n\nUsed by the dashboard to show extraction/grounding progress and any\nprotocols in failed states (extraction_failed, grounding_failed, dead_letter).",
+        "operationId": "get_pipeline_summary_reviews_pipeline_summary_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PipelineSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/reviews/audit-log": {
       "get": {
         "tags": [
@@ -1985,10 +2033,187 @@
         }
       }
     },
+    "/criteria/structured": {
+      "get": {
+        "tags": [
+          "criteria-table"
+        ],
+        "summary": "Get Structured Criteria",
+        "description": "Paginated, filterable, sortable structured criteria.",
+        "operationId": "get_structured_criteria_criteria_structured_get",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "title": "Page"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Page Size"
+            }
+          },
+          {
+            "name": "criteria_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Criteria Type"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "name": "protocol_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Protocol Id"
+            }
+          },
+          {
+            "name": "min_confidence",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "maximum": 1.0,
+                  "minimum": 0.0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Min Confidence"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(confidence|criteria_type|category|page_number|review_status)$",
+              "default": "confidence",
+              "title": "Sort By"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(asc|desc)$",
+              "default": "desc",
+              "title": "Sort Order"
+            }
+          },
+          {
+            "name": "has_grounding",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Has Grounding"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StructuredCriteriaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/health": {
       "get": {
         "summary": "Health Check",
-        "description": "Liveness probe - is the service running?",
+        "description": "Health check \u2014 main DB required, OMOP/GCS/breakers informational.",
         "operationId": "health_check_health_get",
         "responses": {
           "200": {
@@ -2005,7 +2230,7 @@
     "/ready": {
       "get": {
         "summary": "Readiness Check",
-        "description": "Readiness probe - can the service handle requests?",
+        "description": "Readiness probe \u2014 all dependencies including OMOP must be available.",
         "operationId": "readiness_check_ready_get",
         "responses": {
           "200": {
@@ -3266,6 +3491,120 @@
         "title": "EntityResponse",
         "description": "Response model for a single entity."
       },
+      "EntitySummary": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "entity_type": {
+            "type": "string",
+            "title": "Entity Type"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "grounding_code": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Code"
+          },
+          "grounding_system": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding System"
+          },
+          "preferred_term": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Preferred Term"
+          },
+          "grounding_confidence": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Grounding Confidence"
+          },
+          "omop_concept_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Omop Concept Id"
+          },
+          "reconciliation_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reconciliation Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "entity_type",
+          "text"
+        ],
+        "title": "EntitySummary",
+        "description": "Compact entity representation for the criteria table."
+      },
+      "ErrorProtocolItem": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "status"
+        ],
+        "title": "ErrorProtocolItem",
+        "description": "Minimal protocol info for pipeline error list."
+      },
       "ExportStats": {
         "properties": {
           "criteria_count": {
@@ -3463,6 +3802,38 @@
         ],
         "title": "PendingSummaryResponse",
         "description": "Summary of pending review work."
+      },
+      "PipelineSummaryResponse": {
+        "properties": {
+          "criteria_extracted": {
+            "type": "integer",
+            "title": "Criteria Extracted"
+          },
+          "protocols_in_grounding": {
+            "type": "integer",
+            "title": "Protocols In Grounding"
+          },
+          "error_count": {
+            "type": "integer",
+            "title": "Error Count"
+          },
+          "error_protocols": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorProtocolItem"
+            },
+            "type": "array",
+            "title": "Error Protocols",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "criteria_extracted",
+          "protocols_in_grounding",
+          "error_count"
+        ],
+        "title": "PipelineSummaryResponse",
+        "description": "Pipeline status: criteria extracted, in grounding, errors."
       },
       "ProtocolListResponse": {
         "properties": {
@@ -3813,6 +4184,178 @@
         ],
         "title": "SearchResult",
         "description": "Single search result with protocol context."
+      },
+      "StructuredCriteriaResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StructuredCriterionRow"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "page": {
+            "type": "integer",
+            "title": "Page"
+          },
+          "page_size": {
+            "type": "integer",
+            "title": "Page Size"
+          },
+          "pages": {
+            "type": "integer",
+            "title": "Pages"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "pages"
+        ],
+        "title": "StructuredCriteriaResponse",
+        "description": "Paginated response for the criteria table."
+      },
+      "StructuredCriterionRow": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "protocol_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Id"
+          },
+          "protocol_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Protocol Title"
+          },
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "criteria_type": {
+            "type": "string",
+            "title": "Criteria Type"
+          },
+          "category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Category"
+          },
+          "confidence": {
+            "type": "number",
+            "title": "Confidence"
+          },
+          "assertion_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assertion Status"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/EntitySummary"
+            },
+            "type": "array",
+            "title": "Entities",
+            "default": []
+          },
+          "field_mappings": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Field Mappings",
+            "default": []
+          },
+          "structured_criterion": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Structured Criterion"
+          },
+          "review_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review Status"
+          },
+          "page_number": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Number"
+          },
+          "source_section": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Section"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "text",
+          "criteria_type",
+          "confidence"
+        ],
+        "title": "StructuredCriterionRow",
+        "description": "Single row in the structured criteria table."
       },
       "TokenResponse": {
         "properties": {

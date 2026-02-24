@@ -191,7 +191,7 @@ def _build_demographic_characteristic(
         "value": atomic.value_numeric,
         "unit": atomic.unit_text or "years",
         "system": "http://unitsofmeasure.org",
-        "code": "a",
+        "code": atomic.unit_ucum_code or "a",
     }
     if atomic.relation_operator:
         comparator = _COMPARATOR_MAP.get(atomic.relation_operator)

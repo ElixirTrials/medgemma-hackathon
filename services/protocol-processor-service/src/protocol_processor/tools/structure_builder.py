@@ -232,7 +232,7 @@ def _create_atomic_from_mapping(
     relation = fm.get("relation", "has")
     negation = relation.upper() == "NOT" if relation else False
 
-    _, unit_concept_id = normalize_unit(raw_unit)
+    ucum_code, unit_concept_id = normalize_unit(raw_unit)
 
     value_concept_id: int | None = None
     entity_text = fm.get("entity")
@@ -244,6 +244,7 @@ def _create_atomic_from_mapping(
         value_concept_id = ordinal_value_cid
         if ordinal_unit_cid is not None:
             unit_concept_id = ordinal_unit_cid
+            ucum_code = "{score}"
     elif value_text and value_numeric is None:
         _, value_concept_id = normalize_value(value_text)
 
@@ -265,6 +266,7 @@ def _create_atomic_from_mapping(
         value_numeric=value_numeric,
         value_text=value_text,
         unit_text=raw_unit,
+        unit_ucum_code=ucum_code,
         unit_concept_id=unit_concept_id,
         value_concept_id=value_concept_id,
         negation=negation,
