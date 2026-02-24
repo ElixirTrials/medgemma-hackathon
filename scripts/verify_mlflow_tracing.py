@@ -15,7 +15,6 @@ import shutil
 import tempfile
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-import logging
 from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -46,12 +45,15 @@ def pipeline_span(name: str, protocol_id: str = ""):
         if rid:
             tags["run_id"] = rid
         try:
+            mlflow.update_current_trace(tags=tags)
         except Exception as exc:
             # Trace tagging failures are non-fatal for this verification script,
             # but we log them so issues with MLflow tracing are visible.
-            logging.warning("Failed to update MLflow trace tags in pipeline_span: %r", exc)
+            logging.warning(
+                "Failed to update MLflow trace tags in pipeline_span: %r", exc
+            )
             # Non-fatal: tag updates failing shouldn't break verification runs
-            logging.getLogger(__name__).debug("Trace tag update failed: %s", e)
+            logging.getLogger(__name__).debug("Trace tag update failed: %s", exc)
         yield span
 
 
