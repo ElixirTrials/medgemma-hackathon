@@ -141,7 +141,7 @@ docs-nav-update:
 	@echo "Updating root navigation..."
 	uv run python scripts/update_root_navigation.py
 
-docs-build: docs-nav-update docs-components-gen docs-openapi
+docs-build: docs-nav-update docs-components-gen
 	@echo "Building documentation site..."
 	uv run python scripts/build_docs.py build -f mkdocs.yml
 

@@ -17,6 +17,7 @@ import logging
 import os
 from datetime import timedelta
 from pathlib import Path
+from typing import Any
 from uuid import uuid4
 
 from google.auth.exceptions import RefreshError
@@ -96,7 +97,7 @@ _gcs_retry = retry(
 )
 
 # Module-level singleton for GCS client
-_gcs_client = None
+_gcs_client: Any = None
 
 
 def _use_local_storage() -> bool:
@@ -104,7 +105,7 @@ def _use_local_storage() -> bool:
     return os.getenv("USE_LOCAL_STORAGE", "").strip() in ("1", "true", "yes")
 
 
-def get_gcs_client():
+def get_gcs_client() -> Any:
     """Return a cached GCS storage client (singleton).
 
     Returns:

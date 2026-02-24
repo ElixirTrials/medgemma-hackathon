@@ -26,7 +26,7 @@ import contextvars
 import logging
 import os
 from contextlib import contextmanager
-from typing import Any
+from typing import Any, Generator, cast
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def pipeline_span(
     name: str,
     span_type: str = "CHAIN",
     protocol_id: str = "",
-):
+) -> Generator[Any, None, None]:
     """Create a separate MLflow trace for a pipeline node.
 
     Each call creates its own top-level trace tagged with protocol_id
@@ -103,7 +103,7 @@ def pipeline_span(
                     mlflow.update_current_trace(tags=tags)
                 except Exception:
                     logger.warning("MLflow tag update failed", exc_info=True)
-                yield span
+                yield cast(Any, span)
                 return
     except ImportError:
         logger.warning("mlflow not installed — tracing disabled")
@@ -113,7 +113,7 @@ def pipeline_span(
         )
 
     # Fallback: no-op span
-    yield _NoOpSpan()
+    yield cast(Any, _NoOpSpan())
 
 
 class _NoOpSpan:
@@ -192,7 +192,7 @@ class _NoOpLLMSpan:
 
 
 @contextmanager
-def llm_span(name: str, model_name: str = ""):
+def llm_span(name: str, model_name: str = "") -> Generator[Any, None, None]:
     """Create an MLflow child span for an individual LLM call.
 
     When called inside an active ``pipeline_span()``, this automatically
@@ -213,7 +213,7 @@ def llm_span(name: str, model_name: str = ""):
         if os.getenv("MLFLOW_TRACKING_URI"):
             with mlflow.start_span(name=name, span_type="LLM") as span:
                 ctx = _LLMSpanCtx(span, model_name)
-                yield ctx
+                yield cast(Any, ctx)
                 ctx._finalize()
                 return
     except ImportError:
@@ -221,4 +221,4 @@ def llm_span(name: str, model_name: str = ""):
     except Exception:
         logger.debug("llm_span creation failed, falling back to no-op", exc_info=True)
 
-    yield _NoOpLLMSpan()
+    yield cast(Any, _NoOpLLMSpan())
