@@ -505,7 +505,7 @@ def submit_review_action(
                     }
                 )
     except Exception:
-        logger.debug("MLflow HITL tracing failed", exc_info=True)
+        logger.warning("MLflow HITL tracing failed", exc_info=True)
 
     # Update batch status based on review progress
     _update_batch_status(db, criterion.batch_id)

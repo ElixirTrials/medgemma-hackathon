@@ -65,9 +65,9 @@ else
     run_check "Ruff (format check)" "uv run ruff format . --check"
 fi
 
-run_check "Mypy (type check)" "uv run mypy libs/shared/src services/api-service/src libs/inference/src services/extraction-service/src services/grounding-service/src libs/data-pipeline/src libs/evaluation/src libs/events-py/src libs/model-training/src"
+run_check "Mypy (type check)" "uv run mypy libs/shared/src services/api-service/src libs/inference/src libs/data-pipeline/src libs/evaluation/src libs/events-py/src libs/model-training/src services/protocol-processor-service/src"
 
-run_check "Pytest" "uv run pytest services/api-service/tests libs/events-py/tests -q"
+run_check "Pytest" "uv run pytest services/api-service/tests libs/events-py/events_py_tests -q"
 
 # Frontend checks
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

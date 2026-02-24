@@ -3,6 +3,7 @@ SHELL := /bin/bash
 
 .PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-mlflow run-api run-ui setup-adc verify-gemini quality-eval quality-eval-fresh
 
+# If you see "503 Reauthentication is needed" from Google, run: gcloud auth application-default login
 run-dev:
 	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-dev"; exit 1; }
 	@echo "Starting infrastructure + API + UI..."
@@ -10,7 +11,7 @@ run-dev:
 	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
 	if [ -n "$$GCLOUD_PROFILE" ]; then \
 		ACCOUNT=$$(gcloud config configurations describe $$GCLOUD_PROFILE --format='value(properties.core.account)' 2>/dev/null || true); \
-		ACTIVE=$$(gcloud auth list --filter=status:ACTIVE --format='value(account)' 2>/dev/null | tr '\n' ' '); \
+		ACTIVE=$$(gcloud auth list --configuration=$$GCLOUD_PROFILE --filter=status:ACTIVE --format='value(account)' 2>/dev/null | tr '\n' ' '); \
 		NEED_LOGIN=1; \
 		if [ -n "$$ACCOUNT" ]; then \
 			echo "$$ACTIVE" | tr ' ' '\n' | grep -Fxq "$$ACCOUNT" && NEED_LOGIN=0; \
@@ -19,12 +20,11 @@ run-dev:
 		fi; \
 		if [ "$$NEED_LOGIN" = 1 ]; then \
 			echo "2. Signing in via browser (no password in terminal)..."; \
-			gcloud auth login --force $${ACCOUNT:+$$ACCOUNT}; \
+			gcloud auth login --configuration=$$GCLOUD_PROFILE --launch-browser --force $${ACCOUNT:+$$ACCOUNT}; \
 		else \
 			echo "2. Already logged in to gcloud, skipping auth."; \
 		fi; \
-		echo "3. Activating gcloud profile $$GCLOUD_PROFILE..."; \
-		gcloud config configurations activate $$GCLOUD_PROFILE; \
+		echo "3. Using gcloud profile $$GCLOUD_PROFILE (CLOUDSDK_ACTIVE_CONFIG_NAME)."; \
 	else \
 		echo "GCLOUD_PROFILE not set in .env, skipping gcloud"; \
 	fi
@@ -42,6 +42,7 @@ run-dev:
 		cd apps/hitl-ui && npm install && cd ../..; \
 	fi
 	@set -a && source .env && set +a && \
+	[ -n "$${GCLOUD_PROFILE:-}" ] && export CLOUDSDK_ACTIVE_CONFIG_NAME="$$GCLOUD_PROFILE"; \
 	MLFLOW_PORT=5001; \
 	while lsof -i :$$MLFLOW_PORT >/dev/null 2>&1; do MLFLOW_PORT=$$((MLFLOW_PORT+1)); done; \
 	echo "  MLflow on port $$MLFLOW_PORT"; \
@@ -52,15 +53,24 @@ run-dev:
 	export VITE_API_URL="http://localhost:$$API_PORT"; \
 	export LOCAL_UPLOAD_DIR="$${LOCAL_UPLOAD_DIR:-$$(pwd)/uploads/protocols}"; \
 	cleanup() { \
-		pkill -9 -f "mlflow.server.jobs" 2>/dev/null || true; \
-		pkill -9 -f "huey_consumer.py mlflow" 2>/dev/null || true; \
-		pkill -f "mlflow server" 2>/dev/null || true; \
 		kill $$API_PID $$UI_PID $$MLFLOW_PID 2>/dev/null || true; \
-		sleep 0.5; \
+		sleep 0.3; \
 		kill -9 $$API_PID $$UI_PID $$MLFLOW_PID 2>/dev/null || true; \
+		pkill -f "uvicorn api_service.main:app" 2>/dev/null || true; \
+		pkill -f "mlflow server" 2>/dev/null || true; \
+		pkill -f "mlflow.server.jobs" 2>/dev/null || true; \
+		pkill -f "huey_consumer.py mlflow" 2>/dev/null || true; \
+		pkill -f "vite" 2>/dev/null || true; \
+		sleep 0.5; \
 		pkill -9 -f "mlflow.server.jobs" 2>/dev/null || true; \
 		pkill -9 -f "huey_consumer.py mlflow" 2>/dev/null || true; \
 		pkill -9 -f "mlflow server" 2>/dev/null || true; \
+		pkill -9 -f "uvicorn api_service.main:app" 2>/dev/null || true; \
+		pkill -9 -f "vite" 2>/dev/null || true; \
+		for port in $$MLFLOW_PORT $$API_PORT 3000 5173; do \
+			pid=$$(lsof -ti :$$port 2>/dev/null); \
+			[ -n "$$pid" ] && kill -9 $$pid 2>/dev/null || true; \
+		done; \
 		wait $$API_PID $$UI_PID $$MLFLOW_PID 2>/dev/null || true; \
 	}; \
 	trap 'cleanup; exit 130' SIGINT; \
@@ -89,10 +99,10 @@ run-mlflow:
 	uv run mlflow server --host 0.0.0.0 --port 5001 --backend-store-uri sqlite:///.mlflow/mlflow.db --artifacts-destination .mlflow/artifacts
 
 run-api:
-	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env | cut -d= -f2); \
-	if [ -n "$$GCLOUD_PROFILE" ]; then \
-		echo "Activating gcloud profile $$GCLOUD_PROFILE..."; \
-		gcloud config configurations activate $$GCLOUD_PROFILE; \
+	@set -a && [ -f .env ] && source .env && set +a; \
+	if [ -n "$${GCLOUD_PROFILE:-}" ]; then \
+		export CLOUDSDK_ACTIVE_CONFIG_NAME="$$GCLOUD_PROFILE"; \
+		echo "Using gcloud profile $$GCLOUD_PROFILE (CLOUDSDK_ACTIVE_CONFIG_NAME)."; \
 	fi; \
 	API_PORT=8000; \
 	while lsof -i :$$API_PORT >/dev/null 2>&1; do API_PORT=$$((API_PORT+1)); done; \

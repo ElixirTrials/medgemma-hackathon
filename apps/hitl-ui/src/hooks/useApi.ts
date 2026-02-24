@@ -1,6 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 import { fetchApi, fetchPublicApi } from '../lib/fetchApi';
+import { useAuthStore } from '../stores/authStore';
 
 interface HealthChecks {
     database: string;
@@ -16,7 +18,7 @@ interface HealthResponse {
 }
 
 export function useHealthCheck() {
-    return useQuery({
+    const result = useQuery({
         queryKey: ['health'],
         queryFn: () => fetchPublicApi<HealthResponse>('/health'),
         refetchInterval: 30000, // Check every 30 seconds
@@ -26,6 +28,13 @@ export function useHealthCheck() {
             return attemptIndex === 0 ? 10000 : 3000;
         },
     });
+    // When backend reports Google creds expired, show login modal (do not retry).
+    useEffect(() => {
+        if (result.data?.checks?.gcs === 'auth_expired') {
+            useAuthStore.getState().setSessionExpired();
+        }
+    }, [result.data?.checks?.gcs]);
+    return result;
 }
 
 interface ReadinessResponse {

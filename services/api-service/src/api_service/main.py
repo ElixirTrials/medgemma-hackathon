@@ -12,7 +12,10 @@ from events_py.outbox import OutboxProcessor  # noqa: E402
 from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
-from protocol_processor.trigger import handle_protocol_uploaded  # noqa: E402
+from protocol_processor.trigger import (  # noqa: E402
+    _get_experiment_name,
+    handle_protocol_uploaded,
+)
 from sqlalchemy import create_engine as sa_create_engine  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlmodel import Session  # noqa: E402
@@ -20,6 +23,7 @@ from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
 
 from api_service.auth import router as auth_router  # noqa: E402
 from api_service.batch_compare import router as batch_compare_router  # noqa: E402
+from api_service.criteria_table import router as criteria_table_router  # noqa: E402
 from api_service.criterion_rerun import router as criterion_rerun_router  # noqa: E402
 from api_service.dependencies import get_current_user, get_db  # noqa: E402
 from api_service.entities import router as entities_router  # noqa: E402
@@ -42,6 +46,51 @@ logger = logging.getLogger(__name__)
 _running_tasks: Set[asyncio.Task] = set()  # noqa: UP006
 
 
+def _init_mlflow() -> None:
+    """Set up MLflow tracking, restoring deleted experiments if needed."""
+    import mlflow
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not tracking_uri:
+        logger.info("MLFLOW_TRACKING_URI not set, skipping MLflow initialization")
+        return
+
+    mlflow.set_tracking_uri(tracking_uri)
+    client = mlflow.MlflowClient()
+
+    # Restore the Default experiment (id "0") if deleted, otherwise
+    # traces that land before set_experiment runs will 400.
+    try:
+        default_exp = client.get_experiment("0")
+        if default_exp and default_exp.lifecycle_stage == "deleted":
+            client.restore_experiment("0")
+    except Exception:
+        # Non-fatal: default experiment restore is best-effort
+        logger.debug("Could not restore default MLflow experiment", exc_info=True)
+
+    experiment_name = _get_experiment_name()
+    try:
+        mlflow.set_experiment(experiment_name)
+    except mlflow.exceptions.MlflowException:
+        # Experiment in deleted state — restore and reuse.
+        exp = client.get_experiment_by_name(experiment_name)
+        if exp and exp.lifecycle_stage == "deleted":
+            client.restore_experiment(exp.experiment_id)
+            mlflow.set_experiment(experiment_name)
+        else:
+            raise
+    # NOTE: Do NOT enable mlflow.langchain.autolog() here.
+    # Autolog wraps graph.ainvoke() in a single trace that only
+    # appears after the full pipeline finishes.  Each pipeline
+    # node creates its own independent trace via pipeline_span()
+    # so traces stream to MLflow in real-time as nodes complete.
+    logger.info(
+        "MLflow initialized: tracking_uri=%s, experiment=%s",
+        tracking_uri,
+        experiment_name,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the lifecycle of the FastAPI application."""
@@ -53,27 +102,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize MLflow
     try:
-        import mlflow
-
-        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-        if tracking_uri:
-            mlflow.set_tracking_uri(tracking_uri)
-            mlflow.set_experiment("protocol-processing")
-            # Enable LangChain autolog for extraction/grounding agent traces
-            try:
-                mlflow.langchain.autolog(run_tracer_inline=True)
-                logging.getLogger("mlflow.utils.autologging_utils").setLevel(
-                    logging.ERROR
-                )
-                logger.info("MLflow LangChain autolog enabled (run_tracer_inline=True)")
-            except Exception:
-                logger.debug("MLflow LangChain autolog failed", exc_info=True)
-            logger.info(
-                "MLflow initialized: tracking_uri=%s, experiment=protocol-processing",
-                tracking_uri,
-            )
-        else:
-            logger.info("MLFLOW_TRACKING_URI not set, skipping MLflow initialization")
+        _init_mlflow()
     except ImportError:
         logger.info("mlflow not installed, skipping initialization")
     except Exception:
@@ -174,6 +203,7 @@ app.include_router(integrity_router, dependencies=[Depends(get_current_user)])
 app.include_router(criterion_rerun_router, dependencies=[Depends(get_current_user)])
 app.include_router(batch_compare_router, dependencies=[Depends(get_current_user)])
 app.include_router(exports_router, dependencies=[Depends(get_current_user)])
+app.include_router(criteria_table_router, dependencies=[Depends(get_current_user)])
 
 
 def _check_omop_vocab() -> dict:

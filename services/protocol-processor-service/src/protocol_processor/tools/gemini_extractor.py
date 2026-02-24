@@ -89,15 +89,32 @@ async def _invoke_gemini(
     Returns:
         ExtractionResult parsed from Gemini's structured output.
     """
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=cast(Any, [uploaded_file, user_prompt]),
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            response_schema=ExtractionResult,
-        ),
-    )
+    from protocol_processor.tracing import llm_span
+
+    with llm_span("gemini_extraction", model) as llm:
+        llm.set_request(f"[system] {system_prompt}\n\n[user] {user_prompt}")
+
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=cast(Any, [uploaded_file, user_prompt]),
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                response_schema=ExtractionResult,
+            ),
+        )
+
+        resp_text = response.text or ""
+        usage: dict[str, int] = {}
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            um = response.usage_metadata
+            if hasattr(um, "prompt_token_count") and um.prompt_token_count:
+                usage["input_tokens"] = um.prompt_token_count
+            if hasattr(um, "candidates_token_count") and um.candidates_token_count:
+                usage["output_tokens"] = um.candidates_token_count
+            if hasattr(um, "total_token_count") and um.total_token_count:
+                usage["total_tokens"] = um.total_token_count
+        llm.set_response(resp_text, usage or None)
 
     # Return parsed Pydantic model directly
     if response.parsed is not None:
@@ -106,6 +123,51 @@ async def _invoke_gemini(
     # Fallback to parsing response.text if parsed is None
     text = response.text or ""
     return ExtractionResult.model_validate_json(text)
+
+
+async def _extract_via_gateway(
+    pdf_bytes: bytes,
+    protocol_id: str,
+    title: str,
+) -> str:
+    """Extract criteria using the unified InferenceGateway (local/Ollama path).
+
+    Used when LOCAL_EXTRACTION_ENABLED=true. Routes through InferenceGateway
+    instead of direct google.genai.Client.
+    """
+    from inference.gateway import InferenceGateway
+
+    gateway = InferenceGateway()
+
+    system_prompt, user_prompt = render_prompts(
+        prompts_dir=PROMPTS_DIR,
+        system_template="system.jinja2",
+        user_template="user.jinja2",
+        prompt_vars={"title": title},
+    )
+
+    file_id = await gateway.upload_file(pdf_bytes, f"{protocol_id}.pdf")
+    try:
+        result = await gateway.generate_structured(
+            role="extraction",
+            file_id=file_id,
+            input_text=user_prompt,
+            system_prompt=system_prompt,
+            output_schema=ExtractionResult,
+        )
+        extraction_result = (
+            result
+            if isinstance(result, ExtractionResult)
+            else ExtractionResult.model_validate(result.model_dump())
+        )
+        logger.info(
+            "Extracted %d criteria from protocol %s (gateway)",
+            len(extraction_result.criteria),
+            protocol_id,
+        )
+        return extraction_result.model_dump_json()
+    finally:
+        gateway.cleanup(file_id)
 
 
 async def extract_criteria_structured(
@@ -117,6 +179,9 @@ async def extract_criteria_structured(
 
     Uploads the PDF to Gemini File API, calls Gemini with ExtractionResult
     as the response schema, and returns the result as a JSON string.
+
+    When LOCAL_EXTRACTION_ENABLED=true, routes through InferenceGateway
+    instead of direct google.genai.Client.
 
     Returns JSON string (not dict) to minimize LangGraph state size.
 
@@ -132,6 +197,10 @@ async def extract_criteria_structured(
         ValidationError: If Gemini response cannot be parsed as ExtractionResult.
         Exception: On Gemini API or File API errors after retries exhausted.
     """
+    # Route through gateway when local extraction is enabled
+    if os.getenv("LOCAL_EXTRACTION_ENABLED", "").lower() == "true":
+        return await _extract_via_gateway(pdf_bytes, protocol_id, title)
+
     tmp_path = None
     uploaded_file = None
     client = None

@@ -37,6 +37,31 @@ logger = logging.getLogger(__name__)
 # Default routing config path relative to this file
 _DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config" / "routing.yaml"
 
+
+def _is_likely_acronym(text: str) -> bool:
+    """Check if text is likely a medical acronym.
+
+    Returns True if the text is short (<=6 chars), all uppercase, and
+    contains no spaces. No allowlist — adding UMLS redundantly for
+    terms like "BMI" or "AST" costs one extra API call but never breaks
+    anything, while maintaining an allowlist is brittle.
+
+    Pure string check — zero cost.
+
+    Args:
+        text: The entity text to check.
+
+    Returns:
+        True if the text appears to be a medical acronym.
+    """
+    stripped = text.strip()
+    if not stripped or " " in stripped:
+        return False
+    if len(stripped) > 6:
+        return False
+    return stripped.upper() == stripped
+
+
 # diskcache TTL: 7 days in seconds
 _CACHE_TTL = 7 * 24 * 60 * 60
 
@@ -158,6 +183,10 @@ class TerminologyRouter:
         The caller (MedGemma ground node) receives all available candidates
         and selects the best match.
 
+        For likely acronyms, UMLS is always included in the API list
+        regardless of entity type configuration (UMLS has the broadest
+        abbreviation coverage via AUI atom-level synonyms).
+
         Args:
             entity_text: The entity text to look up (e.g. "metformin").
             entity_type: The entity type (e.g. "Medication").
@@ -170,6 +199,15 @@ class TerminologyRouter:
 
         if not api_names:
             return []
+
+        # Smart acronym routing: always include UMLS for acronyms
+        if _is_likely_acronym(entity_text) and "umls" not in api_names:
+            api_names = [*api_names, "umls"]
+            logger.info(
+                "Acronym detected ('%s') — adding UMLS to routing "
+                "for broader abbreviation coverage",
+                entity_text,
+            )
 
         all_candidates: list[GroundingCandidate] = []
 

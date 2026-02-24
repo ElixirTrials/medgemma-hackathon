@@ -67,12 +67,17 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
             # Parse extraction JSON into Pydantic model
             extraction_result = ExtractionResult.model_validate_json(extraction_json)
 
-            # Dev/debug knob: truncate criteria for faster pipeline runs
-            _max_criteria = int(os.getenv("PIPELINE_MAX_CRITERIA", "0"))
+            # Dev/debug: truncate criteria for faster runs and fewer API calls.
+            # DEV_MAX_CRITERIA takes precedence over PIPELINE_MAX_CRITERIA when set.
+            _max_criteria = int(
+                os.getenv("DEV_MAX_CRITERIA")
+                or os.getenv("PIPELINE_MAX_CRITERIA")
+                or "0"
+            )
             if _max_criteria > 0:
                 extraction_result.criteria = extraction_result.criteria[:_max_criteria]
                 logger.info(
-                    "PIPELINE_MAX_CRITERIA=%d: truncated to %d criteria",
+                    "Max criteria limit=%d: truncated to %d criteria",
                     _max_criteria,
                     len(extraction_result.criteria),
                 )

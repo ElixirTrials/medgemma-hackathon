@@ -195,7 +195,7 @@ def submit_entity_action(
                     }
                 )
     except Exception:
-        logger.debug("MLflow entity review tracing failed", exc_info=True)
+        logger.warning("MLflow entity review tracing failed", exc_info=True)
 
     db.commit()
     db.refresh(entity)
