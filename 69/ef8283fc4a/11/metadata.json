@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "69ef8283fc4a",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T20:23:05.548835Z",
+  "branch": "feat/submission-additions",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "scripts/query_criteria_snippets.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "6cc57075d0c4",
+  "checkpoint_transcript_start": 12,
+  "transcript_lines_at_start": 12,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T20:23:05.523956Z",
+    "agent_lines": 41,
+    "human_added": 743,
+    "human_modified": 14,
+    "human_removed": 0,
+    "total_committed": 798,
+    "agent_percentage": 5.137844611528822
+  },
+  "transcript_path": ".cursor/projects/Users-noahdolevelixir-Code-medgemma-hackathon/agent-transcripts/2b68d51c-23a3-4e98-b014-37a1131cd34d/2b68d51c-23a3-4e98-b014-37a1131cd34d.jsonl"
+}

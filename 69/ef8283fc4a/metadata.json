@@ -3,7 +3,7 @@
   "checkpoint_id": "69ef8283fc4a",
   "strategy": "manual-commit",
   "branch": "feat/submission-additions",
-  "checkpoints_count": 16,
+  "checkpoints_count": 18,
   "files_touched": [
     "apps/hitl-ui/src/components/criteria-table/FieldMappingCell.tsx",
     "apps/hitl-ui/src/components/criteria-table/columns.tsx",
@@ -105,6 +105,13 @@
       "context": "/69/ef8283fc4a/10/context.md",
       "content_hash": "/69/ef8283fc4a/10/content_hash.txt",
       "prompt": "/69/ef8283fc4a/10/prompt.txt"
+    },
+    {
+      "metadata": "/69/ef8283fc4a/11/metadata.json",
+      "transcript": "/69/ef8283fc4a/11/full.jsonl",
+      "context": "",
+      "content_hash": "/69/ef8283fc4a/11/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
