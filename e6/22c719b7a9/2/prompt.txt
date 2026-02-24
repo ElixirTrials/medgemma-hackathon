@@ -1,0 +1,249 @@
+Implement the following plan:
+
+# Prompt Optimization Plan: Medical LLM Pipeline
+
+## Context
+
+The report at `instructions/prompt_improvements/Optimizing Medical LLM Prompts.md` identifies systemic inefficiencies in our Jinja2 prompt templates and model configuration. Cross-referenced with our own research on MedGemma prompting (MEDIQA-OE 2025 findings), Gemini structured output best practices, and LangGraph patterns, this plan addresses concrete issues in our 6 prompt templates, 3 inline prompts, and model configuration to reduce token waste, eliminate instruction contradictions, and improve grounding accuracy.
+
+The changes will be validated against `tests/e2e/test_snippets.json` golden examples (7 extraction + 9 grounding snippets) to ensure no accuracy regressions.
+
+---
+
+## Branch
+
+Create `feature/prompt-optimizations` from `main`.
+
+---
+
+## Changes Overview
+
+| # | File | Issue | Change |
+|---|------|-------|--------|
+| 1 | `grounding_system.jinja2` | Overlapping confidence bands; duplicated search strategy | Tighten scoring to mutually exclusive bands; remove search strategy (duplicates reasoning template) |
+| 2 | `grounding_evaluate.jinja2` | Instruction sandwich (confidence scale restated); key instruction not last | Remove redundant confidence scale; move decisive instruction to final line |
+| 3 | `grounding_reasoning.jinja2` | Latent knowledge waste (abbreviation dictionary); instruction sandwich | Remove abbreviation examples MedGemma already knows; consolidate footer |
+| 4 | `entity_decompose.jinja2` | Category duplication (4 Lab_Value examples); verbose "Other" avoidance | Prune to 1 example per entity type; consolidate "Other" rule to 1 line |
+| 5 | `system.jinja2` | Markdown formatting vulnerable to instruction drift in long context; verbose composite splitting rules | Convert to XML-tagged sections for Gemini; consolidate overlapping split rules |
+| 6 | `user.jinja2` | Redundant instructions already in system prompt | Slim down to essentials |
+| 7 | `field_mapper.py` inline prompt | Very verbose (~50 lines); mixes schema description with anti-patterns | Restructure with XML sections; cut anti-pattern block by 60% |
+| 8 | `structure_builder.py` inline prompt | Minor: no structural issues | Light cleanup only |
+| 9 | `ordinal_resolver.py` inline prompt | Minor: "NOT ordinal" section is verbose | Trim negative examples |
+| 10 | `model_garden.py` | `### Instruction:` prefix not in Gemma training template; `max_output_tokens=8192` wasteful | Remove prefix; reduce default to 512 |
+| 11 | `grounding_evaluate.jinja2` | Static 200-char context slice for all entity types | Dynamic context: skip context for unambiguous demographics |
+
+---
+
+## Detailed Changes
+
+### 1. `grounding_system.jinja2`
+**Path:** `services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2`
+
+**Current issues:**
+- Confidence bands overlap: "0.9-1.0 exact" then later "at least 0.8 if clearly same concept"
+- Lines 30-36 contain a "Search Strategy" section that duplicates `grounding_reasoning.jinja2` lines 35-41
+- 36 lines total, ~250 tokens per MedGemma call
+
+**Changes:**
+- Remove the "Search Strategy" section entirely (it's only relevant during retry, which uses `grounding_reasoning.jinja2`)
+- Tighten confidence scoring to 4 mutually exclusive bands with no overlap
+- Result: ~20 lines, ~150 tokens (40% reduction per call)
+
+### 2. `grounding_evaluate.jinja2`
+**Path:** `services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2`
+
+**Current issues:**
+- Lines 23-24 restate the confidence scale already defined in `grounding_system.jinja2`
+- The IMPORTANT context-validation rule (line 29) duplicates rule 7-8 in `grounding_system.jinja2`
+- Key instruction ("Review the candidates and select the best match") is at line 20, not at the end
+
+**Changes:**
+- Remove the inline confidence scale (lines 23-24) - the system prompt already defines this
+- Remove the duplicate context-validation paragraph (already in system prompt rules 7-8)
+- Move the decisive action instruction ("Select the best match...") to be the last line before model generation
+- Add dynamic context slicing: `{% if entity_type != "Demographic" %}` around criterion context injection
+
+### 3. `grounding_reasoning.jinja2`
+**Path:** `services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2`
+
+**Current issues:**
+- Lines 36-38 list common abbreviation expansions (HTN, MI, DM, CKD) - MedGemma 4B-IT's medical pretraining already knows these
+- Lines 43-48 form an instruction sandwich: "Respond with a brief clinical analysis. Address all three questions." restates the intro
+- Total: ~48 lines, ~350 tokens per retry call
+
+**Changes:**
+- Remove the abbreviation dictionary from Q3's simplification strategies (keep the strategy descriptions, just remove the specific examples that MedGemma already knows)
+- Remove the instruction sandwich footer (lines 43-48)
+- Strengthen the IMPORTANT directive for previous query divergence (keep it - this is a legitimate unique instruction)
+- Result: ~35 lines, ~250 tokens (30% reduction)
+
+### 4. `entity_decompose.jinja2`
+**Path:** `services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2`
+
+**Current issues:**
+- Rules section has 4 Lab_Value examples (eGFR, BMI, Potassium, LVEF) - only 1 needed per the report's "one high-variance example per category" principle
+- Rules 7-8 both address "Other" avoidance in different ways (negative constraint bloat)
+- 53 lines total, called once per criterion (~40 criteria per protocol = high volume)
+
+**Changes:**
+- Prune examples to exactly 1 per entity type (6 examples for 6 types):
+  - Lab_Value: keep "eGFR" (most complex - abbreviation + unit)
+  - Condition: keep "myocardial infarction"
+  - Medication: keep "calcium channel blockers"
+  - Demographic: keep "age"
+  - Procedure: keep "coronary artery bypass graft"
+  - Other: remove (no example needed for last-resort category)
+- Consolidate rules 7+8 into a single positive statement: "Classify clinical scoring systems as Lab_Value"
+- Keep compound concept rules and medical normalization rules intact (these are domain-critical, not redundant)
+- Result: ~45 lines (save 8 lines x ~40 calls = ~320 tokens saved per protocol)
+
+### 5. `system.jinja2` (extraction)
+**Path:** `services/protocol-processor-service/src/protocol_processor/prompts/system.jinja2`
+
+**Current issues:**
+- Uses Markdown formatting (## headers, **bold**, numbered lists) - research shows XML tags improve instruction adherence in Gemini for long-context extraction
+- Composite criteria splitting section has overlapping DO/DON'T examples
+- 232 lines total - this is the longest prompt and is used for the most expensive call (PDF extraction)
+
+**Changes:**
+- Wrap major sections in XML tags (`<role>`, `<rules>`, `<examples>`, `<output_format>`) while keeping content in Markdown within tags (hybrid approach preserves readability)
+- Consolidate composite splitting: merge the "Split these" and "Do NOT split these" into a single decision rule with the positive framing recommended by the report
+- Reduce assertion status examples: currently 3 examples each for 5 statuses = 15 examples. Reduce to 2 each = 10 examples (5 lines saved x high token cost)
+- Keep all few-shot extraction examples intact (these are critical for structured output accuracy with Gemini)
+
+### 6. `user.jinja2` (extraction)
+**Path:** `services/protocol-processor-service/src/protocol_processor/prompts/user.jinja2`
+
+**Current issues:**
+- Lines 6-20 repeat instructions already given in system prompt (negation markers, conditional statements, time-based requirements)
+- This repetition is the "instruction sandwich" anti-pattern
+
+**Changes:**
+- Remove the bullet list of "Pay special attention to" items (already in system prompt)
+- Keep only: protocol title, the core instruction ("Extract all inclusion and exclusion criteria"), and the scope statement
+- Result: ~5 lines (from 20)
+
+### 7. `field_mapper.py` inline prompt
+**Path:** `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`
+
+**Current issues:**
+- 50-line inline prompt string with extensive anti-pattern examples
+- Mixes role, instructions, schema description, and anti-patterns in a single block
+
+**Changes:**
+- Restructure into XML-tagged sections: `<role>`, `<entity_context>`, `<rules>`, `<value_types>`
+- Cut the anti-pattern block from 6 examples to 2 (keep the most common failure modes: boolean normalization and temporal format)
+- Remove the "CRITICAL" repetitions (boolean normalization is stated twice currently)
+- The schema is already enforced by Pydantic `FieldMappingResponse` - don't re-describe field types in prose
+
+### 8. `model_garden.py` configuration
+**Path:** `libs/inference/src/inference/model_garden.py`
+
+**Current issues:**
+- `_build_gemma_prompt()` adds `### Instruction:\n` prefix to user turns - this is NOT part of the Gemma training template and wastes tokens
+- `max_output_tokens=8192` default is 16x more than needed for grounding decisions (~150-200 tokens)
+
+**Changes:**
+- Remove the `### Instruction:\n` prefix from `_build_gemma_prompt()` (line 65)
+- Reduce `ModelGardenChatModel.max_output_tokens` default from 8192 to 512
+- Reduce `LocalMedGemmaChatModel.max_output_tokens` default from 4096 to 512
+
+---
+
+## Validation Strategy
+
+### Manual evaluation against test_snippets.json
+
+Write a standalone evaluation script `scripts/evaluate_prompt_changes.py` that:
+
+1. **Extraction evaluation**: Feeds each of the 7 `extraction_test_snippets` through `entity_decompose.jinja2` via Gemini and verifies:
+   - Correct entity extraction (entity names match golden examples)
+   - Correct entity type classification
+   - No spurious entities extracted from "neither" snippets
+
+2. **Grounding evaluation**: Feeds each of the 9 `grounding_test_snippets` through the grounding prompt chain (entity decompose -> grounding evaluate) and verifies:
+   - Entity names match golden `entity_name` values (fuzzy match)
+   - Terminology codes match golden `code` values (exact match)
+   - Relations match golden `relation` values (after normalization)
+   - Confidence scores are >= 0.5 for all golden entities
+
+3. **Token counting**: Measures and reports total input/output tokens for old vs new prompts using `tiktoken` approximate counting.
+
+4. **Regression check**: Compares new prompt outputs against existing `test_grounding_snippets.py` assertions to ensure all 9 named tests still pass.
+
+### Existing test suite
+Run `uv run pytest tests/e2e/test_grounding_snippets.py -v` to verify structural golden assertions still hold.
+
+---
+
+## Parallelization Plan
+
+### Phase 1: Branch creation + research (me)
+- Create `feature/prompt-optimizations` branch
+- Coordinate subagent work
+
+### Phase 2: Parallel implementation (6 Sonnet subagents)
+
+**Agent A**: Optimize `grounding_system.jinja2` + `grounding_evaluate.jinja2` + `grounding_reasoning.jinja2` (changes 1-3)
+- These three templates are tightly coupled (system/evaluate/reasoning grounding chain)
+- Must be done together to avoid cross-reference breakage
+
+**Agent B**: Optimize `entity_decompose.jinja2` (change 4)
+- Self-contained template, no cross-dependencies
+
+**Agent C**: Optimize `system.jinja2` + `user.jinja2` (changes 5-6)
+- Extraction prompt pair, tightly coupled
+
+**Agent D**: Optimize `field_mapper.py` + `structure_builder.py` + `ordinal_resolver.py` inline prompts (changes 7-9)
+- All follow the same Gemini structured output pattern
+
+**Agent E**: Fix `model_garden.py` configuration (change 10)
+- Self-contained model config changes
+
+**Agent F**: Write `scripts/evaluate_prompt_changes.py` evaluation script (validation)
+- Reads test_snippets.json, renders old/new prompts, compares token counts
+
+### Phase 3: Validation (1 Sonnet subagent)
+- Run the evaluation script against test_snippets.json
+- Run `uv run pytest tests/e2e/test_grounding_snippets.py -v`
+- Report results and any regressions
+
+---
+
+## Files Modified
+
+```
+services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2
+services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2
+services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2
+services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2
+services/protocol-processor-service/src/protocol_processor/prompts/system.jinja2
+services/protocol-processor-service/src/protocol_processor/prompts/user.jinja2
+services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py
+services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py
+services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py
+libs/inference/src/inference/model_garden.py
+scripts/evaluate_prompt_changes.py (new)
+```
+
+## Expected Impact
+
+- **Token reduction**: ~30-40% fewer input tokens per grounding call; ~15% fewer for extraction
+- **Accuracy**: No regression expected - changes remove redundancy, not information
+- **Latency**: Reduced token count directly reduces inference latency
+- **Cost**: Proportional to token reduction across all API calls
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Show me how it does on the test json
+
+---
+
+Show me what was extracted for each grounding in the json. Present to me the results.
+
+---
+
+We need one improvement (also for the test json). We should distinguish between the value and the unit as well. And the unit should also be linked to a UMLS, SNOMED, LOINC and OMOP entity. Let's plan that improvement also with respect to the rest of the app. Let's not implement it yet.
