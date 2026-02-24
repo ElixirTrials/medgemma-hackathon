@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "6be3232bf775",
+  "strategy": "manual-commit",
+  "branch": "feat/submission-additions",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/validate_grounding_fixes.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/6b/e3232bf775/0/metadata.json",
+      "transcript": "/6b/e3232bf775/0/full.jsonl",
+      "context": "/6b/e3232bf775/0/context.md",
+      "content_hash": "/6b/e3232bf775/0/content_hash.txt",
+      "prompt": "/6b/e3232bf775/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 185,
+    "cache_creation_tokens": 266012,
+    "cache_read_tokens": 17339782,
+    "output_tokens": 33861,
+    "api_call_count": 161
+  }
+}
