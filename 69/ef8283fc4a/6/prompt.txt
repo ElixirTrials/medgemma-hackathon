@@ -1,0 +1,138 @@
+Implement the following plan:
+
+# Plan: Failure Analysis & Test Snippet Generator
+
+## Context
+
+The extraction/grounding pipeline sometimes fails completely — protocols stuck in `extraction_failed` / `grounding_failed`, or entities that end up with **no code, no relation, or no value** at all. These are the "hard cases" that the pipeline couldn't handle. This script harvests only those total failures into `tests/e2e/test_snippets.json` so we build a regression suite of genuinely difficult cases.
+
+## Failure Scope (Hard Cases Only)
+
+We collect failures where the pipeline produced **nothing usable**:
+
+1. **Protocol-level extraction failures**: `Protocol.status = 'extraction_failed'` — the entire extraction step failed, zero criteria extracted
+2. **Protocol-level grounding failures**: `Protocol.status = 'grounding_failed'` — all entities failed grounding (zero codes assigned)
+3. **Entity-level total failures**: Entities where `grounding_error IS NOT NULL` AND `umls_cui IS NULL AND snomed_code IS NULL AND rxnorm_code IS NULL AND icd10_code IS NULL AND loinc_code IS NULL AND hpo_code IS NULL` — no terminology code was assigned at all
+4. **Entities with missing relation/value**: Entities that got a code but the associated Criteria has `conditions->'field_mappings'` where entries have `null` relation or `null` value — the grounding produced a code but couldn't determine the constraint
+
+This explicitly **excludes**: low-confidence but successful groundings, pending review items that do have codes, partial successes.
+
+## Approach: Linear LangGraph Pipeline
+
+New file: `scripts/harvest_failures.py`
+
+### Graph: 4-node linear StateGraph
+
+```
+START → query_failures → fetch_traces → classify_and_generate → save_snippets → END
+```
+
+### State TypedDict
+
+```python
+class HarvestState(TypedDict):
+    since_hours: int                    # Look-back window (default 24h)
+    failed_protocols: list[dict]        # Protocols with extraction/grounding failure
+    failed_entities: list[dict]         # Entities with zero codes or missing relation/value
+    trace_data: list[dict]              # MLflow trace context per failure
+    new_extraction_snippets: list[dict] # Generated extraction test cases
+    new_grounding_snippets: list[dict]  # Generated grounding test cases
+    snippets_added: int
+```
+
+### Node Details
+
+**1. `query_failures` node**
+- Connect to PostgreSQL via `DATABASE_URL` (reuse `api_service.storage.engine`)
+- Query 1 — Failed protocols:
+  ```sql
+  SELECT p.id, p.title, p.status, p.error_reason, p.metadata_
+  FROM protocol p
+  WHERE p.status IN ('extraction_failed', 'grounding_failed')
+    AND p.updated_at > now() - interval :hours
+  ```
+- Query 2 — Entities with zero codes (hard failures):
+  ```sql
+  SELECT e.id, e.text, e.entity_type, e.grounding_error,
+         c.text as criterion_text, c.criteria_type, c.conditions,
+         cb.protocol_id
+  FROM entity e
+  JOIN criteria c ON e.criteria_id = c.id
+  JOIN criteriabatch cb ON c.batch_id = cb.id
+  WHERE e.grounding_error IS NOT NULL
+    AND e.umls_cui IS NULL AND e.snomed_code IS NULL
+    AND e.rxnorm_code IS NULL AND e.icd10_code IS NULL
+    AND e.loinc_code IS NULL AND e.hpo_code IS NULL
+    AND e.updated_at > now() - interval :hours
+  ```
+- Query 3 — Entities with code but missing relation/value in field_mappings:
+  ```sql
+  SELECT e.id, e.text, e.entity_type, e.umls_cui, e.snomed_code,
+         c.text as criterion_text, c.criteria_type, c.conditions,
+         cb.protocol_id
+  FROM entity e
+  JOIN criteria c ON e.criteria_id = c.id
+  JOIN criteriabatch cb ON c.batch_id = cb.id
+  WHERE (e.umls_cui IS NOT NULL OR e.snomed_code IS NOT NULL
+         OR e.rxnorm_code IS NOT NULL OR e.icd10_code IS NOT NULL
+         OR e.loinc_code IS NOT NULL OR e.hpo_code IS NOT NULL)
+    AND e.updated_at > now() - interval :hours
+  ```
+  Then filter in Python: check `c.conditions['field_mappings']` for entries where `relation` or `value` is null/empty.
+
+**2. `fetch_traces` node**
+- Use `mlflow.MlflowClient()`
+- For each failed protocol: `client.search_traces(filter_string=f"tags.protocol_id = '{pid}'")`
+- Extract: span name, inputs, outputs, status, error messages from each trace
+- Attach trace context to each failure record for the LLM to analyze
+
+**3. `classify_and_generate` node**
+- Use `ChatGoogleGenerativeAI(model="gemini-2.5-pro")` with `with_structured_output()`
+- For each failure + trace data, prompt Gemini to:
+  1. Classify: `extraction_incomplete` | `extraction_erroneous` | `grounding_no_code` | `grounding_no_relation_value`
+  2. Generate the correct expected test snippet:
+     - Extraction failures → `{"snippet_text": "...", "extracted_criteria": "...", "classification": "inclusion|exclusion|neither"}`
+     - Grounding failures → `{"snippet_text": "...", "entities": [{"entity_name": "...", "system": "UMLS|SNOMED", "code": "...", "relation": "...", "value": "..."}]}`
+  3. The LLM must provide what the **correct** output should have been (the golden answer)
+- Deduplicate: skip if `snippet_text` already exists in current test_snippets.json
+
+**4. `save_snippets` node**
+- Read `tests/e2e/test_snippets.json`
+- Append new snippets to appropriate arrays
+- Write back (pretty-printed, 2-space indent)
+- Print summary
+
+### Key Files
+
+| File | Action |
+|------|--------|
+| `scripts/harvest_failures.py` | **CREATE** — the new LangGraph script |
+| `tests/e2e/test_snippets.json` | **READ/WRITE** — append hard-case test snippets |
+| `libs/shared/src/shared/models.py` | **READ** — Protocol, Entity, Criteria, CriteriaBatch models |
+| `services/api-service/src/api_service/storage.py` | **READ** — reuse DB engine |
+
+### Usage
+
+```bash
+set -a && source .env && set +a
+uv run python scripts/harvest_failures.py                    # default: last 24h
+uv run python scripts/harvest_failures.py --since-hours 72   # last 3 days
+uv run python scripts/harvest_failures.py --dry-run           # classify only, don't write
+```
+
+## Verification
+
+1. `--dry-run` to inspect classified failures without modifying the JSON
+2. Verify new snippets match the exact schema of existing entries in test_snippets.json
+3. `uv run python scripts/test_grounding_snippets.py` to confirm expanded suite works
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Your recent changes have led to failure all around. Perform a thorough investigation and try to diagnose the problem: "instructions/SubmissionRequirements/grounding_failures/Screenshot 2026-02-24 at 17.07.45.png"
+
+---
+
+Look also through mlflow logs to test your assertions. Omop availability is a necessity to run. I don't want to waste API calls for nothing. Let's make sure the db, mlflow and omop are all up as a precursor to running an extraction. We should fail and not process the protocol if anything is not up.
