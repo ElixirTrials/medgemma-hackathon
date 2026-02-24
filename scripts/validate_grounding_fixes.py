@@ -84,13 +84,16 @@ def check_decomposition_prompt() -> None:
 def check_relation_validation() -> None:
     try:
         from pydantic import ValidationError
-        from protocol_processor.tools.field_mapper import FieldMappingItem
+        from protocol_processor.tools.field_mapper import (
+            FieldMappingItem,
+            FieldMappingValue,
+        )
 
         def _make_item(relation: str) -> FieldMappingItem:
             return FieldMappingItem(
                 entity="TestEntity",
                 relation=relation,  # type: ignore[arg-type]
-                value={"type": "standard", "value": "1", "unit": ""},
+                value=FieldMappingValue(type="standard", value="1", unit=""),
             )
 
         # Valid relations that must pass directly
