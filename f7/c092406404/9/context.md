@@ -1,0 +1,8 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+Can we set the default page when the frontend starts (make dev-run) to the dashboard rather than the protocols page. Also, can we check the links at the top of the page, because I get "The server is configured with a public base URL of /demo-app/ - did you mean to visit /demo-app/protocols instead?" in the browser.
+
