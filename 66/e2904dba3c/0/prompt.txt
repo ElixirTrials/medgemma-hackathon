@@ -1,0 +1,240 @@
+Implement the following plan:
+
+# Plan: Separate Value/Unit in Grounding Fixtures + Link Units to Terminology
+
+## Context
+
+The `test_snippets.json` golden fixtures embed units inside value strings (e.g. `"value": "45 ml/min"`). The pipeline already separates value from unit internally (`FieldMappingValue` has typed value + unit fields, `AtomicCriterion` has `unit_text` + `unit_concept_id`), and `normalize_unit()` already returns `(ucum_code, omop_concept_id)` — but the UCUM code is discarded at `structure_builder.py:235`. The test fixtures and DB schema should be brought in line with the pipeline's actual capability.
+
+**Goal**: Separate value from unit in golden examples, add unit terminology codes (UCUM + OMOP), persist UCUM codes through the pipeline, and fix the FHIR exporter's hardcoded unit code.
+
+---
+
+## Phase 1: Update `test_snippets.json`
+
+**File**: `tests/e2e/test_snippets.json`
+
+Split each grounding entity's `value` into separate fields:
+
+```json
+{
+  "entity_name": "Estimated Glomerular Filtration Rate",
+  "system": "UMLS",
+  "code": "C0858118",
+  "relation": "<",
+  "value": "45",
+  "unit": "mL/min",
+  "unit_ucum": "mL/min",
+  "unit_omop_concept_id": 8795
+}
+```
+
+Exact decomposition for all 15 entities:
+
+| # | Entity | value | unit | unit_ucum | unit_omop |
+|---|--------|-------|------|-----------|-----------|
+| 0 | Serum creatinine | `"1.5"` | `"times ULN"` | `null` | `null` |
+| 1 | eGFR | `"45"` | `"mL/min"` | `"mL/min"` | `8795` |
+| 2a | Body Weight | `"50"` | `"kg"` | `"kg"` | `8576` |
+| 2b | BMI | `"44"` | `"kg/m2"` | `"kg/m2"` | `9531` |
+| 3a | Ankylosing Spondylitis | `"True"` | `null` | `null` | `null` |
+| 3b | Radiologic examination | `"True"` | `null` | `null` | `null` |
+| 4a-d | Male/Female/PD/GBA | `"True"` | `null` | `null` | `null` |
+| 5 | ASA physical status | `"1, 2, or 3"` | `"{score}"` | `"{score}"` | `8527` |
+| 6a-b | Female/Sterilization | `"True"` | `null` | `null` | `null` |
+| 7 | Venous blood | `"True"` | `null` | `null` | `null` |
+| 8 | Pregnancy | `"True"` | `null` | `null` | `null` |
+
+**Design note — UCUM + OMOP only, no UMLS/SNOMED for units**: UCUM is the mandated standard for units in both FHIR (`system: "http://unitsofmeasure.org"`) and OMOP CDM. UMLS CUIs and SNOMED codes exist for some units but are not used by any interoperability standard. Adding them would create maintenance burden with no downstream benefit.
+
+---
+
+## Phase 2: Update `test_grounding_snippets.py`
+
+**File**: `tests/e2e/test_grounding_snippets.py`
+
+1. **Add field presence assertions** to `test_grounding_snippet_entity_fields`:
+   - Assert `"unit"`, `"unit_ucum"`, `"unit_omop_concept_id"` keys exist in every entity
+
+2. **Add consistency test** `test_grounding_snippet_unit_consistency`:
+   - When `unit` is `null` → `unit_ucum` and `unit_omop_concept_id` must both be `null`
+   - When `unit_ucum` is non-null → `unit_omop_concept_id` must also be non-null
+
+3. **Update named snippet tests** with unit assertions:
+   - `test_egfr_snippet`: `value=="45"`, `unit=="mL/min"`, `unit_omop_concept_id==8795`
+   - `test_body_weight_bmi_snippet`: weight unit `"kg"` (8576), BMI unit `"kg/m2"` (9531)
+   - `test_serum_creatinine_snippet`: `value=="1.5"`, `unit=="times ULN"`, `unit_ucum is None`
+   - `test_asa_physical_status_snippet`: `unit=="{score}"`, `unit_omop_concept_id==8527`
+   - Boolean snippets: `unit is None`
+
+---
+
+## Phase 3: Add `unit_ucum_code` Column to `AtomicCriterion`
+
+**File**: `libs/shared/src/shared/models.py` (after line 213)
+
+```python
+unit_ucum_code: str | None = Field(default=None)
+```
+
+Nullable string — no existing data breaks. Stores the first element of the `normalize_unit()` return tuple that's currently discarded.
+
+---
+
+## Phase 4: Alembic Migration
+
+**New file**: `services/api-service/alembic/versions/XX_add_unit_ucum_code.py`
+
+Follow the pattern from `43_01_add_unit_value_concept_ids.py`: check for existing column before adding, `sa.Column("unit_ucum_code", sa.String(), nullable=True)`.
+
+---
+
+## Phase 5: Persist UCUM Code in `structure_builder.py`
+
+**File**: `services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py`
+
+Line 235 currently discards the UCUM code:
+```python
+_, unit_concept_id = normalize_unit(raw_unit)
+```
+
+Change to:
+```python
+ucum_code, unit_concept_id = normalize_unit(raw_unit)
+```
+
+Then in the `AtomicCriterion(...)` constructor (line 256), add `unit_ucum_code=ucum_code`.
+
+Also in the ordinal branch (line 245-246), set `ucum_code = "{score}"` when ordinal overrides the unit.
+
+---
+
+## Phase 6: Fix FHIR Exporter Hardcoded Unit Code
+
+**File**: `services/api-service/src/api_service/exporters/fhir_group_builder.py`
+
+Line 194 hardcodes `"code": "a"` for UCUM. Change to read from the new field:
+```python
+"code": atomic.unit_ucum_code or "a",
+```
+
+This makes all FHIR Quantity exports properly coded with the actual UCUM code (required by FHIR spec).
+
+---
+
+## Phase 7: Update `evaluate_prompt_changes.py`
+
+**File**: `scripts/evaluate_prompt_changes.py`
+
+Add unit coverage reporting to the snippet summary:
+```python
+n_with_units = sum(1 for s in snippets["grounding_test_snippets"]
+                   for e in s["entities"] if e.get("unit"))
+print(f"  Entities with units: {n_with_units}/{n_ent}")
+```
+
+---
+
+## Phase 8: Frontend Types (Low Priority)
+
+**File**: `apps/hitl-ui/src/components/structured-editor/types.ts`
+
+Add optional fields to `FieldMapping` interface:
+```typescript
+unit_ucum_code?: string;
+unit_omop_concept_id?: number;
+```
+
+Display is cosmetic — can defer until a reviewer requests it.
+
+---
+
+## Dependency Graph
+
+```
+Phase 1 (test fixtures)  ──→  Phase 2 (test assertions)
+                          ──→  Phase 7 (eval script)
+
+Phase 3 (model column)   ──→  Phase 4 (migration)
+                          ──→  Phase 5 (structure_builder)  ──→  Phase 6 (FHIR exporter)
+
+Phase 8 (frontend) — independent, low priority
+```
+
+Phases 1 and 3 can start in parallel.
+
+---
+
+## Files Modified
+
+```
+tests/e2e/test_snippets.json                              — value/unit separation + terminology codes
+tests/e2e/test_grounding_snippets.py                      — new unit assertions
+libs/shared/src/shared/models.py                           — add unit_ucum_code column
+services/api-service/alembic/versions/XX_add_unit_ucum_code.py  — migration (new file)
+services/protocol-processor-service/.../structure_builder.py     — persist UCUM code
+services/api-service/.../exporters/fhir_group_builder.py         — use real UCUM code
+scripts/evaluate_prompt_changes.py                               — unit coverage report
+apps/hitl-ui/src/components/structured-editor/types.ts           — optional FieldMapping fields
+```
+
+---
+
+## Verification
+
+1. `uv run pytest tests/e2e/test_grounding_snippets.py -v` — all assertions pass including new unit tests
+2. `uv run python scripts/evaluate_prompt_changes.py` — reports unit coverage (4/15 entities have units)
+3. `uv run pytest services/protocol-processor-service/tests/test_unit_normalizer.py -v` — unit normalizer tests pass with new "kg" mock entry
+4. `uv run alembic upgrade head` — migration applies cleanly
+5. Manual: verify FHIR export of a criterion with a lab value produces correct UCUM code in `valueQuantity.code`
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Show me on the test json how we did.
+
+---
+
+serum creatinine levels are certainly measured in standard units.
+
+---
+
+My guess is in this case medgemma should compute 1.5* whatever the ULN value is. This is actually a misidentification of a unit. What is incorrect is the value.
+
+---
+
+Incorrect. The correct thing to do is to ask medgemma what the ULN is, then multiply it by 1.5 and set that as the value. And set the unit to whatever units medgemma used for the ULN.
+
+---
+
+"Serum creatinine >1.5 times ULN at the screening visit." is the snippet text --> {entity: 'Serum creatinine', relation: '>=', value: 1.5*1.3, unit:  mg/dL} or something like this
+
+---
+
+Now let's see how we can tell medgemma to resolve this (without giving it the answer for this example) and then check that we manage the entire test json including the new entry
+
+---
+
+No no no! You're cheating. If you tell it the answer for this example it won't generalize and will work for this example only.
+
+---
+
+[Request interrupted by user]
+
+---
+
+No, you miss the point. If you give medgemma in the prompt X times ULN you are contaminating the test because you are revealing part of our test set. We can give examples of what a relative value means but we can't leak data from the test set.
+
+---
+
+[Request interrupted by user]
+
+---
+
+No!! No leakage from the test set, dummy! No mention of ULN.
+
+---
+
+Good, now let's test the grounding on the test json and see if it works
