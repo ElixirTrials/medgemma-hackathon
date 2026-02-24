@@ -3,7 +3,7 @@
   "checkpoint_id": "69ef8283fc4a",
   "strategy": "manual-commit",
   "branch": "feat/submission-additions",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/hitl-ui/src/components/criteria-table/FieldMappingCell.tsx",
     "apps/hitl-ui/src/components/criteria-table/columns.tsx",
@@ -35,13 +35,20 @@
       "context": "",
       "content_hash": "/69/ef8283fc4a/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/69/ef8283fc4a/1/metadata.json",
+      "transcript": "/69/ef8283fc4a/1/full.jsonl",
+      "context": "/69/ef8283fc4a/1/context.md",
+      "content_hash": "/69/ef8283fc4a/1/content_hash.txt",
+      "prompt": "/69/ef8283fc4a/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
   }
 }
