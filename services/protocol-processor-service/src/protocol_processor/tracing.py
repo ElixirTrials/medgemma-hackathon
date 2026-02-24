@@ -217,7 +217,7 @@ def llm_span(name: str, model_name: str = ""):
                 ctx._finalize()
                 return
     except ImportError:
-        pass
+        pass  # mlflow is an optional dependency; fall through to no-op span
     except Exception:
         logger.debug("llm_span creation failed, falling back to no-op", exc_info=True)
 

@@ -65,7 +65,8 @@ def _init_mlflow() -> None:
         if default_exp and default_exp.lifecycle_stage == "deleted":
             client.restore_experiment("0")
     except Exception:
-        pass
+        # Non-fatal: default experiment restore is best-effort
+        logger.debug("Could not restore default MLflow experiment", exc_info=True)
 
     experiment_name = _get_experiment_name()
     try:
