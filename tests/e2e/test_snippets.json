@@ -45,10 +45,10 @@
             "system": "UMLS",
             "code": "C0201975",
             "relation": ">",
-            "value": "1.5 times ULN",
-            "unit": null,
-            "unit_ucum": null,
-            "unit_omop_concept_id": null
+            "value": "1.95",
+            "unit": "mg/dL",
+            "unit_ucum": "mg/dL",
+            "unit_omop_concept_id": 8840
           }
         ]
       },

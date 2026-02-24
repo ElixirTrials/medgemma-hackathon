@@ -52,9 +52,9 @@ All UI interactions flow through the FastAPI REST API:
 | `GET /protocols` | List protocols (paginated) | `protocols.py` |
 | `GET /reviews/batches/{id}/criteria` | Fetch criteria for review | `reviews.py` |
 | `POST /reviews/criteria/{id}/action` | Submit review decision | `reviews.py` |
-| `GET /exports/{id}/circe` | Export as CIRCE JSON | `exports.py` |
-| `GET /exports/{id}/fhir-group` | Export as FHIR R4 Group | `exports.py` |
-| `GET /exports/{id}/evaluation-sql` | Export as OMOP SQL | `exports.py` |
+| `GET /protocols/{id}/export/circe` | Export as CIRCE JSON | `exports.py` |
+| `GET /protocols/{id}/export/fhir-group` | Export as FHIR R4 Group | `exports.py` |
+| `GET /protocols/{id}/export/evaluation-sql` | Export as OMOP SQL | `exports.py` |
 
 ### Asynchronous Event Processing (Outbox to Pipeline)
 

@@ -1,6 +1,6 @@
 # Implementation Status
 
-Current state of ElixirTrials components as of the `feature/major-refactor-langgraph` branch.
+Current state of ElixirTrials components as of `main`.
 
 ## Maturity Matrix
 

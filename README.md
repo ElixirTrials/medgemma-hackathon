@@ -10,6 +10,7 @@
 </p>
 
 <p align="center">
+  <a href="https://noahdolevelixir.github.io/medgemma-hackathon/">Documentation</a> &bull;
   <a href="#medgemma--hai-def-integration">MedGemma Integration</a> &bull;
   <a href="#agentic-workflow">Agentic Workflow</a> &bull;
   <a href="#quick-start">Quick Start</a> &bull;
@@ -18,6 +19,7 @@
 </p>
 
 <p align="center">
+  <a href="https://noahdolevelixir.github.io/medgemma-hackathon/"><img alt="Docs" src="https://img.shields.io/badge/docs-GitHub%20Pages-8ca0e0.svg" /></a>
   <img alt="License" src="https://img.shields.io/badge/license-Apache%202.0-blue.svg" />
   <img alt="Python" src="https://img.shields.io/badge/python-3.12+-blue.svg" />
   <img alt="MedGemma" src="https://img.shields.io/badge/HAI--DEF-MedGemma%204B--IT-green.svg" />
@@ -279,15 +281,15 @@ medgemma-hackathon/
 
 ## Documentation
 
-Build and serve the docs site locally:
+**[Full documentation (GitHub Pages)](https://noahdolevelixir.github.io/medgemma-hackathon/)** — architecture, data models, user journeys, code tour, and API reference.
+
+To build and serve the docs locally:
 
 ```bash
 make docs-build && make docs-serve
 ```
 
-The docs include architecture diagrams, data model references, user journeys, a code tour, and API documentation.
-
-**GitHub Pages:** The site is deployed to **https://noahdolevelixir.github.io/medgemma-hackathon/** when docs change on `main`. To enable it: **Settings → Pages → Source**: "Deploy from a branch" → branch **gh-pages**, folder **/ (root)**. Run the "Deploy Documentation" workflow from the Actions tab to create the first deploy.
+The docs site is deployed to GitHub Pages when `docs/`, `mkdocs.yml`, or component docs change on `main`. To enable: **Settings → Pages → Source**: "Deploy from a branch" → branch **gh-pages**, folder **/ (root)**. Run the "Deploy Documentation" workflow from the Actions tab for the first deploy.
 
 ---
 

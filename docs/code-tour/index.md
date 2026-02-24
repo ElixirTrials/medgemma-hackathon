@@ -55,7 +55,7 @@ def upload_protocol(body: UploadRequest, db: Session = Depends(get_db)):
 
 > **As the API service**, I connect the outbox processor to the pipeline trigger at startup.
 
-**File**: `services/api-service/src/api_service/main.py:81-93`
+**File**: `services/api-service/src/api_service/main.py:118-127`
 
 ```python
 processor = OutboxProcessor(
@@ -75,11 +75,11 @@ task = asyncio.create_task(processor.start())
 
 > **As the outbox processor**, I dispatch events to the LangGraph pipeline.
 
-**File**: `services/protocol-processor-service/src/protocol_processor/trigger.py:214`
+**File**: `services/protocol-processor-service/src/protocol_processor/trigger.py:350`
 
 ```python
 def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
-    thread_id = f"{protocol_id}:{uuid4()}"
+    thread_id = f"{payload['protocol_id']}:{uuid4()}"
     initial_state = {
         "protocol_id": payload["protocol_id"],
         "file_uri": payload["file_uri"],

@@ -187,10 +187,19 @@ async def generate_field_mappings(
             ' "within 5 days" → duration="5", unit="days"\n'
             "- Default: if no measurement, use relation='=',"
             ' value={"type":"standard","value":"True","unit":null}\n'
+            "- Relative value resolution: when the criterion expresses"
+            " a threshold relative to a reference range or normal limit,"
+            " you MUST resolve it to an absolute numeric value with a"
+            " standard unit. Use your medical knowledge of the entity's"
+            " reference range, compute the absolute threshold, and return"
+            " only the computed number in the value field and the standard"
+            " lab unit in the unit field. Never return the relative"
+            " expression as the value.\n"
             "</rules>\n\n"
             "<anti_patterns>\n"
             "BAD: value='present' → use value='True'\n"
             "BAD: duration='5-days-ago' → use duration='5', unit='days'\n"
+            "BAD: value='twice the normal limit' → resolve to absolute\n"
             "</anti_patterns>"
         )
 
