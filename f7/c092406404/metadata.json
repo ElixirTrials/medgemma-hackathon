@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f7c092406404",
+  "strategy": "manual-commit",
+  "branch": "feat/submission-additions",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "scripts/validate_grounding_fixes.py",
+    "services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml",
+    "services/protocol-processor-service/src/protocol_processor/nodes/ground.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/terminology_router.py",
+    "services/protocol-processor-service/tests/test_grounding_fixes.py",
+    "services/protocol-processor-service/tests/test_omop_mapper.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f7/c092406404/0/metadata.json",
+      "transcript": "/f7/c092406404/0/full.jsonl",
+      "context": "/f7/c092406404/0/context.md",
+      "content_hash": "/f7/c092406404/0/content_hash.txt",
+      "prompt": "/f7/c092406404/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 1549,
+    "cache_creation_tokens": 215087,
+    "cache_read_tokens": 10467317,
+    "output_tokens": 29124,
+    "api_call_count": 106
+  }
+}

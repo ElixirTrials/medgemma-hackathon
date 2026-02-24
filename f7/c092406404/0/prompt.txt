@@ -1,0 +1,478 @@
+Implement the following plan:
+
+# Plan: Fix Grounding Failures
+
+## Context
+
+The protocol processing pipeline (ingest→extract→parse→ground→persist) has 6 documented grounding failures that cause entities to fail terminology matching. Root causes span prompt engineering, schema validation, domain filtering, and acronym handling. This plan addresses failures #1-#6 from `instructions/SubmissionRequirements/grounding_failures/fixing_failing_groundings.md` (failure #7 is a frontend UI issue, out of scope for this backend plan).
+
+---
+
+## Fix 1: Over-Decomposition of Complex Concepts
+
+**Problem**: LLM splits compound medical concepts ("tricompartmental knee replacement" → "knee replacement" + orphaned "tricompartmental"). Conversely, multi-condition phrases sent as one entity get zero matches.
+
+**File**: `services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2`
+
+**Changes**:
+- Add explicit rules to the Jinja2 prompt:
+  - "Do NOT separate anatomical modifiers, severities, or procedure types from their parent concept. Keep 'tricompartmental knee replacement', 'spinal muscular atrophy', 'non-small cell lung cancer' as single entities."
+  - "DO separate distinct comorbidities into individual entities. 'Type 2 diabetes with nephropathy' → two entities: 'type 2 diabetes' AND 'nephropathy'."
+  - "The `value` field is NOT used by this tool. Only extract `text` (the medical concept) and `entity_type`."
+- Add concrete positive/negative examples to the prompt.
+
+---
+
+## Fix 2: Hallucinated Relations in Field Mappings
+
+**Problem**: `FieldMappingItem.relation` is an unconstrained `str`. LLM generates invalid operators like "contains", "has", "is".
+
+**File**: `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`
+
+**Changes**:
+- Change `FieldMappingItem.relation` from `str` to `Literal["=", "!=", ">", ">=", "<", "<=", "within", "not_in_last", "contains", "not_contains"]`
+- Add a `@field_validator("relation", mode="before")` that runs `_normalize_relation()` before validation, so LLM outputs like "has", "is", "==" get normalized to valid values before the `Literal` check rejects them
+- This leverages Gemini's `with_structured_output` retry-on-ValidationError behavior
+
+---
+
+## Fix 3: Categorical Values Not Grounded to Terminology
+
+**Problem**: Field mapping values like "Severe", "NYHA Class III", "Stage IV" are left as raw text without terminology codes.
+
+**Files**:
+- `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`
+- `services/protocol-processor-service/src/protocol_processor/nodes/ground.py`
+
+**Changes**:
+- In `field_mapper.py`, add `value_concept_id: str | None` and `value_concept_system: str | None` fields to `FieldMappingItem`
+- In `ground.py` `_ground_entity_parallel()`, after generating field_mappings, add a post-processing step that:
+  1. Checks each mapping's value — if it's `type="standard"` and the value text is non-numeric (regex check), attempt to ground it
+  2. Uses the existing `unit_normalizer.normalize_value()` first (fast path for known categoricals like "positive"/"negative")
+  3. Falls back to a lightweight `lookup_omop_concept()` call for clinical text values
+  4. Populates `value_concept_id` on the mapping dict
+- Guard with a try/except so failures don't block the entity grounding result
+
+---
+
+## Fix 4: Retry Loop Wastes Steps on Identical Queries
+
+**Problem**: When initial grounding returns zero candidates, the agentic reasoning loop retries with near-identical queries, wasting all 3 attempts.
+
+**Files**:
+- `services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2`
+- `services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2`
+
+**Changes to `grounding_system.jinja2`**:
+- Add a "Search Strategy" section:
+  - "If your first terminology search yields 0 results, DO NOT retry the exact same phrase or minor variations."
+  - "Simplify to the core medical noun: 'Left ventricular hypertrophy' → 'ventricular hypertrophy' → 'hypertrophy'."
+  - "Expand abbreviations: 'HTN' → 'hypertension', 'MI' → 'myocardial infarction'."
+
+**Changes to `grounding_reasoning.jinja2`**:
+- In Q3 (Rephrase), add explicit instruction: "If the previous search returned 0 results, you MUST suggest a substantially different, simpler query — not a minor variation of the same phrase."
+- Add examples of good simplifications.
+
+---
+
+## Fix 5: Overly Restrictive OMOP Domain Filtering
+
+**Problem**: `omop_mapper.py` filters by a single OMOP domain per entity type. "Pregnancy" (Observation) searched only in "Condition" gets zero results.
+
+**File**: `services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py`
+
+**Changes**:
+- Replace `_get_domain_filter() -> str` with `_get_domain_filters() -> list[str]` that returns primary + fallback domains:
+  ```python
+  ENTITY_TYPE_TO_OMOP_DOMAINS: dict[str, list[str]] = {
+      "Condition": ["Condition", "Observation"],
+      "Medication": ["Drug"],
+      "Lab_Value": ["Measurement", "Observation"],
+      "Procedure": ["Procedure", "Observation"],
+      "Demographic": ["Observation", "Measurement"],
+  }
+  ```
+- Update `_query_concept_table()` and `_query_synonym_table()` SQL to use `domain_id IN :domains` instead of `domain_id = :domain_id`
+- Update `_sync_lookup()` to pass the domain list
+- Score candidates from the primary domain higher (small bonus) to prefer correct-domain matches
+
+---
+
+## Fix 6: Tools-First Acronym Resolution (Zero Extra LLM Tokens)
+
+**Problem**: Terminology APIs don't recognize medical acronyms ("HTN", "MI", "DM", "CKD"). The TerminologyRouter sends them raw and gets zero results.
+
+**Approach**: Use existing terminology tools (UMLS, SNOMED, OMOP concept_synonym) smarter — they already index abbreviations. Only fall back to MedGemma's agentic retry loop (Fix 4) if all tools fail. Zero additional LLM token cost.
+
+**Files**:
+- `services/protocol-processor-service/src/protocol_processor/tools/terminology_router.py`
+- `services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py`
+- `services/protocol-processor-service/src/protocol_processor/nodes/ground.py`
+
+**Changes**:
+
+1. **Add `_is_likely_acronym(text: str) -> bool` heuristic** in `terminology_router.py`:
+   - Returns True if: `len(text) <= 6` AND `text.upper() == text` AND no spaces AND not a known short word (allowlist: "age", "sex", "BMI")
+   - Pure string check, zero cost
+
+2. **Smart routing for acronyms** in `terminology_router.py` `route_entity()`:
+   - If `_is_likely_acronym(entity_text)`, always include `umls` in the API list regardless of entity type (UMLS has the broadest abbreviation coverage via its AUI atom-level synonyms)
+   - Log: "Acronym detected — adding UMLS to routing for broader abbreviation coverage"
+   - No extra LLM call — just ensures the most abbreviation-aware API is always queried
+
+3. **Domain-free OMOP synonym search for acronyms** in `omop_mapper.py`:
+   - If entity text is a likely acronym, skip the domain filter entirely in `_query_synonym_table()` (search across ALL domains)
+   - The CONCEPT_SYNONYM table contains standard abbreviations — this finds them regardless of which domain the entity type maps to
+   - Add `is_acronym: bool = False` parameter to `_sync_lookup()` and `lookup_omop_concept()`
+
+4. **MedGemma as last resort** (already existing):
+   - If all terminology tools return zero candidates for the acronym, the existing `_ground_entity_with_retry()` loop triggers `agentic_reasoning_loop()` (max 3 attempts)
+   - The improved prompts from Fix 4 now explicitly guide MedGemma to expand abbreviations in Q3
+   - This is the only point where LLM tokens are spent — and only for acronyms that ALL tools failed to resolve
+
+---
+
+## Tests
+
+### New test file: `services/protocol-processor-service/tests/test_grounding_fixes.py`
+
+1. **test_relation_literal_rejects_invalid** — Verify `FieldMappingItem(relation="has_value")` raises `ValidationError`
+2. **test_relation_normalizer_maps_legacy** — Verify "has"→"contains", "is"→"=", "=="→"="
+3. **test_is_likely_acronym** — Verify heuristic detects "HTN", "MI", "CKD", "COPD" as acronyms but not "age", "metformin", "body mass index", "sex"
+4. **test_acronym_routing_adds_umls** — Verify that for acronyms, `umls` is always added to the API list even if not in the entity type's routing config
+5. **test_omop_acronym_drops_domain_filter** — Verify that `lookup_omop_concept` with `is_acronym=True` searches across all domains in concept_synonym
+5. **test_omop_multi_domain_query** — Verify OMOP queries search multiple domains (mock SQL)
+6. **test_omop_primary_domain_scored_higher** — Verify primary domain candidates get score bonus
+7. **test_decompose_keeps_compound_concepts** — Integration test with Gemini mock: verify "tricompartmental knee replacement" stays unified
+8. **test_decompose_splits_comorbidities** — Verify "Type 2 diabetes with nephropathy" produces 2 entities
+
+### Update existing tests:
+- `test_field_mapper_format.py` — add cases for new Literal relation validation
+- `test_unit_normalizer.py` — no changes needed (already tests normalize_value)
+- `test_omop_mapper.py` — update to expect multi-domain queries
+
+---
+
+## Validation
+
+After implementation, run the full check suite:
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy libs/shared/src services/api-service/src libs/inference/src services/protocol-processor-service/src
+uv run pytest services/protocol-processor-service/tests/ -v
+uv run pytest services/api-service/tests/ -v
+```
+
+### Manual validation with known-failing cases:
+Create a lightweight validation script `scripts/validate_grounding_fixes.py` that:
+1. Constructs entity dicts for each documented failure case
+2. Verifies acronym expansion works (HTN, MI, DM, CKD → expanded forms)
+3. Verifies relation validation rejects hallucinated operators
+4. Verifies multi-domain OMOP query construction (SQL template check)
+5. Verifies decomposition prompt contains anti-decomposition rules (string check)
+6. Prints PASS/FAIL summary
+
+---
+
+## File Summary
+
+| File | Action |
+|------|--------|
+| `prompts/entity_decompose.jinja2` | Edit — add anti-decomposition rules + examples |
+| `prompts/grounding_system.jinja2` | Edit — add search strategy fallback rules |
+| `prompts/grounding_reasoning.jinja2` | Edit — strengthen Q3 rephrase instructions |
+| `tools/field_mapper.py` | Edit — Literal relation type + field_validator + value_concept_id |
+| `tools/omop_mapper.py` | Edit — multi-domain filtering + domain-free acronym search |
+| `tools/terminology_router.py` | Edit — add `_is_likely_acronym()` + smart UMLS routing for acronyms |
+| `nodes/ground.py` | Edit — categorical value grounding + pass acronym flag to OMOP |
+| `tests/test_grounding_fixes.py` | New — 8 targeted tests |
+| `scripts/validate_grounding_fixes.py` | New — validation script |
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+[Request interrupted by user]
+
+---
+
+Proceed
+
+---
+
+[Request interrupted by user]
+
+---
+
+Procceed but use sonnet 4.6 for subagents and run as much as possible in parallel.
+
+---
+
+I don't see the currently running protocol at all in MLFlow
+
+---
+
+From make run-dev. Also, I don't think the fixes worked. Have a look at: . Primary indication for TKA is degenerative osteoarthritis of the knee does not sound like an inclusion criteria and there are no mapped entities. Also, now ASA 1,2 or 3 which previously succeeded to map no longer does.
+
+---
+
+[Image: source: /Users/noahdolevelixir/Code/medgemma-hackathon/instructions/SubmissionRequirements/grounding_failures/Screenshot 2026-02-24 at 13.28.18.png]
+
+---
+
+The ucum_mappings.yaml
+
+---
+
+Relying on hardcoding makes the system brittle. A small variation in wording, a misspelling in the protocol, an unseen scale and it doesn't work.
+
+---
+
+Explain the purpose of the ordinal YAML for OMOP ID mappings?
+
+---
+
+Instead of a YAML like ucum_mappings or ordinal_maps why don't we create a lookup function? I mean the OMOP is already a DB and we have UMLS, SNOMED, RxNOrm, etc tools as well as medgemma.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me go through the conversation chronologically:
+
+1. **Initial request**: User asked to implement a detailed plan for fixing grounding failures (#1-#6) in the protocol processing pipeline. The plan was already written out in detail.
+
+2. **User interrupted** and said "Proceed but use sonnet 4.6 for subagents and run as much as possible in parallel."
+
+3. I read all the relevant files in parallel:
+   - field_mapper.py, omop_mapper.py, terminology_router.py, ground.py
+   - All .jinja2 prompt templates
+   - All existing test files
+   - routing.yaml, ucum_mappings.yaml
+   - schemas/grounding.py
+
+4. I implemented all 6 fixes:
+   - Fix 1: entity_decompose.jinja2 - anti-decomposition rules
+   - Fix 2: field_mapper.py - Literal relation type + field_validator
+   - Fix 3: ground.py - categorical value grounding
+   - Fix 4: grounding_system.jinja2 and grounding_reasoning.jinja2 - retry loop improvements
+   - Fix 5: omop_mapper.py - multi-domain OMOP filtering
+   - Fix 6: terminology_router.py - acronym detection and smart routing
+
+5. Used sonnet subagents to write tests and validation script in parallel.
+
+6. Lint errors: N806 (variable naming), E501 (line too long) - fixed them.
+
+7. All 262 tests passed, validation script 6/6.
+
+8. **User reported MLflow not showing traces**. Investigation found MLFLOW_TRACKING_URI not set in the user's shell (but set inside make run-dev subprocess). The Makefile does set it correctly for child processes.
+
+9. **User reported fixes didn't work** - showed screenshot:
+   - "Primary indication for TKA is degenerative osteoarthritis of the knee" - no mapped entities
+   - "ASA 1,2 or 3" - previously worked, now broken (regression)
+
+10. Investigation found:
+    - ASA gets entity_type "Other" → routing.yaml has `Other: []` → dead end
+    - TKA criterion: Gemini returns empty entities for indication-framing
+    - "Other" entity type has broken expert_review path (attempt never >= 2)
+
+11. Fixes applied:
+    - Added ASA to ucum_mappings.yaml ordinal_scales
+    - Updated entity_decompose.jinja2 with rules 6-8 (indication criteria, scoring systems as Lab_Value)
+    - Fixed ground.py to route "Other" entities directly to expert_review
+
+12. **User asked "But why is this hardcoded?"** - referring to the approach of hardcoding specific scales.
+
+13. **User said "Relying on hardcoding makes the system brittle."** - fundamental architectural feedback.
+
+14. I responded by:
+    - Making prompt rules generic instead of enumerating specific scales
+    - Removing the _ACRONYM_ALLOWLIST (no allowlist needed)
+    - Updated tests and validation
+
+15. **User asked "Explain the purpose of the ordinal YAML for OMOP ID mappings?"**
+
+16. I explained that the YAML maps ordinal grades to OMOP concept_ids needed for CIRCE/CDM queries, but noted the OMOP DB already contains this data.
+
+17. **User said "Instead of a YAML like ucum_mappings or ordinal_maps why don't we create a lookup function?"** - suggesting dynamic OMOP DB lookups instead of static YAML.
+
+18. I entered plan mode and launched Explore and Plan agents to design the replacement.
+
+19. The Plan agent produced a detailed plan for replacing YAML with dynamic OMOP DB lookups.
+
+20. **User then asked for this summary**.
+
+Key user feedback themes:
+- Don't hardcode - make the system robust to variations
+- Use existing infrastructure (OMOP DB, terminology APIs, MedGemma) instead of static files
+- Generic rules over enumerated lists
+
+Current state: In plan mode, plan has been designed by the Plan agent but not yet written to the plan file or presented to user for approval.
+
+Summary:
+1. Primary Request and Intent:
+   - **Original request**: Implement a 6-fix plan for grounding failures in the protocol processing pipeline (ingest→extract→parse→ground→persist). Fixes cover: over-decomposition of compound concepts, hallucinated relation operators, ungrounded categorical values, wasteful retry loops, overly restrictive OMOP domain filtering, and acronym handling.
+   - **MLflow debugging**: User reported MLflow traces not appearing for running protocols.
+   - **Post-implementation feedback**: User reported two specific failures — "Primary indication for TKA is degenerative osteoarthritis of the knee" (no entities extracted) and "ASA physical status 1, 2, or 3" (regression — previously worked, now broken).
+   - **Architectural feedback**: User pushed back on hardcoded YAML approach, asking why the system relies on brittle static config when OMOP DB, UMLS, SNOMED, RxNorm, and MedGemma already exist as lookup sources. User wants dynamic DB-backed lookups to replace `ucum_mappings.yaml`.
+   - **Current request**: Replace the static YAML-based unit/value/ordinal lookups in `unit_normalizer.py` with dynamic OMOP vocabulary DB lookups. A plan has been designed but not yet finalized or approved.
+
+2. Key Technical Concepts:
+   - OMOP CDM vocabulary (concept table, concept_synonym table, domain_id, vocabulary_id)
+   - UCUM unit codes and OMOP unit_concept_id mappings
+   - Ordinal clinical scales (ECOG, Karnofsky, NYHA, ASA) with grade-level OMOP concept mapping
+   - Pydantic `Literal` types and `field_validator` for constraining LLM outputs
+   - Multi-domain OMOP queries (e.g., Condition entities searched in both Condition and Observation domains)
+   - Acronym detection heuristic for smart UMLS routing
+   - Jinja2 prompt engineering for Gemini entity extraction
+   - MedGemma agentic retry loop with 3-attempt grounding
+   - TerminologyRouter with YAML-based entity type → API routing
+   - AsyncIO concurrency with semaphore-controlled parallel grounding
+   - MLflow tracing via `pipeline_span()` context manager gated on `MLFLOW_TRACKING_URI` env var
+   - LRU cache and lazy-init patterns for process-lifetime DB caching
+
+3. Files and Code Sections:
+
+   - **`services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2`**
+     - Central prompt for Gemini entity extraction from criteria
+     - Added compound concept rules (DO NOT separate anatomical modifiers, DO separate comorbidities)
+     - Added generic rules: "Any clinical scoring system... is Lab_Value — never Other" and "Extract entities even from indication or context-framing criteria"
+     - Removed enumerated scale examples (ASA, ECOG, NYHA, Karnofsky) in favor of generic principle
+     - Current state after all edits:
+     ```
+     7. Any clinical scoring system, classification scale, physical status grade, or ordinal assessment is Lab_Value — never "Other". This includes ALL scales you know of, whether common or rare.
+     8. Use "Other" ONLY as a last resort for truly unclassifiable entities. Always prefer a specific type. If in doubt between "Other" and a specific type, choose the specific type.
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`**
+     - Changed `FieldMappingItem.relation` from `str` to `Literal["=", "!=", ">", ">=", "<", "<=", "within", "not_in_last", "contains", "not_contains"]` (typed as `RelationOperator`)
+     - Added `@field_validator("relation", mode="before")` that calls `_normalize_relation()` to map LLM outputs like "has"→"contains", "is"→"=", "=="→"=" before Literal validation
+     - Added `value_concept_id: str | None` and `value_concept_system: str | None` fields to `FieldMappingItem`
+     - Updated mapping dict construction to include new fields
+     - Pre-existing `_RELATION_MAP` and `_normalize_relation()` were already present and reused
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py`**
+     - Added `ENTITY_TYPE_TO_OMOP_DOMAINS` multi-domain mapping dict
+     - Added `PRIMARY_DOMAIN_BONUS = 0.05` constant
+     - Added `_get_domain_filters()` function returning `list[str]`
+     - Changed `_query_concept_table` signature from `domain_id: str` to `domain_ids: list[str]` with parameterized IN clause
+     - Changed `_query_synonym_table` to accept `domain_ids: list[str]` and added `skip_domain_filter: bool = False` kwarg for acronym searches
+     - Changed `_sync_lookup` signature from `(entity_text, domain_id)` to `(entity_text, domain_ids, *, is_acronym=False)` with primary domain scoring bonus
+     - Changed `lookup_omop_concept` to accept `is_acronym: bool = False` kwarg and use `_get_domain_filters()`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/terminology_router.py`**
+     - Added `_is_likely_acronym(text: str) -> bool` — returns True if <=6 chars, all uppercase, no spaces. **No allowlist** (removed after user feedback about brittleness). Adding UMLS redundantly for "BMI"/"AST" is harmless.
+     - Updated `route_entity()` to add "umls" to API list for detected acronyms
+     - Current `_is_likely_acronym` implementation:
+     ```python
+     def _is_likely_acronym(text: str) -> bool:
+         stripped = text.strip()
+         if not stripped or " " in stripped:
+             return False
+         if len(stripped) > 6:
+             return False
+         return stripped.upper() == stripped
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/ground.py`**
+     - Added `import re` and imports for `_is_likely_acronym` and `normalize_value`
+     - Added `_ground_categorical_values()` function that post-processes field mappings to resolve categorical text values (e.g., "positive", "negative") to OMOP concept IDs using `normalize_value()`
+     - Updated `_ground_entity_parallel()` to pass `is_acronym` flag to `lookup_omop_concept()`
+     - Fixed "Other" entity type dead-end: when no APIs configured, immediately return with `[expert_review]` reasoning instead of silently falling through
+     - Added call to `_ground_categorical_values(field_mappings)` after field mapping generation
+
+   - **`services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2`**
+     - Added "Search Strategy" section with progressive simplification rules for retry attempts
+
+   - **`services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2`**
+     - Strengthened Q3 with "MUST suggest a SUBSTANTIALLY DIFFERENT, SIMPLER query" and ordered simplification strategies
+
+   - **`services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml`**
+     - Added ASA ordinal scale with 6 grades and aliases (entity_aliases, loinc_code, values with descriptions)
+     - File is planned to be deprecated and replaced with dynamic OMOP DB lookups
+
+   - **`services/protocol-processor-service/tests/test_grounding_fixes.py`** (NEW)
+     - 36 tests covering: relation Literal validation, relation normalization, acronym detection (no allowlist), acronym UMLS routing, OMOP domain-free synonym search for acronyms, multi-domain queries, primary domain scoring bonus, decompose prompt string checks, value_concept_id fields
+
+   - **`services/protocol-processor-service/tests/test_omop_mapper.py`** (UPDATED)
+     - Added `TestGetDomainFilters` class (4 tests)
+     - Updated `TestLookupOmopConcept` assertions to pass `domain_ids` list and `is_acronym=False` instead of single domain string
+
+   - **`scripts/validate_grounding_fixes.py`** (NEW)
+     - 6 validation checks: decomposition prompt, relation validation, acronym detection, multi-domain OMOP config, grounding system prompt, grounding reasoning prompt
+
+   - **`services/protocol-processor-service/src/protocol_processor/config/routing.yaml`**
+     - Not modified, but critical context: `Other: []` means no APIs configured for "Other" entity type
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py`**
+     - Not yet modified but is the primary target for the pending YAML→DB replacement plan
+     - Contains `normalize_unit()`, `normalize_value()`, `normalize_ordinal_value()`, `_match_ordinal_scale()`, `propose_ordinal_mappings()`
+     - Production callers: `structure_builder.py` (all three), `ground.py` (`normalize_value` only)
+
+   - **`Makefile`**
+     - `make run-dev` sets `MLFLOW_TRACKING_URI` dynamically on line 49 and spawns API as child process inheriting the env var
+
+4. Errors and fixes:
+   - **Ruff N806** (`_NUMERIC_RE` variable in function should be lowercase): Renamed to `numeric_re`
+   - **Ruff E501** (line too long >88 chars): Shortened description in `FieldMappingItem.value_concept_id` field
+   - **16 E501 errors in test_grounding_fixes.py**: Subagent-written test file had long docstrings; fixed by shortening docstring text and splitting function signatures
+   - **Ruff I001** (unsorted imports) and **F401** (unused import) in test file: Fixed via `ruff check --fix --unsafe-fixes`
+   - **Format issues**: 5 files needed `ruff format` after edits
+   - **ASA regression**: User reported ASA physical status "previously succeeded to map no longer does". Root cause: prompt changes shifted Gemini to classify ASA as entity_type "Other" → `Other: []` in routing.yaml → dead end. Fixed by making prompt rules generic ("any clinical scoring system is Lab_Value") instead of enumerating specific scales.
+   - **User feedback on hardcoding**: User explicitly said "Relying on hardcoding makes the system brittle. A small variation in wording, a misspelling in the protocol, an unseen scale and it doesn't work." Response: removed `_ACRONYM_ALLOWLIST`, made prompt rules generic, began planning YAML→DB migration.
+   - **Mypy error**: `api_service.storage` missing py.typed marker — pre-existing issue, not from changes.
+
+5. Problem Solving:
+   - **MLflow not showing traces**: Diagnosed as `MLFLOW_TRACKING_URI` not set in the user's interactive shell. The Makefile's `make run-dev` does set it correctly for child processes via `export` on line 49. The MLflow server is running and reachable at localhost:5001. The tracing gate in `tracing.py:72` (`if os.getenv("MLFLOW_TRACKING_URI")`) silently falls back to no-op spans when unset.
+   - **"Other" entity type dead-end**: `routing.yaml` has `Other: []`, agentic retry loop guard `router.get_apis_for_entity(entity_type)` returns `[]` (falsy) so loop never fires, expert_review requires `attempt >= 2` but attempt stays at 1. Fixed by adding early return with `[expert_review]` reasoning when no APIs configured.
+   - **Architectural brittleness of YAML**: User's core concern — static YAML duplicates data already in OMOP DB and terminology APIs. Plan designed to replace with dynamic DB lookups.
+
+6. All user messages:
+   - "Implement the following plan: [detailed 6-fix plan for grounding failures]" (interrupted)
+   - "Proceed but use sonnet 4.6 for subagents and run as much as possible in parallel."
+   - "I don't see the currently running protocol at all in MLFlow"
+   - "From make run-dev. Also, I don't think the fixes worked. Have a look at: . Primary indication for TKA is degenerative osteoarthritis of the knee does not sound like an inclusion criteria and there are no mapped entities. Also, now ASA 1,2 or 3 which previously succeeded to map no longer does." [with screenshot]
+   - "But why is this hardcoded?"
+   - "Relying on hardcoding makes the system brittle. A small variation in wording, a misspelling in the protocol, an unseen scale and it doesn't work."
+   - "The ucum_mappings.yaml" (clarifying what they meant by hardcoded)
+   - "Explain the purpose of the ordinal YAML for OMOP ID mappings?"
+   - "Instead of a YAML like ucum_mappings or ordinal_maps why don't we create a lookup function? I mean the OMOP is already a DB and we have UMLS, SNOMED, RxNOrm, etc tools as well as medgemma."
+   - (Summary request)
+
+7. Pending Tasks:
+   - **Replace ucum_mappings.yaml with dynamic OMOP DB lookups**: A detailed plan has been designed by the Plan agent but NOT yet written to the plan file (`/Users/noahdolevelixir/.claude-elixirtrials/plans/vectorized-foraging-hedgehog.md`) and NOT yet presented to the user for approval via `ExitPlanMode`. Currently in plan mode.
+   - **MLflow tracing**: User's original concern about not seeing traces was diagnosed but not fully resolved — the env var is set correctly inside `make run-dev` child processes, so it may be working. No explicit action requested by user to fix this further.
+
+8. Current Work:
+   I am in **plan mode** designing the replacement of `ucum_mappings.yaml` with dynamic OMOP DB lookups. The Plan agent completed its design and returned a comprehensive plan. I have NOT yet:
+   - Written the plan to the plan file
+   - Called `ExitPlanMode` for user approval
+   
+   The plan covers:
+   - Adding 3 new SQL query functions to `omop_mapper.py` (`lookup_ucum_units()`, `lookup_meas_value_concepts()`, `lookup_ordinal_grade_concept()`)
+   - Rewriting `unit_normalizer.py` to use lazy-init DB-backed caches instead of YAML
+   - Adding `warm_omop_caches()` async function called from `ground_node` preflight
+   - Keeping ordinal scale aliases as a Python dict constant (clinical knowledge not in OMOP) but resolving grade→concept_id from DB
+   - Deprecating (not deleting) `ucum_mappings.yaml`
+   - Updating tests to mock cache dicts instead of YAML
+
+9. Optional Next Step:
+   Write the plan to the plan file and call `ExitPlanMode` to present it to the user for approval. This directly continues the work prompted by the user's message: "Instead of a YAML like ucum_mappings or ordinal_maps why don't we create a lookup function? I mean the OMOP is already a DB and we have UMLS, SNOMED, RxNOrm, etc tools as well as medgemma."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user]
+
+---
+
+proceed
+
+---
+
+[Request interrupted by user for tool use]
