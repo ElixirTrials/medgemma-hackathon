@@ -1,0 +1,173 @@
+Implement the following plan:
+
+# Plan: Add LLM-level tracing to MLflow pipeline spans
+
+## Context
+
+MLflow traces currently show only high-level node I/O (e.g. `protocol_id`, `extraction_json_len`) but contain zero detail about the actual LLM calls — no prompts, responses, token counts, or model names. The `pipeline_span()` context manager creates one flat span per node. Since MLflow 3.x automatically nests `start_span()` calls, any `mlflow.start_span()` invoked inside an existing `pipeline_span()` will automatically become a child span. This means we can add instrumentation at the tool level without changing the node or tracing architecture.
+
+## Approach: Add a reusable `llm_span()` context manager to `tracing.py`
+
+Create a lightweight `llm_span()` helper (sibling to `pipeline_span()`) that wraps individual LLM calls. When called inside a `pipeline_span()`, it automatically becomes a child span. When MLflow is unavailable, it's a no-op. Apply it to each LLM call site in the tool modules.
+
+## Files to modify
+
+### 1. `services/protocol-processor-service/src/protocol_processor/tracing.py`
+- Add `llm_span(name, model_name, span_type="LLM")` context manager
+- It creates a child span inside the current trace, logging:
+  - **Inputs**: `model`, `prompt` (truncated to 10k chars), `prompt_tokens` (if available)
+  - **Outputs**: `response` (truncated to 10k chars), `input_tokens`, `output_tokens`, `total_tokens`
+- Falls back to `_NoOpLLMSpan` when MLflow unavailable
+- The yielded object has `set_request(model, prompt_text)` and `set_response(response_text, usage_metadata=None)` helpers
+
+### 2. `services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py`
+- Wrap `_invoke_gemini()` body with `llm_span("gemini_extraction", model)`
+- Log: system_prompt + user_prompt as input, response.text as output
+- Extract `response.usage_metadata` for token counts (google.genai provides `prompt_token_count`, `candidates_token_count`, `total_token_count`)
+
+### 3. `services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py`
+- `medgemma_decide()`: wrap `model.ainvoke(messages)` with `llm_span("medgemma_evaluate", model_name)`
+- `_structure_decision_with_gemini()`: wrap `structured_llm.ainvoke(prompt)` with `llm_span("gemini_structure_decision", model_name)`
+- `agentic_reasoning_loop()`: wrap `model.ainvoke(messages)` with `llm_span("medgemma_reasoning", model_name)`
+- `_structure_reasoning_with_gemini()`: wrap `structured_llm.ainvoke(prompt)` with `llm_span("gemini_structure_reasoning", model_name)`
+- For LangChain responses: extract token counts from `raw_response.usage_metadata` or `raw_response.response_metadata`
+
+### 4. `services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py`
+- Wrap `structured.ainvoke(prompt)` in `decompose_entities_from_criterion()` with `llm_span("gemini_entity_decompose", model_name)`
+
+### 5. `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`
+- Wrap `structured_llm.ainvoke(prompt)` in `generate_field_mappings()` with `llm_span("gemini_field_mapping")`
+
+### 6. `services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`
+- No changes needed — `create_structured_llm()` is a factory, instrumentation belongs at call sites
+
+### 7. Tool files using `create_structured_llm` (via grep: structure_builder.py, ordinal_resolver.py)
+- Wrap their `structured_llm.ainvoke(prompt)` calls similarly
+
+## `llm_span()` design
+
+```python
+@contextmanager
+def llm_span(name: str, model_name: str = ""):
+    """Create an MLflow child span for an individual LLM call."""
+    # Inside existing pipeline_span → auto-nests as child
+    # No pipeline_span active → creates independent trace (still useful)
+    try:
+        import mlflow
+        if os.getenv("MLFLOW_TRACKING_URI"):
+            with mlflow.start_span(name=name, span_type="LLM") as span:
+                ctx = _LLMSpanCtx(span, model_name)
+                yield ctx
+                ctx._finalize()
+                return
+    except ImportError: ...
+    except Exception: ...
+    yield _NoOpLLMSpan()
+```
+
+The `_LLMSpanCtx` object exposes:
+- `set_request(prompt_text)` — logs prompt + model to span inputs
+- `set_response(response_text, usage=None)` — logs response + tokens to span outputs
+
+## Verification
+
+1. `uv run ruff check .` — passes
+2. `uv run mypy services/protocol-processor-service` — passes
+3. `uv run pytest services/protocol-processor-service/tests/ -x` — passes
+4. Smoke test script (not committed): triggers a pipeline run and queries MLflow to verify child spans appear with prompt/response/token data inside node traces
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+What is the noOp for?
+
+---
+
+I get: WARNING:protocol_processor.trigger:MLflow setup failed — tracing disabled
+Traceback (most recent call last):
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/trigger.py", line 119, in _ensure_mlflow
+    mlflow.set_experiment(_get_experiment_name())
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/tracking/fluent.py", line 220, in set_experiment
+    raise MlflowException(
+    ...<7 lines>...
+    )
+mlflow.exceptions.MlflowException: Cannot set a deleted experiment 'protocol-processing-20260224' as the active experiment.. This happens when I clear the experiments from MLFlow. I want to be robust to this.
+
+---
+
+No, no restoration, re-creation.
+
+---
+
+[Request interrupted by user]
+
+---
+
+I am still getting: mlflow.exceptions.MlflowException: Cannot set a deleted experiment 'protocol-processing-20260224' as the active experiment. You can restore the experiment, or permanently delete the experiment to create a new one.
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/services/protocol-processor-service/src/protocol_processor/trigger.py", line 124, in _ensure_mlflow
+    mlflow.create_experiment(experiment_name)
+    ~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/tracking/fluent.py", line 2227, in create_experiment
+    return MlflowClient().create_experiment(name, artifact_location, tags)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/tracking/client.py", line 1979, in create_experiment
+    return self._tracking_client.create_experiment(name, artifact_location, tags)
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/telemetry/track.py", line 30, in wrapper
+    result = func(*args, **kwargs)
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/tracking/_tracking_service/client.py", line 298, in create_experiment
+    return self.store.create_experiment(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        name=name,
+        ^^^^^^^^^^
+        artifact_location=artifact_location,
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        tags=[ExperimentTag(key, value) for (key, value) in tags.items()] if tags else [],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/store/tracking/rest_store.py", line 281, in create_experiment
+    response_proto = self._call_endpoint(CreateExperiment, req_body)
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/store/tracking/rest_store.py", line 230, in _call_endpoint
+    return call_endpoint(
+        self.get_host_creds(),
+    ...<4 lines>...
+        retry_timeout_seconds=retry_timeout_seconds,
+    )
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/utils/rest_utils.py", line 596, in call_endpoint
+    response = verify_rest_response(response, endpoint)
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/utils/rest_utils.py", line 315, in verify_rest_response
+    raise RestException(json.loads(response.text))
+mlflow.exceptions.RestException: RESOURCE_ALREADY_EXISTS: Experiment(name=protocol-processing-20260224) already exists. Error: (raised as a result of Query-invoked autoflush; consider using a session.no_autoflush block if this flush is occurring prematurely)
+(sqlite3.IntegrityError) UNIQUE constraint failed: experiments.name
+[SQL: INSERT INTO experiments (name, artifact_location, lifecycle_stage, creation_time, last_update_time) VALUES (?, ?, ?, ?, ?)]
+
+---
+
+Okay. I see this when running make run-dev: INFO:     127.0.0.1:53613 - "GET /api/2.0/mlflow/experiments/get-by-name?experiment_name=protocol-processing-20260224 HTTP/1.1" 200 OK
+WARNING:api_service.main:MLflow initialization failed, continuing without tracing
+Traceback (most recent call last):
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/services/api-service/src/api_service/main.py", line 66, in lifespan
+    mlflow.set_experiment(experiment_name)
+    ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/noahdolevelixir/Code/medgemma-hackathon/.venv/lib/python3.13/site-packages/mlflow/tracking/fluent.py", line 220, in set_experiment
+    raise MlflowException(
+    ...<7 lines>...
+    )
+mlflow.exceptions.MlflowException: Cannot set a deleted experiment 'protocol-processing-20260224' as the active experiment. You can restore the experiment, or permanently delete the experiment to create a new one.
+
+---
+
+This may or may not be a big deal, but I also see: MLflow search_traces API not available for orphan cleanup
+Registry store URI not provided. Using backend store URI.
+
+---
+
+Check MLFlow now to see whether the traces are being properly logged
