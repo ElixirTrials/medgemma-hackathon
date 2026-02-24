@@ -3,7 +3,7 @@ Select the best terminology match for the following medical entity.
 ## Entity
 Text: "{{ entity_text }}"
 Type: {{ entity_type }}
-From criterion: "{{ criterion_context[:200] }}"
+{% if entity_type != "Demographic" %}From criterion: "{{ criterion_context[:200] }}"{% endif %}
 
 ## Candidates
 {% if candidates %}
@@ -21,12 +21,10 @@ Review the candidates and select the best match for "{{ entity_text }}" ({{ enti
 
 State:
 1. Which candidate best matches the entity (or that none do)
-2. Your confidence (0.9-1.0 exact, 0.7-0.8 synonym, 0.5-0.6 partial, 0.0 no match)
+2. Your confidence score
 3. Your brief reasoning
 
-Be decisive. If a candidate clearly represents the same medical concept, assign confidence ≥ 0.8.
-
-IMPORTANT: Use the criterion context to validate candidates. A candidate that contradicts the criterion context (e.g., wrong anatomical site, wrong demographic, wrong clinical domain) should receive confidence 0.0 even if the terminology text partially overlaps. The criterion context is the ground truth — candidates must be clinically consistent with it.
+Be decisive. If a candidate clearly represents the same medical concept, assign confidence >= 0.8.
 {% else %}
 No terminology candidates were found. State:
 - That no candidates are available

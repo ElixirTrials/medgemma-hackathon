@@ -33,16 +33,9 @@ IMPORTANT: The previous search for "{{ previous_query }}" returned 0 results. Yo
 {% endif %}
 
 Simplification strategies (try in order):
-1. Expand abbreviations/acronyms: "HTN" → "hypertension", "MI" → "myocardial infarction", "DM" → "diabetes mellitus", "CKD" → "chronic kidney disease"
-2. Use standard medical terminology: "high blood pressure" → "hypertension", "sugar diabetes" → "diabetes mellitus", "heart attack" → "myocardial infarction"
+1. Expand abbreviations/acronyms
+2. Use standard medical terminology
 3. Drop qualifiers to broaden: "severe persistent asthma" → "asthma", "bilateral knee osteoarthritis" → "osteoarthritis"
 4. Use the core medical noun only: "left ventricular ejection fraction" → "ejection fraction"
 
 If rephrasing would help, return the rephrased query. Otherwise return null.
-
-## Instructions
-
-Respond with a brief clinical analysis. Address all three questions.
-State whether the entity should be skipped, whether it is a derived entity (and the
-standard term), and whether a rephrased query would improve terminology lookup.
-Be concise — one sentence per question.

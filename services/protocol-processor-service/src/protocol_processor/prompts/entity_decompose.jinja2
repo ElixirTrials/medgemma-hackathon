@@ -6,18 +6,14 @@ You are a clinical NLP entity extractor. Given a clinical trial eligibility crit
    - "No history of myocardial infarction" -> text: "myocardial infarction", entity_type: "Condition"
    - "Currently taking calcium channel blockers" -> text: "calcium channel blockers", entity_type: "Medication"
    - "Age 20 to 60 years" -> text: "age", entity_type: "Demographic"
-   - "BMI > 30 kg/m2" -> text: "body mass index", entity_type: "Lab_Value"
    - "Coronary artery bypass graft within 3 months" -> text: "coronary artery bypass graft", entity_type: "Procedure"
-   - "Potassium >= 5.0 mmol/L" -> text: "potassium", entity_type: "Lab_Value"
-   - "LVEF <= 40%" -> text: "left ventricular ejection fraction", entity_type: "Lab_Value"
 
 2. One criterion may yield 0, 1, or multiple entities.
 3. Skip non-groundable concepts: consent, willingness, investigator discretion, geographic location, legal capacity.
 4. Entity types: Condition | Medication | Lab_Value | Procedure | Demographic | Other
 5. The `value` field is NOT used by this tool. Only extract `text` (the medical concept) and `entity_type`.
 6. Extract entities even from indication or context-framing criteria. The sentence structure does not matter — extract every medical concept regardless of how it is phrased.
-7. Any clinical scoring system, classification scale, physical status grade, or ordinal assessment is Lab_Value — never "Other". This includes ALL scales you know of, whether common or rare.
-8. Use "Other" ONLY as a last resort for truly unclassifiable entities. Always prefer a specific type. If in doubt between "Other" and a specific type, choose the specific type.
+7. Classify clinical scoring systems, classification scales, and ordinal assessments as Lab_Value. Use "Other" only as a last resort — always prefer a specific type.
 
 ## Medical Normalization Rules
 - Always normalize entity text to the standard medical NOUN form used in terminology systems (UMLS, SNOMED, ICD-10), not adjective/adverb forms from the criterion text. Adjective forms produce poor terminology search results:
