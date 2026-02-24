@@ -1,0 +1,36 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "668377066b10",
+  "session_id": "f4aa7543-6425-4086-a461-a0c1de67d23b",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T20:36:43.945458Z",
+  "branch": "feat/submission-additions",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/api-service/src/api_service/main.py",
+    "services/protocol-processor-service/src/protocol_processor/tracing.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "cbe0304613cc",
+  "transcript_identifier_at_start": "ad07b3e2-e4e8-443f-b216-5a93cf3d9983",
+  "checkpoint_transcript_start": 1275,
+  "transcript_lines_at_start": 1275,
+  "token_usage": {
+    "input_tokens": 21,
+    "cache_creation_tokens": 14094,
+    "cache_read_tokens": 1272748,
+    "output_tokens": 2810,
+    "api_call_count": 19
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T20:36:42.943869Z",
+    "agent_lines": 0,
+    "human_added": 5,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 5,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/f4aa7543-6425-4086-a461-a0c1de67d23b.jsonl"
+}
