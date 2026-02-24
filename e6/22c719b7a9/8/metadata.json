@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "e622c719b7a9",
+  "session_id": "unknown",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T21:28:44.150653Z",
+  "branch": "feature/prompt-optimizations",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/user.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "libs/inference/src/inference/model_garden.py",
+    "scripts/evaluate_prompt_changes.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "4cf9aa95febd",
+  "checkpoint_transcript_start": 15,
+  "transcript_lines_at_start": 15,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T21:28:44.132286Z",
+    "agent_lines": 364,
+    "human_added": 58,
+    "human_modified": 59,
+    "human_removed": 0,
+    "total_committed": 481,
+    "agent_percentage": 75.67567567567568
+  },
+  "transcript_path": ".cursor/projects/Users-noahdolevelixir-Code-medgemma-hackathon/agent-transcripts/6efdb764-aac5-42da-b6cd-1d3ad9018c86/6efdb764-aac5-42da-b6cd-1d3ad9018c86.jsonl"
+}
