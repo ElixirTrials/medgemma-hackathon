@@ -167,53 +167,31 @@ async def generate_field_mappings(
             code_context = f"(grounded to {system} code: {entity.selected_code})"
 
         prompt = (
-            "You are a clinical trial protocol analyst. Decompose the"
-            " following criterion into structured AutoCriteria field"
-            " mappings using the Entity-Relation-Value-Unit pattern.\n\n"
+            "<role>Clinical trial protocol analyst. Decompose criterion"
+            " into Entity-Relation-Value-Unit field mappings.</role>\n\n"
+            "<entity_context>\n"
             f"Medical entity: {grounded_term} {code_context}\n"
-            f"Criterion text: {criterion_text}\n\n"
-            "Instructions:\n"
+            f"Criterion text: {criterion_text}\n"
+            "</entity_context>\n\n"
+            "<rules>\n"
             "- Extract each discrete measurement, threshold, or condition"
             " as a separate mapping\n"
-            "- entity: the specific measurement or concept"
-            " (e.g. 'HbA1c', 'Age', 'eGFR')\n"
-            "- relation: MUST be one of: =, !=, >, >=, <, <=, within,"
+            "- relation: one of =, !=, >, >=, <, <=, within,"
             " not_in_last, contains, not_contains\n"
-            "- CRITICAL — Boolean normalization for presence/absence:\n"
-            "  - If the criterion states a condition IS present, required,"
-            " or confirmed:\n"
-            '    relation="=", value={"type": "standard", "value": "True",'
-            ' "unit": null}\n'
-            "  - If the criterion states a condition is NOT present or"
-            " excluded:\n"
-            '    relation="!=", value={"type": "standard", "value": "True",'
-            ' "unit": null}\n'
-            '  - NEVER use "present", "absent", "confirmed", "positive",'
-            ' "negative" as value strings\n'
-            '- value: a typed object with a "type" discriminator:\n'
-            '  - Standard: {"type": "standard", "value": "7", "unit": "%"}\n'
-            '  - Range: {"type": "range", "min": "18", "max": "65",'
-            ' "unit": "years"}\n'
-            '  - Temporal: {"type": "temporal", "duration": "5",'
-            ' "unit": "days"}\n'
-            "- CRITICAL — Temporal values: 'duration' MUST be a plain number"
-            " (e.g. '5', '6', '30'). NEVER put prose or descriptions in"
-            " duration. Unit goes in 'unit' (e.g. 'days', 'months', 'years').\n"
-            '  Example: "within the past 5 days" → {"type": "temporal",'
-            ' "duration": "5", "unit": "days"}\n'
-            '  BAD: {"duration": "5-days-ago-to-present"} — just use'
-            ' {"duration": "5", "unit": "days"}\n'
-            "- Create one mapping per discrete condition in the criterion\n"
-            "- If no clear measurement exists, create one mapping with"
-            " relation='=',"
-            ' value={"type": "standard", "value": "True", "unit": null}\n'
-            "- ANTI-PATTERNS (do NOT produce these):\n"
-            "  BAD: relation='!=', value='present'"
-            " -> use relation='!=', value='True'\n"
-            "  BAD: relation='contains', value='confirmed'"
-            " -> use relation='=', value='True'\n"
-            "  BAD: relation='==', value='absent'"
-            " -> use relation='!=', value='True'\n"
+            "- Boolean normalization: presence → relation='=', value='True';"
+            " absence → relation='!=', value='True'."
+            " Never use 'present'/'absent'/'confirmed' as values.\n"
+            "- value types: standard {value, unit},"
+            " range {min, max, unit}, temporal {duration, unit}\n"
+            "- Temporal duration MUST be a plain number."
+            ' "within 5 days" → duration="5", unit="days"\n'
+            "- Default: if no measurement, use relation='=',"
+            ' value={"type":"standard","value":"True","unit":null}\n'
+            "</rules>\n\n"
+            "<anti_patterns>\n"
+            "BAD: value='present' → use value='True'\n"
+            "BAD: duration='5-days-ago' → use duration='5', unit='days'\n"
+            "</anti_patterns>"
         )
 
         from protocol_processor.tracing import llm_span

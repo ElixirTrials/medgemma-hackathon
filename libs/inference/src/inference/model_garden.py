@@ -61,9 +61,6 @@ def _build_gemma_prompt(messages: list[Any]) -> str:
         if not isinstance(content, str):
             content = str(content)
 
-        if role == "user":
-            content = f"### Instruction:\n{content}"
-
         prompt_parts.append(f"<start_of_turn>{role}\n{content}<end_of_turn>")
 
     return "\n".join(prompt_parts) + "\n<start_of_turn>model\n"
@@ -187,7 +184,7 @@ class ModelGardenChatModel(BaseChatModel):
     endpoint_resource_name: str
     project: str
     location: str
-    max_output_tokens: int = Field(default=8192)
+    max_output_tokens: int = Field(default=512)
     _endpoint: Any = None
 
     def model_post_init(self, __context: Any) -> None:
@@ -311,7 +308,7 @@ class LocalMedGemmaChatModel(BaseChatModel):
 
     model_path: str = Field(default="google/medgemma-4b-it")
     quantization: str = Field(default="4bit")
-    max_output_tokens: int = Field(default=4096)
+    max_output_tokens: int = Field(default=512)
     _model: Any = None
     _tokenizer: Any = None
 

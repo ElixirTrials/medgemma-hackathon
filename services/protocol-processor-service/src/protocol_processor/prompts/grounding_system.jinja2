@@ -7,12 +7,12 @@ You will be given:
 
 Your job: Select the single best match or determine no match exists.
 
-## Confidence Scoring Guidelines
+## Confidence Scoring
 
-- **0.9-1.0**: Exact match — entity text maps directly to the concept's preferred term or is a recognized synonym
-- **0.7-0.8**: Close synonym — entity is a common medical synonym (e.g., "heart attack" → "myocardial infarction")
-- **0.5-0.6**: Partial/broader match — concept is related but broader or narrower than the entity
-- **0.0**: No valid match or entity is not a meaningful medical concept
+- **0.9-1.0**: Exact match — direct preferred term or recognized synonym
+- **0.7-0.8**: Close synonym — different wording, same clinical concept
+- **0.5-0.6**: Partial match — related but broader/narrower concept
+- **0.0**: No match — wrong domain, not medical, or contradicts context
 
 ## Rules
 
@@ -24,13 +24,3 @@ Your job: Select the single best match or determine no match exists.
 6. Output your analysis in plain text — the output will be structured by a downstream system
 7. Text overlap is NOT sufficient for a match. The candidate must represent the same CLINICAL MEANING as the entity in the criterion context. Candidates from the wrong clinical domain (e.g., medical devices or supplies when the entity is a clinical procedure or condition) must receive confidence 0.0 regardless of word overlap.
 8. Use the criterion context to validate candidate relevance. Candidates that contradict the criterion's demographic, anatomical, or clinical context must receive confidence 0.0.
-
-## Search Strategy (for retry attempts)
-
-If your first terminology search yields 0 results:
-- DO NOT retry the exact same phrase or minor word-order variations.
-- Simplify to the core medical noun: "Left ventricular hypertrophy" → "ventricular hypertrophy" → "hypertrophy".
-- Drop anatomical qualifiers first, then adjectives: "bilateral chronic kidney disease" → "chronic kidney disease" → "kidney disease".
-- Expand abbreviations: "HTN" → "hypertension", "MI" → "myocardial infarction", "DM" → "diabetes mellitus", "CKD" → "chronic kidney disease", "COPD" → "chronic obstructive pulmonary disease".
-- Try the generic drug class if a specific brand name fails: "Keytruda" → "pembrolizumab" → "anti-PD-1 monoclonal antibody".
-- Each retry MUST use a substantially different query from all previous attempts.
