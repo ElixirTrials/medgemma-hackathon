@@ -1,0 +1,43 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7c835773afee",
+  "session_id": "c364085b-cc27-4636-a6b4-3351747a23fd",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T22:23:34.41771Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/api-service/alembic/versions/46_01_add_unit_ucum_code.py",
+    "services/api-service/src/api_service/exporters/fhir_group_builder.py",
+    "docs/openapi.json",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "tests/e2e/test_grounding_snippets.py",
+    "tests/e2e/test_snippets.json",
+    ".github/workflows/deploy_docs.yml",
+    "README.md",
+    "apps/hitl-ui/src/components/structured-editor/types.ts",
+    "libs/shared/src/shared/models.py",
+    "scripts/evaluate_prompt_changes.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a8b0f725c922",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T22:23:34.406706Z",
+    "agent_lines": 159,
+    "human_added": 543,
+    "human_modified": 9,
+    "human_removed": 0,
+    "total_committed": 711,
+    "agent_percentage": 22.362869198312236
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/c364085b-cc27-4636-a6b4-3351747a23fd.jsonl"
+}
