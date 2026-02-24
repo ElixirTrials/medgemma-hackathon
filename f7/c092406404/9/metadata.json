@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f7c092406404",
+  "session_id": "be495a09-53d6-4a78-af8b-1e80c18b6095",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T14:42:10.717412Z",
+  "branch": "feat/submission-additions",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/App.tsx",
+    "apps/hitl-ui/vite.config.ts"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "46a0392dfd2e",
+  "transcript_identifier_at_start": "dbfbd456-740f-4533-a5fa-de92f5959341",
+  "token_usage": {
+    "input_tokens": 11,
+    "cache_creation_tokens": 26432,
+    "cache_read_tokens": 278149,
+    "output_tokens": 1601,
+    "api_call_count": 9
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T14:42:10.690216Z",
+    "agent_lines": 41,
+    "human_added": 6537,
+    "human_modified": 3,
+    "human_removed": 0,
+    "total_committed": 6581,
+    "agent_percentage": 0.6230056222458593
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/be495a09-53d6-4a78-af8b-1e80c18b6095.jsonl"
+}
