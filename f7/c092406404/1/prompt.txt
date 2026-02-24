@@ -1,0 +1,398 @@
+Implement the following plan:
+
+# Plan: Replace Static YAML Lookups with Dynamic OMOP DB Queries
+
+## Context
+
+`unit_normalizer.py` uses `ucum_mappings.yaml` (297 lines) for:
+1. **Unit normalization**: clinical unit text → UCUM code + OMOP unit_concept_id
+2. **Categorical value mapping**: qualifier words ("positive") → OMOP concept ID
+3. **Ordinal scale grading**: ECOG/Karnofsky/NYHA/ASA grades → OMOP concept IDs
+
+This is brittle — misspellings, unseen aliases, or new scales break silently. The OMOP vocabulary DB (already connected via `OMOP_VOCAB_URL`) contains all this data. Replace YAML with dynamic DB queries. No YAML fallback.
+
+---
+
+## Changes
+
+### 1. Add 3 DB lookup functions to `omop_mapper.py`
+
+**File**: `services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py`
+
+```python
+def _lookup_ucum_unit(engine, unit_text: str) -> tuple[str | None, int | None]:
+    """Query concept+concept_synonym where vocabulary_id='UCUM'.
+    Returns (ucum_code, omop_concept_id) or (None, None)."""
+
+def _lookup_value_concept(engine, value_text: str) -> tuple[str | None, int | None]:
+    """Query concept where domain_id='Meas Value' for SNOMED qualifiers.
+    Returns (normalized_text, omop_concept_id) or (None, None)."""
+
+def _lookup_ordinal_concept(engine, scale_name: str, grade: str) -> int | None:
+    """Query concept+concept_synonym for scale+grade combo.
+    Returns omop_concept_id or None."""
+```
+
+All use `_get_omop_engine()` (existing lazy singleton). All are synchronous (called from sync callers or wrapped in `asyncio.to_thread`).
+
+### 2. Rewrite `unit_normalizer.py` — DB-only, no YAML
+
+**File**: `services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py`
+
+- Delete `_load_ucum_mappings()` YAML loader
+- Delete `_load_ordinal_scales()` YAML loader
+- Delete `_CONFIG_PATH` reference to `ucum_mappings.yaml`
+- Remove `import yaml`
+
+**`normalize_unit()`**: Use `@lru_cache(maxsize=512)` wrapping `_lookup_ucum_unit()`.
+
+**`normalize_value()`**: Use `@lru_cache(maxsize=128)` wrapping `_lookup_value_concept()`.
+
+**`_match_ordinal_scale()`**: Keep as-is but use a Python dict constant instead of YAML:
+```python
+# Clinical knowledge: which names refer to which scale (not in OMOP)
+ORDINAL_SCALE_ALIASES: dict[str, str] = {
+    "ecog": "ecog", "ecog ps": "ecog", "ecog performance status": "ecog",
+    "who performance status": "ecog", "zubrod score": "ecog",
+    "karnofsky": "karnofsky", "kps": "karnofsky",
+    "karnofsky performance status": "karnofsky",
+    "nyha": "nyha", "nyha class": "nyha",
+    "nyha functional class": "nyha", "new york heart association": "nyha",
+    "asa": "asa", "asa physical status": "asa", "asa ps": "asa",
+    "asa class": "asa", "asa classification": "asa", "asa score": "asa",
+}
+```
+
+**`normalize_ordinal_value()`**: Resolve grade→concept_id via `_lookup_ordinal_concept()` instead of YAML values dict. Still returns `(value_concept_id, 8527)`.
+
+**`propose_ordinal_mappings()`**: Delete or simplify — no YAML to scan for missing entries anymore.
+
+### 3. Delete `ucum_mappings.yaml`
+
+**File**: `services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml`
+
+Delete entirely. No fallback needed — OMOP DB is the single source of truth.
+
+### 4. Update callers
+
+**`structure_builder.py`** (line 30): No change needed — it imports `normalize_unit`, `normalize_value`, `normalize_ordinal_value` which keep the same signatures.
+
+**`ground.py`** (line 51): No change needed — it imports `normalize_value` which keeps the same signature.
+
+---
+
+## Tests
+
+### Update `tests/test_unit_normalizer.py`
+
+Mock `_get_omop_engine()` and the new lookup functions instead of relying on YAML. Test the same inputs/outputs.
+
+### Update `tests/test_grounding_fixes.py`
+
+Add tests for the 3 new DB lookup functions (mocked engine).
+
+### New: `tests/e2e/test_grounding_snippets.py`
+
+Test against `tests/e2e/test_snippets.json`:
+
+```python
+@pytest.mark.e2e
+class TestGroundingSnippets:
+    """Validate grounding against test_snippets.json golden examples."""
+
+    @pytest.fixture()
+    def snippets(self) -> list[dict]:
+        path = Path(__file__).parent / "test_snippets.json"
+        return json.loads(path.read_text())["grounding_test_snippets"]
+
+    @pytest.mark.parametrize("idx", range(5))  # 5 grounding snippets
+    def test_grounding_snippet(self, idx, snippets, ...):
+        """Each snippet's entities are extracted and grounded with correct codes."""
+        snippet = snippets[idx]
+        # Submit snippet through the pipeline
+        # Verify extracted entities match expected entity_name, system, code
+        # Verify relations match (accounting for normalization: "==" -> "=")
+```
+
+For the **extraction_test_snippets**: verify classification (inclusion/exclusion/neither) and entity extraction.
+
+For the **grounding_test_snippets**: verify entity names, terminology system codes (UMLS), and relation operators match expected values.
+
+---
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `tools/omop_mapper.py` | Add `_lookup_ucum_unit()`, `_lookup_value_concept()`, `_lookup_ordinal_concept()` |
+| `tools/unit_normalizer.py` | Rewrite: DB-backed caches, delete YAML loading, keep ordinal aliases as Python dict |
+| `config/ucum_mappings.yaml` | Delete |
+| `tests/test_unit_normalizer.py` | Update mocks to target DB functions |
+| `tests/test_grounding_fixes.py` | Add DB lookup tests |
+| `tests/e2e/test_grounding_snippets.py` | New — validate against test_snippets.json |
+
+---
+
+## Verification
+
+```bash
+uv run ruff check .
+uv run ruff format --check .
+uv run mypy services/protocol-processor-service/src
+uv run pytest services/protocol-processor-service/tests/ -v
+# E2E (requires stack running):
+uv run pytest tests/e2e/test_grounding_snippets.py -v -m e2e
+```
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Let's check how we do in grounding when we use that endpoint with the snippets from the json. Show me.
+
+---
+
+[Request interrupted by user]
+
+---
+
+There is an .env file.
+
+---
+
+I add two items to the grounding examples in the test json. Can you check just those and report back? They don't have expected values yet.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User provided a detailed plan to replace static YAML lookups with dynamic OMOP DB queries in the unit_normalizer.py system. The plan was comprehensive with specific files, functions, and test changes.
+
+2. **Implementation Phase**:
+   - Read key files: omop_mapper.py, unit_normalizer.py, ucum_mappings.yaml, test files, test_snippets.json
+   - Added 3 DB lookup functions to omop_mapper.py: `_lookup_ucum_unit`, `_lookup_value_concept`, `_lookup_ordinal_concept`
+   - Rewrote unit_normalizer.py to remove YAML loading, use DB-backed lru_cache wrappers, and use ORDINAL_SCALE_ALIASES dict
+   - Deleted ucum_mappings.yaml
+   - Updated test_unit_normalizer.py, test_phase3b_e2e.py, test_grounding_fixes.py
+   - Created tests/e2e/test_grounding_snippets.py
+   - Fixed test_ordinal_full_cycle.py (imported removed `_load_ordinal_scales`)
+   - Fixed test_phase2_e2e.py and test_phase3_integration.py (needed DB mocks)
+
+3. **Verification**: All 266 tests passed, ruff check/format clean, mypy clean.
+
+4. **User asked to check grounding with snippets**: "Let's check how we do in grounding when we use that endpoint with the snippets from the json. Show me."
+
+5. **Exploration**: Spawned an Explore agent to understand the grounding pipeline architecture. Found the pipeline is: ingest → extract → parse → ground → persist → structure → ordinal_resolve. Grounding uses TerminologyRouter + MedGemma + OMOP mapper.
+
+6. **Created test script**: scripts/test_grounding_snippets.py that runs the 5 existing golden snippets through live grounding (using known entity names, not extraction).
+
+7. **Results**: 10/10 entities grounded, 5/10 exact code match (50%). All had high confidence. Misses were semantically close concepts.
+
+8. **User added 2 new snippets**: "I add two items to the grounding examples in the test json. Can you check just those and report back? They don't have expected values yet."
+
+9. **Read updated test_snippets.json**: Found 2 new snippets at the end:
+   - "American Society of Anesthesiologists (ASA) physical status 1, 2, or 3." with empty entities
+   - "Female subjects must be surgically sterile" with empty entities
+
+10. **User clarified**: "Just show me the result rather than compare to golden values."
+
+11. **Created scripts/test_new_snippets.py**: Script to extract entities first (since entities array is empty), then ground them.
+
+12. **Error**: `ImportError: cannot import name 'extract_entities_from_criterion'` - the function is actually `decompose_entities_from_criterion` in `entity_decomposer.py` with signature `async def decompose_entities_from_criterion(criterion_text: str, category: str | None) -> list[dict]`
+
+13. **Was about to fix the import** when conversation was interrupted for summary.
+
+Also noted: User sent message "/Users/noahdolevelixir/Code/medgemma-hackathon/.env" during exploration phase, then clarified "There is an .env file." which was already discovered.
+
+Summary:
+1. Primary Request and Intent:
+   - **Main task (completed)**: Implement a plan to replace static YAML lookups (`ucum_mappings.yaml`) with dynamic OMOP database queries in the protocol processor service. This involved adding DB lookup functions to `omop_mapper.py`, rewriting `unit_normalizer.py` to use DB-backed caches, deleting the YAML file, updating all tests, and creating new E2E tests.
+   - **Second task (completed)**: Run the existing 5 grounding test snippets from `test_snippets.json` through the live pipeline (TerminologyRouter + MedGemma + OMOP) and show results. Results: 10/10 grounded, 5/10 exact code match.
+   - **Third task (in progress)**: User added 2 new snippets to `test_snippets.json` with empty `entities` arrays. User wants those 2 new snippets run through grounding and results reported back. User explicitly said "Just show me the result rather than compare to golden values."
+
+2. Key Technical Concepts:
+   - OMOP vocabulary database (PostgreSQL on localhost:5433) for medical concept lookups
+   - UCUM unit codes and OMOP unit_concept_id mapping
+   - Ordinal scale normalization (ECOG, Karnofsky, NYHA, ASA)
+   - `lru_cache` for DB query caching in unit_normalizer
+   - TerminologyRouter + MedGemma + OMOP dual grounding pipeline
+   - Entity decomposition via Gemini (`decompose_entities_from_criterion`)
+   - `ORDINAL_SCALE_ALIASES` Python dict replacing YAML ordinal config
+   - Mock patterns: patching `_get_omop_engine`, `_lookup_ucum_unit`, `_lookup_value_concept`, `_lookup_ordinal_concept`
+   - Environment: `.env` file exists with UMLS_API_KEY, GOOGLE_API_KEY, MODEL_BACKEND=vertex, OMOP_VOCAB_URL, DATABASE_URL all configured. Docker containers running: postgres (5432) and omop-vocab (5433).
+
+3. Files and Code Sections:
+   - **`services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py`**
+     - Added 3 new DB lookup functions before the public async API section
+     - `_lookup_ucum_unit(engine, unit_text)` - queries UCUM vocabulary for unit codes via exact concept_name then synonym match
+     - `_lookup_value_concept(engine, value_text)` - queries Meas Value domain for SNOMED qualifiers
+     - `_lookup_ordinal_concept(engine, scale_name, grade)` - queries for scale+grade combos using multiple search patterns
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py`**
+     - Complete rewrite: removed `import yaml`, `_CONFIG_PATH`, `_load_ucum_mappings()`, `_load_ordinal_scales()`
+     - Added `ORDINAL_SCALE_ALIASES` dict (clinical knowledge mapping alias→scale name)
+     - Added `_cached_ucum_lookup(unit_key)` with `@lru_cache(maxsize=512)` wrapping `_lookup_ucum_unit`
+     - Added `_cached_value_lookup(value_key)` with `@lru_cache(maxsize=128)` wrapping `_lookup_value_concept`
+     - `normalize_unit()`, `normalize_value()` now call cached DB lookups
+     - `_match_ordinal_scale()` uses `ORDINAL_SCALE_ALIASES` dict instead of YAML
+     - `normalize_ordinal_value()` uses `_lookup_ordinal_concept` for grade→concept_id
+     - `propose_ordinal_mappings()` returns `[]` (retained for backward compat)
+
+   - **`services/protocol-processor-service/src/protocol_processor/config/ucum_mappings.yaml`** — Deleted (was 297 lines)
+
+   - **`services/protocol-processor-service/src/protocol_processor/config/__init__.py`** — Updated docstring to remove YAML reference
+
+   - **`services/protocol-processor-service/tests/test_unit_normalizer.py`**
+     - Complete rewrite with mock DB data (`_MOCK_UCUM`, `_MOCK_VALUES` dicts)
+     - `_patch_db()` helper returns 4 context managers patching `_get_omop_engine`, `_lookup_ucum_unit`, `_lookup_value_concept`, `_lookup_ordinal_concept`
+     - Each test method uses `setup_method` to clear caches and wraps in `p1, p2, p3, p4 = _patch_db(); with p1, p2, p3, p4:`
+     - `test_propose_returns_empty` replaces old `test_propose_returns_missing`
+
+   - **`services/protocol-processor-service/tests/test_phase3b_e2e.py`**
+     - Added same mock DB infrastructure
+     - `autouse` fixture `_clear_caches` clears LRU caches
+     - All async tests wrap in DB patches
+     - `TestProposeOrdinalMappingsE2E` reduced to single `test_returns_empty_list`
+
+   - **`services/protocol-processor-service/tests/test_ordinal_full_cycle.py`**
+     - Rewrote to import `ORDINAL_SCALE_ALIASES` instead of `_load_ordinal_scales`
+     - Phase 3 (simulate approval) patches `ORDINAL_SCALE_ALIASES` dict instead of `_load_ordinal_scales` return value
+     - Added full DB mock infrastructure
+
+   - **`services/protocol-processor-service/tests/test_grounding_fixes.py`**
+     - Added Test 11 (`TestLookupUcumUnit`), Test 12 (`TestLookupValueConcept`), Test 13 (`TestLookupOrdinalConcept`) at the end
+
+   - **`services/protocol-processor-service/tests/test_phase2_e2e.py`**
+     - Added `_MOCK_UCUM`, `_MOCK_VALUES`, mock functions, and `autouse` fixture `_mock_omop_db`
+
+   - **`services/protocol-processor-service/tests/test_phase3_integration.py`**
+     - Added comprehensive `_MOCK_UCUM` (all units used in test data), `_MOCK_VALUES`, and `autouse` fixture `_mock_omop_db`
+
+   - **`tests/e2e/test_grounding_snippets.py`** — New file, 42 tests validating `test_snippets.json` golden examples (auto-skipped when stack not running)
+
+   - **`tests/e2e/test_snippets.json`** — User added 2 new entries to `grounding_test_snippets`:
+     ```json
+     {
+       "snippet_text": "American Society of Anesthesiologists (ASA) physical status 1, 2, or 3.",
+       "entities": []
+     },
+     {
+       "snippet_text": "Female subjects must be surgically sterile",
+       "entities": []
+     }
+     ```
+     Also added 1 new entry to `extraction_test_snippets` (index 6, "Primary indication for TKA is degenerative osteoarthritis of the knee").
+
+   - **`scripts/test_grounding_snippets.py`** — Script to run existing 5 golden snippets through live grounding using known entity names
+
+   - **`scripts/test_new_snippets.py`** — Script to extract + ground the 2 new snippets (has import error, not yet fixed)
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py`** — Contains `decompose_entities_from_criterion(criterion_text: str, category: str | None) -> list[dict]` which is the correct entity extraction function
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/ground.py`** — Ground node with full pipeline: `_ground_entity_with_retry`, `_reconcile_dual_grounding`, `_ground_categorical_values`, `ground_node`
+
+4. Errors and fixes:
+   - **ruff E501 line too long**: `_mock_lookup_ucum_unit` signature exceeded 88 chars. Fixed by wrapping to multi-line.
+   - **ruff I001 unsorted imports**: In test_unit_normalizer.py. Fixed with `ruff check --fix`.
+   - **ruff format**: omop_mapper.py and test_grounding_snippets.py needed reformatting. Fixed with `ruff format`.
+   - **ImportError `_load_ordinal_scales`**: `test_ordinal_full_cycle.py` imported the now-deleted function. Fixed by rewriting the test to use `ORDINAL_SCALE_ALIASES` dict and DB mocks.
+   - **4 test failures in test_phase2_e2e.py and test_phase3_integration.py**: Tests called `build_expression_tree` which calls `normalize_unit`/`normalize_value` — these now need DB access. Fixed by adding `autouse` fixtures with comprehensive mock DB data to both test files.
+   - **ImportError `extract_entities_from_criterion`**: In `scripts/test_new_snippets.py`, the function doesn't exist. The correct function is `decompose_entities_from_criterion` from `protocol_processor.tools.entity_decomposer` with signature `(criterion_text: str, category: str | None) -> list[dict]`. **Not yet fixed.**
+
+5. Problem Solving:
+   - Successfully replaced all YAML-based lookups with DB-backed queries while maintaining backward compatibility of function signatures
+   - All 266 tests pass with proper DB mocking
+   - Live grounding evaluation showed 100% grounding rate, 50% exact code match on golden snippets
+   - Currently debugging the entity extraction import for the new snippets script
+
+6. All user messages:
+   - "Implement the following plan: [detailed plan for replacing YAML with DB queries]"
+   - "Let's check how we do in grounding when we use that endpoint with the snippets from the json. Show me."
+   - "/Users/noahdolevelixir/Code/medgemma-hackathon/.env" (sent during work, followed by:) "There is an .env file."
+   - "Just show me the result rather than compare to golden values."
+   - "I add two items to the grounding examples in the test json. Can you check just those and report back? They don't have expected values yet."
+
+7. Pending Tasks:
+   - Fix `scripts/test_new_snippets.py` to use `decompose_entities_from_criterion` instead of non-existent `extract_entities_from_criterion`, then run it against the 2 new snippets and report results to user.
+
+8. Current Work:
+   The user added 2 new grounding snippets to `tests/e2e/test_snippets.json` with empty `entities` arrays:
+   1. "American Society of Anesthesiologists (ASA) physical status 1, 2, or 3."
+   2. "Female subjects must be surgically sterile"
+   
+   I created `scripts/test_new_snippets.py` to extract entities from these snippets (since they have no pre-defined entities) and then ground them. The script failed with:
+   ```
+   ImportError: cannot import name 'extract_entities_from_criterion' from 'protocol_processor.tools.gemini_extractor'
+   ```
+   
+   I then found the correct function is `decompose_entities_from_criterion` in `protocol_processor.tools.entity_decomposer` with signature:
+   ```python
+   async def decompose_entities_from_criterion(
+       criterion_text: str,
+       category: str | None,
+   ) -> list[dict]:
+   ```
+   
+   The fix is to change the import in `scripts/test_new_snippets.py` from:
+   ```python
+   from protocol_processor.tools.gemini_extractor import extract_entities_from_criterion
+   ```
+   to:
+   ```python
+   from protocol_processor.tools.entity_decomposer import decompose_entities_from_criterion
+   ```
+   And update the call from `extract_entities_from_criterion(snippet["snippet_text"])` to `decompose_entities_from_criterion(snippet["snippet_text"], None)`.
+
+9. Optional Next Step:
+   Fix the import error in `scripts/test_new_snippets.py` and re-run it to show the user grounding results for the 2 new snippets. The user said: "I add two items to the grounding examples in the test json. Can you check just those and report back? They don't have expected values yet." and "Just show me the result rather than compare to golden values."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Run an investigation, including looking at any logs of the threads, and identify what went wrong. Then propose a solution. After you propose a solution check it against this entry to see if your solution fixed the problem. Iterate until you solve it.
+
+---
+
+[Request interrupted by user for tool use]
+
+---
+
+No, you are cheating!!! CRITICAL: Don't just add to the prompt the answer to the test. We want our system to work for new scenarios we haven't yet encountered. If you just give information from our test yet to our prompt, you are defeating the whole point. Revert that and don't do it again.
+
+---
+
+For this criteria, how important is it that the sterility is derived from surgery? Should the correct grounding be gender==female AND sterile==TRUE AND surgery=="Tubal sterilization". Or something along these lines?
+
+---
+
+[Request interrupted by user]
+
+---
+
+For this criteria, how important is it that the sterility is derived from surgery? Should the correct grounding be sex [entity]==[relation] female[value] AND sterile==TRUE AND surgery=="Tubal sterilization". Or something along these lines?
+
+---
+
+[Request interrupted by user]
+
+---
+
+Then we should either decompose it further to include all the different forms of surgical sterilization for women (tubal sterilization OR bilateral salpingectomy OR hysterectomy) or alternatively to a general concept like true for that surgical sterilization as a general concept.
+
+---
+
+I want to write a script which queries the output table in postgres, identifies any failed extraction/grounding runs, queries MLFlow for the relevant traces, identifies whether the failure was incomplete or erroneous extraction or faulty grounding, and then populates the test json with the failed sample so we can constantly improve. This script should be a simple langgraph using a gemini-3.1-pro api call.
+
+---
+
+[Request interrupted by user]
+
+---
+
+okay, lets check that ruff, mypy and pytests all pass. Let's add the correct result to the test json entity. Let's make sure to label the tests that use live API calls so they don't run in CI/CD. Then let's make a pull request.
