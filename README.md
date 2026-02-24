@@ -287,6 +287,8 @@ make docs-build && make docs-serve
 
 The docs include architecture diagrams, data model references, user journeys, a code tour, and API documentation.
 
+**GitHub Pages:** The site is deployed to **https://noahdolevelixir.github.io/medgemma-hackathon/** when docs change on `main`. To enable it: **Settings → Pages → Source**: "Deploy from a branch" → branch **gh-pages**, folder **/ (root)**. Run the "Deploy Documentation" workflow from the Actions tab to create the first deploy.
+
 ---
 
 ## License

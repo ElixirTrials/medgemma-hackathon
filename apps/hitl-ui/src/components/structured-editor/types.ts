@@ -45,6 +45,8 @@ export interface FieldMapping {
     omop_concept_id?: string;
     relation: RelationOperator | '';
     value: FieldValue;
+    unit_ucum_code?: string;
+    unit_omop_concept_id?: number;
 }
 
 // Form values now contain an array of mappings

@@ -383,7 +383,9 @@ def main() -> None:
         template_pct = f"{template_saved / old_t * 100:.1f}%" if old_t else "—"
         grand_old += old_t
         grand_new += new_t
-        print(f"  {name:<32} {old_t:>7} {new_t:>7} {template_saved:>+7} {template_pct:>7}")
+        print(
+            f"  {name:<32} {old_t:>7} {new_t:>7} {template_saved:>+7} {template_pct:>7}"
+        )
     grand_saved = grand_old - grand_new
     grand_pct = f"{grand_saved / grand_old * 100:.1f}%" if grand_old else "—"
     print(f"  {'-' * 32} {'-' * 7} {'-' * 7} {'-' * 7} {'-' * 7}")
@@ -397,9 +399,16 @@ def main() -> None:
     n_ext = len(snippets.get("extraction_test_snippets", []))
     n_gnd = len(snippets.get("grounding_test_snippets", []))
     n_ent = sum(len(s["entities"]) for s in snippets.get("grounding_test_snippets", []))
+    n_with_units = sum(
+        1
+        for s in snippets.get("grounding_test_snippets", [])
+        for e in s["entities"]
+        if e.get("unit")
+    )
     print(
         f"\n  Snippets tested: {n_ext} extraction, {n_gnd} grounding ({n_ent} entities)"
     )
+    print(f"  Entities with units: {n_with_units}/{n_ent}")
 
     # Check for any render failures
     all_ok = (

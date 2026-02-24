@@ -108,7 +108,7 @@ class TestGroundingSnippets:
     def test_grounding_snippet_entity_fields(
         self, idx: int, grounding_snippets: list[dict]
     ) -> None:
-        """Each entity has required fields: entity_name, system, code, relation, value."""
+        """Each entity has required fields including unit terminology fields."""
         snippet = grounding_snippets[idx]
         for entity in snippet["entities"]:
             assert "entity_name" in entity
@@ -116,6 +116,9 @@ class TestGroundingSnippets:
             assert "code" in entity
             assert "relation" in entity
             assert "value" in entity
+            assert "unit" in entity
+            assert "unit_ucum" in entity
+            assert "unit_omop_concept_id" in entity
 
     @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
     def test_grounding_snippet_system_is_valid(
@@ -165,6 +168,31 @@ class TestGroundingSnippets:
                 f"Invalid relation '{rel}' (normalized: '{normalized}')"
             )
 
+    @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
+    def test_grounding_snippet_unit_consistency(
+        self, idx: int, grounding_snippets: list[dict]
+    ) -> None:
+        """Unit fields are internally consistent.
+
+        - When unit is null, unit_ucum and unit_omop_concept_id must both be null.
+        - When unit_ucum is non-null, unit_omop_concept_id must also be non-null.
+        """
+        snippet = grounding_snippets[idx]
+        for entity in snippet["entities"]:
+            if entity["unit"] is None:
+                assert entity["unit_ucum"] is None, (
+                    f"unit is null but unit_ucum is {entity['unit_ucum']}"
+                )
+                assert entity["unit_omop_concept_id"] is None, (
+                    f"unit is null but unit_omop_concept_id is "
+                    f"{entity['unit_omop_concept_id']}"
+                )
+            if entity["unit_ucum"] is not None:
+                assert entity["unit_omop_concept_id"] is not None, (
+                    f"unit_ucum is {entity['unit_ucum']} but "
+                    f"unit_omop_concept_id is null"
+                )
+
     def test_serum_creatinine_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 0: Serum creatinine >1.5 times ULN."""
         snippet = grounding_snippets[0]
@@ -173,6 +201,9 @@ class TestGroundingSnippets:
         assert e["entity_name"] == "Serum creatinine"
         assert e["code"] == "C0201975"
         assert e["relation"] == ">"
+        assert e["value"] == "1.5 times ULN"
+        assert e["unit"] is None
+        assert e["unit_ucum"] is None
 
     def test_egfr_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 1: eGFR <45 ml/min."""
@@ -182,6 +213,9 @@ class TestGroundingSnippets:
         assert "Glomerular Filtration Rate" in e["entity_name"]
         assert e["code"] == "C0858118"
         assert e["relation"] == "<"
+        assert e["value"] == "45"
+        assert e["unit"] == "mL/min"
+        assert e["unit_omop_concept_id"] == 8795
 
     def test_body_weight_bmi_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 2: Body weight <50 kg OR BMI >44."""
@@ -190,6 +224,13 @@ class TestGroundingSnippets:
         names = {e["entity_name"] for e in snippet["entities"]}
         assert "Body Weight" in names
         assert "Body Mass Index" in names
+        for e in snippet["entities"]:
+            if e["entity_name"] == "Body Weight":
+                assert e["unit"] == "kg"
+                assert e["unit_omop_concept_id"] == 8576
+            elif e["entity_name"] == "Body Mass Index":
+                assert e["unit"] == "kg/m2"
+                assert e["unit_omop_concept_id"] == 9531
 
     def test_ankylosing_spondylitis_snippet(
         self, grounding_snippets: list[dict]
@@ -203,6 +244,7 @@ class TestGroundingSnippets:
         for e in snippet["entities"]:
             assert e["relation"] == "="
             assert e["value"] == "True"
+            assert e["unit"] is None
 
     def test_parkinsons_gba_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 4: PD with GBA mutation."""
@@ -211,6 +253,8 @@ class TestGroundingSnippets:
         codes = {e["code"] for e in snippet["entities"]}
         assert "C0030567" in codes  # Parkinson's Disease
         assert "C4225361" in codes  # GBA gene mutation
+        for e in snippet["entities"]:
+            assert e["unit"] is None
 
     def test_asa_physical_status_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 5: ASA physical status 1, 2, or 3."""
@@ -219,6 +263,8 @@ class TestGroundingSnippets:
         e = snippet["entities"][0]
         assert "Anesthesiologists" in e["entity_name"]
         assert e["code"] == "C0450990"
+        assert e["unit"] == "{score}"
+        assert e["unit_omop_concept_id"] == 8527
 
     def test_female_surgically_sterile_snippet(
         self, grounding_snippets: list[dict]
@@ -233,6 +279,7 @@ class TestGroundingSnippets:
         for e in snippet["entities"]:
             assert e["relation"] == "="
             assert e["value"] == "True"
+            assert e["unit"] is None
 
     def test_venous_blood_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 7: Must agree to collection of venous blood."""
@@ -242,6 +289,7 @@ class TestGroundingSnippets:
         assert e["code"] == "C1548758"
         assert e["relation"] == "="
         assert e["value"] == "True"
+        assert e["unit"] is None
 
     def test_non_pregnant_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 8: Are non-pregnant females."""
@@ -252,3 +300,4 @@ class TestGroundingSnippets:
         assert e["code"] == "C0032961"
         assert e["relation"] == "!="
         assert e["value"] == "True"
+        assert e["unit"] is None
