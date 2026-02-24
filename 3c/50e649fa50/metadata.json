@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "3c50e649fa50",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 5,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "tests/e2e/test_grounding_snippets.py",
+    "tests/e2e/test_snippets.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/3c/50e649fa50/0/metadata.json",
+      "transcript": "/3c/50e649fa50/0/full.jsonl",
+      "context": "/3c/50e649fa50/0/context.md",
+      "content_hash": "/3c/50e649fa50/0/content_hash.txt",
+      "prompt": "/3c/50e649fa50/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 92,
+    "cache_creation_tokens": 90948,
+    "cache_read_tokens": 5566279,
+    "output_tokens": 12077,
+    "api_call_count": 70
+  }
+}
