@@ -36,7 +36,7 @@ Uploaded clinical trial protocol PDF. Central aggregate root.
 | `error_reason` | str? | Human-readable failure message |
 | `metadata_` | JSON | Quality details, pipeline_thread_id, error info |
 
-**File**: `libs/shared/src/shared/models.py:59`
+**File**: `libs/shared/src/shared/models.py:58`
 
 ### Protocol Status Lifecycle
 
@@ -70,7 +70,7 @@ A batch of criteria extracted from a protocol. Re-extraction creates a new batch
 | `extraction_model` | str? | Model used for extraction |
 | `is_archived` | bool | Hidden from dashboard when True |
 
-**File**: `libs/shared/src/shared/models.py:74`
+**File**: `libs/shared/src/shared/models.py:72`
 
 ### Criteria
 
@@ -81,17 +81,23 @@ Individual inclusion/exclusion criterion extracted from a protocol.
 | `id` | UUID (str) | Primary key |
 | `batch_id` | FK → CriteriaBatch | Parent batch |
 | `criteria_type` | str | `inclusion` or `exclusion` |
+| `category` | str? | Category from extraction |
 | `text` | text | Original criterion text |
-| `structured_criterion` | JSON? | Expression tree (Phase 2) |
+| `temporal_constraint` | JSON? | Temporal constraints |
 | `conditions` | JSON? | Contains `field_mappings` from grounding |
-| `confidence` | float | Extraction confidence (0-1) |
+| `numeric_thresholds` | JSON? | Numeric threshold details |
+| `assertion_status` | str? | Assertion status from extraction |
+| `confidence` | float | Extraction confidence (0-1, default 1.0) |
+| `source_section` | str? | Source section in protocol |
+| `page_number` | int? | Page number in PDF |
 | `review_status` | str? | Human review decision |
+| `structured_criterion` | JSON? | Expression tree (Phase 2) |
 
-**File**: `libs/shared/src/shared/models.py:86`
+**File**: `libs/shared/src/shared/models.py:84`
 
 ### Entity
 
-Medical entity extracted from a criterion (e.g., "Type 2 diabetes", "HbA1c").
+Medical entity extracted from a criterion (e.g., "Type 2 diabetes", "HbA1c"). Key columns below; see `models.py` for the full set (e.g. `span_start`/`span_end`, `umls_cui`, `preferred_term`, `grounding_confidence`, `grounding_method`, `context_window`, `hpo_code`, `grounding_system`, `grounding_error`, `reconciliation_status`).
 
 | Column | Type | Description |
 |--------|------|-------------|
@@ -105,7 +111,7 @@ Medical entity extracted from a criterion (e.g., "Type 2 diabetes", "HbA1c").
 | `icd10_code` | str? | ICD-10 code |
 | `omop_concept_id` | str? | OMOP CDM concept ID |
 
-**File**: `libs/shared/src/shared/models.py:114`
+**File**: `libs/shared/src/shared/models.py:112`
 
 ### AtomicCriterion
 
@@ -125,22 +131,33 @@ Leaf node in an expression tree. Represents a single testable condition (e.g., "
 | `value_numeric` | float? | Numeric threshold |
 | `value_text` | str? | Text value (e.g., "Class III-IV") |
 | `unit_text` | str? | Unit label |
+| `unit_ucum_code` | str? | UCUM unit code |
 | `unit_concept_id` | int? | OMOP unit concept ID |
+| `value_concept_id` | int? | OMOP value concept (e.g. ordinal) |
 | `negation` | bool | True for negated conditions |
+| `temporal_constraint` | JSON? | Temporal constraints |
+| `original_text` | str? | Original criterion text |
+| `confidence_score` | float? | Confidence score |
+| `human_verified` | bool | True if human-verified |
+| `human_modified` | bool | True if human-modified |
 
-**File**: `libs/shared/src/shared/models.py:184`  
+**File**: `libs/shared/src/shared/models.py:183`  
 **Table**: `atomic_criteria`
 
 ### CompositeCriterion
 
-Branch node in an expression tree. Combines children with AND/OR/NOT logic.
+Branch node in an expression tree. Combines children with AND/OR/NOT logic. Tree structure is stored in `CriterionRelationship`; `parent_criterion_id` is reserved for future manual (HITL) use.
 
 | Column | Type | Description |
 |--------|------|-------------|
 | `id` | UUID (str) | Primary key |
 | `criterion_id` | FK → Criteria | Parent criterion |
 | `protocol_id` | FK → Protocol | Owning protocol |
+| `inclusion_exclusion` | str | `inclusion` or `exclusion` |
 | `logic_operator` | str | `AND`, `OR`, `NOT` |
+| `parent_criterion_id` | str? | Reserved for future HITL use |
+| `original_text` | str? | Original criterion text |
+| `human_verified` | bool | True if human-verified |
 
 **File**: `libs/shared/src/shared/models.py:235`  
 **Table**: `composite_criteria`
@@ -163,10 +180,10 @@ Edge in the expression tree. Links parent composite to child (atomic or composit
 
 | Table | Purpose | File line |
 |-------|---------|-----------|
-| `review` | Human review actions with before/after JSON | `models.py:144` |
-| `auditlog` | Immutable log of all system events | `models.py:158` |
-| `user` | Authenticated user accounts (Google OAuth) | `models.py:170` |
-| `outboxevent` | Transactional outbox for event publishing | `models.py:285` |
+| `review` | Human review actions with before/after JSON | `models.py:142` |
+| `auditlog` | Immutable log of all system events | `models.py:156` |
+| `user` | Authenticated user accounts (Google OAuth) | `models.py:168` |
+| `outboxevent` | Transactional outbox for event publishing | `models.py:286` |
 
 ## Pipeline State
 

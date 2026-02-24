@@ -201,9 +201,10 @@ class TestGroundingSnippets:
         assert e["entity_name"] == "Serum creatinine"
         assert e["code"] == "C0201975"
         assert e["relation"] == ">"
-        assert e["value"] == "1.5 times ULN"
-        assert e["unit"] is None
-        assert e["unit_ucum"] is None
+        assert e["value"] == "1.95"
+        assert e["unit"] == "mg/dL"
+        assert e["unit_ucum"] == "mg/dL"
+        assert e["unit_omop_concept_id"] == 8840
 
     def test_egfr_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 1: eGFR <45 ml/min."""
