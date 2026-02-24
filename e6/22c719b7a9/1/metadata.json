@@ -1,13 +1,12 @@
 {
   "cli_version": "0.4.5",
   "checkpoint_id": "e622c719b7a9",
+  "session_id": "7d735052-1516-4ec9-8e2f-3eaf179499f4",
   "strategy": "manual-commit",
+  "created_at": "2026-02-24T21:28:15.791534Z",
   "branch": "feature/prompt-optimizations",
   "checkpoints_count": 1,
   "files_touched": [
-    "libs/inference/src/inference/model_garden.py",
-    "scripts/evaluate_prompt_changes.py",
-    "services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2",
     "services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2",
     "services/protocol-processor-service/src/protocol_processor/prompts/grounding_reasoning.jinja2",
     "services/protocol-processor-service/src/protocol_processor/prompts/grounding_system.jinja2",
@@ -15,29 +14,28 @@
     "services/protocol-processor-service/src/protocol_processor/prompts/user.jinja2",
     "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
     "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
-    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py"
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "libs/inference/src/inference/model_garden.py",
+    "scripts/evaluate_prompt_changes.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/entity_decompose.jinja2"
   ],
-  "sessions": [
-    {
-      "metadata": "/e6/22c719b7a9/0/metadata.json",
-      "transcript": "/e6/22c719b7a9/0/full.jsonl",
-      "context": "",
-      "content_hash": "/e6/22c719b7a9/0/content_hash.txt",
-      "prompt": ""
-    },
-    {
-      "metadata": "/e6/22c719b7a9/1/metadata.json",
-      "transcript": "/e6/22c719b7a9/1/full.jsonl",
-      "context": "/e6/22c719b7a9/1/context.md",
-      "content_hash": "/e6/22c719b7a9/1/content_hash.txt",
-      "prompt": "/e6/22c719b7a9/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "fae51614200a",
   "token_usage": {
     "input_tokens": 135,
     "cache_creation_tokens": 204698,
     "cache_read_tokens": 9864509,
     "output_tokens": 11878,
     "api_call_count": 113
-  }
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T21:28:15.312983Z",
+    "agent_lines": 364,
+    "human_added": 58,
+    "human_modified": 59,
+    "human_removed": 0,
+    "total_committed": 481,
+    "agent_percentage": 75.67567567567568
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/7d735052-1516-4ec9-8e2f-3eaf179499f4.jsonl"
 }
