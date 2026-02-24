@@ -5,6 +5,11 @@
   "branch": "main",
   "checkpoints_count": 5,
   "files_touched": [
+    "README.md",
+    "docs/architecture/data-models.md",
+    "docs/architecture/system-architecture.md",
+    "docs/code-tour/index.md",
+    "docs/status/index.md",
     "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
     "tests/e2e/test_grounding_snippets.py",
     "tests/e2e/test_snippets.json"
@@ -16,6 +21,13 @@
       "context": "/3c/50e649fa50/0/context.md",
       "content_hash": "/3c/50e649fa50/0/content_hash.txt",
       "prompt": "/3c/50e649fa50/0/prompt.txt"
+    },
+    {
+      "metadata": "/3c/50e649fa50/1/metadata.json",
+      "transcript": "/3c/50e649fa50/1/full.jsonl",
+      "context": "",
+      "content_hash": "/3c/50e649fa50/1/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
