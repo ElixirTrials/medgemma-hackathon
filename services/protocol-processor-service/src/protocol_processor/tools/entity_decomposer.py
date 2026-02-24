@@ -23,6 +23,24 @@ logger = logging.getLogger(__name__)
 
 PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
+# Unicode math symbols that Gemini/PDF extraction may produce.
+# Normalize to ASCII equivalents so the LLM template handles them cleanly.
+_UNICODE_OPERATORS: dict[str, str] = {
+    "\u2265": ">=",  # ≥
+    "\u2264": "<=",  # ≤
+    "\u2260": "!=",  # ≠
+    "\u00b1": "+-",  # ±
+    "\u2013": "-",  # en-dash
+    "\u2014": "-",  # em-dash
+}
+
+
+def _normalize_criterion_text(text: str) -> str:
+    """Replace unicode math/comparison symbols with ASCII equivalents."""
+    for char, repl in _UNICODE_OPERATORS.items():
+        text = text.replace(char, repl)
+    return text
+
 
 class DecomposedEntity(BaseModel):
     """A single medical entity extracted from a criterion sentence.
@@ -76,22 +94,41 @@ async def decompose_entities_from_criterion(
     Returns:
         List of dicts with "text" and "entity_type" keys, or empty list on failure.
     """
+    # Normalize unicode operators (≥, ≤, etc.) to ASCII before LLM call
+    normalized_text = _normalize_criterion_text(criterion_text)
+
     try:
         gemini = ChatGoogleGenerativeAI(
             model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
+        from protocol_processor.tracing import llm_span
+
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
         structured = gemini.with_structured_output(DecomposedEntityList)
-        prompt = _render_decompose_prompt(criterion_text, category)
-        result = await structured.ainvoke(prompt)
+        prompt = _render_decompose_prompt(normalized_text, category)
+
+        with llm_span("gemini_entity_decompose", model_name) as llm:
+            llm.set_request(prompt)
+            result = await structured.ainvoke(prompt)
+            llm.set_response(str(result))
+
         if isinstance(result, dict):
             result = DecomposedEntityList.model_validate(result)
         decomposed = cast(DecomposedEntityList, result)
+
+        if not decomposed.entities:
+            logger.warning(
+                "Entity decomposition returned 0 entities for criterion '%s'",
+                normalized_text[:80],
+            )
+
         return [e.model_dump() for e in decomposed.entities]
     except Exception as e:
         logger.error(
             "Entity decomposition failed for criterion '%s': %s",
-            criterion_text[:80],
+            normalized_text[:80],
             e,
+            exc_info=True,
         )
         return []  # Caller falls back to full-text entity

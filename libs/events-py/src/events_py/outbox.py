@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable
 from uuid import uuid4
 
+from shared.exceptions import AuthExpiredError
 from shared.models import OutboxEvent
 from sqlalchemy import Engine
 from sqlmodel import Session, col, select
@@ -25,6 +26,36 @@ from events_py.models import DomainEventKind
 logger = logging.getLogger(__name__)
 
 MAX_RETRIES = 3
+
+AUTH_EXPIRED_REASON = "Google credentials expired — sign in again"
+
+
+def _mark_event_auth_expired(session: Session, event: OutboxEvent) -> None:
+    """Mark event as dead_letter due to auth expiry (no retry)."""
+    event.retry_count = MAX_RETRIES
+    event.status = "dead_letter"
+    if event.aggregate_type == "protocol":
+        from shared.models import Protocol
+
+        protocol = session.get(Protocol, event.aggregate_id)
+        if protocol:
+            protocol.status = "dead_letter"
+            protocol.error_reason = AUTH_EXPIRED_REASON
+            protocol.metadata_ = {
+                **protocol.metadata_,
+                "error": {
+                    "category": "auth_expired",
+                    "reason": AUTH_EXPIRED_REASON,
+                    "exception_type": "AuthExpiredError",
+                },
+            }
+            session.add(protocol)
+    session.add(event)
+    logger.warning(
+        "Event %s (type=%s) auth expiry — dead_letter (no retry)",
+        event.id,
+        event.event_type,
+    )
 
 
 class OutboxProcessor:
@@ -108,6 +139,8 @@ class OutboxProcessor:
                         event.id,
                         event.event_type,
                     )
+                except AuthExpiredError:
+                    _mark_event_auth_expired(session, event)
                 except Exception:
                     event.retry_count += 1
                     if event.retry_count >= MAX_RETRIES:
@@ -159,8 +192,7 @@ class OutboxProcessor:
         while not self._shutdown_event.is_set():
             try:
                 # Copy context so MLflow ContextVars propagate to the
-                # worker thread, avoiding "created in a different Context"
-                # warnings when autologging resets tokens.
+                # worker thread.
                 loop = asyncio.get_event_loop()
                 ctx = contextvars.copy_context()
                 count = await loop.run_in_executor(

@@ -156,6 +156,8 @@ async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
     if not google_api_key:
         raise ValueError("GOOGLE_API_KEY environment variable is required")
 
+    from protocol_processor.tracing import llm_span
+
     gemini = ChatGoogleGenerativeAI(
         model=gemini_model_name,
         google_api_key=google_api_key,
@@ -168,7 +170,12 @@ async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
         f" and reasoning.\n\n{raw_text}"
     )
 
-    result = await structured_llm.ainvoke(prompt)
+    with llm_span("gemini_structure_decision", gemini_model_name) as llm:
+        llm.set_request(prompt)
+        result = await structured_llm.ainvoke(prompt)
+        resp_text = str(result) if not isinstance(result, dict) else str(result)
+        llm.set_response(resp_text)
+
     if isinstance(result, dict):
         return GroundingDecision.model_validate(result)
     return result  # type: ignore[return-value]
@@ -230,12 +237,28 @@ async def medgemma_decide(
             candidates=candidates,
         )
 
+        from protocol_processor.tracing import llm_span
+
+        model_name = getattr(model, "model_name", "") or getattr(model, "model", "")
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=evaluate_prompt),
         ]
-        raw_response = await model.ainvoke(messages)
-        raw_text = raw_response.content
+
+        with llm_span("medgemma_evaluate", str(model_name)) as llm:
+            llm.set_request(f"[system] {system_prompt}\n\n[user] {evaluate_prompt}")
+            raw_response = await model.ainvoke(messages)
+            raw_text = raw_response.content
+            usage: dict[str, int] = {}
+            um = getattr(raw_response, "usage_metadata", None)
+            if isinstance(um, dict):
+                if um.get("input_tokens"):
+                    usage["input_tokens"] = um["input_tokens"]
+                if um.get("output_tokens"):
+                    usage["output_tokens"] = um["output_tokens"]
+                if um.get("total_tokens"):
+                    usage["total_tokens"] = um["total_tokens"]
+            llm.set_response(str(raw_text), usage or None)
 
         logger.debug(
             "MedGemma evaluate response for '%s' (first 200 chars): %s",
@@ -302,6 +325,8 @@ async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningRes
     if not google_api_key:
         raise ValueError("GOOGLE_API_KEY environment variable is required")
 
+    from protocol_processor.tracing import llm_span
+
     gemini = ChatGoogleGenerativeAI(
         model=gemini_model_name,
         google_api_key=google_api_key,
@@ -318,7 +343,11 @@ async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningRes
         f"{raw_text}"
     )
 
-    result = await structured_llm.ainvoke(prompt)
+    with llm_span("gemini_structure_reasoning", gemini_model_name) as llm:
+        llm.set_request(prompt)
+        result = await structured_llm.ainvoke(prompt)
+        llm.set_response(str(result))
+
     if isinstance(result, dict):
         return AgenticReasoningResult.model_validate(result)
     return result  # type: ignore[return-value]
@@ -377,12 +406,28 @@ async def agentic_reasoning_loop(
             attempt=attempt,
         )
 
+        from protocol_processor.tracing import llm_span
+
+        model_name = getattr(model, "model_name", "") or getattr(model, "model", "")
         messages = [
             SystemMessage(content=system_prompt),
             HumanMessage(content=reasoning_prompt),
         ]
-        raw_response = await model.ainvoke(messages)
-        raw_text = raw_response.content
+
+        with llm_span("medgemma_reasoning", str(model_name)) as llm:
+            llm.set_request(f"[system] {system_prompt}\n\n[user] {reasoning_prompt}")
+            raw_response = await model.ainvoke(messages)
+            raw_text = raw_response.content
+            usage_r: dict[str, int] = {}
+            um_r = getattr(raw_response, "usage_metadata", None)
+            if isinstance(um_r, dict):
+                if um_r.get("input_tokens"):
+                    usage_r["input_tokens"] = um_r["input_tokens"]
+                if um_r.get("output_tokens"):
+                    usage_r["output_tokens"] = um_r["output_tokens"]
+                if um_r.get("total_tokens"):
+                    usage_r["total_tokens"] = um_r["total_tokens"]
+            llm.set_response(str(raw_text), usage_r or None)
 
         logger.debug(
             "MedGemma reasoning response for '%s' (first 300 chars): %s",

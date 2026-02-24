@@ -25,6 +25,8 @@ State:
 3. Your brief reasoning
 
 Be decisive. If a candidate clearly represents the same medical concept, assign confidence ≥ 0.8.
+
+IMPORTANT: Use the criterion context to validate candidates. A candidate that contradicts the criterion context (e.g., wrong anatomical site, wrong demographic, wrong clinical domain) should receive confidence 0.0 even if the terminology text partially overlaps. The criterion context is the ground truth — candidates must be clinically consistent with it.
 {% else %}
 No terminology candidates were found. State:
 - That no candidates are available

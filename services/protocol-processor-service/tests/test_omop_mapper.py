@@ -178,6 +178,39 @@ class TestGetDomainFilter:
 
 
 # ===========================================================================
+# TestGetDomainFilters
+# ===========================================================================
+
+
+class TestGetDomainFilters:
+    """Tests for _get_domain_filters returning a list of OMOP domains."""
+
+    def test_condition_returns_multi_domains(self) -> None:
+        """'Condition' entity type should return ['Condition', 'Observation']."""
+        assert omop_mapper_mod._get_domain_filters("Condition") == [
+            "Condition",
+            "Observation",
+        ]
+
+    def test_medication_returns_drug_only(self) -> None:
+        """'Medication' entity type should return ['Drug']."""
+        assert omop_mapper_mod._get_domain_filters("Medication") == ["Drug"]
+
+    def test_lab_value_returns_multi_domains(self) -> None:
+        """'Lab_Value' entity type should return ['Measurement', 'Observation']."""
+        assert omop_mapper_mod._get_domain_filters("Lab_Value") == [
+            "Measurement",
+            "Observation",
+        ]
+
+    def test_unknown_falls_back(self) -> None:
+        """Unknown entity types should fall back to ['Observation']."""
+        assert omop_mapper_mod._get_domain_filters("UnknownEntityType") == [
+            "Observation"
+        ]
+
+
+# ===========================================================================
 # TestLookupOmopConcept
 # ===========================================================================
 
@@ -217,7 +250,9 @@ class TestLookupOmopConcept:
         assert result.omop_concept_id == "201826"
         assert result.omop_concept_name == "Type 2 diabetes mellitus"
         assert result.match_score == 0.95
-        mock_sync_lookup.assert_called_once_with("type 2 diabetes", "Condition")
+        mock_sync_lookup.assert_called_once_with(
+            "type 2 diabetes", ["Condition", "Observation"], is_acronym=False
+        )
 
     @patch("protocol_processor.tools.omop_mapper._sync_lookup")
     async def test_medication_passes_drug_domain(
@@ -228,7 +263,9 @@ class TestLookupOmopConcept:
 
         await omop_mapper_mod.lookup_omop_concept("metformin", "Medication")
 
-        mock_sync_lookup.assert_called_once_with("metformin", "Drug")
+        mock_sync_lookup.assert_called_once_with(
+            "metformin", ["Drug"], is_acronym=False
+        )
 
     @patch("protocol_processor.tools.omop_mapper._sync_lookup")
     async def test_unknown_type_passes_observation_domain(
@@ -239,7 +276,9 @@ class TestLookupOmopConcept:
 
         await omop_mapper_mod.lookup_omop_concept("some entity", "WeirdType")
 
-        mock_sync_lookup.assert_called_once_with("some entity", "Observation")
+        mock_sync_lookup.assert_called_once_with(
+            "some entity", ["Observation"], is_acronym=False
+        )
 
 
 # ===========================================================================

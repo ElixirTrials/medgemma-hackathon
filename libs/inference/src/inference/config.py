@@ -34,6 +34,9 @@ class AgentConfig:
     vertex_endpoint_id: str = ""
     vertex_model_name: str = ""
     vertex_endpoint_url: str = ""
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "gemma2:9b"
+    ollama_extraction_model: str = "qwen2.5:14b"
 
     @property
     def supports_tools(self) -> bool:
@@ -49,7 +52,7 @@ class AgentConfig:
             os.getenv("MODEL_BACKEND") or os.getenv("MEDGEMMA_BACKEND") or "local"
         ).strip()
         backend = raw_backend.lower()
-        if backend not in {"local", "vertex"}:
+        if backend not in {"local", "vertex", "ollama"}:
             backend = "local"
 
         raw_max_tokens = os.getenv("MEDGEMMA_MAX_TOKENS", "2048")
@@ -70,5 +73,10 @@ class AgentConfig:
             vertex_model_name=os.getenv("VERTEX_MODEL_NAME", cls.vertex_model_name),
             vertex_endpoint_url=os.getenv(
                 "VERTEX_ENDPOINT_URL", cls.vertex_endpoint_url
+            ),
+            ollama_base_url=os.getenv("OLLAMA_BASE_URL", cls.ollama_base_url),
+            ollama_model=os.getenv("OLLAMA_MODEL", cls.ollama_model),
+            ollama_extraction_model=os.getenv(
+                "OLLAMA_EXTRACTION_MODEL", cls.ollama_extraction_model
             ),
         )

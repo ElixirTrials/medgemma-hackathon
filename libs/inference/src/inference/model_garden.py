@@ -463,6 +463,9 @@ def create_model_loader(config: AgentConfig | None = None) -> Callable[[], Any]:
     if cfg.backend == "vertex":
         return _create_vertex_model_loader(cfg)
 
+    if cfg.backend == "ollama":
+        return _create_ollama_model_loader(cfg)
+
     return _create_local_model_loader(cfg)
 
 
@@ -512,6 +515,40 @@ def _create_vertex_model_loader(cfg: AgentConfig) -> Callable[[], Any]:
             project=project_id,
             location=region,
             max_output_tokens=cfg.max_new_tokens,
+        )
+
+    return load_model
+
+
+def _create_ollama_model_loader(cfg: AgentConfig) -> Callable[[], Any]:
+    """Create a lazy Ollama model loader via LangChain ChatOllama.
+
+    Args:
+        cfg: AgentConfig with backend=="ollama".
+
+    Returns:
+        Callable that lazily initializes and returns the model.
+    """
+
+    @lazy_singleton
+    def load_model() -> Any:
+        try:
+            from langchain_community.chat_models import ChatOllama
+        except ImportError as exc:
+            raise ImportError(
+                "Ollama backend requires langchain-community installed. "
+                "Install with: pip install langchain-community"
+            ) from exc
+
+        logger.info(
+            "Initializing Ollama model: base_url=%s, model=%s",
+            cfg.ollama_base_url,
+            cfg.ollama_model,
+        )
+        return ChatOllama(
+            base_url=cfg.ollama_base_url,
+            model=cfg.ollama_model,
+            temperature=0.1,
         )
 
     return load_model

@@ -4,18 +4,18 @@ Demonstrates the complete ordinal resolution lifecycle:
 
 Run 1 (unknown scale):
   1. Child-Pugh criterion through build_expression_tree
-     → normalize_ordinal_value() returns None (not in YAML)
+     → normalize_ordinal_value() returns None (not in alias dict)
      → AtomicCriterion.unit_concept_id = None
   2. ordinal_resolve_node fires → LLM (mocked) confirms ordinal
      → unit_concept_id updated to 8527
      → AuditLog proposal written for human review
 
 Simulated approval:
-  3. Add Child-Pugh to ordinal_scales config (simulates human approval)
+  3. Add Child-Pugh to ordinal scale aliases (simulates human approval)
 
 Run 2 (known scale):
   4. New Child-Pugh criterion through build_expression_tree
-     → normalize_ordinal_value() NOW matches (in YAML)
+     → normalize_ordinal_value() NOW matches (in alias dict)
      → AtomicCriterion.unit_concept_id = 8527 at creation time
   5. ordinal_resolve_node finds no candidates → no LLM call
 """
@@ -25,7 +25,7 @@ from __future__ import annotations
 import json
 import os
 from typing import Any, Generator
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from shared.models import (
@@ -46,11 +46,81 @@ from protocol_processor.tools.structure_builder import (
     build_expression_tree,
 )
 from protocol_processor.tools.unit_normalizer import (
-    _load_ordinal_scales,
+    ORDINAL_SCALE_ALIASES,
+    _cached_ucum_lookup,
+    _cached_value_lookup,
     normalize_ordinal_value,
 )
 
+# ---------------------------------------------------------------------------
+# Mock DB data
+# ---------------------------------------------------------------------------
+
+_MOCK_UCUM: dict[str, tuple[str, int]] = {
+    "%": ("%", 8554),
+    "mg/dl": ("mg/dL", 8840),
+    "{score}": ("{score}", 8527),
+    "score": ("{score}", 8527),
+}
+
+_MOCK_VALUES: dict[str, tuple[str, int]] = {
+    "positive": ("positive", 45884084),
+}
+
+
+def _mock_lookup_ucum_unit(
+    _engine: object, unit_text: str
+) -> tuple[str | None, int | None]:
+    key = unit_text.strip().lower()
+    return _MOCK_UCUM.get(key, (None, None))
+
+
+def _mock_lookup_value_concept(
+    _engine: object, value_text: str
+) -> tuple[str | None, int | None]:
+    key = value_text.strip().lower()
+    return _MOCK_VALUES.get(key, (None, None))
+
+
+def _mock_lookup_ordinal_concept(
+    _engine: object, scale_name: str, grade: str
+) -> int | None:
+    return None
+
+
+def _patch_db():
+    engine_mock = MagicMock()
+    return (
+        patch(
+            "protocol_processor.tools.omop_mapper._get_omop_engine",
+            return_value=engine_mock,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_ucum_unit",
+            side_effect=_mock_lookup_ucum_unit,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_value_concept",
+            side_effect=_mock_lookup_value_concept,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_ordinal_concept",
+            side_effect=_mock_lookup_ordinal_concept,
+        ),
+    )
+
+
 # ── Fixtures ──────────────────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _clear_caches():
+    """Clear LRU caches before each test."""
+    _cached_ucum_lookup.cache_clear()
+    _cached_value_lookup.cache_clear()
+    yield
+    _cached_ucum_lookup.cache_clear()
+    _cached_value_lookup.cache_clear()
 
 
 @pytest.fixture()
@@ -107,31 +177,6 @@ def _make_crit(
     return c
 
 
-CHILD_PUGH_APPROVED_CONFIG: dict[str, Any] = {
-    "entity_aliases": [
-        "Child-Pugh",
-        "Child-Pugh score",
-        "Child-Pugh classification",
-        "CTP score",
-    ],
-    "loinc_code": "75622-1",
-    "unit_concept_id": 8527,
-    "values": {
-        "5": {"description": "Class A (best)"},
-        "6": {"description": "Class A"},
-        "7": {"description": "Class B"},
-        "8": {"description": "Class B"},
-        "9": {"description": "Class B"},
-        "10": {"description": "Class C"},
-        "11": {"description": "Class C"},
-        "12": {"description": "Class C"},
-        "13": {"description": "Class C"},
-        "14": {"description": "Class C"},
-        "15": {"description": "Class C (worst)"},
-    },
-}
-
-
 # ── Full Cycle Test ───────────────────────────────────────────────────
 
 
@@ -146,18 +191,22 @@ class TestOrdinalFullCycle:
         """Child-Pugh: unknown → LLM resolve → approve → static lookup."""
         protocol_id, batch_id = _setup(session)
 
+        p1, p2, p3, p4 = _patch_db()
+
         # ── Phase 1: Static Lookup (MISS) ─────────────────────────
-        # Child-Pugh is NOT in the YAML config
-        assert normalize_ordinal_value("6", "Child-Pugh score") is None
+        # Child-Pugh is NOT in the alias dict
+        with p1, p2, p3, p4:
+            assert normalize_ordinal_value("6", "Child-Pugh score") is None
 
         # Build expression tree — creates AtomicCriterion with
-        # unit_concept_id=None (no YAML match, no physical unit)
+        # unit_concept_id=None (no alias match, no physical unit)
         crit1 = _make_crit(
             session,
             batch_id,
             "Child-Pugh score <= 6",
         )
-        with patch.dict(os.environ, {}, clear=False):
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4, patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GOOGLE_API_KEY", None)
             await build_expression_tree(
                 criterion_text="Child-Pugh score <= 6",
@@ -189,9 +238,6 @@ class TestOrdinalFullCycle:
         session.commit()
 
         # ── Phase 2: Agent Resolve (LLM) ──────────────────────────
-        # ordinal_resolve_node queries AtomicCriterion where
-        # unit_concept_id IS NULL + value_numeric IS NOT NULL +
-        # unit_text IS NULL → finds our Child-Pugh record
         mock_response = OrdinalResolutionResponse(
             proposals=[
                 OrdinalScaleProposal(
@@ -265,28 +311,24 @@ class TestOrdinalFullCycle:
         assert proposals[0]["entity_text"] == "Child-Pugh score"
 
         # ── Phase 3: Simulate Approval ────────────────────────────
-        # Human reviews the AuditLog proposal and approves it.
-        # This adds Child-Pugh to the ordinal_scales YAML config.
-        # We simulate this by patching _load_ordinal_scales.
-        _load_ordinal_scales.cache_clear()
-
-        # Build the augmented config that includes Child-Pugh
-        original_alias_to_scale, original_scale_defs = _load_ordinal_scales()
-        augmented_scale_defs = {
-            **original_scale_defs,
-            "child_pugh": CHILD_PUGH_APPROVED_CONFIG,
-        }
-        augmented_alias_to_scale = dict(original_alias_to_scale)
-        for alias in CHILD_PUGH_APPROVED_CONFIG["entity_aliases"]:
-            augmented_alias_to_scale[alias.lower()] = "child_pugh"
+        # Simulate adding Child-Pugh to the alias dict
+        augmented_aliases = dict(ORDINAL_SCALE_ALIASES)
+        augmented_aliases["child-pugh"] = "child_pugh"
+        augmented_aliases["child-pugh score"] = "child_pugh"
+        augmented_aliases["child-pugh classification"] = "child_pugh"
+        augmented_aliases["ctp score"] = "child_pugh"
 
         # ── Phase 4: Static Lookup (HIT) ──────────────────────────
-        # Now Child-Pugh is in the config → static lookup succeeds
-        with patch(
-            "protocol_processor.tools.unit_normalizer._load_ordinal_scales",
-            return_value=(
-                augmented_alias_to_scale,
-                augmented_scale_defs,
+        # Now Child-Pugh is in the alias dict → static lookup succeeds
+        p1, p2, p3, p4 = _patch_db()
+        with (
+            p1,
+            p2,
+            p3,
+            p4,
+            patch(
+                "protocol_processor.tools.unit_normalizer.ORDINAL_SCALE_ALIASES",
+                augmented_aliases,
             ),
         ):
             result_ordinal = normalize_ordinal_value(
@@ -298,8 +340,6 @@ class TestOrdinalFullCycle:
             )
             value_concept_id, unit_concept_id = result_ordinal
             assert unit_concept_id == 8527
-            # value_concept_id may be None (no omop_value_concept_id
-            # in our test config) — that's fine
 
             # Create a new criterion in a new batch
             batch2 = CriteriaBatch(protocol_id=protocol_id)
@@ -345,13 +385,11 @@ class TestOrdinalFullCycle:
             ).first()
             assert atomic2 is not None
             assert atomic2.unit_concept_id == 8527, (
-                "After approval: new criteria get 8527 from YAML"
+                "After approval: new criteria get 8527 from alias dict"
             )
             assert atomic2.value_numeric == pytest.approx(7.0)
 
         # ── Phase 5: No LLM Call Needed ───────────────────────────
-        # ordinal_resolve_node should find no candidates for batch2
-        # because unit_concept_id is already set
         state2: dict[str, Any] = {
             "protocol_id": protocol_id,
             "batch_id": batch2.id,
@@ -377,6 +415,3 @@ class TestOrdinalFullCycle:
 
         assert result2["status"] == "completed"
         mock_resolve.assert_not_called()
-
-        # Clean up the lru_cache
-        _load_ordinal_scales.cache_clear()

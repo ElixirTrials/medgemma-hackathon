@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Link, Navigate, Route, Routes } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
 import { LogOut, User } from 'lucide-react';
@@ -6,6 +6,7 @@ import type { ReactNode } from 'react';
 import { SessionExpiredModal } from './components/SessionExpiredModal';
 import { Button } from './components/ui/Button';
 import { useAuth } from './hooks/useAuth';
+import CriteriaSpreadsheet from './screens/CriteriaSpreadsheet';
 import Dashboard from './screens/Dashboard';
 import EntityList from './screens/EntityList';
 import LoginPage from './screens/LoginPage';
@@ -33,8 +34,40 @@ function App() {
             {isAuthenticated && (
                 <header className="border-b bg-card">
                     <div className="container mx-auto px-6 py-3 flex items-center justify-between">
-                        <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-6">
                             <h1 className="text-lg font-semibold">HITL System</h1>
+                            <nav className="flex items-center gap-4 text-sm">
+                                <Link
+                                    to="/"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    Dashboard
+                                </Link>
+                                <Link
+                                    to="/protocols"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    Protocols
+                                </Link>
+                                <Link
+                                    to="/reviews"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    Reviews
+                                </Link>
+                                <Link
+                                    to="/criteria"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    Criteria
+                                </Link>
+                                <Link
+                                    to="/search"
+                                    className="text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    Search
+                                </Link>
+                            </nav>
                         </div>
                         <div className="flex items-center gap-4">
                             {user && (
@@ -99,6 +132,14 @@ function App() {
                     element={
                         <RequireAuth>
                             <EntityList />
+                        </RequireAuth>
+                    }
+                />
+                <Route
+                    path="/criteria"
+                    element={
+                        <RequireAuth>
+                            <CriteriaSpreadsheet />
                         </RequireAuth>
                     }
                 />

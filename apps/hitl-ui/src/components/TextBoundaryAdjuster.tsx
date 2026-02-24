@@ -22,6 +22,8 @@ export default function TextBoundaryAdjuster({
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [dragging, setDragging] = useState<'start' | 'end' | null>(null);
+    const [frozenContextBefore, setFrozenContextBefore] = useState(0);
+    const [frozenContextAfter, setFrozenContextAfter] = useState(0);
 
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -101,8 +103,40 @@ export default function TextBoundaryAdjuster({
         (handle: 'start' | 'end') => (e: React.MouseEvent) => {
             e.preventDefault();
             setDragging(handle);
+            setFrozenContextBefore(Math.max(0, startIdx - 30));
+            setFrozenContextAfter(Math.min(words.length - 1, endIdx + 30));
         },
-        []
+        [startIdx, endIdx, words.length]
+    );
+
+    const handleStartKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                e.stopPropagation();
+                setStartIdx((prev) => Math.max(0, prev - 1));
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                e.stopPropagation();
+                setStartIdx((prev) => Math.min(endIdx, prev + 1));
+            }
+        },
+        [endIdx]
+    );
+
+    const handleEndKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                e.stopPropagation();
+                setEndIdx((prev) => Math.max(startIdx, prev - 1));
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                e.stopPropagation();
+                setEndIdx((prev) => Math.min(words.length - 1, prev + 1));
+            }
+        },
+        [startIdx, words.length]
     );
 
     // Handle mouse move during drag
@@ -172,9 +206,11 @@ export default function TextBoundaryAdjuster({
         );
     }
 
-    // Determine context window: show ~30 words before and after selection
-    const contextBefore = Math.max(0, startIdx - 30);
-    const contextAfter = Math.min(words.length - 1, endIdx + 30);
+    // Determine context window: show ~30 words before and after selection.
+    // While dragging, use frozen bounds so the visible range (and layout) does not change.
+    const contextBefore = dragging !== null ? frozenContextBefore : Math.max(0, startIdx - 30);
+    const contextAfter =
+        dragging !== null ? frozenContextAfter : Math.min(words.length - 1, endIdx + 30);
     const displayWords = words.slice(contextBefore, contextAfter + 1);
 
     return (
@@ -200,8 +236,9 @@ export default function TextBoundaryAdjuster({
                                 <span
                                     className="inline-flex items-center cursor-col-resize select-none text-blue-600 font-bold px-0.5"
                                     onMouseDown={handleMouseDown('start')}
+                                    onKeyDown={handleStartKeyDown}
                                     role="slider"
-                                    aria-label="Drag to adjust selection start"
+                                    aria-label="Drag or use arrow keys to adjust selection start"
                                     aria-valuemin={0}
                                     aria-valuemax={endIdx}
                                     aria-valuenow={startIdx}
@@ -224,8 +261,9 @@ export default function TextBoundaryAdjuster({
                                 <span
                                     className="inline-flex items-center cursor-col-resize select-none text-blue-600 font-bold px-0.5"
                                     onMouseDown={handleMouseDown('end')}
+                                    onKeyDown={handleEndKeyDown}
                                     role="slider"
-                                    aria-label="Drag to adjust selection end"
+                                    aria-label="Drag or use arrow keys to adjust selection end"
                                     aria-valuemin={startIdx}
                                     aria-valuemax={words.length - 1}
                                     aria-valuenow={endIdx}

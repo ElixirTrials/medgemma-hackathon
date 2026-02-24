@@ -8,7 +8,7 @@ systems: UMLS, SNOMED, ICD-10, LOINC, RxNorm, HPO.
 Architecture:
 - Singleton via @lru_cache(maxsize=1) on _get_tu()
 - Two-layer cache: exact-match TTLCache + prefix-aware autocomplete cache
-- Selective tool loading (5 categories, ~18 tools) rather than all 1495
+- Scoped tool loading (6 tools via include_tools) rather than all 1495
 - Response parsing handles each system's unique return format
 - Retry on transient 502/503 errors (3 attempts, exponential backoff)
 - Circuit breaker trips after 10 consecutive failures (60s cooldown)
@@ -107,14 +107,12 @@ def _extract_term_from_sentence(query: str) -> str:
     return " ".join(words[-min(4, len(words)) :])
 
 
-# Tool categories to load (subset of 1495 total tools — only medical terminology)
-_TOOL_CATEGORIES = ["umls", "icd", "loinc", "rxnorm", "hpo"]
-
 # In-memory result cache: (tool_name, normalized_query, max_results) → candidates
 # TTL = 300s (5 minutes) — appropriate for autocomplete endpoints
 _CACHE: TTLCache = TTLCache(maxsize=1000, ttl=300)
 
-# Tool name per system (verified 2026-02-17 with ToolUniverse 1.0.18)
+# Tool name per system (verified 2026-02-17 with ToolUniverse 1.0.18).
+# Single source of truth: only these tools are loaded via include_tools.
 _SYSTEM_TOOL_MAP: dict[str, str] = {
     "umls": "umls_search_concepts",
     "snomed": "snomed_search_concepts",
@@ -124,20 +122,56 @@ _SYSTEM_TOOL_MAP: dict[str, str] = {
     "hpo": "HPO_search_terms",
 }
 
+# Scoped tool list for ToolUniverse — only load what we use (6 tools vs 1495 total).
+_TOOLUNIVERSE_TOOLS: list[str] = list(_SYSTEM_TOOL_MAP.values())
+
+# ToolUniverse SDK resolves tool config "type" (e.g. ICD10Tool) via a lazy registry.
+# The package's static lazy registry omits some types (e.g. ICD10Tool), which triggers
+# "falling back to full discovery" and imports ALL modules. Pre-import our tool modules
+# so the classes are in the registry before any tool runs, avoiding full discovery.
+_TOOL_MODULES_FOR_SCOPE = (
+    "tooluniverse.icd_tool",  # ICD10Tool
+    "tooluniverse.umls_tool",  # UMLSRESTTool (umls + snomed)
+    "tooluniverse.loinc_tool",  # LOINCTool
+    "tooluniverse.rxnorm_tool",  # RxNormTool
+    "tooluniverse.hpo_tool",  # HPOTool
+)
+
+
+def _ensure_tool_classes_registered() -> None:
+    """Import tooluniverse tool modules so our tool types are in the registry.
+
+    Prevents 'Tool X not found in lazy registry, falling back to full discovery'
+    and avoids importing all 1495 tool modules.
+    """
+    import importlib
+
+    for mod in _TOOL_MODULES_FOR_SCOPE:
+        try:
+            importlib.import_module(mod)
+        except ImportError as e:
+            logger.debug("Optional tool module %s not imported: %s", mod, e)
+
 
 @lru_cache(maxsize=1)
 def _get_tu() -> ToolUniverse:
     """Get or create singleton ToolUniverse instance.
 
     lru_cache(maxsize=1) ensures only one ToolUniverse is created per process.
-    load_tools() with selective categories takes ~0.002s vs ~0.3s for all tools.
+    load_tools(include_tools=...) loads exactly the 6 terminology tools we use,
+    not whole categories (18 tools) or the full universe (1495 tools).
 
     Returns:
         Initialized ToolUniverse instance with medical terminology tools loaded.
     """
+    _ensure_tool_classes_registered()
     tu = ToolUniverse()
-    tu.load_tools(tool_type=_TOOL_CATEGORIES)
-    logger.info("ToolUniverse initialized (categories: %s)", _TOOL_CATEGORIES)
+    tu.load_tools(include_tools=_TOOLUNIVERSE_TOOLS)
+    logger.info(
+        "ToolUniverse initialized (scoped to %d tools: %s)",
+        len(_TOOLUNIVERSE_TOOLS),
+        sorted(_TOOLUNIVERSE_TOOLS),
+    )
     return tu
 
 

@@ -78,8 +78,8 @@ class MLflowRequestMiddleware:
                     }
                 )
         except Exception:
-            logger.debug(
-                "MLflow tracing failed, continuing without trace",
+            logger.warning(
+                "MLflow request tracing failed, continuing without trace",
                 exc_info=True,
             )
             if not app_called:
