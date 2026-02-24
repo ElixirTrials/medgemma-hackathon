@@ -29,6 +29,8 @@ class EntitySummary(BaseModel):
     grounding_system: str | None = None
     preferred_term: str | None = None
     grounding_confidence: float | None = None
+    omop_concept_id: str | None = None
+    reconciliation_status: str | None = None
 
 
 class StructuredCriterionRow(BaseModel):
@@ -119,6 +121,8 @@ def _load_entities(
             grounding_system=ent.grounding_system,
             preferred_term=ent.preferred_term,
             grounding_confidence=ent.grounding_confidence,
+            omop_concept_id=getattr(ent, "omop_concept_id", None),
+            reconciliation_status=getattr(ent, "reconciliation_status", None),
         )
         entity_map.setdefault(ent.criteria_id, []).append(summary)
     return entity_map

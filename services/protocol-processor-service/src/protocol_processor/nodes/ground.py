@@ -375,7 +375,7 @@ async def _ground_entity_with_retry(
     return (result, attempt)
 
 
-def _ground_categorical_values(
+def _ground_categorical_values(  # noqa: C901
     mappings: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     """Ground categorical values in field mappings using unit_normalizer.
@@ -395,6 +395,19 @@ def _ground_categorical_values(
     """
     numeric_re = re.compile(r"^[\d.,\-]+$")
 
+    # Safety-net: normalize common LLM-generated categorical values
+    # to canonical boolean form for expression-tree consistency.
+    _value_norm = {
+        "present": "True",
+        "confirmed": "True",
+        "positive": "True",
+        "yes": "True",
+        "absent": "False",
+        "negative": "False",
+        "not present": "False",
+        "no": "False",
+    }
+
     for mapping in mappings:
         try:
             value_obj = mapping.get("value", {})
@@ -412,6 +425,25 @@ def _ground_categorical_values(
             # Skip numeric values — they don't need concept grounding
             if numeric_re.match(val_text.strip()):
                 continue
+
+            # Normalize "present"/"confirmed"/"absent" → "True"/"False"
+            canonical = _value_norm.get(val_text.strip().lower())
+            if canonical is not None:
+                value_obj["value"] = canonical
+                val_text = canonical
+                logger.debug(
+                    "Normalized categorical value '%s' → '%s'",
+                    val_text,
+                    canonical,
+                )
+
+            # If value was normalized to boolean, also normalize relation
+            if canonical is not None:
+                rel = mapping.get("relation", "")
+                if rel in ("contains", "has", "is"):
+                    mapping["relation"] = "="
+                elif rel in ("not_contains", "not"):
+                    mapping["relation"] = "!="
 
             # Already grounded
             if mapping.get("value_concept_id"):
@@ -527,7 +559,7 @@ async def _ground_entity_parallel(
             return (None, str(e), elapsed_ms, 0)
 
 
-async def ground_node(state: PipelineState) -> dict[str, Any]:
+async def ground_node(state: PipelineState) -> dict[str, Any]:  # noqa: C901
     """Ground entities via TerminologyRouter + MedGemma.
 
     Parses entities_json from state, routes each entity through TerminologyRouter
@@ -652,17 +684,18 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
             # Parallel grounding with asyncio.gather + semaphore
             # Semaphore created here (not module-level) to bind to current event loop
             semaphore = asyncio.Semaphore(4)
+            num_to_ground = len(entities_to_ground)
 
             tasks = [
                 _ground_entity_parallel(
                     entity,
                     router,
                     entity.get("criterion_text") or entity.get("text", ""),
-                    idx,
-                    len(entity_items),
+                    pos,
+                    num_to_ground,
                     semaphore,
                 )
-                for idx, entity in entities_to_ground
+                for pos, (idx, entity) in enumerate(entities_to_ground, 1)
             ]
 
             outcomes = await asyncio.gather(*tasks)

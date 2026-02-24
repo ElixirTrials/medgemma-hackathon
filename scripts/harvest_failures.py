@@ -25,6 +25,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, Field
 from sqlalchemy import text
+from sqlalchemy.engine import Engine
 from sqlmodel import create_engine
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -107,7 +108,7 @@ class FailureClassification(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-def _get_engine():
+def _get_engine() -> Engine:
     db_url = os.getenv("DATABASE_URL")
     if not db_url:
         raise ValueError("DATABASE_URL environment variable is required")

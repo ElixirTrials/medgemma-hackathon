@@ -6,16 +6,22 @@ import { columns } from '../components/criteria-table/columns';
 import { FilterBar } from '../components/criteria-table/filters';
 import { Button } from '../components/ui/Button';
 import { useCriteriaSpreadsheet } from '../hooks/useCriteriaSpreadsheet';
+import { useProtocolList } from '../hooks/useProtocols';
 
 export default function CriteriaSpreadsheet() {
     const [page, setPage] = useState(1);
+    const [protocolId, setProtocolId] = useState('');
     const [criteriaType, setCriteriaType] = useState('');
     const [category, setCategory] = useState('');
     const [minConfidence, setMinConfidence] = useState('');
 
+    const { data: protocolData } = useProtocolList(1, 100);
+    const protocols = (protocolData?.items ?? []).map((p) => ({ id: p.id, title: p.title }));
+
     const { data, isLoading, error } = useCriteriaSpreadsheet({
         page,
         pageSize: 50,
+        protocolId: protocolId || undefined,
         criteriaType: criteriaType || undefined,
         category: category || undefined,
         minConfidence: minConfidence ? Number.parseFloat(minConfidence) : undefined,
@@ -83,6 +89,12 @@ export default function CriteriaSpreadsheet() {
             {/* Filters */}
             <div className="rounded-lg border bg-card p-4">
                 <FilterBar
+                    protocolId={protocolId}
+                    setProtocolId={(v) => {
+                        setProtocolId(v);
+                        setPage(1);
+                    }}
+                    protocols={protocols}
                     criteriaType={criteriaType}
                     setCriteriaType={(v) => {
                         setCriteriaType(v);

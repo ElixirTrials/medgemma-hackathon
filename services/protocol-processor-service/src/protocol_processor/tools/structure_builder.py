@@ -158,7 +158,13 @@ async def detect_logic_structure(
             "- Each field_mapping index should appear exactly once\n"
         )
 
-        result = await structured_llm.ainvoke(prompt)
+        from protocol_processor.tracing import llm_span
+
+        with llm_span("gemini_logic_detection") as llm:
+            llm.set_request(prompt)
+            result = await structured_llm.ainvoke(prompt)
+            llm.set_response(str(result))
+
         response = parse_structured_output(result, LogicDetectionResponse)
 
         # Validate all field_mapping_index values are in range

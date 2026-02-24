@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.gemini_utils import (
@@ -67,6 +67,16 @@ class FieldMappingValue(BaseModel):
     duration: str | None = Field(
         default=None, description="Duration value for temporal type"
     )
+
+    @model_validator(mode="after")
+    def truncate_long_strings(self) -> "FieldMappingValue":
+        """Guard against LLM repetition loops producing absurdly long values."""
+        _max = 200
+        for attr in ("value", "unit", "min", "max", "duration"):
+            val = getattr(self, attr)
+            if isinstance(val, str) and len(val) > _max:
+                setattr(self, attr, val[:_max])
+        return self
 
 
 # The set of valid relation operators accepted by the frontend
@@ -169,19 +179,50 @@ async def generate_field_mappings(
             " (e.g. 'HbA1c', 'Age', 'eGFR')\n"
             "- relation: MUST be one of: =, !=, >, >=, <, <=, within,"
             " not_in_last, contains, not_contains\n"
+            "- CRITICAL — Boolean normalization for presence/absence:\n"
+            "  - If the criterion states a condition IS present, required,"
+            " or confirmed:\n"
+            '    relation="=", value={"type": "standard", "value": "True",'
+            ' "unit": null}\n'
+            "  - If the criterion states a condition is NOT present or"
+            " excluded:\n"
+            '    relation="!=", value={"type": "standard", "value": "True",'
+            ' "unit": null}\n'
+            '  - NEVER use "present", "absent", "confirmed", "positive",'
+            ' "negative" as value strings\n'
             '- value: a typed object with a "type" discriminator:\n'
             '  - Standard: {"type": "standard", "value": "7", "unit": "%"}\n'
             '  - Range: {"type": "range", "min": "18", "max": "65",'
             ' "unit": "years"}\n'
-            '  - Temporal: {"type": "temporal", "duration": "6",'
-            ' "unit": "months"}\n'
+            '  - Temporal: {"type": "temporal", "duration": "5",'
+            ' "unit": "days"}\n'
+            "- CRITICAL — Temporal values: 'duration' MUST be a plain number"
+            " (e.g. '5', '6', '30'). NEVER put prose or descriptions in"
+            " duration. Unit goes in 'unit' (e.g. 'days', 'months', 'years').\n"
+            '  Example: "within the past 5 days" → {"type": "temporal",'
+            ' "duration": "5", "unit": "days"}\n'
+            '  BAD: {"duration": "5-days-ago-to-present"} — just use'
+            ' {"duration": "5", "unit": "days"}\n'
             "- Create one mapping per discrete condition in the criterion\n"
             "- If no clear measurement exists, create one mapping with"
-            " relation='contains',"
-            ' value={"type": "standard", "value": "confirmed", "unit": ""}'
+            " relation='=',"
+            ' value={"type": "standard", "value": "True", "unit": null}\n'
+            "- ANTI-PATTERNS (do NOT produce these):\n"
+            "  BAD: relation='!=', value='present'"
+            " -> use relation='!=', value='True'\n"
+            "  BAD: relation='contains', value='confirmed'"
+            " -> use relation='=', value='True'\n"
+            "  BAD: relation='==', value='absent'"
+            " -> use relation='!=', value='True'\n"
         )
 
-        result = await structured_llm.ainvoke(prompt)
+        from protocol_processor.tracing import llm_span
+
+        with llm_span("gemini_field_mapping") as llm:
+            llm.set_request(prompt)
+            result = await structured_llm.ainvoke(prompt)
+            llm.set_response(str(result))
+
         response = parse_structured_output(result, FieldMappingResponse)
 
         mappings = [

@@ -18,6 +18,18 @@ import pytest
 _SNIPPETS_PATH = Path(__file__).parent / "test_snippets.json"
 
 
+def _snippet_counts() -> tuple[int, int]:
+    """Load snippet counts for parametrization (avoids hardcoded range)."""
+    data = json.loads(_SNIPPETS_PATH.read_text())
+    return (
+        len(data["extraction_test_snippets"]),
+        len(data["grounding_test_snippets"]),
+    )
+
+
+_NUM_EXTRACTION, _NUM_GROUNDING = _snippet_counts()
+
+
 @pytest.fixture(scope="module")
 def snippets_data() -> dict:
     """Load the test_snippets.json fixture."""
@@ -43,7 +55,7 @@ def grounding_snippets(snippets_data: dict) -> list[dict]:
 class TestExtractionSnippets:
     """Validate extraction snippet golden classification."""
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_EXTRACTION))
     def test_extraction_snippet_structure(
         self, idx: int, extraction_snippets: list[dict]
     ) -> None:
@@ -53,7 +65,7 @@ class TestExtractionSnippets:
         assert "classification" in snippet
         assert snippet["classification"] in ("inclusion", "exclusion", "neither")
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_EXTRACTION))
     def test_extraction_snippet_criteria_consistency(
         self, idx: int, extraction_snippets: list[dict]
     ) -> None:
@@ -83,7 +95,7 @@ _RELATION_NORMALIZATIONS = {
 class TestGroundingSnippets:
     """Validate grounding snippet golden entity examples."""
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
     def test_grounding_snippet_has_entities(
         self, idx: int, grounding_snippets: list[dict]
     ) -> None:
@@ -92,7 +104,7 @@ class TestGroundingSnippets:
         assert "entities" in snippet
         assert len(snippet["entities"]) > 0
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
     def test_grounding_snippet_entity_fields(
         self, idx: int, grounding_snippets: list[dict]
     ) -> None:
@@ -105,7 +117,7 @@ class TestGroundingSnippets:
             assert "relation" in entity
             assert "value" in entity
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
     def test_grounding_snippet_system_is_valid(
         self, idx: int, grounding_snippets: list[dict]
     ) -> None:
@@ -117,7 +129,7 @@ class TestGroundingSnippets:
                 f"Unknown system '{entity['system']}'"
             )
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
     def test_grounding_snippet_codes_are_cui_format(
         self, idx: int, grounding_snippets: list[dict]
     ) -> None:
@@ -128,7 +140,7 @@ class TestGroundingSnippets:
             assert code.startswith("C"), f"Expected CUI format, got: {code}"
             assert code[1:].isdigit(), f"Expected CUI digits after 'C', got: {code}"
 
-    @pytest.mark.parametrize("idx", range(7))
+    @pytest.mark.parametrize("idx", range(_NUM_GROUNDING))
     def test_grounding_snippet_relations_are_valid(
         self, idx: int, grounding_snippets: list[dict]
     ) -> None:
@@ -187,6 +199,10 @@ class TestGroundingSnippets:
         assert len(snippet["entities"]) == 2
         codes = {e["code"] for e in snippet["entities"]}
         assert "C0038013" in codes  # Ankylosing Spondylitis
+        # Verify boolean normalization
+        for e in snippet["entities"]:
+            assert e["relation"] == "="
+            assert e["value"] == "True"
 
     def test_parkinsons_gba_snippet(self, grounding_snippets: list[dict]) -> None:
         """Snippet 4: PD with GBA mutation."""
@@ -213,3 +229,26 @@ class TestGroundingSnippets:
         codes = {e["code"] for e in snippet["entities"]}
         assert "C1705498" in codes  # Female Phenotype
         assert "C0015787" in codes  # Female Sterilization
+        # Verify boolean normalization
+        for e in snippet["entities"]:
+            assert e["relation"] == "="
+            assert e["value"] == "True"
+
+    def test_venous_blood_snippet(self, grounding_snippets: list[dict]) -> None:
+        """Snippet 7: Must agree to collection of venous blood."""
+        snippet = grounding_snippets[7]
+        assert len(snippet["entities"]) == 1
+        e = snippet["entities"][0]
+        assert e["code"] == "C1548758"
+        assert e["relation"] == "="
+        assert e["value"] == "True"
+
+    def test_non_pregnant_snippet(self, grounding_snippets: list[dict]) -> None:
+        """Snippet 8: Are non-pregnant females."""
+        snippet = grounding_snippets[8]
+        assert len(snippet["entities"]) == 1
+        e = snippet["entities"][0]
+        assert "Pregnancy" in e["entity_name"]
+        assert e["code"] == "C0032961"
+        assert e["relation"] == "!="
+        assert e["value"] == "True"

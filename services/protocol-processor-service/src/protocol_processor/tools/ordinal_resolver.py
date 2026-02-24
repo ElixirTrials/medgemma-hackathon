@@ -84,7 +84,13 @@ async def resolve_ordinal_candidates(
             "- values: list of grades with descriptions\n"
         )
 
-        result = await structured_llm.ainvoke(prompt)
+        from protocol_processor.tracing import llm_span
+
+        with llm_span("gemini_ordinal_resolution") as llm:
+            llm.set_request(prompt)
+            result = await structured_llm.ainvoke(prompt)
+            llm.set_response(str(result))
+
         response = parse_structured_output(result, OrdinalResolutionResponse)
 
         # Filter to confirmed ordinals with sufficient confidence

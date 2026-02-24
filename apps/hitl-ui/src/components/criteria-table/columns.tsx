@@ -122,23 +122,25 @@ export const columns: ColumnDef<StructuredCriterionRow>[] = [
                 <div className="flex flex-wrap gap-1">
                     {entities.slice(0, 3).map((e) => {
                         const sys = mapSystem(e.grounding_system);
-                        if (sys && e.grounding_code) {
-                            return (
-                                <TerminologyBadge
-                                    key={e.id}
-                                    system={sys}
-                                    code={e.grounding_code}
-                                    display={e.preferred_term || undefined}
-                                />
-                            );
-                        }
                         return (
-                            <span
-                                key={e.id}
-                                className="inline-flex items-center rounded-full border bg-gray-50 border-gray-200 px-2 py-0.5 text-xs"
-                            >
-                                {e.text}
-                            </span>
+                            <div key={e.id} className="flex flex-col gap-0.5">
+                                {sys && e.grounding_code ? (
+                                    <TerminologyBadge
+                                        system={sys}
+                                        code={e.grounding_code}
+                                        display={e.preferred_term || undefined}
+                                    />
+                                ) : (
+                                    <span className="inline-flex items-center rounded-full border bg-gray-50 border-gray-200 px-2 py-0.5 text-xs">
+                                        {e.text}
+                                    </span>
+                                )}
+                                {e.omop_concept_id && (
+                                    <span className="inline-flex items-center rounded-full bg-amber-50 border border-amber-200 px-1.5 py-0 text-[9px] font-medium text-amber-700">
+                                        OMOP: {e.omop_concept_id}
+                                    </span>
+                                )}
+                            </div>
                         );
                     })}
                     {entities.length > 3 && (

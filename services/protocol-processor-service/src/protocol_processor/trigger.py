@@ -24,7 +24,7 @@ import os
 from typing import Any
 from uuid import uuid4
 
-from api_service.storage import engine
+from api_service.storage import engine  # type: ignore[import-untyped]
 from shared.exceptions import AuthExpiredError
 from shared.models import Protocol
 from sqlmodel import Session
@@ -93,21 +93,22 @@ _mlflow_experiment_name: str | None = None
 
 
 def _get_experiment_name() -> str:
-    """Return the MLflow experiment name for this process launch."""
+    """Return MLflow experiment name: one per day so all runs share it."""
     global _mlflow_experiment_name
     if _mlflow_experiment_name is None:
         from datetime import datetime, timezone
 
-        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
-        _mlflow_experiment_name = f"protocol-processing-{ts}"
+        # Date only: one experiment per day; avoids one per process/restart.
+        date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+        _mlflow_experiment_name = f"protocol-processing-{date_str}"
     return _mlflow_experiment_name
 
 
 def _ensure_mlflow() -> bool:
     """Ensure MLflow tracking is configured in the current thread.
 
-    Creates a new experiment per process launch (timestamped name) so each
-    run of the API gets a clean experiment in the MLflow UI.
+    Uses one experiment per day (protocol-processing-YYYYMMDD) so all runs
+    and workers share the same experiment in the MLflow UI.
     """
     try:
         import mlflow
@@ -115,7 +116,27 @@ def _ensure_mlflow() -> bool:
         tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
         if tracking_uri:
             mlflow.set_tracking_uri(tracking_uri)
-            mlflow.set_experiment(_get_experiment_name())
+            client = mlflow.MlflowClient()
+
+            # Restore the Default experiment (id "0") if deleted.
+            try:
+                default_exp = client.get_experiment("0")
+                if default_exp and default_exp.lifecycle_stage == "deleted":
+                    client.restore_experiment("0")
+            except Exception:
+                pass
+
+            experiment_name = _get_experiment_name()
+            try:
+                mlflow.set_experiment(experiment_name)
+            except mlflow.exceptions.MlflowException:
+                # Experiment in deleted state — restore and reuse.
+                exp = client.get_experiment_by_name(experiment_name)
+                if exp and exp.lifecycle_stage == "deleted":
+                    client.restore_experiment(exp.experiment_id)
+                    mlflow.set_experiment(experiment_name)
+                else:
+                    raise
             return True
     except ImportError:
         logger.warning("mlflow not installed — tracing disabled")
@@ -154,6 +175,9 @@ def _categorize_pipeline_error(e: Exception) -> str:
     Returns:
         Human-readable error message for the user.
     """
+    if isinstance(e, DependencyCheckError):
+        return f"Infrastructure dependency unavailable: {e}"
+
     error_str = str(e).lower()
 
     # PDF / extraction errors
@@ -247,12 +271,9 @@ async def _run_pipeline(
     # appears in MLflow after the full pipeline completes.  Instead,
     # each node creates its own independent trace via pipeline_span()
     # so traces appear in real-time as nodes finish.
-    #
-    # Do NOT call _ensure_mlflow() here — it would call
-    # mlflow.set_experiment() with a new timestamped name, overwriting
-    # the global _active_experiment_id set by main.py at startup and
-    # scattering traces across multiple experiments.  MLflow is already
-    # configured in the lifespan() context in main.py.
+    # MLflow for this thread is set by handle_protocol_uploaded() via
+    # _ensure_mlflow() (protocol-processing-YYYYMMDD). Do not call
+    # _ensure_mlflow() again here.
 
     # Set run_id so every node's pipeline_span() tags its trace with the
     # same identifier.  Uses the thread_id which is "{protocol_id}:{uuid4}".
@@ -261,6 +282,65 @@ async def _run_pipeline(
         set_pipeline_run_id(thread_id)
 
     return await graph.ainvoke(initial_state, config)
+
+
+class DependencyCheckError(RuntimeError):
+    """Raised when a required infrastructure dependency is unreachable."""
+
+
+def _preflight_check() -> None:
+    """Verify infrastructure dependencies are reachable before starting the pipeline.
+
+    Checks: PostgreSQL (main DB), OMOP vocabulary DB, and MLflow tracking server.
+    Raises DependencyCheckError on the first failure so the pipeline never starts
+    and no API calls (Gemini, ToolUniverse, etc.) are wasted.
+    """
+    import urllib.request
+
+    from sqlalchemy import text
+
+    # 1. Main database (required for persist, parse, etc.)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise DependencyCheckError(
+            f"Main database (DATABASE_URL) is not reachable: {exc}"
+        ) from exc
+
+    # 2. OMOP vocabulary database (required for dual grounding)
+    try:
+        from protocol_processor.tools.omop_mapper import _get_omop_engine
+
+        omop_engine = _get_omop_engine()
+        with omop_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise DependencyCheckError(
+            f"OMOP vocabulary database (OMOP_VOCAB_URL) is not reachable: {exc}"
+        ) from exc
+
+    # 3. MLflow tracking server (required for observability)
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not tracking_uri:
+        raise DependencyCheckError(
+            "MLFLOW_TRACKING_URI environment variable is not set"
+        )
+    try:
+        req = urllib.request.Request(f"{tracking_uri}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status >= 400:
+                raise DependencyCheckError(
+                    f"MLflow health check returned HTTP {resp.status}"
+                )
+    except DependencyCheckError:
+        raise
+    except Exception as exc:
+        raise DependencyCheckError(
+            f"MLflow tracking server ({tracking_uri}) is not reachable: {exc}"
+        ) from exc
+
+    logger.info("Pre-flight checks passed: DB, OMOP, MLflow all reachable")
 
 
 def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
@@ -280,9 +360,31 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
         payload: Event payload dict containing protocol_id, file_uri, and title.
 
     Raises:
+        DependencyCheckError: If DB, OMOP, or MLflow is unreachable.
         Exception: Re-raised after logging to let the outbox processor
             mark the event as failed for retry.
     """
+    # Pre-flight: verify all infrastructure dependencies are up before
+    # spending any Gemini/ToolUniverse API calls.
+    _preflight_check()
+
+    # Set MLflow experiment for this worker thread (protocol-processing-YYYYMMDD).
+    # Without this, the thread would use default experiment ID 0, which may be deleted.
+    _ensure_mlflow()
+    # So pipeline spans carry the experiment ID and export works from any thread.
+    try:
+        import mlflow
+
+        from protocol_processor.tracing import set_pipeline_experiment_id
+
+        exp = mlflow.get_experiment_by_name(_get_experiment_name())
+        if exp:
+            set_pipeline_experiment_id(exp.experiment_id)
+        else:
+            set_pipeline_experiment_id(None)
+    except Exception:
+        logger.debug("Could not set pipeline experiment ID for tracing", exc_info=True)
+
     protocol_id = payload.get("protocol_id", "unknown")
     logger.info(
         "Handling ProtocolUploaded event for protocol %s (consolidated pipeline)",

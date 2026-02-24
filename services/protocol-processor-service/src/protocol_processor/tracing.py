@@ -36,10 +36,21 @@ _pipeline_run_id: contextvars.ContextVar[str] = contextvars.ContextVar(
     "pipeline_run_id", default=""
 )
 
+# Experiment ID for pipeline traces. Set by trigger after _ensure_mlflow() so
+# spans carry the experiment ID; export then uses it even from another thread.
+_pipeline_experiment_id: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "pipeline_experiment_id", default=None
+)
+
 
 def set_pipeline_run_id(run_id: str) -> None:
     """Set the current pipeline run_id (call before graph.ainvoke)."""
     _pipeline_run_id.set(run_id)
+
+
+def set_pipeline_experiment_id(experiment_id: str | None) -> None:
+    """Set experiment ID for pipeline traces (after _ensure_mlflow in trigger)."""
+    _pipeline_experiment_id.set(experiment_id)
 
 
 @contextmanager
@@ -68,9 +79,19 @@ def pipeline_span(
     """
     try:
         import mlflow
+        from mlflow.entities.trace_location import MlflowExperimentLocation
 
         if os.getenv("MLFLOW_TRACKING_URI"):
-            with mlflow.start_span(name=name, span_type=span_type) as span:
+            # Pass experiment_id on span so export uses it even from another thread.
+            exp_id = _pipeline_experiment_id.get()
+            trace_destination = (
+                MlflowExperimentLocation(experiment_id=exp_id) if exp_id else None
+            )
+            with mlflow.start_span(
+                name=name,
+                span_type=span_type,
+                trace_destination=trace_destination,
+            ) as span:
                 # Tag the trace for grouping/filtering in the MLflow UI.
                 tags: dict[str, str] = {"node": name}
                 if protocol_id:
@@ -106,3 +127,98 @@ class _NoOpSpan:
 
     def set_status(self, status: str) -> None:
         pass
+
+
+# ---------------------------------------------------------------------------
+# LLM-level child span helpers
+# ---------------------------------------------------------------------------
+
+_TRUNCATE_LEN = 10_000
+
+
+def _truncate(text: str, max_len: int = _TRUNCATE_LEN) -> str:
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + f"... [truncated, {len(text)} total chars]"
+
+
+class _LLMSpanCtx:
+    """Wraps an MLflow span and exposes set_request / set_response helpers."""
+
+    def __init__(self, span: Any, model_name: str) -> None:
+        self._span = span
+        self._model_name = model_name
+        self._finalized = False
+
+    def set_request(self, prompt_text: str) -> None:
+        """Record the LLM request (prompt + model) as span inputs."""
+        self._span.set_inputs(
+            {
+                "model": self._model_name,
+                "prompt": _truncate(prompt_text),
+            }
+        )
+
+    def set_response(
+        self,
+        response_text: str,
+        usage: dict[str, int] | None = None,
+    ) -> None:
+        """Record the LLM response and optional token counts as span outputs."""
+        outputs: dict[str, Any] = {"response": _truncate(response_text)}
+        if usage:
+            outputs.update(usage)
+        self._span.set_outputs(outputs)
+        self._finalized = True
+
+    def _finalize(self) -> None:
+        """Ensure outputs are set even if set_response was never called."""
+        if not self._finalized:
+            self._span.set_outputs({"response": "(not captured)"})
+
+
+class _NoOpLLMSpan:
+    """No-op replacement when MLflow is unavailable."""
+
+    def set_request(self, prompt_text: str) -> None:
+        pass
+
+    def set_response(
+        self,
+        response_text: str,
+        usage: dict[str, int] | None = None,
+    ) -> None:
+        pass
+
+
+@contextmanager
+def llm_span(name: str, model_name: str = ""):
+    """Create an MLflow child span for an individual LLM call.
+
+    When called inside an active ``pipeline_span()``, this automatically
+    becomes a child span (MLflow 3.x nests ``start_span`` calls).
+    When MLflow is unavailable the context manager yields a no-op object.
+
+    Args:
+        name: Span name (e.g. ``"gemini_extraction"``).
+        model_name: Model identifier to record in span inputs.
+
+    Yields:
+        ``_LLMSpanCtx`` (or ``_NoOpLLMSpan``) with ``set_request`` /
+        ``set_response`` helpers.
+    """
+    try:
+        import mlflow
+
+        if os.getenv("MLFLOW_TRACKING_URI"):
+            with mlflow.start_span(name=name, span_type="LLM") as span:
+                ctx = _LLMSpanCtx(span, model_name)
+                yield ctx
+                ctx._finalize()
+                return
+    except ImportError:
+        pass
+    except Exception:
+        logger.debug("llm_span creation failed, falling back to no-op", exc_info=True)
+
+    yield _NoOpLLMSpan()

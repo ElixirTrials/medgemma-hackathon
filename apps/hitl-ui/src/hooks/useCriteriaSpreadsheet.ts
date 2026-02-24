@@ -10,6 +10,8 @@ export interface EntitySummary {
     grounding_system: string | null;
     preferred_term: string | null;
     grounding_confidence: number | null;
+    omop_concept_id: string | null;
+    reconciliation_status: string | null;
 }
 
 export interface StructuredCriterionRow {

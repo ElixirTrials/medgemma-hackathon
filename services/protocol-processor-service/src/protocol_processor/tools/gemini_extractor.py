@@ -89,15 +89,32 @@ async def _invoke_gemini(
     Returns:
         ExtractionResult parsed from Gemini's structured output.
     """
-    response = await client.aio.models.generate_content(
-        model=model,
-        contents=cast(Any, [uploaded_file, user_prompt]),
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            response_mime_type="application/json",
-            response_schema=ExtractionResult,
-        ),
-    )
+    from protocol_processor.tracing import llm_span
+
+    with llm_span("gemini_extraction", model) as llm:
+        llm.set_request(f"[system] {system_prompt}\n\n[user] {user_prompt}")
+
+        response = await client.aio.models.generate_content(
+            model=model,
+            contents=cast(Any, [uploaded_file, user_prompt]),
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                response_mime_type="application/json",
+                response_schema=ExtractionResult,
+            ),
+        )
+
+        resp_text = response.text or ""
+        usage: dict[str, int] = {}
+        if hasattr(response, "usage_metadata") and response.usage_metadata:
+            um = response.usage_metadata
+            if hasattr(um, "prompt_token_count") and um.prompt_token_count:
+                usage["input_tokens"] = um.prompt_token_count
+            if hasattr(um, "candidates_token_count") and um.candidates_token_count:
+                usage["output_tokens"] = um.candidates_token_count
+            if hasattr(um, "total_token_count") and um.total_token_count:
+                usage["total_tokens"] = um.total_token_count
+        llm.set_response(resp_text, usage or None)
 
     # Return parsed Pydantic model directly
     if response.parsed is not None:

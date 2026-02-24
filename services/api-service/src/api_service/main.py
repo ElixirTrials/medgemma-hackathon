@@ -12,7 +12,10 @@ from events_py.outbox import OutboxProcessor  # noqa: E402
 from fastapi import Depends, FastAPI, Request  # noqa: E402
 from fastapi.middleware.cors import CORSMiddleware  # noqa: E402
 from fastapi.responses import FileResponse, JSONResponse  # noqa: E402
-from protocol_processor.trigger import handle_protocol_uploaded  # noqa: E402
+from protocol_processor.trigger import (  # noqa: E402
+    _get_experiment_name,
+    handle_protocol_uploaded,
+)
 from sqlalchemy import create_engine as sa_create_engine  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlmodel import Session  # noqa: E402
@@ -43,6 +46,50 @@ logger = logging.getLogger(__name__)
 _running_tasks: Set[asyncio.Task] = set()  # noqa: UP006
 
 
+def _init_mlflow() -> None:
+    """Set up MLflow tracking, restoring deleted experiments if needed."""
+    import mlflow
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not tracking_uri:
+        logger.info("MLFLOW_TRACKING_URI not set, skipping MLflow initialization")
+        return
+
+    mlflow.set_tracking_uri(tracking_uri)
+    client = mlflow.MlflowClient()
+
+    # Restore the Default experiment (id "0") if deleted, otherwise
+    # traces that land before set_experiment runs will 400.
+    try:
+        default_exp = client.get_experiment("0")
+        if default_exp and default_exp.lifecycle_stage == "deleted":
+            client.restore_experiment("0")
+    except Exception:
+        pass
+
+    experiment_name = _get_experiment_name()
+    try:
+        mlflow.set_experiment(experiment_name)
+    except mlflow.exceptions.MlflowException:
+        # Experiment in deleted state — restore and reuse.
+        exp = client.get_experiment_by_name(experiment_name)
+        if exp and exp.lifecycle_stage == "deleted":
+            client.restore_experiment(exp.experiment_id)
+            mlflow.set_experiment(experiment_name)
+        else:
+            raise
+    # NOTE: Do NOT enable mlflow.langchain.autolog() here.
+    # Autolog wraps graph.ainvoke() in a single trace that only
+    # appears after the full pipeline finishes.  Each pipeline
+    # node creates its own independent trace via pipeline_span()
+    # so traces stream to MLflow in real-time as nodes complete.
+    logger.info(
+        "MLflow initialized: tracking_uri=%s, experiment=%s",
+        tracking_uri,
+        experiment_name,
+    )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage the lifecycle of the FastAPI application."""
@@ -54,23 +101,7 @@ async def lifespan(app: FastAPI):
 
     # Initialize MLflow
     try:
-        import mlflow
-
-        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-        if tracking_uri:
-            mlflow.set_tracking_uri(tracking_uri)
-            mlflow.set_experiment("protocol-processing")
-            # NOTE: Do NOT enable mlflow.langchain.autolog() here.
-            # Autolog wraps graph.ainvoke() in a single trace that only
-            # appears after the full pipeline finishes.  Each pipeline
-            # node creates its own independent trace via pipeline_span()
-            # so traces stream to MLflow in real-time as nodes complete.
-            logger.info(
-                "MLflow initialized: tracking_uri=%s, experiment=protocol-processing",
-                tracking_uri,
-            )
-        else:
-            logger.info("MLFLOW_TRACKING_URI not set, skipping MLflow initialization")
+        _init_mlflow()
     except ImportError:
         logger.info("mlflow not installed, skipping initialization")
     except Exception:

@@ -32,7 +32,7 @@
       },
       {
         "snippet_text": "Primary indication for TKA is degenerative osteoarthritis of the knee.",
-        "extracted_criteria": "Primary indication for TKA is degenerative osteoarthritis of the knee",
+        "extracted_criteria": null,
         "classification": "neither"
       }
     ],
@@ -87,15 +87,15 @@
             "entity_name": "Ankylosing Spondylitis",
             "system": "UMLS",
             "code": "C0038013",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           },
           {
             "entity_name": "Radiologic examination",
             "system": "UMLS",
             "code": "C0034693",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           }
         ]
       },
@@ -106,29 +106,29 @@
             "entity_name": "Male Gender",
             "system": "UMLS",
             "code": "C1706180",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           },
           {
             "entity_name": "Female Phenotype",
             "system": "UMLS",
             "code": "C1705498",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           },
           {
             "entity_name": "Parkinson's Disease",
             "system": "UMLS",
             "code": "C0030567",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           },
           {
             "entity_name": "GBA gene mutation",
             "system": "UMLS",
             "code": "C4225361",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           }
         ]
       },
@@ -139,7 +139,7 @@
             "entity_name": "American Society of Anesthesiologists physical status classification",
             "system": "UMLS",
             "code": "C0450990",
-            "relation": "==",
+            "relation": "=",
             "value": "1, 2, or 3"
           }
         ]
@@ -151,15 +151,39 @@
             "entity_name": "Female Phenotype",
             "system": "UMLS",
             "code": "C1705498",
-            "relation": "==",
-            "value": "present"
+            "relation": "=",
+            "value": "True"
           },
           {
             "entity_name": "Female Sterilization",
             "system": "SNOMED",
             "code": "C0015787",
-            "relation": "==",
-            "value": "confirmed"
+            "relation": "=",
+            "value": "True"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Must agree to the collection of venous blood per protocol.",
+        "entities": [
+          {
+            "entity_name": "Collection of venous blood by venipuncture",
+            "system": "UMLS",
+            "code": "C1548758",
+            "relation": "=",
+            "value": "True"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Are non-pregnant females, inclusive at time of enrollment.",
+        "entities": [
+          {
+            "entity_name": "Pregnancy",
+            "system": "SNOMED",
+            "code": "C0032961",
+            "relation": "!=",
+            "value": "True"
           }
         ]
       }

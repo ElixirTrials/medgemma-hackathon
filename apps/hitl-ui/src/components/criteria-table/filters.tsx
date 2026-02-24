@@ -22,7 +22,15 @@ export function FilterChip({ label, value, onRemove }: FilterChipProps) {
     );
 }
 
+interface ProtocolOption {
+    id: string;
+    title: string;
+}
+
 interface FilterBarProps {
+    protocolId: string;
+    setProtocolId: (v: string) => void;
+    protocols: ProtocolOption[];
     criteriaType: string;
     setCriteriaType: (v: string) => void;
     category: string;
@@ -42,6 +50,9 @@ const CATEGORIES = [
 ];
 
 export function FilterBar({
+    protocolId,
+    setProtocolId,
+    protocols,
     criteriaType,
     setCriteriaType,
     category,
@@ -51,6 +62,19 @@ export function FilterBar({
 }: FilterBarProps) {
     return (
         <div className="flex flex-wrap items-center gap-3">
+            <select
+                value={protocolId}
+                onChange={(e) => setProtocolId(e.target.value)}
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+                <option value="">All protocols</option>
+                {protocols.map((p) => (
+                    <option key={p.id} value={p.id}>
+                        {p.title || p.id}
+                    </option>
+                ))}
+            </select>
+
             <select
                 value={criteriaType}
                 onChange={(e) => setCriteriaType(e.target.value)}
@@ -96,6 +120,13 @@ export function FilterBar({
 
             {/* Active filter chips */}
             <div className="flex flex-wrap gap-1.5">
+                {protocolId && (
+                    <FilterChip
+                        label="Protocol"
+                        value={protocols.find((p) => p.id === protocolId)?.title || protocolId}
+                        onRemove={() => setProtocolId('')}
+                    />
+                )}
                 {criteriaType && (
                     <FilterChip
                         label="Type"

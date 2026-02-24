@@ -12,16 +12,22 @@ interface FieldMappingCellProps {
     mappings: Array<Record<string, unknown>>;
 }
 
+const MAX_VALUE_LEN = 80;
+
+function truncate(s: string): string {
+    return s.length > MAX_VALUE_LEN ? `${s.slice(0, MAX_VALUE_LEN)}…` : s;
+}
+
 function formatValue(value: unknown, unit?: string): string {
     if (value === null || value === undefined) return '';
     if (typeof value === 'string' || typeof value === 'number') {
-        return unit ? `${value} ${unit}` : String(value);
+        return truncate(unit ? `${value} ${unit}` : String(value));
     }
     if (typeof value === 'object') {
         const v = value as Record<string, unknown>;
-        if (v.type === 'range') return `${v.min}–${v.max}${v.unit ? ` ${v.unit}` : ''}`;
-        if (v.type === 'temporal') return `${v.duration} ${v.unit}`;
-        if (v.type === 'standard') return `${v.value}${v.unit ? ` ${v.unit}` : ''}`;
+        if (v.type === 'range') return truncate(`${v.min}–${v.max}${v.unit ? ` ${v.unit}` : ''}`);
+        if (v.type === 'temporal') return truncate(`${v.duration} ${v.unit}`);
+        if (v.type === 'standard') return truncate(`${v.value}${v.unit ? ` ${v.unit}` : ''}`);
     }
     return '';
 }
