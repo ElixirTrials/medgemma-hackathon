@@ -3,7 +3,7 @@
   "checkpoint_id": "f7c092406404",
   "strategy": "manual-commit",
   "branch": "feat/submission-additions",
-  "checkpoints_count": 18,
+  "checkpoints_count": 21,
   "files_touched": [
     ".env.example",
     "Makefile",
@@ -122,13 +122,20 @@
       "context": "/f7/c092406404/5/context.md",
       "content_hash": "/f7/c092406404/5/content_hash.txt",
       "prompt": "/f7/c092406404/5/prompt.txt"
+    },
+    {
+      "metadata": "/f7/c092406404/6/metadata.json",
+      "transcript": "/f7/c092406404/6/full.jsonl",
+      "context": "/f7/c092406404/6/context.md",
+      "content_hash": "/f7/c092406404/6/content_hash.txt",
+      "prompt": "/f7/c092406404/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 2067,
-    "cache_creation_tokens": 1052188,
-    "cache_read_tokens": 54418086,
-    "output_tokens": 163949,
-    "api_call_count": 556
+    "input_tokens": 2154,
+    "cache_creation_tokens": 1193693,
+    "cache_read_tokens": 64170321,
+    "output_tokens": 184005,
+    "api_call_count": 637
   }
 }
