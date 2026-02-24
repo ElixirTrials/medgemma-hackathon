@@ -1,0 +1,41 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f7c092406404",
+  "session_id": "7ec5d9b6-f2b4-4425-a1b4-e5e5197b98bf",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-24T14:41:37.353378Z",
+  "branch": "feat/submission-additions",
+  "checkpoints_count": 8,
+  "files_touched": [
+    "libs/events-py/src/events_py/outbox.py",
+    "scripts/verify_mlflow_tracing.py",
+    "services/api-service/src/api_service/entities.py",
+    "services/api-service/src/api_service/main.py",
+    "services/api-service/src/api_service/middleware.py",
+    "services/api-service/src/api_service/reviews.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py",
+    "services/protocol-processor-service/src/protocol_processor/tracing.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "dcdce00f4db2",
+  "transcript_identifier_at_start": "4673e0fc-7afe-41c5-9b09-a5b9d41774b6",
+  "token_usage": {
+    "input_tokens": 157,
+    "cache_creation_tokens": 203877,
+    "cache_read_tokens": 13575254,
+    "output_tokens": 43579,
+    "api_call_count": 139
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-24T14:41:36.839204Z",
+    "agent_lines": 445,
+    "human_added": 6051,
+    "human_modified": 44,
+    "human_removed": 0,
+    "total_committed": 6540,
+    "agent_percentage": 6.804281345565749
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/7ec5d9b6-f2b4-4425-a1b4-e5e5197b98bf.jsonl"
+}
