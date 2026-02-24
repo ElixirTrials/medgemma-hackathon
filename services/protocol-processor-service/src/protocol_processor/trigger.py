@@ -25,6 +25,7 @@ from typing import Any
 from uuid import uuid4
 
 from api_service.storage import engine
+from shared.exceptions import AuthExpiredError
 from shared.models import Protocol
 from sqlmodel import Session
 
@@ -57,7 +58,7 @@ def _cleanup_orphan_traces() -> None:
             )
         except (AttributeError, TypeError):
             # search_traces may not exist or have different signature
-            logger.debug("MLflow search_traces API not available for orphan cleanup")
+            logger.warning("MLflow search_traces API not available for orphan cleanup")
             return
 
         closed = 0
@@ -81,17 +82,32 @@ def _cleanup_orphan_traces() -> None:
                 closed,
             )
     except Exception:
-        logger.debug("Orphan trace cleanup skipped (non-fatal)", exc_info=True)
+        logger.warning("Orphan trace cleanup failed (non-fatal)", exc_info=True)
 
 
 # Run once at startup to clean up orphaned traces from previous crashes
 _cleanup_orphan_traces()
 
 
+_mlflow_experiment_name: str | None = None
+
+
+def _get_experiment_name() -> str:
+    """Return the MLflow experiment name for this process launch."""
+    global _mlflow_experiment_name
+    if _mlflow_experiment_name is None:
+        from datetime import datetime, timezone
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+        _mlflow_experiment_name = f"protocol-processing-{ts}"
+    return _mlflow_experiment_name
+
+
 def _ensure_mlflow() -> bool:
     """Ensure MLflow tracking is configured in the current thread.
 
-    Returns True if MLflow tracing is available and configured.
+    Creates a new experiment per process launch (timestamped name) so each
+    run of the API gets a clean experiment in the MLflow UI.
     """
     try:
         import mlflow
@@ -99,10 +115,30 @@ def _ensure_mlflow() -> bool:
         tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
         if tracking_uri:
             mlflow.set_tracking_uri(tracking_uri)
-            mlflow.set_experiment("protocol-processing")
+            mlflow.set_experiment(_get_experiment_name())
             return True
     except ImportError:
-        logger.debug("mlflow not installed, skipping tracing setup")
+        logger.warning("mlflow not installed — tracing disabled")
+    except Exception:
+        logger.warning("MLflow setup failed — tracing disabled", exc_info=True)
+    return False
+
+
+def _is_auth_expired_error(e: BaseException) -> bool:
+    """Return True if the exception is or was caused by credential refresh failure.
+
+    Checks the exception and its __cause__ chain so gRPC-wrapped RefreshErrors
+    are detected. Used to avoid retries and to raise AuthExpiredError for the outbox.
+    """
+    try:
+        from google.auth.exceptions import RefreshError
+    except ImportError:
+        return False
+    exc: BaseException | None = e
+    while exc is not None:
+        if isinstance(exc, RefreshError):
+            return True
+        exc = getattr(exc, "__cause__", None)
     return False
 
 
@@ -126,9 +162,9 @@ def _categorize_pipeline_error(e: Exception) -> str:
     if "gcs" in error_str or "storage" in error_str or "bucket" in error_str:
         return "File storage service unavailable"
 
-    # Auth / credential errors
+    # Auth / credential errors (do not retry — trigger login in UI)
     if "credential" in error_str or "auth" in error_str or "refresherror" in error_str:
-        return "Google credentials expired — run: gcloud auth application-default login"
+        return "Google credentials expired — sign in again"
 
     # UMLS / grounding errors
     if "mcp" in error_str or "subprocess" in error_str:
@@ -197,19 +233,32 @@ async def _run_pipeline(
     in the sync caller.
 
     Each pipeline node creates its own separate MLflow trace tagged with
-    protocol_id, so traces appear in the MLflow UI as they complete
-    rather than waiting for the entire pipeline. Filter by the
-    protocol_id tag to see all traces from a single pipeline run.
+    protocol_id and run_id, so traces appear in the MLflow UI as they
+    complete rather than waiting for the entire pipeline. Filter by the
+    run_id tag to see all traces from a single pipeline invocation.
     """
     from protocol_processor.graph import get_graph
+    from protocol_processor.tracing import set_pipeline_run_id
 
     graph = await get_graph()
 
-    if _ensure_mlflow():
-        import mlflow
+    # MLflow tracing: do NOT enable langchain.autolog() here.
+    # Autolog wraps the entire ainvoke() in a single trace that only
+    # appears in MLflow after the full pipeline completes.  Instead,
+    # each node creates its own independent trace via pipeline_span()
+    # so traces appear in real-time as nodes finish.
+    #
+    # Do NOT call _ensure_mlflow() here — it would call
+    # mlflow.set_experiment() with a new timestamped name, overwriting
+    # the global _active_experiment_id set by main.py at startup and
+    # scattering traces across multiple experiments.  MLflow is already
+    # configured in the lifespan() context in main.py.
 
-        mlflow.langchain.autolog(run_tracer_inline=True)
-        logging.getLogger("mlflow.utils.autologging_utils").setLevel(logging.ERROR)
+    # Set run_id so every node's pipeline_span() tags its trace with the
+    # same identifier.  Uses the thread_id which is "{protocol_id}:{uuid4}".
+    thread_id = config.get("configurable", {}).get("thread_id", "")
+    if thread_id:
+        set_pipeline_run_id(thread_id)
 
     return await graph.ainvoke(initial_state, config)
 
@@ -293,12 +342,17 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
             protocol_id,
         )
         reason = _categorize_pipeline_error(e)
+        # Auth expiry: do not retry; outbox marks dead_letter, UI shows login.
+        is_auth_expired = _is_auth_expired_error(e)
+        category = "auth_expired" if is_auth_expired else "pipeline_failed"
         _update_protocol_failed(
             protocol_id,
             reason,
-            "pipeline_failed",
+            category,
             type(e).__name__,
         )
+        if is_auth_expired:
+            raise AuthExpiredError("Google credentials expired — sign in again") from e
         raise
 
 

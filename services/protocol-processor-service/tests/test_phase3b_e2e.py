@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, Generator
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
@@ -21,13 +21,87 @@ from sqlmodel import Session, SQLModel, create_engine, select
 
 from protocol_processor.tools.structure_builder import build_expression_tree
 from protocol_processor.tools.unit_normalizer import (
+    _cached_ucum_lookup,
+    _cached_value_lookup,
     normalize_ordinal_value,
     propose_ordinal_mappings,
 )
 
 # ---------------------------------------------------------------------------
+# Mock DB data (same as test_unit_normalizer.py)
+# ---------------------------------------------------------------------------
+
+_MOCK_UCUM: dict[str, tuple[str, int]] = {
+    "%": ("%", 8554),
+    "percent": ("%", 8554),
+    "mg/dl": ("mg/dL", 8840),
+    "mg/dL": ("mg/dL", 8840),
+    "{score}": ("{score}", 8527),
+    "score": ("{score}", 8527),
+}
+
+_MOCK_VALUES: dict[str, tuple[str, int]] = {
+    "positive": ("positive", 45884084),
+    "negative": ("negative", 45878583),
+}
+
+
+def _mock_lookup_ucum_unit(
+    _engine: object, unit_text: str
+) -> tuple[str | None, int | None]:
+    key = unit_text.strip().lower()
+    return _MOCK_UCUM.get(key, (None, None))
+
+
+def _mock_lookup_value_concept(
+    _engine: object, value_text: str
+) -> tuple[str | None, int | None]:
+    key = value_text.strip().lower()
+    return _MOCK_VALUES.get(key, (None, None))
+
+
+def _mock_lookup_ordinal_concept(
+    _engine: object, scale_name: str, grade: str
+) -> int | None:
+    return None
+
+
+def _patch_db():
+    """Return tuple of context managers that patch all DB access."""
+    engine_mock = MagicMock()
+    return (
+        patch(
+            "protocol_processor.tools.omop_mapper._get_omop_engine",
+            return_value=engine_mock,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_ucum_unit",
+            side_effect=_mock_lookup_ucum_unit,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_value_concept",
+            side_effect=_mock_lookup_value_concept,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_ordinal_concept",
+            side_effect=_mock_lookup_ordinal_concept,
+        ),
+    )
+
+
+# ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _clear_caches():
+    """Clear LRU caches before each test."""
+    _cached_ucum_lookup.cache_clear()
+    _cached_value_lookup.cache_clear()
+    yield
+    _cached_ucum_lookup.cache_clear()
+    _cached_value_lookup.cache_clear()
 
 
 @pytest.fixture()
@@ -238,13 +312,14 @@ ORDINAL_CRITERIA: list[dict[str, Any]] = [
 
 
 class TestPhase3bOrdinalE2E:
-    """E2E: ordinal criteria through build_expression_tree → DB."""
+    """E2E: ordinal criteria through build_expression_tree -> DB."""
 
     async def test_ordinal_criteria_get_score_unit(self, session) -> None:
         """All ordinal criteria get unit_concept_id=8527 ({score})."""
         protocol_id, batch_id = _setup(session)
 
-        with patch.dict(os.environ, {}, clear=False):
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4, patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GOOGLE_API_KEY", None)
 
             for i, crit_def in enumerate(ORDINAL_CRITERIA):
@@ -291,7 +366,8 @@ class TestPhase3bOrdinalE2E:
         """'Grade 2' value text resolves through full backend path."""
         protocol_id, batch_id = _setup(session)
 
-        with patch.dict(os.environ, {}, clear=False):
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4, patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GOOGLE_API_KEY", None)
 
             crit = _make_crit(session, batch_id, "ECOG Grade 2")
@@ -316,17 +392,14 @@ class TestPhase3bOrdinalE2E:
                 select(AtomicCriterion).where(AtomicCriterion.criterion_id == crit.id)
             ).all()
             assert len(atomics) == 1
-            # "Grade 2" parses to numeric because _parse_value can't parse it,
-            # so value_text="Grade 2" and value_numeric=None
-            # But the ordinal normalizer still matches the entity and sets
-            # unit_concept_id=8527
             assert atomics[0].unit_concept_id == 8527
 
     async def test_ecog_float_value_through_backend(self, session) -> None:
         """'2.0' value resolves to grade 2 through full backend."""
         protocol_id, batch_id = _setup(session)
 
-        with patch.dict(os.environ, {}, clear=False):
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4, patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GOOGLE_API_KEY", None)
 
             crit = _make_crit(session, batch_id, "ECOG 2.0")
@@ -397,7 +470,8 @@ class TestPhase3bOrdinalE2E:
             },
         ]
 
-        with patch.dict(os.environ, {}, clear=False):
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4, patch.dict(os.environ, {}, clear=False):
             os.environ.pop("GOOGLE_API_KEY", None)
 
             crit_ids = []
@@ -439,38 +513,13 @@ class TestPhase3bOrdinalE2E:
 
 
 class TestProposeOrdinalMappingsE2E:
-    """Test the agent proposal utility end-to-end."""
+    """Test the agent proposal utility."""
 
-    def test_all_grades_need_resolution(self) -> None:
-        """Since no omop_value_concept_id is set, all grades need resolution."""
+    def test_returns_empty_list(self) -> None:
+        """propose_ordinal_mappings() returns empty list (DB-driven now)."""
         missing = propose_ordinal_mappings()
-        assert len(missing) > 0
-
-        # Should include entries from all 3 scales
-        scales = {e["scale"] for e in missing}
-        assert "ecog" in scales
-        assert "karnofsky" in scales
-        assert "nyha" in scales
-
-    def test_ecog_grades_in_proposals(self) -> None:
-        """All 6 ECOG grades appear in proposals."""
-        missing = propose_ordinal_mappings()
-        ecog_grades = {e["grade"] for e in missing if e["scale"] == "ecog"}
-        assert ecog_grades == {"0", "1", "2", "3", "4", "5"}
-
-    def test_proposals_have_snomed_codes(self) -> None:
-        """ECOG proposals include SNOMED codes from YAML."""
-        missing = propose_ordinal_mappings()
-        ecog_entries = [e for e in missing if e["scale"] == "ecog"]
-        snomed_codes = [e["snomed_code"] for e in ecog_entries if e["snomed_code"]]
-        # All 6 ECOG grades have SNOMED codes
-        assert len(snomed_codes) == 6
-
-    def test_karnofsky_proposals_no_snomed(self) -> None:
-        """Karnofsky proposals have no SNOMED codes (not in YAML)."""
-        missing = propose_ordinal_mappings()
-        kps_entries = [e for e in missing if e["scale"] == "karnofsky"]
-        assert all(e["snomed_code"] is None for e in kps_entries)
+        assert isinstance(missing, list)
+        assert len(missing) == 0
 
 
 class TestNormalizeOrdinalDirectE2E:
@@ -478,38 +527,48 @@ class TestNormalizeOrdinalDirectE2E:
 
     def test_who_performance_status_alias(self) -> None:
         """'WHO performance status' is an ECOG alias."""
-        result = normalize_ordinal_value("1", "WHO performance status")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("1", "WHO performance status")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527
 
     def test_zubrod_score_alias(self) -> None:
         """'Zubrod score' is an ECOG alias."""
-        result = normalize_ordinal_value("0", "Zubrod score")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("0", "Zubrod score")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527
 
     def test_eastern_cooperative_oncology_group(self) -> None:
         """Full formal name matches."""
-        result = normalize_ordinal_value("2", "Eastern Cooperative Oncology Group")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("2", "Eastern Cooperative Oncology Group")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527
 
     def test_new_york_heart_association(self) -> None:
         """Full NYHA name matches."""
-        result = normalize_ordinal_value("1", "New York Heart Association")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("1", "New York Heart Association")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527
 
     def test_karnofsky_performance_scale(self) -> None:
         """Alternative Karnofsky alias."""
-        result = normalize_ordinal_value("90", "Karnofsky performance scale")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("90", "Karnofsky performance scale")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527
 
     def test_empty_value_still_identifies_scale(self) -> None:
         """Empty value with ordinal entity still returns unit_concept_id."""
@@ -529,14 +588,18 @@ class TestNormalizeOrdinalDirectE2E:
 
     def test_score_prefix_strip(self) -> None:
         """'Score 3' strips prefix for ECOG."""
-        result = normalize_ordinal_value("Score 3", "ECOG")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("Score 3", "ECOG")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527
 
     def test_level_prefix_strip(self) -> None:
         """'Level 2' strips prefix."""
-        result = normalize_ordinal_value("Level 2", "NYHA")
-        assert result is not None
-        _, unit_cid = result
-        assert unit_cid == 8527
+        p1, p2, p3, p4 = _patch_db()
+        with p1, p2, p3, p4:
+            result = normalize_ordinal_value("Level 2", "NYHA")
+            assert result is not None
+            _, unit_cid = result
+            assert unit_cid == 8527

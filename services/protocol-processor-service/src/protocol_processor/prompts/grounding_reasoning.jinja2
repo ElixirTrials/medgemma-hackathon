@@ -28,11 +28,16 @@ If derived, return is_derived=true and the standard medical concept term.
 
 **Q3: Rephrase for better terminology search?**
 Can "{{ entity_text }}" be rephrased as proper medical terminology to improve search results?
-Examples:
-- "high blood pressure" → "hypertension"
-- "sugar diabetes" → "diabetes mellitus"
-- "heart attack" → "myocardial infarction"
-- "kidney failure" → "renal failure"
+{% if previous_query and previous_query != entity_text %}
+IMPORTANT: The previous search for "{{ previous_query }}" returned 0 results. You MUST suggest a SUBSTANTIALLY DIFFERENT, SIMPLER query — not a minor variation of the same phrase.
+{% endif %}
+
+Simplification strategies (try in order):
+1. Expand abbreviations/acronyms: "HTN" → "hypertension", "MI" → "myocardial infarction", "DM" → "diabetes mellitus", "CKD" → "chronic kidney disease"
+2. Use standard medical terminology: "high blood pressure" → "hypertension", "sugar diabetes" → "diabetes mellitus", "heart attack" → "myocardial infarction"
+3. Drop qualifiers to broaden: "severe persistent asthma" → "asthma", "bilateral knee osteoarthritis" → "osteoarthritis"
+4. Use the core medical noun only: "left ventricular ejection fraction" → "ejection fraction"
+
 If rephrasing would help, return the rephrased query. Otherwise return null.
 
 ## Instructions

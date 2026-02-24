@@ -14,6 +14,36 @@ You are a clinical NLP entity extractor. Given a clinical trial eligibility crit
 2. One criterion may yield 0, 1, or multiple entities.
 3. Skip non-groundable concepts: consent, willingness, investigator discretion, geographic location, legal capacity.
 4. Entity types: Condition | Medication | Lab_Value | Procedure | Demographic | Other
+5. The `value` field is NOT used by this tool. Only extract `text` (the medical concept) and `entity_type`.
+6. Extract entities even from indication or context-framing criteria. The sentence structure does not matter — extract every medical concept regardless of how it is phrased.
+7. Any clinical scoring system, classification scale, physical status grade, or ordinal assessment is Lab_Value — never "Other". This includes ALL scales you know of, whether common or rare.
+8. Use "Other" ONLY as a last resort for truly unclassifiable entities. Always prefer a specific type. If in doubt between "Other" and a specific type, choose the specific type.
+
+## Medical Normalization Rules
+- Always normalize entity text to the standard medical NOUN form used in terminology systems (UMLS, SNOMED, ICD-10), not adjective/adverb forms from the criterion text. Adjective forms produce poor terminology search results:
+  - "immunocompromised" → "immunodeficiency" (Condition)
+  - "hypertensive" → "hypertension" (Condition)
+  - "febrile" → "fever" (Condition)
+- When a criterion describes a state resulting from a medical intervention, extract the INTERVENTION as a Procedure — not the resulting state as a Condition. In clinical trial eligibility language, these criteria require proof of a past procedure:
+  - "immunized against hepatitis B" → "hepatitis B vaccination" (Procedure)
+  - "must have undergone appendectomy" → "appendectomy" (Procedure)
+  - Prefer "-tion"/"-ectomy"/"-plasty" procedure nouns over "-ity"/"-ness" state nouns, as procedure nouns match terminology systems better and avoid ambiguity.
+- Do NOT embed demographic qualifiers (male/female/age) into clinical entity text — those belong as separate Demographic entities. Mixing demographics into clinical terms confuses terminology search:
+  - "Male patients with renal failure" → "renal failure" (Condition) AND "male" (Demographic)
+  - "Elderly subjects with osteoporosis" → "osteoporosis" (Condition) AND "age" (Demographic)
+
+## Compound Concept Rules — DO NOT Over-Decompose
+- Do NOT separate anatomical modifiers, severities, laterality, or procedure types from their parent concept. These are a single medical entity:
+  - "tricompartmental knee replacement" → ONE entity (not "knee replacement" + "tricompartmental")
+  - "spinal muscular atrophy" → ONE entity
+  - "non-small cell lung cancer" → ONE entity
+  - "left ventricular hypertrophy" → ONE entity
+  - "chronic obstructive pulmonary disease" → ONE entity
+  - "bilateral total hip arthroplasty" → ONE entity
+- DO separate distinct comorbidities or co-occurring conditions into individual entities:
+  - "Type 2 diabetes with nephropathy" → TWO entities: "type 2 diabetes" AND "nephropathy"
+  - "Hypertension and heart failure" → TWO entities: "hypertension" AND "heart failure"
+  - "Asthma or COPD" → TWO entities: "asthma" AND "chronic obstructive pulmonary disease"
 
 ## Criterion
 {% if category %}Category hint: {{ category }}{% endif %}

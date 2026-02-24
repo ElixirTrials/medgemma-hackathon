@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import os
 from typing import Any, Generator
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from shared.models import AtomicCriterion, Criteria, CriteriaBatch, Protocol
@@ -49,6 +49,92 @@ def session(engine) -> Generator[Session, None, None]:
         yield s
     finally:
         s.close()
+
+
+# ---------------------------------------------------------------------------
+# Mock DB data for unit_normalizer (DB-backed since YAML removal)
+# ---------------------------------------------------------------------------
+
+_MOCK_UCUM: dict[str, tuple[str, int]] = {
+    "%": ("%", 8554),
+    "percent": ("%", 8554),
+    "a": ("a", 9448),
+    "years": ("a", 9448),
+    "ml/min/1.73m2": ("mL/min/1.73m2", 720870),
+    "kg/m2": ("kg/m2", 9531),
+    "mmhg": ("mm[Hg]", 8876),
+    "mm[hg]": ("mm[Hg]", 8876),
+    "10*3/ul": ("10*3/uL", 8848),
+    "mg/dl": ("mg/dL", 8840),
+    "mmol/l": ("mmol/L", 8753),
+    "10*9/l": ("10*9/L", 9444),
+    "{score}": ("{score}", 8527),
+    "score": ("{score}", 8527),
+}
+
+_MOCK_VALUES: dict[str, tuple[str, int]] = {
+    "positive": ("positive", 45884084),
+    "negative": ("negative", 45878583),
+    "normal": ("normal", 45884153),
+    "abnormal": ("abnormal", 45878745),
+    "present": ("present", 45884084),
+    "absent": ("absent", 45878583),
+}
+
+
+def _mock_lookup_ucum_unit(
+    _engine: object, unit_text: str
+) -> tuple[str | None, int | None]:
+    key = unit_text.strip().lower()
+    return _MOCK_UCUM.get(key, (None, None))
+
+
+def _mock_lookup_value_concept(
+    _engine: object, value_text: str
+) -> tuple[str | None, int | None]:
+    key = value_text.strip().lower()
+    return _MOCK_VALUES.get(key, (None, None))
+
+
+def _mock_lookup_ordinal_concept(
+    _engine: object, scale_name: str, grade: str
+) -> int | None:
+    return None
+
+
+@pytest.fixture(autouse=True)
+def _mock_omop_db():
+    """Patch OMOP DB lookups for all tests in this module."""
+    from protocol_processor.tools.unit_normalizer import (
+        _cached_ucum_lookup,
+        _cached_value_lookup,
+    )
+
+    _cached_ucum_lookup.cache_clear()
+    _cached_value_lookup.cache_clear()
+
+    with (
+        patch(
+            "protocol_processor.tools.omop_mapper._get_omop_engine",
+            return_value=MagicMock(),
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_ucum_unit",
+            side_effect=_mock_lookup_ucum_unit,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_value_concept",
+            side_effect=_mock_lookup_value_concept,
+        ),
+        patch(
+            "protocol_processor.tools.omop_mapper._lookup_ordinal_concept",
+            side_effect=_mock_lookup_ordinal_concept,
+        ),
+    ):
+        yield
+
+    _cached_ucum_lookup.cache_clear()
+    _cached_value_lookup.cache_clear()
 
 
 def _setup_parent(

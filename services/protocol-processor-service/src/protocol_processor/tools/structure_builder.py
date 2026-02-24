@@ -47,6 +47,43 @@ _ENTITY_TYPE_TO_DOMAIN: dict[str, str] = {
 }
 
 
+def _extract_value_fields(fm: dict[str, Any]) -> tuple[str, str | None]:
+    """Extract flat value string and unit from a field mapping.
+
+    Handles both legacy flat strings and typed value dicts produced by
+    ``FieldMappingValue.model_dump(exclude_none=True)``.
+
+    Args:
+        fm: Field mapping dict with ``value`` (str or dict) and optional ``unit``.
+
+    Returns:
+        Tuple of (value_str, unit) where value_str is always a string
+        (possibly empty) and unit is the resolved unit string or None.
+    """
+    raw_value = fm.get("value", "")
+    top_unit = fm.get("unit")
+
+    if isinstance(raw_value, dict):
+        vtype = raw_value.get("type", "standard")
+        unit = raw_value.get("unit") or top_unit
+
+        if vtype == "range":
+            v_min = raw_value.get("min", "")
+            v_max = raw_value.get("max", "")
+            if v_min and v_max:
+                return f"{v_min}-{v_max}", unit
+            return v_min or v_max or "", unit
+        elif vtype == "temporal":
+            return raw_value.get("duration", ""), unit
+        else:  # standard
+            return raw_value.get("value", ""), unit
+
+    # Legacy: flat string
+    if not isinstance(raw_value, str):
+        raw_value = str(raw_value) if raw_value is not None else ""
+    return raw_value, top_unit
+
+
 def _parse_value(
     raw_value: str,
 ) -> tuple[float | None, str | None]:
@@ -96,10 +133,10 @@ async def detect_logic_structure(
         for i, fm in enumerate(field_mappings):
             entity = fm.get("entity", "?")
             relation = fm.get("relation", "?")
-            value = fm.get("value", "?")
-            unit = fm.get("unit", "")
-            unit_str = f" {unit}" if unit else ""
-            mapping_lines.append(f"  [{i}] {entity} {relation} {value}{unit_str}")
+            val_str, unit_str = _extract_value_fields(fm)
+            value = val_str or "?"
+            unit_suffix = f" {unit_str}" if unit_str else ""
+            mapping_lines.append(f"  [{i}] {entity} {relation} {value}{unit_suffix}")
         mappings_text = "\n".join(mapping_lines)
 
         prompt = (
@@ -183,21 +220,19 @@ def _create_atomic_from_mapping(
     Returns:
         AtomicCriterion instance (not yet added to session).
     """
-    value_str = fm.get("value", "")
+    value_str, raw_unit = _extract_value_fields(fm)
     value_numeric, value_text = _parse_value(value_str)
 
     relation = fm.get("relation", "has")
     negation = relation.upper() == "NOT" if relation else False
 
-    raw_unit = fm.get("unit")
     _, unit_concept_id = normalize_unit(raw_unit)
 
     value_concept_id: int | None = None
     entity_text = fm.get("entity")
-    raw_value = str(fm.get("value", ""))
 
     # Ordinal-first: check if entity is an ordinal scale
-    ordinal_result = normalize_ordinal_value(raw_value, entity_text)
+    ordinal_result = normalize_ordinal_value(value_str, entity_text)
     if ordinal_result is not None:
         ordinal_value_cid, ordinal_unit_cid = ordinal_result
         value_concept_id = ordinal_value_cid
@@ -263,13 +298,14 @@ def _build_tree_from_logic(
         idx = node.field_mapping_index or 0
         atomic = atomic_records[idx]
         fm = field_mappings[idx]
+        val_str, unit_str = _extract_value_fields(fm)
         expr = ExpressionNode(
             type="ATOMIC",
             atomic_criterion_id=atomic.id,
             entity=fm.get("entity"),
             relation=fm.get("relation"),
-            value=fm.get("value"),
-            unit=fm.get("unit"),
+            value=val_str or None,
+            unit=unit_str,
             omop_concept_id=fm.get("omop_concept_id"),
         )
         return expr, atomic.id
@@ -376,13 +412,14 @@ async def build_expression_tree(
     # Pass 2: Fallback — AND-of-all-atomics (or single ATOMIC)
     if len(atomic_records) == 1:
         fm = field_mappings[0]
+        val_str, unit_str = _extract_value_fields(fm)
         root_expr = ExpressionNode(
             type="ATOMIC",
             atomic_criterion_id=atomic_records[0].id,
             entity=fm.get("entity"),
             relation=fm.get("relation"),
-            value=fm.get("value"),
-            unit=fm.get("unit"),
+            value=val_str or None,
+            unit=unit_str,
             omop_concept_id=fm.get("omop_concept_id"),
         )
         return StructuredCriterionTree(
@@ -404,14 +441,15 @@ async def build_expression_tree(
 
     children: list[ExpressionNode] = []
     for seq, (atomic, fm) in enumerate(zip(atomic_records, field_mappings)):
+        val_str, unit_str = _extract_value_fields(fm)
         children.append(
             ExpressionNode(
                 type="ATOMIC",
                 atomic_criterion_id=atomic.id,
                 entity=fm.get("entity"),
                 relation=fm.get("relation"),
-                value=fm.get("value"),
-                unit=fm.get("unit"),
+                value=val_str or None,
+                unit=unit_str,
                 omop_concept_id=fm.get("omop_concept_id"),
             )
         )

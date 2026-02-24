@@ -108,6 +108,51 @@ async def _invoke_gemini(
     return ExtractionResult.model_validate_json(text)
 
 
+async def _extract_via_gateway(
+    pdf_bytes: bytes,
+    protocol_id: str,
+    title: str,
+) -> str:
+    """Extract criteria using the unified InferenceGateway (local/Ollama path).
+
+    Used when LOCAL_EXTRACTION_ENABLED=true. Routes through InferenceGateway
+    instead of direct google.genai.Client.
+    """
+    from inference.gateway import InferenceGateway
+
+    gateway = InferenceGateway()
+
+    system_prompt, user_prompt = render_prompts(
+        prompts_dir=PROMPTS_DIR,
+        system_template="system.jinja2",
+        user_template="user.jinja2",
+        prompt_vars={"title": title},
+    )
+
+    file_id = await gateway.upload_file(pdf_bytes, f"{protocol_id}.pdf")
+    try:
+        result = await gateway.generate_structured(
+            role="extraction",
+            file_id=file_id,
+            input_text=user_prompt,
+            system_prompt=system_prompt,
+            output_schema=ExtractionResult,
+        )
+        extraction_result = (
+            result
+            if isinstance(result, ExtractionResult)
+            else ExtractionResult.model_validate(result.model_dump())
+        )
+        logger.info(
+            "Extracted %d criteria from protocol %s (gateway)",
+            len(extraction_result.criteria),
+            protocol_id,
+        )
+        return extraction_result.model_dump_json()
+    finally:
+        gateway.cleanup(file_id)
+
+
 async def extract_criteria_structured(
     pdf_bytes: bytes,
     protocol_id: str,
@@ -117,6 +162,9 @@ async def extract_criteria_structured(
 
     Uploads the PDF to Gemini File API, calls Gemini with ExtractionResult
     as the response schema, and returns the result as a JSON string.
+
+    When LOCAL_EXTRACTION_ENABLED=true, routes through InferenceGateway
+    instead of direct google.genai.Client.
 
     Returns JSON string (not dict) to minimize LangGraph state size.
 
@@ -132,6 +180,10 @@ async def extract_criteria_structured(
         ValidationError: If Gemini response cannot be parsed as ExtractionResult.
         Exception: On Gemini API or File API errors after retries exhausted.
     """
+    # Route through gateway when local extraction is enabled
+    if os.getenv("LOCAL_EXTRACTION_ENABLED", "").lower() == "true":
+        return await _extract_via_gateway(pdf_bytes, protocol_id, title)
+
     tmp_path = None
     uploaded_file = None
     client = None

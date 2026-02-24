@@ -23,6 +23,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 import time
 from typing import Any
 
@@ -43,7 +44,11 @@ from protocol_processor.tools.omop_mapper import (
     _get_omop_engine,
     lookup_omop_concept,
 )
-from protocol_processor.tools.terminology_router import TerminologyRouter
+from protocol_processor.tools.terminology_router import (
+    TerminologyRouter,
+    _is_likely_acronym,
+)
+from protocol_processor.tools.unit_normalizer import normalize_value
 
 logger = logging.getLogger(__name__)
 
@@ -223,14 +228,32 @@ async def _ground_entity_with_retry(
     candidates = await router.route_entity(entity_text, entity_type)
 
     # Log when TerminologyRouter returns empty
+    apis = router.get_apis_for_entity(entity_type)
     if not candidates:
-        apis = router.get_apis_for_entity(entity_type)
         if not apis:
             logger.info(
                 "Entity '%s' (type=%s) skipped by TerminologyRouter"
                 " — no APIs configured for this type",
                 entity_text[:50],
                 entity_type,
+            )
+            # No APIs configured → route directly to expert_review
+            return (
+                EntityGroundingResult(
+                    entity_text=entity_text,
+                    entity_type=entity_type,
+                    selected_code=None,
+                    selected_system=None,
+                    preferred_term=None,
+                    confidence=0.0,
+                    candidates=[],
+                    reasoning=(
+                        "[expert_review] No terminology APIs configured "
+                        f"for entity type '{entity_type}'. "
+                        "Routed to expert review."
+                    ),
+                ),
+                1,
             )
         else:
             logger.info(
@@ -352,6 +375,64 @@ async def _ground_entity_with_retry(
     return (result, attempt)
 
 
+def _ground_categorical_values(
+    mappings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Ground categorical values in field mappings using unit_normalizer.
+
+    For standard-type mappings with non-numeric values (e.g. "Severe",
+    "positive", "NYHA Class III"), attempt to resolve a value_concept_id
+    using the unit_normalizer's value lookup.
+
+    This is a best-effort post-processing step — failures don't block
+    the grounding result.
+
+    Args:
+        mappings: List of field mapping dicts from generate_field_mappings.
+
+    Returns:
+        The same list with value_concept_id populated where possible.
+    """
+    numeric_re = re.compile(r"^[\d.,\-]+$")
+
+    for mapping in mappings:
+        try:
+            value_obj = mapping.get("value", {})
+            if not isinstance(value_obj, dict):
+                continue
+
+            # Only process standard-type values
+            if value_obj.get("type") != "standard":
+                continue
+
+            val_text = value_obj.get("value")
+            if not val_text or not isinstance(val_text, str):
+                continue
+
+            # Skip numeric values — they don't need concept grounding
+            if numeric_re.match(val_text.strip()):
+                continue
+
+            # Already grounded
+            if mapping.get("value_concept_id"):
+                continue
+
+            # Try unit_normalizer's categorical value lookup (fast path)
+            normalized_text, concept_id = normalize_value(val_text)
+            if concept_id is not None:
+                mapping["value_concept_id"] = str(concept_id)
+                mapping["value_concept_system"] = "OMOP"
+                logger.debug(
+                    "Grounded categorical value '%s' → concept_id=%s",
+                    val_text,
+                    concept_id,
+                )
+        except Exception as e:
+            logger.debug("Categorical value grounding failed for mapping: %s", e)
+
+    return mappings
+
+
 async def _ground_entity_parallel(
     entity: dict[str, Any],
     router: TerminologyRouter,
@@ -393,8 +474,11 @@ async def _ground_entity_parallel(
             # Dual grounding: run TerminologyRouter + OMOP mapper
             # in parallel per entity (Phase 1a)
             full_entity_text = entity.get("text", "")
+            acronym = _is_likely_acronym(full_entity_text)
             tu_task = _ground_entity_with_retry(entity, router, criterion_text)
-            omop_task = lookup_omop_concept(full_entity_text, entity_type)
+            omop_task = lookup_omop_concept(
+                full_entity_text, entity_type, is_acronym=acronym
+            )
             (result, retry_attempts), omop_result = await asyncio.gather(
                 tu_task, omop_task
             )
@@ -409,6 +493,11 @@ async def _ground_entity_parallel(
 
             # Generate field mappings (same semaphore slot)
             field_mappings = await generate_field_mappings(result, criterion_text)
+
+            # Post-process: ground categorical values in field mappings
+            if field_mappings:
+                field_mappings = _ground_categorical_values(field_mappings)
+
             result.field_mappings = field_mappings if field_mappings else None
 
             elapsed = time.monotonic() - start
@@ -530,12 +619,17 @@ async def ground_node(state: PipelineState) -> dict[str, Any]:
                 else:
                     entities_to_ground.append((idx, entity))
 
-            # Dev/debug knob: truncate entity list for faster pipeline runs
-            _max_entities = int(os.getenv("PIPELINE_MAX_ENTITIES", "0"))
+            # Dev/debug: truncate entity list for faster runs and fewer API calls.
+            # DEV_MAX_ENTITIES takes precedence over PIPELINE_MAX_ENTITIES when set.
+            _max_entities = int(
+                os.getenv("DEV_MAX_ENTITIES")
+                or os.getenv("PIPELINE_MAX_ENTITIES")
+                or "0"
+            )
             if _max_entities > 0:
                 entities_to_ground = entities_to_ground[:_max_entities]
                 logger.info(
-                    "PIPELINE_MAX_ENTITIES=%d: truncated to %d entities",
+                    "Max entities limit=%d: truncated to %d entities",
                     _max_entities,
                     len(entities_to_ground),
                 )

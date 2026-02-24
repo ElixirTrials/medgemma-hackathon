@@ -48,6 +48,7 @@ dependencies = [
     "langchain-google-genai>=4.2.0",
     "rapidfuzz>=3.14.3",
     "tooluniverse>=1.0.18",
+    "langchain-community>=0.3.0",
 ]
 
 [dependency-groups]
@@ -65,6 +66,8 @@ dev = [
     "ipykernel>=7.2.0",
     "types-requests>=2.32.4.20260107",
     "types-cachetools>=6.2.0.20251022",
+    "matplotlib>=3.8.0",
+    "pandas>=2.1.0",
 ]
 
 [tool.uv]
@@ -164,6 +167,8 @@ module = [
     "langchain_google_vertexai.*",
     "langchain_huggingface",
     "langchain_huggingface.*",
+    "langchain_community",
+    "langchain_community.*",
     "langgraph",
     "langgraph.*",
     "peft",

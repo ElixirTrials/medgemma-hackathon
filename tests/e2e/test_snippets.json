@@ -1,0 +1,167 @@
+{
+    "extraction_test_snippets": [
+      {
+        "snippet_text": "Patients eligible for inclusion in this study have to fulfill all of the following criteria: Male or non-pregnant, non-lactating female patients at least 18 years of age.",
+        "extracted_criteria": "Male or non-pregnant, non-lactating female patients at least 18 years of age",
+        "classification": "inclusion"
+      },
+      {
+        "snippet_text": "Patients fulfilling any of the following criteria are not eligible for inclusion in this study: Patients taking high potency opioid analgesics (e.g., methadone, hydromorphone, morphine).",
+        "extracted_criteria": "Patients taking high potency opioid analgesics (e.g., methadone, hydromorphone, morphine)",
+        "classification": "exclusion"
+      },
+      {
+        "snippet_text": "The safety profile of secukinumab for both IV loading regimens showed no new or unexpected safety signals. Infections were more frequent with secukinumab compared to placebo.",
+        "extracted_criteria": null,
+        "classification": "neither"
+      },
+      {
+        "snippet_text": "Scheduled to undergo primary, unilateral, tricompartmental TKA under spinal anesthesia.",
+        "extracted_criteria": "Scheduled to undergo primary, unilateral, tricompartmental TKA under spinal anesthesia",
+        "classification": "inclusion"
+      },
+      {
+        "snippet_text": "Study drug will be administrated on-site on visit days. Scales and questionnaires should be completed before dosing and before clinical procedures are performed by the study Investigator.",
+        "extracted_criteria": null,
+        "classification": "neither"
+      },
+      {
+        "snippet_text": "Currently pregnant, nursing, or planning to become pregnant during the study or within 1 month after study drug administration.",
+        "extracted_criteria": "Currently pregnant, nursing, or planning to become pregnant during the study or within 1 month after study drug administration",
+        "classification": "exclusion"
+      },
+      {
+        "snippet_text": "Primary indication for TKA is degenerative osteoarthritis of the knee.",
+        "extracted_criteria": "Primary indication for TKA is degenerative osteoarthritis of the knee",
+        "classification": "neither"
+      }
+    ],
+    "grounding_test_snippets": [
+      {
+        "snippet_text": "Serum creatinine >1.5 times ULN at the screening visit.",
+        "entities": [
+          {
+            "entity_name": "Serum creatinine",
+            "system": "UMLS",
+            "code": "C0201975",
+            "relation": ">",
+            "value": "1.5 times ULN"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Estimated glomerular filtration rate (eGFR) <45 ml/min at any time during the screening/run-in period.",
+        "entities": [
+          {
+            "entity_name": "Estimated Glomerular Filtration Rate",
+            "system": "UMLS",
+            "code": "C0858118",
+            "relation": "<",
+            "value": "45 ml/min"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Body weight <50 kg (110 pounds) or a body mass index >44 kg/m2.",
+        "entities": [
+          {
+            "entity_name": "Body Weight",
+            "system": "UMLS",
+            "code": "C0005910",
+            "relation": "<",
+            "value": "50 kg"
+          },
+          {
+            "entity_name": "Body Mass Index",
+            "system": "UMLS",
+            "code": "C1305855",
+            "relation": ">",
+            "value": "44 kg/m2"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Diagnosis of active AS with prior documented radiologic evidence (X-ray or radiologist's report) fulfilling the Modified New York criteria for AS.",
+        "entities": [
+          {
+            "entity_name": "Ankylosing Spondylitis",
+            "system": "UMLS",
+            "code": "C0038013",
+            "relation": "==",
+            "value": "present"
+          },
+          {
+            "entity_name": "Radiologic examination",
+            "system": "UMLS",
+            "code": "C0034693",
+            "relation": "==",
+            "value": "present"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Male or female subjects with a diagnosis of PD and who are heterozygous carriers of a GBA mutation.",
+        "entities": [
+          {
+            "entity_name": "Male Gender",
+            "system": "UMLS",
+            "code": "C1706180",
+            "relation": "==",
+            "value": "present"
+          },
+          {
+            "entity_name": "Female Phenotype",
+            "system": "UMLS",
+            "code": "C1705498",
+            "relation": "==",
+            "value": "present"
+          },
+          {
+            "entity_name": "Parkinson's Disease",
+            "system": "UMLS",
+            "code": "C0030567",
+            "relation": "==",
+            "value": "present"
+          },
+          {
+            "entity_name": "GBA gene mutation",
+            "system": "UMLS",
+            "code": "C4225361",
+            "relation": "==",
+            "value": "present"
+          }
+        ]
+      },
+      {
+        "snippet_text": "American Society of Anesthesiologists (ASA) physical status 1, 2, or 3.",
+        "entities": [
+          {
+            "entity_name": "American Society of Anesthesiologists physical status classification",
+            "system": "UMLS",
+            "code": "C0450990",
+            "relation": "==",
+            "value": "1, 2, or 3"
+          }
+        ]
+      },
+      {
+        "snippet_text": "Female subjects must be surgically sterile",
+        "entities": [
+          {
+            "entity_name": "Female Phenotype",
+            "system": "UMLS",
+            "code": "C1705498",
+            "relation": "==",
+            "value": "present"
+          },
+          {
+            "entity_name": "Female Sterilization",
+            "system": "SNOMED",
+            "code": "C0015787",
+            "relation": "==",
+            "value": "confirmed"
+          }
+        ]
+      }
+    ]
+  }

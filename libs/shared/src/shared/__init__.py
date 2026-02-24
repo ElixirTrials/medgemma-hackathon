@@ -2,6 +2,10 @@
 
 from pathlib import Path
 
+from shared.exceptions import AuthExpiredError
+
+__all__ = ["AuthExpiredError", "get_prompts_dir"]
+
 
 def get_prompts_dir() -> Path:
     """Return the path to the shared prompt templates directory (Jinja2 .j2 files).

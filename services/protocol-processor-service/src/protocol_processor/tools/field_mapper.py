@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.gemini_utils import (
@@ -69,6 +69,12 @@ class FieldMappingValue(BaseModel):
     )
 
 
+# The set of valid relation operators accepted by the frontend
+RelationOperator = Literal[
+    "=", "!=", ">", ">=", "<", "<=", "within", "not_in_last", "contains", "not_contains"
+]
+
+
 class FieldMappingItem(BaseModel):
     """A single AutoCriteria field mapping decomposition.
 
@@ -77,7 +83,7 @@ class FieldMappingItem(BaseModel):
     """
 
     entity: str = Field(description="The medical entity name (e.g. 'HbA1c')")
-    relation: str = Field(
+    relation: RelationOperator = Field(
         description="The logical operator/relation (e.g. '<', '>', '=', 'contains')"
     )
     value: FieldMappingValue = Field(
@@ -87,6 +93,22 @@ class FieldMappingItem(BaseModel):
         default=None,
         description="Optional unit of measurement (e.g. '%', 'mg/dL', 'years')",
     )
+    value_concept_id: str | None = Field(
+        default=None,
+        description="OMOP concept ID for categorical values",
+    )
+    value_concept_system: str | None = Field(
+        default=None,
+        description="Terminology system for value_concept_id (e.g. 'SNOMED', 'OMOP')",
+    )
+
+    @field_validator("relation", mode="before")
+    @classmethod
+    def normalize_relation(cls, v: str) -> str:
+        """Normalize LLM-generated relation operators before Literal validation."""
+        if isinstance(v, str):
+            return _normalize_relation(v)
+        return v
 
 
 class FieldMappingResponse(BaseModel):
@@ -165,12 +187,14 @@ async def generate_field_mappings(
         mappings = [
             {
                 "entity": m.entity,
-                "relation": _normalize_relation(m.relation),
+                "relation": m.relation,
                 "value": m.value.model_dump(exclude_none=True),
                 "entity_code": entity.selected_code,
                 "entity_system": entity.selected_system,
                 "omop_concept_id": entity.omop_concept_id,
                 "entity_type": entity.entity_type,
+                "value_concept_id": m.value_concept_id,
+                "value_concept_system": m.value_concept_system,
             }
             for m in response.mappings
         ]
