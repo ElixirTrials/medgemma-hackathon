@@ -3,7 +3,7 @@
   "checkpoint_id": "f7c092406404",
   "strategy": "manual-commit",
   "branch": "feat/submission-additions",
-  "checkpoints_count": 23,
+  "checkpoints_count": 29,
   "files_touched": [
     ".env.example",
     "Makefile",
@@ -177,6 +177,13 @@
       "transcript": "/f7/c092406404/13/full.jsonl",
       "context": "",
       "content_hash": "/f7/c092406404/13/content_hash.txt",
+      "prompt": ""
+    },
+    {
+      "metadata": "/f7/c092406404/14/metadata.json",
+      "transcript": "/f7/c092406404/14/full.jsonl",
+      "context": "",
+      "content_hash": "/f7/c092406404/14/content_hash.txt",
       "prompt": ""
     }
   ],
