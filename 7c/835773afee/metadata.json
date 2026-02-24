@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "7c835773afee",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 2,
+  "files_touched": [
+    "apps/hitl-ui/src/components/structured-editor/types.ts",
+    "libs/shared/src/shared/models.py",
+    "scripts/evaluate_prompt_changes.py",
+    "services/api-service/alembic/versions/46_01_add_unit_ucum_code.py",
+    "services/api-service/src/api_service/exporters/fhir_group_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "tests/e2e/test_grounding_snippets.py",
+    "tests/e2e/test_snippets.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/7c/835773afee/0/metadata.json",
+      "transcript": "/7c/835773afee/0/full.jsonl",
+      "context": "/7c/835773afee/0/context.md",
+      "content_hash": "/7c/835773afee/0/content_hash.txt",
+      "prompt": "/7c/835773afee/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 55,
+    "cache_creation_tokens": 63899,
+    "cache_read_tokens": 3227787,
+    "output_tokens": 6070,
+    "api_call_count": 47
+  }
+}
