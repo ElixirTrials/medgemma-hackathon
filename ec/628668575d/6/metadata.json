@@ -1,0 +1,49 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ec628668575d",
+  "session_id": "aefb5ede-f3bf-408b-92c4-52ffae3dbef7",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T14:23:20.725849Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "pyproject.toml",
+    "services/protocol-processor-service/src/protocol_processor/prompts/__init__.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/structure_reasoning.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py",
+    "tests/e2e/run_prompt_variants.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/ordinal_resolution.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/structure_entities.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/field_mapping.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/logic_detection.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/medgemma_decompose_system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/medgemma_decompose_user.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/structure_decision.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "d4994f8b7522",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T14:23:20.714671Z",
+    "agent_lines": 136,
+    "human_added": 0,
+    "human_modified": 1,
+    "human_removed": 3,
+    "total_committed": 137,
+    "agent_percentage": 99.27007299270073
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/aefb5ede-f3bf-408b-92c4-52ffae3dbef7.jsonl"
+}
