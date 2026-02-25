@@ -1,0 +1,62 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "208a820371f0",
+  "strategy": "manual-commit",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".env.example",
+    "AGENTIC_WORKFLOW.md",
+    "MEDGEMMA_INTEGRATION.md",
+    "Makefile",
+    "PRIVACY.md",
+    "README.md",
+    "TERMS_OF_SERVICE.md",
+    "apps/hitl-ui/e2e/example.spec.ts",
+    "apps/hitl-ui/index.html",
+    "apps/hitl-ui/nginx.conf",
+    "apps/hitl-ui/src/App.tsx",
+    "apps/hitl-ui/src/main.tsx",
+    "apps/hitl-ui/src/screens/LoginPage.tsx",
+    "apps/hitl-ui/vite.config.ts",
+    "docs/architecture/index.md",
+    "docs/assets/custom.css",
+    "docs/code-tour/index.md",
+    "docs/development/gemini-vertex-auth.md",
+    "docs/index.md",
+    "docs/kaggle-writeup.md",
+    "docs/onboarding.md",
+    "docs/status/index.md",
+    "mkdocs.yml",
+    "notebooks/criteria_extraction_demo.ipynb",
+    "pyproject.toml",
+    "scripts/setup-local-models.sh",
+    "scripts/validate-model-endpoint.py",
+    "services/api-service/src/api_service/auth.py",
+    "services/api-service/src/api_service/main.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/medgemma_decompose_system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/medgemma_decompose_user.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/20/8a820371f0/0/metadata.json",
+      "transcript": "/20/8a820371f0/0/full.jsonl",
+      "context": "",
+      "content_hash": "/20/8a820371f0/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
