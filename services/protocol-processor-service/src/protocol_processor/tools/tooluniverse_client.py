@@ -110,9 +110,7 @@ def _extract_term_from_sentence(query: str) -> str:
 # In-memory result cache: (tool_name, normalized_query, max_results) → candidates
 # TTL = 300s (5 minutes) — appropriate for autocomplete endpoints
 _CacheKey = tuple[str, str, int]
-_CACHE: TTLCache[_CacheKey, list[GroundingCandidate]] = TTLCache(
-    maxsize=1000, ttl=300
-)
+_CACHE: TTLCache[_CacheKey, list[GroundingCandidate]] = TTLCache(maxsize=1000, ttl=300)
 
 # Tool name per system (verified 2026-02-17 with ToolUniverse 1.0.18).
 # Single source of truth: only these tools are loaded via include_tools.

@@ -57,12 +57,12 @@ _EXACT_MATCH_FIRST_EVALUATE = (
 
 _OPERATOR_RULES_EXTRA = (
     "\n- Extract comparison operators VERBATIM from the criterion text. "
-    "Never invert the operator direction. If the text says \">44\", "
-    "the relation is \">\", not \"<\"."
-    "\n- Use \"within\" ONLY for numeric min/max ranges (e.g., \"between "
-    "18 and 65\"). Do NOT use \"within\" for discrete categorical lists "
-    "like \"1, 2, or 3\" — use \"=\" instead."
-    "\n- Negation patterns: \"non-\", \"not \", \"no \" preceding an entity "
+    'Never invert the operator direction. If the text says ">44", '
+    'the relation is ">", not "<".'
+    '\n- Use "within" ONLY for numeric min/max ranges (e.g., "between '
+    '18 and 65"). Do NOT use "within" for discrete categorical lists '
+    'like "1, 2, or 3" — use "=" instead.'
+    '\n- Negation patterns: "non-", "not ", "no " preceding an entity '
     "indicate ABSENCE. Map to relation='!=' with value='True'. "
     "For example, \"non-pregnant\" means Pregnancy relation='!=' value='True'."
 )
@@ -77,10 +77,10 @@ _OPERATOR_RULES_V2_EXTRA = (
     "Example: 'body mass index >44 kg/m2' → relation='>', value='44'. "
     "Do NOT interpret clinical intent (e.g., upper-limit exclusion). "
     "Just read the symbol."
-    "\n- Use \"within\" ONLY for numeric min/max ranges (e.g., \"between "
-    "18 and 65\"). Do NOT use \"within\" for discrete categorical lists "
-    "like \"1, 2, or 3\" — use \"=\" instead."
-    "\n- Negation patterns: \"non-\", \"not \", \"no \" preceding an entity "
+    '\n- Use "within" ONLY for numeric min/max ranges (e.g., "between '
+    '18 and 65"). Do NOT use "within" for discrete categorical lists '
+    'like "1, 2, or 3" — use "=" instead.'
+    '\n- Negation patterns: "non-", "not ", "no " preceding an entity '
     "indicate ABSENCE. Map to relation='!=' with value='True'. "
     "For example, \"non-pregnant\" means Pregnancy relation='!=' value='True'."
 )

@@ -29,9 +29,7 @@ from unittest.mock import patch
 
 # ── sys.path setup (same pattern as run_grounding_snippets.py) ──────────────
 _root = Path(__file__).resolve().parents[2]
-sys.path.insert(
-    0, str(_root / "services" / "protocol-processor-service" / "src")
-)
+sys.path.insert(0, str(_root / "services" / "protocol-processor-service" / "src"))
 sys.path.insert(0, str(_root / "services" / "api-service" / "src"))
 sys.path.insert(0, str(_root / "libs" / "shared" / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # for prompt_variants
@@ -135,14 +133,12 @@ def _make_patched_render(variant: dict):
 
     def patched(template_name: str, **kwargs) -> str:
         rendered = _original_render_template(template_name, **kwargs)
-        if (
-            template_name == "grounding_system.jinja2"
-            and variant.get("grounding_system")
+        if template_name == "grounding_system.jinja2" and variant.get(
+            "grounding_system"
         ):
             rendered += variant["grounding_system"]
-        if (
-            template_name == "grounding_evaluate.jinja2"
-            and variant.get("grounding_evaluate")
+        if template_name == "grounding_evaluate.jinja2" and variant.get(
+            "grounding_evaluate"
         ):
             rendered += variant["grounding_evaluate"]
         return rendered
