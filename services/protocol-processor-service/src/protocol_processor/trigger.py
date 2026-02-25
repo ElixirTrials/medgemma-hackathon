@@ -347,11 +347,6 @@ def _preflight_check() -> None:
 
     logger.info("Pre-flight checks passed: DB, OMOP, MLflow all reachable")
 
-
-class DependencyCheckError(RuntimeError):
-    """Raised when a required infrastructure dependency is unreachable."""
-
-
 def _preflight_check() -> None:
     """Verify infrastructure dependencies are reachable before starting the pipeline.
 
