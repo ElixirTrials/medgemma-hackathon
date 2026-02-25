@@ -195,6 +195,16 @@ async def generate_field_mappings(
             " only the computed number in the value field and the standard"
             " lab unit in the unit field. Never return the relative"
             " expression as the value.\n"
+            "- Extract comparison operators VERBATIM from the criterion text."
+            " Never invert the operator direction. If the text says"
+            ' ">44", the relation is ">", not "<".\n'
+            "- Use \"within\" ONLY for numeric min/max ranges (e.g., \"between"
+            ' 18 and 65"). Do NOT use "within" for discrete categorical lists'
+            ' like "1, 2, or 3" — use "=" instead.\n'
+            '- Negation patterns: "non-", "not ", "no " preceding an entity'
+            " indicate ABSENCE. Map to relation='!=' with value='True'."
+            ' For example, "non-pregnant" means Pregnancy relation=\'!=\''
+            " value='True'.\n"
             "</rules>\n\n"
             "<anti_patterns>\n"
             "BAD: value='present' → use value='True'\n"

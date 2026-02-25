@@ -1,0 +1,135 @@
+{
+  "code_selection": {
+    "baseline": {
+      "0:0": "C0201976",
+      "1:0": "C3811844",
+      "3:0": "C0409675",
+      "3:1": "C0043299",
+      "4:3": "C3888963",
+      "8:0": "C0032961"
+    },
+    "specificity_guard": {
+      "0:0": "C0201976",
+      "1:0": "C3811844",
+      "3:0": "C0038013",
+      "3:1": "C0043299",
+      "4:3": "C3888963",
+      "8:0": "C0032961"
+    },
+    "context_emphasis": {
+      "0:0": "C0201976",
+      "1:0": "C3811844",
+      "3:0": "C0409675",
+      "3:1": "C0043299",
+      "4:3": "C3888963",
+      "8:0": "C0032961"
+    },
+    "combined": {
+      "0:0": "C0201976",
+      "1:0": "C3811844",
+      "3:0": "C0038013",
+      "3:1": "C0043299",
+      "4:3": "C3888963",
+      "8:0": "C0032961"
+    },
+    "exact_match_first": {
+      "0:0": "C0600061",
+      "1:0": "C3811844",
+      "3:0": "C0038013",
+      "3:1": "C0043299",
+      "4:3": "C3888963",
+      "8:0": "C0032961"
+    }
+  },
+  "relation_extraction": {
+    "baseline": {
+      "2:1": "<",
+      "5:0": "<=",
+      "8:0": "="
+    },
+    "operator_rules": {
+      "2:1": "<",
+      "5:0": "=",
+      "8:0": "!="
+    },
+    "operator_rules_v2": {
+      "2:1": "<",
+      "5:0": "=",
+      "8:0": "!="
+    }
+  },
+  "entities": {
+    "code_mismatch": [
+      {
+        "snippet_idx": 0,
+        "entity_idx": 0,
+        "entity_name": "Serum creatinine",
+        "expected_code": "C0201976"
+      },
+      {
+        "snippet_idx": 1,
+        "entity_idx": 0,
+        "entity_name": "Estimated Glomerular Filtration Rate",
+        "expected_code": "C3811844"
+      },
+      {
+        "snippet_idx": 3,
+        "entity_idx": 0,
+        "entity_name": "Ankylosing Spondylitis",
+        "expected_code": "C0038013"
+      },
+      {
+        "snippet_idx": 3,
+        "entity_idx": 1,
+        "entity_name": "Radiologic examination",
+        "expected_code": "C0043299"
+      },
+      {
+        "snippet_idx": 4,
+        "entity_idx": 3,
+        "entity_name": "GBA gene mutation",
+        "expected_code": "C3888963"
+      },
+      {
+        "snippet_idx": 8,
+        "entity_idx": 0,
+        "entity_name": "Pregnancy",
+        "expected_code": "C0032961"
+      }
+    ],
+    "relation_mismatch": [
+      {
+        "snippet_idx": 2,
+        "entity_idx": 1,
+        "entity_name": "Body Mass Index",
+        "expected_relation": ">"
+      },
+      {
+        "snippet_idx": 5,
+        "entity_idx": 0,
+        "entity_name": "American Society of Anesthesiologists physical status classification",
+        "expected_relation": "="
+      },
+      {
+        "snippet_idx": 8,
+        "entity_idx": 0,
+        "entity_name": "Pregnancy",
+        "expected_relation": "!="
+      }
+    ]
+  },
+  "variants": {
+    "medgemma": [
+      "baseline",
+      "specificity_guard",
+      "context_emphasis",
+      "combined",
+      "exact_match_first"
+    ],
+    "field_mapper": [
+      "baseline",
+      "operator_rules",
+      "operator_rules_v2"
+    ]
+  }
+}
