@@ -1,0 +1,124 @@
+Implement the following plan:
+
+# Extract All Hardcoded Prompts to Jinja2 Templates
+
+## Context
+
+7 LLM prompts are hardcoded as Python f-strings across 4 tool files. The rest of the codebase uses Jinja2 templates from `prompts/`. This inconsistency makes prompt iteration harder (as we just experienced with field_mapper A/B testing) and scatters prompt logic across tool code. There are also 3 redundant template-loading mechanisms that should be consolidated into one.
+
+---
+
+## Step 1: Consolidate Template Loader
+
+**File:** `services/protocol-processor-service/src/protocol_processor/prompts/__init__.py`
+
+Replace current contents (3 functions, 2 unused) with a single generic `render_template`:
+
+```python
+from pathlib import Path
+from typing import Any
+from jinja2 import Environment, FileSystemLoader
+
+PROMPTS_DIR = Path(__file__).parent
+_env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR)), autoescape=False)
+
+def render_template(template_name: str, **kwargs: Any) -> str:
+    template = _env.get_template(template_name)
+    return template.render(**kwargs)
+```
+
+Singleton `Environment` (current code creates a new one per call). Generic name lookup replaces 3 ad-hoc loaders:
+- `prompts/__init__.py:render_system_prompt` / `render_user_prompt` (unused dead code)
+- `medgemma_decider.py:_render_template` (private, same logic)
+- `entity_decomposer.py:_render_decompose_prompt` (private, hardcodes template name)
+
+---
+
+## Step 2: Create 8 New Jinja2 Templates
+
+All in `services/protocol-processor-service/src/protocol_processor/prompts/`
+
+| # | Template Name | Source File | Variables | Size |
+|---|---------------|-------------|-----------|------|
+| 1 | `field_mapping.jinja2` | `field_mapper.py:169-213` | `grounded_term`, `code_context`, `criterion_text` | Large |
+| 2 | `structure_decision.jinja2` | `medgemma_decider.py:169-173` | `raw_text` | Small |
+| 3 | `structure_reasoning.jinja2` | `medgemma_decider.py:338-345` | `raw_text` | Small |
+| 4 | `medgemma_decompose_system.jinja2` | `entity_decomposer.py:215-225` | (none — static) | Small |
+| 5 | `medgemma_decompose_user.jinja2` | `entity_decomposer.py:227-230` | `criterion_text` | Small |
+| 6 | `structure_entities.jinja2` | `entity_decomposer.py:244-248` | `raw_text` | Small |
+| 7 | `logic_detection.jinja2` | `structure_builder.py:142-158` | `criterion_text`, `mappings_text`, `max_index` | Medium |
+| 8 | `ordinal_resolution.jinja2` | `ordinal_resolver.py:62-82` | `entities_text` | Medium |
+
+Convention: copy the inline string content verbatim, replace f-string `{var}` with `{{ var }}`.
+
+---
+
+## Step 3: Update 6 Python Files
+
+### 3a. `tools/field_mapper.py`
+- Add `from protocol_processor.prompts import render_template`
+- Replace inline prompt (lines 169-213) with `render_template("field_mapping.jinja2", grounded_term=..., code_context=..., criterion_text=...)`
+
+### 3b. `tools/medgemma_decider.py`
+- Replace `from protocol_processor.prompts import render_template` (remove private `_get_prompts_dir` and `_render_template`)
+- Change all `_render_template(...)` → `render_template(...)`
+- Replace 2 inline structuring prompts with `render_template("structure_decision.jinja2", raw_text=...)` and `render_template("structure_reasoning.jinja2", raw_text=...)`
+
+### 3c. `tools/entity_decomposer.py`
+- Replace private `PROMPTS_DIR` and `_render_decompose_prompt` with `from protocol_processor.prompts import render_template`
+- Change `_render_decompose_prompt(text, cat)` → `render_template("entity_decompose.jinja2", criterion_text=text, category=cat or "")`
+- Replace MedGemma fallback system message with `render_template("medgemma_decompose_system.jinja2")`
+- Replace MedGemma fallback user message with `render_template("medgemma_decompose_user.jinja2", criterion_text=...)`
+- Replace Gemini structuring prompt with `render_template("structure_entities.jinja2", raw_text=...)`
+
+### 3d. `tools/structure_builder.py`
+- Add `from protocol_processor.prompts import render_template`
+- Replace inline prompt with `render_template("logic_detection.jinja2", criterion_text=..., mappings_text=..., max_index=...)`
+
+### 3e. `tools/ordinal_resolver.py`
+- Add `from protocol_processor.prompts import render_template`
+- Replace inline prompt with `render_template("ordinal_resolution.jinja2", entities_text=...)`
+
+### 3f. `tools/gemini_extractor.py`
+- Replace `from inference.factory import render_prompts` with `from protocol_processor.prompts import render_template`
+- Change `render_prompts(prompts_dir=..., system_template=..., user_template=..., prompt_vars=...)` → two separate `render_template` calls
+
+---
+
+## Step 4: Update A/B Test Harness
+
+**File:** `tests/e2e/run_prompt_variants.py`
+
+The harness currently patches `protocol_processor.tools.medgemma_decider._render_template`. After this refactor, it needs to patch `protocol_processor.prompts.render_template` instead. Update the mock target path in `_make_patched_render` and `_make_field_mapper_llm_wrapper`.
+
+---
+
+## Parallel Execution Strategy
+
+4 independent sonnet subagents:
+
+| Agent | Creates Templates | Modifies Python |
+|-------|-------------------|-----------------|
+| 1 | `field_mapping.jinja2` | `prompts/__init__.py`, `field_mapper.py` |
+| 2 | `structure_decision.jinja2`, `structure_reasoning.jinja2`, `medgemma_decompose_system.jinja2`, `medgemma_decompose_user.jinja2`, `structure_entities.jinja2` | `medgemma_decider.py`, `entity_decomposer.py` |
+| 3 | `logic_detection.jinja2`, `ordinal_resolution.jinja2` | `structure_builder.py`, `ordinal_resolver.py` |
+| 4 | (none) | `gemini_extractor.py`, `run_prompt_variants.py` (harness patch target update) |
+
+---
+
+## Verification
+
+1. `cd services/protocol-processor-service && uv run mypy src/` — 0 errors
+2. `uv run ruff check .` — all checks passed
+3. `uv run pytest services/protocol-processor-service/tests/ -q` — all non-unit_normalizer tests pass
+4. Grep for remaining hardcoded prompts: `grep -rn "You are a\|<role>\|<rules>" services/protocol-processor-service/src/protocol_processor/tools/ --include="*.py"` → 0 hits
+5. Count template files: `ls prompts/*.jinja2` → 14 files (6 existing + 8 new)
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Can you help me resolve any mypy or pytest failures? Currently I see "tests/e2e/run_prompt_variants.py:38: error: Cannot find implementation or library stub for module named "prompt_variants"  [import-not-found]
+tests/e2e/run_prompt_variants.py:38: note: See https://mypy.readthedocs.io/en/stable/running_mypy.html#missing-imports
+Found 1 error in 1 file (checked 117 source files)"

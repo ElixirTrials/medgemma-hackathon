@@ -3,7 +3,7 @@
   "checkpoint_id": "ec628668575d",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "pyproject.toml",
     "services/protocol-processor-service/src/protocol_processor/prompts/__init__.py",
@@ -58,13 +58,20 @@
       "context": "/ec/628668575d/4/context.md",
       "content_hash": "/ec/628668575d/4/content_hash.txt",
       "prompt": "/ec/628668575d/4/prompt.txt"
+    },
+    {
+      "metadata": "/ec/628668575d/5/metadata.json",
+      "transcript": "/ec/628668575d/5/full.jsonl",
+      "context": "/ec/628668575d/5/context.md",
+      "content_hash": "/ec/628668575d/5/content_hash.txt",
+      "prompt": "/ec/628668575d/5/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 353,
-    "cache_creation_tokens": 481700,
-    "cache_read_tokens": 30715546,
-    "output_tokens": 56319,
-    "api_call_count": 307
+    "input_tokens": 1704,
+    "cache_creation_tokens": 539440,
+    "cache_read_tokens": 32380434,
+    "output_tokens": 63680,
+    "api_call_count": 331
   }
 }
