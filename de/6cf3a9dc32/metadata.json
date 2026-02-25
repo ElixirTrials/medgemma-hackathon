@@ -3,7 +3,7 @@
   "checkpoint_id": "de6cf3a9dc32",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/hitl-ui/src/screens/LoginPage.tsx"
   ],
@@ -28,13 +28,20 @@
       "context": "",
       "content_hash": "/de/6cf3a9dc32/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/de/6cf3a9dc32/3/metadata.json",
+      "transcript": "/de/6cf3a9dc32/3/full.jsonl",
+      "context": "/de/6cf3a9dc32/3/context.md",
+      "content_hash": "/de/6cf3a9dc32/3/content_hash.txt",
+      "prompt": "/de/6cf3a9dc32/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
   }
 }
