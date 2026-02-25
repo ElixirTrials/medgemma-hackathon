@@ -3,7 +3,7 @@
   "checkpoint_id": "9e67a880c2df",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
     "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py",
@@ -31,13 +31,20 @@
       "context": "",
       "content_hash": "/9e/67a880c2df/2/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/9e/67a880c2df/3/metadata.json",
+      "transcript": "/9e/67a880c2df/3/full.jsonl",
+      "context": "/9e/67a880c2df/3/context.md",
+      "content_hash": "/9e/67a880c2df/3/content_hash.txt",
+      "prompt": "/9e/67a880c2df/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 135,
+    "cache_creation_tokens": 204698,
+    "cache_read_tokens": 9864509,
+    "output_tokens": 11878,
+    "api_call_count": 113
   }
 }
