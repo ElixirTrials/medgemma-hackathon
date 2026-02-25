@@ -53,6 +53,13 @@ const STATUS_LABELS: Record<string, string> = {
     reviewed: 'Reviewed',
 };
 
+// Statuses where the review button is visible (not actively processing)
+const REVIEW_VISIBLE_STATUSES = new Set([
+    'pending_review',
+    'complete',
+    'grounding_failed', // may want to review partial results
+]);
+
 // Statuses where re-extraction is allowed (not actively processing)
 const RE_EXTRACT_ALLOWED_STATUSES = new Set([
     'pending_review',
@@ -474,16 +481,11 @@ export default function ProtocolDetail() {
                 <Button variant="outline" asChild>
                     <Link to="/protocols">Back to List</Link>
                 </Button>
-                {latestBatch && protocol.status === 'pending_review' && (
+                {latestBatch && REVIEW_VISIBLE_STATUSES.has(protocol.status) && (
                     <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
                         <ClipboardList className="h-4 w-4 mr-2" />
-                        Review New Criteria ({latestBatch.criteria_count})
-                    </Button>
-                )}
-                {latestBatch && protocol.status !== 'pending_review' && (
-                    <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
-                        <ClipboardList className="h-4 w-4 mr-2" />
-                        Review Criteria ({latestBatch.criteria_count})
+                        {protocol.status === 'pending_review' ? 'Review New' : 'Review'} Criteria (
+                        {latestBatch.criteria_count})
                     </Button>
                 )}
             </div>

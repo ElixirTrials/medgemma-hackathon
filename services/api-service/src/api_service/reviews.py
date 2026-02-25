@@ -194,13 +194,14 @@ def list_batches(
     - Count of linked criteria per batch
     - Count of reviewed criteria (review_status IS NOT NULL) for progress
     """
-    # Build count query — exclude archived batches (hidden from dashboard)
+    # Build count query — exclude archived and grounding batches (not ready for review)
     count_stmt = (
         select(func.count())
         .select_from(CriteriaBatch)
         .where(
             CriteriaBatch.is_archived == False  # noqa: E712
         )
+        .where(CriteriaBatch.status != "grounding")
     )
     if status:
         count_stmt = count_stmt.where(CriteriaBatch.status == status)
@@ -208,9 +209,13 @@ def list_batches(
         count_stmt = count_stmt.where(CriteriaBatch.protocol_id == protocol_id)
     total = db.exec(count_stmt).one()
 
-    # Build data query — exclude archived batches (Pitfall 1 from RESEARCH.md)
-    data_stmt = select(CriteriaBatch).where(
-        CriteriaBatch.is_archived == False  # noqa: E712
+    # Build data query — exclude archived and grounding batches
+    data_stmt = (
+        select(CriteriaBatch)
+        .where(
+            CriteriaBatch.is_archived == False  # noqa: E712
+        )
+        .where(CriteriaBatch.status != "grounding")
     )
     if status:
         data_stmt = data_stmt.where(CriteriaBatch.status == status)
@@ -554,7 +559,7 @@ def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse
         .where(
             col(Criteria.review_status).is_(None),
             col(CriteriaBatch.status).in_(
-                ["pending_review", "in_progress", "entities_grounded"]
+                ["pending_review", "in_progress"]
             ),
         )
     )
@@ -568,7 +573,7 @@ def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse
         .where(
             col(Criteria.review_status).is_(None),
             col(CriteriaBatch.status).in_(
-                ["pending_review", "in_progress", "entities_grounded"]
+                ["pending_review", "in_progress"]
             ),
         )
     )

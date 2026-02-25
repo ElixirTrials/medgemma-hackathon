@@ -92,7 +92,7 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
                 # Create CriteriaBatch
                 batch = CriteriaBatch(
                     protocol_id=state["protocol_id"],
-                    status="pending_review",
+                    status="grounding",
                     extraction_model=extraction_model,
                 )
                 session.add(batch)

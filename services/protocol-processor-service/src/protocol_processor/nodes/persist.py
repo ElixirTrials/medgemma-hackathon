@@ -227,7 +227,7 @@ def _update_batch_and_protocol(
     if batch_id:
         batch = session.get(CriteriaBatch, batch_id)
         if batch:
-            batch.status = "entities_grounded"
+            batch.status = "pending_review"
             session.add(batch)
 
     protocol = session.get(Protocol, protocol_id)
