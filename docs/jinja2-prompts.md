@@ -38,7 +38,7 @@ All protocol-processor templates live in `services/protocol-processor-service/sr
 
 ### `entity_decompose.jinja2`
 - **Used by:** `protocol_processor.tools.entity_decomposer.decompose_entities_from_criterion()`
-- **Render path:** `protocol_processor.tools.entity_decomposer._render_decompose_prompt()`
+- **Render path:** `protocol_processor.prompts.render_template("entity_decompose.jinja2", ...)`
 - **Variables:** `criterion_text`, `category`
 - **Role:** Extracts one or more discrete medical entities from a criterion for downstream terminology routing
 
