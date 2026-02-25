@@ -1,0 +1,605 @@
+Something is broken. Look here: instructions/SubmissionRequirements/grounding_failures/Screenshot 2026-02-25 at 00.30.51.png. There are no successful groundings. Can you assess what went wrong? You can look at the postgres db and mlflow trace logs.
+
+---
+
+Yes, proceed. With respect to grounding, you can check whether you fixed the problem by running grounding against snippets in the test json: tests/e2e/test_snippets.json . I'd suggest iterating until everything grounds properly.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User pointed to a screenshot showing grounding failures - all criteria had dashes for ENTITIES, FIELD MAPPINGS, and EXPRESSION TREE columns. Asked to assess what went wrong using postgres DB and MLflow trace logs.
+
+2. **Investigation Phase**: 
+   - Explored the codebase architecture (7-node LangGraph pipeline: ingest → extract → parse → ground → persist → structure → ordinal_resolve)
+   - Checked Docker containers (postgres on 5432, omop-vocab on 5433)
+   - Examined database tables: entity (5 rows, 4 with OMOP IDs), atomic_criteria (empty), criteria (5 rows with conditions issues), protocol (status: pending_review)
+   - Found criteria.conditions had mixed formats: 2 with proper `{"field_mappings": [...]}`, 2 with `[]` empty, 1 with `["Female subjects"]` malformed
+   - structured_criterion was JSON null for all criteria
+   - MLflow traces were all from test scripts, none from the actual pipeline
+   - LangGraph checkpoints showed current protocol reached step 5 (structure) but not step 6 (ordinal_resolve)
+
+3. **Root Cause Identified**: The git diff showed the key change - removal of category-based fallback in parse.py:
+   - OLD: When Gemini returned 0 entities, fell back to using full criterion text with category-based type (defaulting to "Condition")
+   - NEW: When Gemini returned 0 entities, tried MedGemma fallback, but if that also returned empty, just logged warning and SKIPPED the criterion entirely
+
+4. **User Follow-up Messages**:
+   - "I think we need an indicator on the criteria and review page that grounding is still ongoing"
+   - "Some groundings that succeeded previously are now failing (we changed the retry [default to condition] and we also added unit detection."
+   - "Yes, proceed. With respect to grounding, you can check whether you fixed the problem by running grounding against snippets in the test json: tests/e2e/test_snippets.json. I'd suggest iterating until everything grounds properly."
+
+5. **Fixes Applied**:
+   - Fix 1: Restored category-based fallback in parse.py (when both Gemini + MedGemma return empty)
+   - Fix 2: Added `_normalize_conditions()` helper to ensure conditions is always a dict or None
+
+6. **Testing**:
+   - First test run failed due to GCloud auth expiration
+   - User reauthenticated
+   - Second test run completed: 15/15 entities grounded (100%), 9/15 exact code match (60%)
+   - 6 misses were close synonyms, not actual failures
+
+7. **UI Investigation**: Explored the React UI to understand where to add grounding-in-progress indicator
+   - ReviewPage.tsx and CriteriaSpreadsheet.tsx were identified
+   - ProtocolDetail.tsx already has banners for extracting/grounding states
+   - ReviewPage doesn't currently poll protocol status
+
+8. **Current Work**: Was about to implement the grounding-in-progress UI indicator on ReviewPage and CriteriaSpreadsheet when the summary was requested.
+
+Key files modified:
+- services/protocol-processor-service/src/protocol_processor/nodes/parse.py (2 changes)
+- No UI files modified yet
+
+Key files read:
+- Multiple database schema inspections
+- parse.py, persist.py, structure.py, structure_builder.py, field_mapper.py, graph.py
+- entity_decomposer.py (with git diff)
+- test_grounding_snippets.py, test_snippets.json
+- ReviewPage.tsx, CriteriaSpreadsheet.tsx
+- shared/models.py
+- docker-compose.yml
+
+Summary:
+1. Primary Request and Intent:
+   - User reported that there are "no successful groundings" visible in the UI, pointing to a screenshot showing all criteria with dashes (empty) for ENTITIES, FIELD MAPPINGS, and EXPRESSION TREE columns
+   - User asked to assess what went wrong using postgres DB and MLflow trace logs
+   - User then requested an indicator on the criteria and review page that grounding is still ongoing
+   - User confirmed that "some groundings that succeeded previously are now failing" due to changes to retry logic (removed "default to condition" fallback) and added unit detection
+   - User instructed to proceed with fixes and validate by running `scripts/test_grounding_snippets.py` against `tests/e2e/test_snippets.json`, iterating until everything grounds properly
+
+2. Key Technical Concepts:
+   - **ElixirTrials**: AI-powered clinical trial eligibility criteria extraction system
+   - **7-node LangGraph pipeline**: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+   - **Entity decomposition**: Gemini extracts medical entities from criterion text, with MedGemma as fallback
+   - **Dual grounding**: TerminologyRouter + OMOP mapper with MedGemma as decision-maker
+   - **Field mappings**: AutoCriteria pattern (Entity, Operator, Value, Unit, Time)
+   - **Expression trees**: AND/OR/NOT logic detection via Gemini, stored as AtomicCriterion/CompositeCriterion records
+   - **Tech stack**: FastAPI + SQLModel + LangGraph + PostgreSQL + React + Vite + Tailwind + MLflow
+   - **Models**: MedGemma 4B-IT (Vertex AI endpoint) + Gemini 2.5 Flash
+   - **OMOP CDM vocabulary** on separate PostgreSQL (port 5433)
+   - Docker Compose with services: api, ui, db, omop-vocab, mlflow, pubsub-emulator
+   - `uv run` is REQUIRED for all Python execution (per CLAUDE.md)
+
+3. Files and Code Sections:
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/parse.py`** (MODIFIED)
+     - Core parse node that creates Criteria DB records and decomposes entities for grounding
+     - **Fix 1**: Added `_normalize_conditions()` helper function after line 38:
+     ```python
+     def _normalize_conditions(raw_conditions: Any) -> dict[str, Any] | None:
+         """Ensure conditions is always a dict or None."""
+         if raw_conditions is None:
+             return None
+         if isinstance(raw_conditions, dict):
+             return raw_conditions
+         return {"original_conditions": raw_conditions}
+     ```
+     - Changed line ~113 from `conditions=raw.get("conditions"),` to `conditions=_normalize_conditions(raw.get("conditions")),`
+     - **Fix 2**: Restored category-based fallback when both Gemini and MedGemma return empty (replacing the `logger.warning(...skipping)` block):
+     ```python
+     else:
+         category = raw.get("category", "")
+         fallback_type = {
+             "medications": "Medication",
+             "lab_values": "Lab_Value",
+             "procedures": "Procedure",
+             "demographics": "Demographic",
+         }.get(category, "Condition")
+         logger.warning(
+             "No entities from Gemini or MedGemma for "
+             "criterion '%s' (id=%s) — using category "
+             "fallback (type=%s)",
+             raw["text"][:80], cid, fallback_type,
+         )
+         entity_items.append({
+             "criterion_id": cid,
+             "text": raw["text"],
+             "entity_type": fallback_type,
+             "criterion_text": raw["text"],
+             "criteria_type": raw["criteria_type"],
+         })
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py`** (READ, previously modified by user)
+     - Contains `decompose_entities_from_criterion()` with retry logic (max_retries=2) and `medgemma_decompose_entities()` fallback
+     - User's changes: Added retry with rephrased wording, added MedGemma fallback function, removed old category-based fallback
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/persist.py`** (READ)
+     - Creates Entity DB records, accumulates field_mappings in Criteria.conditions JSONB
+     - `_find_criterion_and_update_mappings()` handles dict wrapping at line 165-166 for non-dict conditions
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/structure.py`** (READ)
+     - Structure node filters criteria at lines 121-127: `if c.conditions and isinstance(c.conditions, dict) and c.conditions.get("field_mappings")`
+     - Empty arrays `[]` are falsy → filtered out
+     - Non-dict conditions (lists) → fail isinstance check → filtered out
+     - No `structure_trees_built` audit event found in DB
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py`** (READ)
+     - `build_expression_tree()` creates AtomicCriterion records and expression trees
+     - `detect_logic_structure()` uses Gemini for AND/OR/NOT detection
+     - `_create_atomic_from_mapping()` includes unit normalization and ordinal scale detection
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`** (READ)
+     - `generate_field_mappings()` uses Gemini structured output to generate field mappings
+     - Best-effort: returns empty list on failure
+
+   - **`services/protocol-processor-service/src/protocol_processor/graph.py`** (READ)
+     - Defines the 7-node StateGraph with conditional error routing
+     - persist → structure → ordinal_resolve → END (unconditional edges)
+
+   - **`libs/shared/src/shared/models.py`** (READ)
+     - `Criteria` model: `conditions: Dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))`
+     - `structured_criterion: Dict[str, Any] | None = Field(default=None, sa_column=Column(JSON))`
+
+   - **`scripts/test_grounding_snippets.py`** (READ)
+     - Test runner using `ground_snippet_with_known_entities()` which bypasses entity decomposition
+     - Uses golden entities from test_snippets.json, grounds them, compares codes
+
+   - **`tests/e2e/test_snippets.json`** (READ)
+     - 7 extraction test snippets, 9 grounding test snippets with golden entity codes, relations, values, units
+
+   - **`apps/hitl-ui/src/screens/ReviewPage.tsx`** (READ, NOT YET MODIFIED)
+     - Uses `useBatchCriteria()` and `useBatchList()` but does NOT poll protocol status
+     - Needs `useProtocol()` hook with polling to show grounding-in-progress banner
+
+   - **`apps/hitl-ui/src/screens/CriteriaSpreadsheet.tsx`** (READ, NOT YET MODIFIED)
+     - Uses `useCriteriaSpreadsheet()` hook, has protocolId filter
+     - Needs protocol status polling when protocolId is selected
+
+   - **`infra/docker-compose.yml`** (READ)
+     - Services: api (:8000), ui (:3000), db (:5432), omop-vocab (:5433), mlflow (:5001), pubsub-emulator (:8432)
+
+4. Errors and Fixes:
+   - **GCloud auth expired**: First test run failed with `503 Reauthentication is needed. Please run gcloud auth application-default login`. User reauthenticated.
+   - **3/5 criteria had no entities**: Root cause was removal of category-based fallback in parse.py. Fixed by restoring the fallback after MedGemma also returns empty.
+   - **Malformed conditions `["Female subjects"]`**: Extraction LLM returned a list instead of dict. Fixed with `_normalize_conditions()` wrapper.
+   - **`structured_criterion` null for ALL criteria**: Structure node filtered out criteria with empty/non-dict conditions. The 2 criteria with valid field_mappings should have qualified but no `structure_trees_built` audit event exists — this is still under investigation.
+   - **Test script import error without env**: `DATABASE_URL environment variable is required` — resolved by using `set -a && source .env && set +a` prefix.
+
+5. Problem Solving:
+   - **Grounding failures diagnosed**: Traced through the full pipeline from parse → ground → persist → structure, identified 3 distinct failure modes
+   - **Entity decomposition regression**: The user's changes to entity_decomposer.py (adding retry + MedGemma fallback) removed the guaranteed category-based fallback, causing 3/5 criteria to get 0 entities
+   - **Test results**: After auth fix, 15/15 entities grounded (100%), 9/15 exact code match (60%). The 6 misses are close CUI synonyms, not failures.
+   - **Structure node mystery**: Even the 2 criteria WITH valid field_mappings have null structured_criterion and no structure_trees_built audit. This remains uninvestigated.
+
+6. All User Messages:
+   - "Something is broken. Look here: instructions/SubmissionRequirements/grounding_failures/Screenshot 2026-02-25 at 00.30.51.png. There are no successful groundings. Can you assess what went wrong? You can look at the postgres db and mlflow trace logs."
+   - "I think we need an indicator on the criteria and review page that grounding is still ongoing"
+   - "Some groundings that succeeded previously are now failing (we changed the retry [default to condition] and we also added unit detection."
+   - "Yes, proceed. With respect to grounding, you can check whether you fixed the problem by running grounding against snippets in the test json: tests/e2e/test_snippets.json . I'd suggest iterating until everything grounds properly."
+
+7. Pending Tasks:
+   - **Add grounding-in-progress UI indicator** to ReviewPage.tsx and CriteriaSpreadsheet.tsx — user explicitly requested "an indicator on the criteria and review page that grounding is still ongoing"
+   - **Investigate structure node failure** — why 2 criteria with valid field_mappings still have null structured_criterion (no structure_trees_built audit event)
+   - Task tracker has: `#1. [in_progress] Fix grounding failures and iterate until all snippets pass`
+
+8. Current Work:
+   Was about to implement the grounding-in-progress UI indicator on ReviewPage.tsx and CriteriaSpreadsheet.tsx. Had just finished reading both files and the exploration agent returned detailed recommendations:
+   - ReviewPage needs `useProtocol()` hook with 5-second polling using `batch?.protocol_id`
+   - Add blue banner with Loader2 spinner when `protocol.status === 'grounding' || protocol.status === 'extracting'`
+   - Follow the existing pattern from ProtocolDetail.tsx (lines 352-368)
+   - CriteriaSpreadsheet needs same when protocolId filter is active
+
+9. Optional Next Step:
+   Implement the grounding-in-progress banner in ReviewPage.tsx and CriteriaSpreadsheet.tsx. The user said: "I think we need an indicator on the criteria and review page that grounding is still ongoing" and confirmed "Yes, proceed." The approach is to:
+   1. Add `useProtocol()` import and hook call to ReviewPage.tsx with `batch?.protocol_id` and `refetchInterval: 5000`
+   2. Add a blue banner with Loader2 spinner after the progress bar (line 273) when protocol status is 'grounding' or 'extracting'
+   3. Add similar indicator to CriteriaSpreadsheet.tsx when a protocolId is selected
+   4. The `useProtocol` hook already exists in `apps/hitl-ui/src/hooks/useProtocols.ts` and supports polling
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+Show me how we did on the test json?
+
+---
+
+What about units?
+
+---
+
+Show me the actual results against the json
+
+---
+
+Check how the grounding works  on this snippet: "Female subjects must be surgically sterile; or at least 2 years postmenopausal; or have a monogamous partner who is surgically sterile; or practicing double-barrier contraception; or practicing abstinence (must agree to use double-barrier contraception in the event of sexual activity); or using an insertable, injectable, transdermal, or combination oral contraceptive approved by the FDA for greater than 2 months prior to screening and commit to the use of an acceptable form of birth control for the duration of the study and for 30 days after completion of the study."
+
+---
+
+We want to check the whole grounding process. Our test with the json should reflect what happens in the app otherwise it's pointless.
+
+---
+
+Let's make a plan for testing just the mistaken json items with several different modified prompts and reporting on the results of the different versions.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. This is a continuation from a previous conversation that ran out of context. The summary from the previous session covers:
+   - Investigation of grounding failures (all criteria showing dashes in UI)
+   - Root cause: removal of category-based fallback in parse.py
+   - Fix 1: Restored category-based fallback in parse.py
+   - Fix 2: Added `_normalize_conditions()` helper
+   - Test results: 15/15 entities grounded (100%), 9/15 exact code match (60%)
+   - UI indicator work was about to begin
+
+2. First action in this session: Implementing grounding-in-progress UI banners
+   - Added `useProtocol` import and hook to ReviewPage.tsx with smart polling
+   - Added blue banner with Loader2 spinner after progress bar
+   - Added same pattern to CriteriaSpreadsheet.tsx
+   - Hit TypeScript error: block-scoped variable used before declaration (referencing `protocol` in its own `refetchInterval`)
+   - Fixed by using function form of `refetchInterval: (query) => ...`
+   - TypeScript compiled clean
+
+3. User asked "Show me how we did on the test json?"
+   - Tried running `pytest tests/e2e/test_grounding_snippets.py` - all 77 skipped (e2e marker auto-skip)
+   - Found conftest.py checks for Docker Compose stack (API + PostgreSQL)
+   - Created `tests/e2e/run_grounding_snippets.py` - standalone script using TerminologyRouter directly
+   - Hit AttributeError: 'GroundingCandidate' has no attribute 'source' - fixed to `source_api`
+   - Results: 15/15 grounded (100%), 11/15 exact code match (73%)
+
+4. User asked "What about units?"
+   - Extended test script to also test unit normalization via `normalize_unit()`
+   - Results: 0/5 UCUM match, 0/5 OMOP match - ALL units failing
+   - Root cause: `_lookup_ucum_unit` in omop_mapper.py only searched `concept_name` (e.g., "milligram per deciliter"), never `concept_code` (e.g., "mg/dL")
+   - Fixed `_lookup_ucum_unit` to search `concept_code` first (exact, then case-insensitive), then `concept_name`, then synonyms. Also changed return from `(concept_name, concept_id)` to `(concept_code, concept_id)`
+   - Found golden data bugs: kg pointed to 8576 (milligram) instead of 9529 (kilogram); {score} pointed to 8527 (Race:White) instead of 44777566 (UCUM [score])
+   - Fixed golden data in test_snippets.json
+   - Updated `_ORDINAL_UNIT_CONCEPT_ID` from 8527 to 44777566
+   - Added `_UNIT_ALIASES` dict in unit_normalizer.py for `{score}` -> `[score]`
+   - Results after fix: 5/5 UCUM match (100%), 5/5 OMOP match (100%)
+
+5. User asked "Show me the actual results against the json"
+   - pytest tests were still skipping due to API not running
+   - Updated test assertions in test_grounding_snippets.py to match corrected golden data (8576→9529, 8527→44777566)
+   - Discovered API was already running on port 8000
+   - Ran `uv run pytest tests/e2e/test_grounding_snippets.py -v -m e2e` - 77 passed, 0 failed
+
+6. User asked to check grounding on complex contraception snippet
+   - Created `tests/e2e/run_single_snippet.py` with full pipeline: decomposition → routing → units
+   - Ran it - showed decomposition into 8-9 entities, routing results, some wrong matches (Vasectomy instead of Female Sterilization, Postmenopausal bleeding instead of Postmenopause)
+   - Time units (years, months, days) all returning None
+
+7. User said "We want to check the whole grounding process. Our test with the json should reflect what happens in the app otherwise it's pointless."
+   - Rewrote `run_grounding_snippets.py` to use `_ground_entity_parallel` from ground.py - the actual production code path
+   - This exercises: TerminologyRouter → MedGemma selection → OMOP dual grounding → Field mapping generation → Categorical value grounding
+   - Full pipeline results: 15/15 grounded (100%), 9/15 exact code match (60%), 15/15 with field mappings (100%), 5/5 units correct (100%)
+   - Code mismatches: Serum creatinine (off-by-one CUI), eGFR (different CUI version), Ankylosing Spondylitis (MedGemma picked Juvenile), Radiologic examination (close synonym), GBA gene mutation (different CUI version), Pregnancy (MedGemma picked Ectopic)
+   - Relation mismatches: BMI (< instead of >), ASA (within instead of =), Pregnancy (= instead of !=)
+
+8. Added plural→singular time unit aliases
+   - Added to `_UNIT_ALIASES`: years→year, months→month, days→day, weeks→week, hours→hour, minutes→minute, yrs→year, mos→month, etc.
+   - Verified all units resolve: years→a(9448), months→mo(9580), days→d(8512), etc.
+
+9. User's latest request: "Let's make a plan for testing just the mistaken json items with several different modified prompts and reporting on the results of the different versions."
+   - Entered plan mode
+   - Then user requested a summary (this message)
+
+Key files modified:
+- `apps/hitl-ui/src/screens/ReviewPage.tsx` - Added grounding-in-progress banner
+- `apps/hitl-ui/src/screens/CriteriaSpreadsheet.tsx` - Added grounding-in-progress banner
+- `services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py` - Fixed `_lookup_ucum_unit` to search concept_code
+- `services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py` - Added unit aliases, fixed ordinal concept ID
+- `tests/e2e/test_snippets.json` - Fixed golden data bugs (kg, score concept IDs)
+- `tests/e2e/test_grounding_snippets.py` - Updated assertions to match corrected golden data
+- `tests/e2e/run_grounding_snippets.py` - Created full pipeline test runner
+- `tests/e2e/run_single_snippet.py` - Created single snippet test runner
+
+Previous session files modified (from summary):
+- `services/protocol-processor-service/src/protocol_processor/nodes/parse.py` - Restored category-based fallback, added `_normalize_conditions()`
+
+Summary:
+1. Primary Request and Intent:
+   - **Original session**: User reported grounding failures (all criteria showing dashes in UI). Asked to diagnose using postgres DB and MLflow traces. Then asked for grounding-in-progress UI indicator on ReviewPage and CriteriaSpreadsheet.
+   - **This session continuation**: 
+     1. Complete the grounding-in-progress UI banner implementation (carried from previous session)
+     2. Show test results against the golden test_snippets.json
+     3. Test unit normalization specifically
+     4. Show actual pytest results against the JSON
+     5. Test grounding on a complex contraception eligibility snippet
+     6. Make the test reflect the actual production pipeline ("We want to check the whole grounding process. Our test with the json should reflect what happens in the app otherwise it's pointless.")
+     7. **Latest (in plan mode)**: "Let's make a plan for testing just the mistaken json items with several different modified prompts and reporting on the results of the different versions."
+
+2. Key Technical Concepts:
+   - **ElixirTrials**: AI-powered clinical trial eligibility criteria extraction system
+   - **7-node LangGraph pipeline**: ingest → extract → parse → ground → persist → structure → ordinal_resolve
+   - **Full grounding pipeline**: TerminologyRouter (UMLS/SNOMED candidates) → MedGemma selection → OMOP dual grounding → Field mapping generation (Gemini) → Categorical value grounding → Unit normalization
+   - **`_ground_entity_parallel`**: The actual production grounding function in ground.py that orchestrates the full pipeline per entity
+   - **Entity decomposition**: Gemini extracts medical entities, MedGemma fallback, category-based last-resort fallback
+   - **Dual grounding**: TerminologyRouter + OMOP mapper run in parallel, reconciled afterward
+   - **Unit normalization**: UCUM lookup via OMOP vocab DB (concept_code, concept_name, concept_synonym), with alias expansion for plural/shorthand forms
+   - **Field mappings**: AutoCriteria pattern (Entity, Operator, Value, Unit, Time) generated by Gemini
+   - **Tech stack**: FastAPI + SQLModel + LangGraph + PostgreSQL + React + Vite + TanStack Query + Tailwind + MLflow
+   - **Models**: MedGemma 4B-IT (Vertex AI) + Gemini 3 Flash Preview
+   - **OMOP CDM vocabulary** on separate PostgreSQL (port 5433)
+   - **`uv run`** is REQUIRED for all Python execution (per CLAUDE.md)
+   - **Docker Compose**: db (5432), omop-vocab (5433), API (8000) — API was already running
+
+3. Files and Code Sections:
+
+   - **`apps/hitl-ui/src/screens/ReviewPage.tsx`** (MODIFIED)
+     - Added grounding-in-progress banner using `useProtocol` hook with smart polling
+     - Changes: imported `useProtocol` from `../hooks/useProtocols`, added polling hook with function-form `refetchInterval`, added blue banner after progress bar
+     ```tsx
+     // Fetch protocol status (poll while processing)
+     const PROCESSING_STATUSES = ['extracting', 'grounding', 'processing', 'uploaded'];
+     const { data: protocol } = useProtocol(batch?.protocol_id ?? '', {
+         refetchInterval: (query) => {
+             const status = query.state.data?.status;
+             return status && PROCESSING_STATUSES.includes(status) ? 5000 : false;
+         },
+     });
+     const isProcessing =
+         protocol?.status === 'extracting' ||
+         protocol?.status === 'grounding' ||
+         protocol?.status === 'processing';
+     ```
+     Banner JSX:
+     ```tsx
+     {isProcessing && (
+         <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 flex items-center gap-2">
+             <Loader2 className="h-4 w-4 animate-spin text-blue-600 shrink-0" />
+             <p className="text-sm text-blue-700">
+                 {protocol?.status === 'extracting'
+                     ? 'Extraction in progress. Criteria will appear shortly.'
+                     : protocol?.status === 'grounding'
+                       ? 'Grounding in progress. Entities and field mappings are being generated.'
+                       : 'Processing in progress.'}
+             </p>
+         </div>
+     )}
+     ```
+
+   - **`apps/hitl-ui/src/screens/CriteriaSpreadsheet.tsx`** (MODIFIED)
+     - Same pattern as ReviewPage but uses `protocolId` state and `selectedProtocol`
+     - Added `useProtocol` import alongside `useProtocolList`, polling hook, `isProcessing` flag, blue banner between filters and table
+
+   - **`apps/hitl-ui/src/hooks/useProtocols.ts`** (READ)
+     - Contains `useProtocol(id, options?)` hook that already supports `refetchInterval` via `UseQueryOptions<Protocol, Error>`
+     - `Protocol` interface has status union type including 'extracting', 'grounding', 'processing', etc.
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/omop_mapper.py`** (MODIFIED)
+     - Fixed `_lookup_ucum_unit` function — was only searching `concept_name`, now searches `concept_code` first
+     - Changed return from `(concept_name, concept_id)` to `(concept_code, concept_id)` so actual UCUM symbols are returned
+     ```python
+     def _lookup_ucum_unit(engine: Any, unit_text: str) -> tuple[str | None, int | None]:
+         key = unit_text.strip()
+         if not key:
+             return (None, None)
+         with engine.connect() as conn:
+             # Try exact concept_code match first (UCUM symbols like "mg/dL", "kg")
+             sql_code = text(
+                 "SELECT concept_id, concept_code "
+                 "FROM concept "
+                 "WHERE vocabulary_id = 'UCUM' "
+                 "  AND standard_concept = 'S' "
+                 "  AND concept_code = :unit_text "
+                 "LIMIT 1"
+             )
+             row = conn.execute(sql_code, {"unit_text": key}).fetchone()
+             if row is not None:
+                 return (row[1], int(row[0]))
+             # Case-insensitive concept_code match
+             sql_code_ci = text(
+                 "SELECT concept_id, concept_code "
+                 "FROM concept "
+                 "WHERE vocabulary_id = 'UCUM' "
+                 "  AND standard_concept = 'S' "
+                 "  AND LOWER(concept_code) = LOWER(:unit_text) "
+                 "LIMIT 1"
+             )
+             row = conn.execute(sql_code_ci, {"unit_text": key}).fetchone()
+             if row is not None:
+                 return (row[1], int(row[0]))
+             # Try exact concept_name match (English names like "kilogram")
+             sql_name = text(
+                 "SELECT concept_id, concept_code "
+                 "FROM concept "
+                 "WHERE vocabulary_id = 'UCUM' "
+                 "  AND standard_concept = 'S' "
+                 "  AND LOWER(concept_name) = LOWER(:unit_text) "
+                 "LIMIT 1"
+             )
+             row = conn.execute(sql_name, {"unit_text": key}).fetchone()
+             if row is not None:
+                 return (row[1], int(row[0]))
+             # Try synonym match
+             sql_syn = text(
+                 "SELECT c.concept_id, c.concept_code "
+                 "FROM concept_synonym s "
+                 "JOIN concept c ON s.concept_id = c.concept_id "
+                 "WHERE c.vocabulary_id = 'UCUM' "
+                 "  AND c.standard_concept = 'S' "
+                 "  AND LOWER(s.concept_synonym_name) = LOWER(:unit_text) "
+                 "LIMIT 1"
+             )
+             row = conn.execute(sql_syn, {"unit_text": key}).fetchone()
+             if row is not None:
+                 return (row[1], int(row[0]))
+         return (None, None)
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/unit_normalizer.py`** (MODIFIED)
+     - Fixed `_ORDINAL_UNIT_CONCEPT_ID` from 8527 to 44777566
+     - Added `_UNIT_ALIASES` dict for common LLM output variations
+     - Updated `normalize_unit()` to apply aliases before DB lookup
+     ```python
+     # Unit concept ID for ordinal scores — UCUM [score] = concept 44777566
+     _ORDINAL_UNIT_CONCEPT_ID = 44777566
+     
+     _UNIT_ALIASES: dict[str, str] = {
+         "{score}": "[score]",
+         "years": "year", "months": "month", "days": "day",
+         "weeks": "week", "hours": "hour", "minutes": "minute",
+         "yrs": "year", "mos": "month", "wks": "week",
+         "hrs": "hour", "mins": "minute",
+     }
+     
+     def normalize_unit(unit_text: str | None) -> tuple[str | None, int | None]:
+         if unit_text is not None and not isinstance(unit_text, str):
+             unit_text = str(unit_text)
+         if not unit_text or not unit_text.strip():
+             return (None, None)
+         key = unit_text.strip()
+         key = _UNIT_ALIASES.get(key, key)
+         return _cached_ucum_lookup(key.lower())
+     ```
+
+   - **`tests/e2e/test_snippets.json`** (MODIFIED)
+     - Fixed golden data: kg `unit_omop_concept_id` from 8576 to 9529
+     - Fixed golden data: {score} `unit_ucum` stays `{score}`, `unit_omop_concept_id` from 8527 to 44777566
+
+   - **`tests/e2e/test_grounding_snippets.py`** (MODIFIED)
+     - Updated test assertions: `test_body_weight_bmi_snippet` changed 8576→9529
+     - Updated test assertions: `test_asa_physical_status_snippet` changed 8527→44777566
+     - These are pytest e2e tests that validate the golden JSON structure + specific snippet assertions
+
+   - **`tests/e2e/run_grounding_snippets.py`** (CREATED)
+     - Full pipeline test runner using `_ground_entity_parallel` from ground.py
+     - Exercises: TerminologyRouter → MedGemma → OMOP → Field mappings → Unit normalization
+     - Reports: code match, field mappings, relation match, unit UCUM/OMOP match per entity
+     - This is the key test script that reflects the actual app behavior
+
+   - **`tests/e2e/run_single_snippet.py`** (CREATED)
+     - Single-snippet test runner: decomposition → routing → unit normalization
+     - Used for ad-hoc testing of complex snippets
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/ground.py`** (READ)
+     - `_ground_entity_parallel()` at line 468 — the production grounding function
+     - Runs TerminologyRouter + OMOP in parallel, then MedGemma selection, then field mapping generation, then categorical value grounding
+     - `_ground_entity_with_retry()` at line 202 — agentic retry loop (max 3 attempts)
+     - `_ground_categorical_values()` at line 378 — post-processes field mappings
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/parse.py`** (MODIFIED in previous session)
+     - Added `_normalize_conditions()` helper
+     - Restored category-based fallback when both Gemini + MedGemma return empty
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py`** (READ)
+     - `decompose_entities_from_criterion()` — Gemini with structured output + retry
+     - `medgemma_decompose_entities()` — MedGemma fallback
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py`** (READ)
+     - `generate_field_mappings()` — Gemini structured output for AutoCriteria decomposition
+     - `FieldMappingItem` Pydantic model with relation, value, unit fields
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py`** (referenced)
+     - `medgemma_decide()` — MedGemma selects best candidate from TerminologyRouter results
+     - `agentic_reasoning_loop()` — retry with rephrased queries
+
+   - **`services/protocol-processor-service/src/protocol_processor/schemas/grounding.py`** (READ)
+     - `GroundingCandidate` — has `source_api`, `code`, `preferred_term`, `semantic_type`, `score` fields
+     - `EntityGroundingResult` — full result with selected_code, confidence, candidates, reasoning, field_mappings
+
+4. Errors and Fixes:
+   - **TypeScript: block-scoped variable used before declaration**
+     - `protocol` referenced in `refetchInterval` of the same `useProtocol` call that declares it
+     - Fixed by using function form: `refetchInterval: (query) => { const status = query.state.data?.status; ... }`
+   - **AttributeError: 'GroundingCandidate' has no attribute 'source'**
+     - Used `source` instead of `source_api` in test script
+     - Fixed by checking schema: field is `source_api`
+   - **Unit normalization returning (None, None) for all units (0/5)**
+     - Root cause: `_lookup_ucum_unit` only searched `concept_name` ("milligram per deciliter") not `concept_code` ("mg/dL")
+     - Fixed by adding concept_code search as first lookup, changed return to `(concept_code, concept_id)`
+   - **Golden data bugs in test_snippets.json**
+     - `kg` had `unit_omop_concept_id: 8576` but 8576 = milligram (mg). Correct: 9529 = kilogram
+     - `{score}` had `unit_omop_concept_id: 8527` but 8527 = "White" (Race). Correct: 44777566 = UCUM [score]
+     - Fixed both in JSON and in test assertions
+   - **`_ORDINAL_UNIT_CONCEPT_ID` wrong constant**
+     - Was 8527 (Race:White), changed to 44777566 (UCUM [score])
+   - **Time units (years, months, days) returning (None, None)**
+     - OMOP vocab stores singular forms ("year", "month", "day") but pipeline produces plural
+     - Added `_UNIT_ALIASES` dictionary mapping plural→singular and common shorthands
+   - **pytest e2e tests all skipping (77 skipped)**
+     - conftest.py auto-skips when Docker Compose API service isn't running
+     - API was already running on port 8000 — just needed `-m e2e` flag
+   - **User feedback: "We want to check the whole grounding process. Our test with the json should reflect what happens in the app otherwise it's pointless."**
+     - Original test only used TerminologyRouter (raw candidates), missing MedGemma selection, OMOP mapping, field mappings
+     - Rewrote `run_grounding_snippets.py` to use `_ground_entity_parallel` — the actual production code path
+     - Results changed: exact code match dropped from 73% (router only) to 60% (full pipeline) — exposed real MedGemma selection errors
+
+5. Problem Solving:
+   - **Grounding-in-progress UI**: Successfully added polling banners to ReviewPage and CriteriaSpreadsheet following ProtocolDetail.tsx pattern
+   - **Unit normalization completely broken**: Fixed by adding concept_code lookup to `_lookup_ucum_unit`, adding alias expansion, fixing golden data bugs. Went from 0/5 to 5/5.
+   - **Test fidelity gap**: User correctly identified that testing only TerminologyRouter candidates was misleading. Rebuilt test to use full production pipeline (`_ground_entity_parallel`), which exposed MedGemma selection errors (Juvenile Ankylosing Spondylitis, Ectopic Pregnancy) and field mapping relation errors.
+   - **Full pipeline test results** (the authoritative numbers):
+     - 15/15 grounded (100%)
+     - 9/15 exact code match (60%) — 6 MedGemma selection mismatches
+     - 15/15 with field mappings (100%)
+     - 5/5 unit UCUM match (100%)
+     - 5/5 unit OMOP match (100%)
+     - 3 relation mismatches in field mappings
+
+6. All User Messages:
+   - "Show me how we did on the test json?"
+   - "What about units?"
+   - "Show me the actual results against the json"
+   - "Check how the grounding works on this snippet: 'Female subjects must be surgically sterile; or at least 2 years postmenopausal; or have a monogamous partner who is surgically sterile; or practicing double-barrier contraception; or practicing abstinence (must agree to use double-barrier contraception in the event of sexual activity); or using an insertable, injectable, transdermal, or combination oral contraceptive approved by the FDA for greater than 2 months prior to screening and commit to the use of an acceptable form of birth control for the duration of the study and for 30 days after completion of the study.'"
+   - "We want to check the whole grounding process. Our test with the json should reflect what happens in the app otherwise it's pointless."
+   - "Let's make a plan for testing just the mistaken json items with several different modified prompts and reporting on the results of the different versions."
+
+7. Pending Tasks:
+   - **Plan and implement prompt A/B testing for mistaken golden items** — The user's latest explicit request. We are in plan mode. The 6 code mismatches and 3 relation mismatches from the full pipeline test need to be tested with different prompt variations to find which prompts produce better MedGemma selections and field mapping relations. The user wants a systematic comparison framework.
+
+8. Current Work:
+   We entered plan mode in response to the user's request: "Let's make a plan for testing just the mistaken json items with several different modified prompts and reporting on the results of the different versions."
+   
+   No exploration or planning has been done yet — we entered plan mode and then the user immediately requested this summary.
+   
+   The 6 code mismatches from the full pipeline test are:
+   - Serum creatinine: expected C0201975, got C0201976
+   - eGFR: expected C0858118, got C3811844
+   - Ankylosing Spondylitis: expected C0038013, got C0409675 (Juvenile)
+   - Radiologic examination: expected C0034693, got C0043299
+   - GBA gene mutation: expected C4225361, got C3888963
+   - Pregnancy: expected C0032961, got C0032987 (Ectopic)
+   
+   The 3 relation mismatches:
+   - Body Mass Index: expected `>`, got `<`
+   - ASA status: expected `=`, got `within`
+   - Pregnancy: expected `!=`, got `=`
+
+   The prompts that need variation testing are in:
+   - `services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py` — MedGemma selection prompt
+   - `services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py` — Field mapping generation prompt
+   - `services/protocol-processor-service/src/protocol_processor/prompts/` — Jinja2 prompt templates
+
+9. Optional Next Step:
+   Continue with plan mode exploration and planning for the user's explicit request: "Let's make a plan for testing just the mistaken json items with several different modified prompts and reporting on the results of the different versions." This requires:
+   1. Exploring the MedGemma decider and field mapper prompt templates to understand what can be varied
+   2. Designing a test harness that runs only the failing entities with different prompt versions
+   3. Building a comparison report showing which prompt variants improve results
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+[Request interrupted by user for tool use]
