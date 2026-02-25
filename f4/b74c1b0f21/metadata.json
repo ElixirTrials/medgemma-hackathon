@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f4b74c1b0f21",
+  "strategy": "manual-commit",
+  "branch": "feat/flamboyant-pasteur",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/hitl-ui/src/screens/LoginPage.tsx",
+    "apps/hitl-ui/src/stores/authStore.ts",
+    "services/api-service/src/api_service/auth.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f4/b74c1b0f21/0/metadata.json",
+      "transcript": "/f4/b74c1b0f21/0/full.jsonl",
+      "context": "/f4/b74c1b0f21/0/context.md",
+      "content_hash": "/f4/b74c1b0f21/0/content_hash.txt",
+      "prompt": "/f4/b74c1b0f21/0/prompt.txt"
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 240065,
+    "cache_read_tokens": 4989175,
+    "output_tokens": 632,
+    "api_call_count": 86
+  }
+}

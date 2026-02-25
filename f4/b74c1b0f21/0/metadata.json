@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f4b74c1b0f21",
+  "session_id": "83834bf7-941d-4160-9184-22c46088b121",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T21:21:23.786246Z",
+  "branch": "feat/flamboyant-pasteur",
+  "checkpoints_count": 3,
+  "files_touched": [
+    "apps/hitl-ui/src/screens/LoginPage.tsx",
+    "apps/hitl-ui/src/stores/authStore.ts",
+    "services/api-service/src/api_service/auth.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "5812f1740155",
+  "token_usage": {
+    "input_tokens": 140,
+    "cache_creation_tokens": 240065,
+    "cache_read_tokens": 4989175,
+    "output_tokens": 632,
+    "api_call_count": 86
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T21:21:23.416219Z",
+    "agent_lines": 70,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 0,
+    "total_committed": 70,
+    "agent_percentage": 100
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon--claude-worktrees-flamboyant-pasteur/83834bf7-941d-4160-9184-22c46088b121.jsonl"
+}
