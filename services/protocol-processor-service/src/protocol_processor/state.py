@@ -7,7 +7,7 @@ Pipeline: ingest -> extract -> parse -> ground -> persist -> structure
   -> ordinal_resolve
 """
 
-from typing import Literal
+from typing import Any, Literal
 
 from typing_extensions import TypedDict
 
@@ -48,7 +48,7 @@ class PipelineState(TypedDict):
     grounded_entities_json: str | None  # Populated by ground, used by persist
 
     # Re-extraction context (optional, only present during re-extraction)
-    archived_reviewed_criteria: list[dict] | None
+    archived_reviewed_criteria: list[dict[str, Any]] | None
 
     # Ordinal resolution (populated by ordinal_resolve node)
     ordinal_proposals_json: str | None  # JSON of proposed ordinal scale configs

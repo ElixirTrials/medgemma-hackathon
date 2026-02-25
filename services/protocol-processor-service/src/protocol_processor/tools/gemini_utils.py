@@ -90,4 +90,4 @@ def parse_structured_output(result: Any, model: type[T]) -> T:
     """
     if isinstance(result, dict):
         return model.model_validate(result)
-    return result  # type: ignore[return-value]
+    return result  # type: ignore[no-any-return]

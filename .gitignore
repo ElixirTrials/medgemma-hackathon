@@ -378,3 +378,5 @@ reports/*.md
 .benchmarks/
 .claude/
 .entire/
+# Entire/checkpoint dirs at repo root (avoid committing session data with secrets)
+6a/

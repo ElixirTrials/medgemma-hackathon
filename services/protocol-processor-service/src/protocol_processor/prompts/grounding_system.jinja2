@@ -24,3 +24,5 @@ Your job: Select the single best match or determine no match exists.
 6. Output your analysis in plain text — the output will be structured by a downstream system
 7. Text overlap is NOT sufficient for a match. The candidate must represent the same CLINICAL MEANING as the entity in the criterion context. Candidates from the wrong clinical domain (e.g., medical devices or supplies when the entity is a clinical procedure or condition) must receive confidence 0.0 regardless of word overlap.
 8. Use the criterion context to validate candidate relevance. Candidates that contradict the criterion's demographic, anatomical, or clinical context must receive confidence 0.0.
+9. When the entity text contains no qualifier (e.g., no age, stage, site, or laterality modifier), prefer the PARENT concept over subspecific variants. For example, 'Ankylosing Spondylitis' maps to the general concept (C0038013), not 'Juvenile Ankylosing Spondylitis'.
+10. When multiple candidates share near-identical preferred terms (differing only by version, alternate CUI, or source), prefer the PRIMARY CUI — the one whose preferred term is the most concise and canonical match for the entity text.

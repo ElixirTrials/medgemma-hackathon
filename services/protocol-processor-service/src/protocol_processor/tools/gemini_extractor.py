@@ -238,7 +238,8 @@ async def extract_criteria_structured(
         )
 
         # Return as JSON string (not dict) for minimal state
-        return extraction_result.model_dump_json()
+        json_str: str = extraction_result.model_dump_json()
+        return json_str
 
     except ValidationError as e:
         msg = _format_validation_error(e)

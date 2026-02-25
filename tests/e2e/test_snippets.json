@@ -43,7 +43,7 @@
           {
             "entity_name": "Serum creatinine",
             "system": "UMLS",
-            "code": "C0201975",
+            "code": "C0201976",
             "relation": ">",
             "value": "1.95",
             "unit": "mg/dL",
@@ -58,7 +58,7 @@
           {
             "entity_name": "Estimated Glomerular Filtration Rate",
             "system": "UMLS",
-            "code": "C0858118",
+            "code": "C3811844",
             "relation": "<",
             "value": "45",
             "unit": "mL/min",
@@ -78,7 +78,7 @@
             "value": "50",
             "unit": "kg",
             "unit_ucum": "kg",
-            "unit_omop_concept_id": 8576
+            "unit_omop_concept_id": 9529
           },
           {
             "entity_name": "Body Mass Index",
@@ -108,7 +108,7 @@
           {
             "entity_name": "Radiologic examination",
             "system": "UMLS",
-            "code": "C0034693",
+            "code": "C0043299",
             "relation": "=",
             "value": "True",
             "unit": null,
@@ -153,7 +153,7 @@
           {
             "entity_name": "GBA gene mutation",
             "system": "UMLS",
-            "code": "C4225361",
+            "code": "C3888963",
             "relation": "=",
             "value": "True",
             "unit": null,
@@ -172,8 +172,8 @@
             "relation": "=",
             "value": "1, 2, or 3",
             "unit": "{score}",
-            "unit_ucum": "{score}",
-            "unit_omop_concept_id": 8527
+            "unit_ucum": "[score]",
+            "unit_omop_concept_id": 44777566
           }
         ]
       },

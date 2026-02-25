@@ -13,6 +13,8 @@ import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from protocol_processor.tools.terminology_router import TerminologyRouter
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -30,7 +32,7 @@ _model_loader = None
 _PROMPTS_DIR = None
 
 
-def _get_prompts_dir():
+def _get_prompts_dir() -> "Path":
     from pathlib import Path
 
     return Path(__file__).parent.parent / "prompts"
@@ -182,7 +184,7 @@ async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
 
 
 async def medgemma_decide(
-    entity: dict,
+    entity: dict[str, Any],
     candidates: list[GroundingCandidate],
     criterion_context: str,
 ) -> EntityGroundingResult:
@@ -354,7 +356,7 @@ async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningRes
 
 
 async def agentic_reasoning_loop(
-    entity: dict,
+    entity: dict[str, Any],
     criterion_context: str,
     router: "TerminologyRouter",
     attempt: int = 1,
