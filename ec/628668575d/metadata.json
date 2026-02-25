@@ -1,0 +1,42 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "ec628668575d",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "pyproject.toml",
+    "services/protocol-processor-service/src/protocol_processor/prompts/__init__.py",
+    "services/protocol-processor-service/src/protocol_processor/prompts/field_mapping.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/logic_detection.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/medgemma_decompose_system.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/medgemma_decompose_user.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/ordinal_resolution.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/structure_decision.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/structure_entities.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/prompts/structure_reasoning.jinja2",
+    "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/ordinal_resolver.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/structure_builder.py",
+    "tests/e2e/run_prompt_variants.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/ec/628668575d/0/metadata.json",
+      "transcript": "/ec/628668575d/0/full.jsonl",
+      "context": "",
+      "content_hash": "/ec/628668575d/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
