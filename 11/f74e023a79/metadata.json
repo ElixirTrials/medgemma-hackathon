@@ -3,7 +3,7 @@
   "checkpoint_id": "11f74e023a79",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2"
   ],
@@ -14,13 +14,20 @@
       "context": "",
       "content_hash": "/11/f74e023a79/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/11/f74e023a79/1/metadata.json",
+      "transcript": "/11/f74e023a79/1/full.jsonl",
+      "context": "/11/f74e023a79/1/context.md",
+      "content_hash": "/11/f74e023a79/1/content_hash.txt",
+      "prompt": "/11/f74e023a79/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 5,
+    "cache_creation_tokens": 18803,
+    "cache_read_tokens": 389514,
+    "output_tokens": 656,
+    "api_call_count": 5
   }
 }

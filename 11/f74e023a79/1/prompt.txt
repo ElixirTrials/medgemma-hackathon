@@ -1,0 +1,146 @@
+Implement the following plan:
+
+# Fix Protocol Status & Review Page Visibility During Grounding
+
+## Context
+
+Two related bugs in the current pipeline:
+
+1. **CriteriaBatch is created with `status="pending_review"` in `parse_node` (line 95)** — before grounding even starts. This makes the batch appear in the Review Queue immediately, with a misleading "pending review" status while entities are still being grounded.
+
+2. **ProtocolDetail shows the "Review Criteria" button for any protocol that has a batch**, regardless of whether the protocol is still processing (`grounding`, `extracting`, `uploaded`). Users can click through to the ReviewPage while grounding is in-flight.
+
+The correct behavior: batches should start in a `"grounding"` status that indicates they're not yet ready for review, transition to `"pending_review"` only after the persist node completes, and the UI should hide the review link while the protocol is still processing.
+
+---
+
+## Step 1: Fix CriteriaBatch initial status (backend)
+
+**File:** `services/protocol-processor-service/src/protocol_processor/nodes/parse.py` (line 95)
+
+Change:
+```python
+batch = CriteriaBatch(
+    protocol_id=state["protocol_id"],
+    status="pending_review",       # ← wrong: grounding hasn't started
+    extraction_model=extraction_model,
+)
+```
+To:
+```python
+batch = CriteriaBatch(
+    protocol_id=state["protocol_id"],
+    status="grounding",            # ← correct: matches protocol.status
+    extraction_model=extraction_model,
+)
+```
+
+## Step 2: Set batch to `pending_review` after grounding completes (backend)
+
+**File:** `services/protocol-processor-service/src/protocol_processor/nodes/persist.py` (line 230)
+
+Change:
+```python
+batch.status = "entities_grounded"
+```
+To:
+```python
+batch.status = "pending_review"
+```
+
+This means the batch transitions: `grounding` → `pending_review` (success) or stays `grounding` (if protocol goes to `grounding_failed`). The `entities_grounded` status was only ever set here and never used as a filter or display value in the frontend — it was a dead-end status.
+
+## Step 3: Hide "Review Criteria" button during processing (frontend)
+
+**File:** `apps/hitl-ui/src/screens/ProtocolDetail.tsx` (lines 472-488)
+
+Currently the action section shows a review button whenever `latestBatch` exists, regardless of protocol status. Wrap the review buttons so they only show when the protocol is in a reviewable state (not actively processing).
+
+Replace:
+```tsx
+{latestBatch && protocol.status === 'pending_review' && (
+    <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
+        <ClipboardList className="h-4 w-4 mr-2" />
+        Review New Criteria ({latestBatch.criteria_count})
+    </Button>
+)}
+{latestBatch && protocol.status !== 'pending_review' && (
+    <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
+        <ClipboardList className="h-4 w-4 mr-2" />
+        Review Criteria ({latestBatch.criteria_count})
+    </Button>
+)}
+```
+
+With:
+```tsx
+{latestBatch && REVIEW_VISIBLE_STATUSES.has(protocol.status) && (
+    <Button onClick={() => navigate(`/reviews/${latestBatch.id}`)}>
+        <ClipboardList className="h-4 w-4 mr-2" />
+        {protocol.status === 'pending_review' ? 'Review New' : 'Review'} Criteria ({latestBatch.criteria_count})
+    </Button>
+)}
+```
+
+Add a constant near the existing `RE_EXTRACT_ALLOWED_STATUSES`:
+```tsx
+const REVIEW_VISIBLE_STATUSES = new Set([
+    'pending_review',
+    'complete',
+    'grounding_failed',   // may want to review partial results
+]);
+```
+
+## Step 4: Exclude non-reviewable batches from Review Queue (backend)
+
+**File:** `services/api-service/src/api_service/reviews.py` (lines 197-218)
+
+The batch list API currently excludes only archived batches. Add an additional filter to exclude batches in `grounding` status (since they're not ready for review). This prevents in-progress batches from appearing in the queue even when "All" status filter is selected.
+
+In the count query and data query, add:
+```python
+.where(CriteriaBatch.status != "grounding")
+```
+
+## Step 5: Update CriteriaBatch type in frontend (cosmetic)
+
+**File:** `apps/hitl-ui/src/hooks/useReviews.ts` (lines 11-17)
+
+Update the `CriteriaBatch.status` union type to replace `entities_grounded` with `grounding`:
+```typescript
+status:
+    | 'grounding'
+    | 'pending_review'
+    | 'in_progress'
+    | 'reviewed'
+    | 'approved'
+    | 'rejected';
+```
+
+---
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `services/protocol-processor-service/src/protocol_processor/nodes/parse.py` | Batch initial status `"pending_review"` → `"grounding"` |
+| `services/protocol-processor-service/src/protocol_processor/nodes/persist.py` | Batch final status `"entities_grounded"` → `"pending_review"` |
+| `apps/hitl-ui/src/screens/ProtocolDetail.tsx` | Gate review button behind `REVIEW_VISIBLE_STATUSES` |
+| `services/api-service/src/api_service/reviews.py` | Exclude `grounding` batches from list API |
+| `apps/hitl-ui/src/hooks/useReviews.ts` | Update type: `entities_grounded` → `grounding` |
+
+---
+
+## Verification
+
+1. `uv run pytest services/protocol-processor-service/tests/ -q` — all tests pass
+2. `cd apps/hitl-ui && npx tsc --noEmit` — no type errors
+3. Manual check: upload a protocol, confirm ProtocolDetail shows "Grounding" badge with no review button visible until persist node completes
+4. Check Review Queue: batches in `grounding` status should not appear
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+I see another issue that keeps sneeking back in. In the criteria page it seems like the easy age between 18 and 65 years is not grounding properly.
