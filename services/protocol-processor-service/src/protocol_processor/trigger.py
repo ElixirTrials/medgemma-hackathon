@@ -24,7 +24,7 @@ import os
 from typing import Any
 from uuid import uuid4
 
-from api_service.storage import engine
+from api_service.storage import engine  # type: ignore[import-untyped]
 from shared.exceptions import AuthExpiredError
 from shared.models import Protocol
 from sqlmodel import Session
@@ -292,6 +292,60 @@ async def _run_pipeline(
 class DependencyCheckError(RuntimeError):
     """Raised when a required infrastructure dependency is unreachable."""
 
+
+def _preflight_check() -> None:
+    """Verify infrastructure dependencies are reachable before starting the pipeline.
+
+    Checks: PostgreSQL (main DB), OMOP vocabulary DB, and MLflow tracking server.
+    Raises DependencyCheckError on the first failure so the pipeline never starts
+    and no API calls (Gemini, ToolUniverse, etc.) are wasted.
+    """
+    import urllib.request
+
+    from sqlalchemy import text
+
+    # 1. Main database (required for persist, parse, etc.)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise DependencyCheckError(
+            f"Main database (DATABASE_URL) is not reachable: {exc}"
+        ) from exc
+
+    # 2. OMOP vocabulary database (required for dual grounding)
+    try:
+        from protocol_processor.tools.omop_mapper import _get_omop_engine
+
+        omop_engine = _get_omop_engine()
+        with omop_engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+    except Exception as exc:
+        raise DependencyCheckError(
+            f"OMOP vocabulary database (OMOP_VOCAB_URL) is not reachable: {exc}"
+        ) from exc
+
+    # 3. MLflow tracking server (required for observability)
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
+    if not tracking_uri:
+        raise DependencyCheckError(
+            "MLFLOW_TRACKING_URI environment variable is not set"
+        )
+    try:
+        req = urllib.request.Request(f"{tracking_uri}/health", method="GET")
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status >= 400:
+                raise DependencyCheckError(
+                    f"MLflow health check returned HTTP {resp.status}"
+                )
+    except DependencyCheckError:
+        raise
+    except Exception as exc:
+        raise DependencyCheckError(
+            f"MLflow tracking server ({tracking_uri}) is not reachable: {exc}"
+        ) from exc
+
+    logger.info("Pre-flight checks passed: DB, OMOP, MLflow all reachable")
 
 def _preflight_check() -> None:
     """Verify infrastructure dependencies are reachable before starting the pipeline.

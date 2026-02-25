@@ -120,6 +120,15 @@ async def decompose_entities_from_criterion(
             model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
+        from protocol_processor.tracing import llm_span
+
+        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+        structured = gemini.with_structured_output(DecomposedEntityList)
+        prompt = _render_decompose_prompt(normalized_text, category)
+
+        with llm_span("gemini_entity_decompose", model_name) as llm:
+            llm.set_request(prompt)
+            await structured.ainvoke(prompt)
         model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
         structured = gemini.with_structured_output(DecomposedEntityList)
 

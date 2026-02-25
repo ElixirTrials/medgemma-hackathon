@@ -1,5 +1,8 @@
 # Deployment stack: API, UI, Postgres, MLflow, Pub/Sub emulator, OMOP Vocabulary.
 # Run from repo root: docker-compose -f infra/docker-compose.yml up --build
+#
+# Local /health: database + omop_vocab (if omop-vocab is up) + gcs="local_storage".
+# For Cloud Run with gcs="ok" and omop_vocab="ok", see DEPLOYMENT.md section 4.6.
 services:
   api:
     build:

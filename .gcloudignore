@@ -1,0 +1,37 @@
+# Keep upload small; do NOT exclude pyproject.toml, uv.lock, libs/, services/, or apps/
+# (Default gcloudignore can include .gitignore, which ignores uv.lock and breaks the Docker build.)
+.git
+.gcloudignore
+.venv
+venv
+.uv
+.uvcache
+__pycache__
+.mypy_cache
+.ruff_cache
+.pytest_cache
+.hypothesis
+.idea
+.vscode
+.cursor
+site
+.mlflow
+mlruns
+mlflow-artifacts
+.ralph
+.planning
+.claude
+.entire
+.benchmarks
+.env
+.env.*
+*.log
+data/
+uploads/
+instructions/
+.playwright-mcp/
+scripts/tmp/
+gcp-url-to-gcs-logs/
+node_modules
+*.pyc
+.DS_Store

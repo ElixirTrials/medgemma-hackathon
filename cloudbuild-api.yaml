@@ -1,0 +1,21 @@
+# Cloud Build config for the API service.
+# Run from repo root: gcloud builds submit --config=cloudbuild-api.yaml .
+# Optionally pass _REGION: gcloud builds submit --config=cloudbuild-api.yaml --substitutions=_REGION=europe-west4 .
+substitutions:
+  _REGION: 'europe-west4'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/app-images/api:latest'
+      - '-f'
+      - 'services/api-service/Dockerfile'
+      - '.'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/app-images/api:latest'
