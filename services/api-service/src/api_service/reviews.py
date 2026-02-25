@@ -558,9 +558,7 @@ def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse
         .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
         .where(
             col(Criteria.review_status).is_(None),
-            col(CriteriaBatch.status).in_(
-                ["pending_review", "in_progress"]
-            ),
+            col(CriteriaBatch.status).in_(["pending_review", "in_progress"]),
         )
     )
     pending_criteria = db.exec(pending_criteria_stmt).one()
@@ -572,9 +570,7 @@ def get_pending_summary(db: Session = Depends(get_db)) -> PendingSummaryResponse
         .join(CriteriaBatch, col(Criteria.batch_id) == col(CriteriaBatch.id))
         .where(
             col(Criteria.review_status).is_(None),
-            col(CriteriaBatch.status).in_(
-                ["pending_review", "in_progress"]
-            ),
+            col(CriteriaBatch.status).in_(["pending_review", "in_progress"]),
         )
     )
     pending_batches = db.exec(pending_batches_stmt).one()
