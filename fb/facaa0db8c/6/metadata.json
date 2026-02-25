@@ -1,0 +1,39 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "fbfacaa0db8c",
+  "session_id": "afa069f0-bdeb-4b6d-a9cc-a6c5cdd4c222",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T14:04:46.662489Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/e2e/run_grounding_snippets.py",
+    "tests/e2e/run_prompt_variants.py",
+    "tests/e2e/run_single_snippet.py",
+    "libs/shared/src/shared/lazy_cache.py",
+    "libs/shared/src/shared/models.py",
+    "libs/shared/src/shared/omop_client.py",
+    "libs/shared/src/shared/resilience.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "275b76c11227",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T14:04:46.65015Z",
+    "agent_lines": 339,
+    "human_added": 9,
+    "human_modified": 8,
+    "human_removed": 0,
+    "total_committed": 356,
+    "agent_percentage": 95.2247191011236
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/afa069f0-bdeb-4b6d-a9cc-a6c5cdd4c222.jsonl"
+}
