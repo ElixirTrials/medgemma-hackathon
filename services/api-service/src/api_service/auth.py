@@ -31,6 +31,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 oauth = OAuth()
 oauth.register(
     name="google",
+    client_id=os.getenv("GOOGLE_CLIENT_ID"),
+    client_secret=os.getenv("GOOGLE_CLIENT_SECRET"),
     server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
     client_kwargs={"scope": "openid email profile"},
 )
@@ -101,9 +103,16 @@ async def login(request: Request) -> Dict[str, Any]:
                 "client in Google Cloud Console or use Dev Login."
             ),
         )
-    # Store popup flag in session so callback can return postMessage HTML
+    # Store popup flag and opener origin in session so callback can postMessage back
     if request.query_params.get("popup") == "1":
         request.session["oauth_popup"] = True
+        # Capture frontend origin from Referer for postMessage target
+        referer = request.headers.get("referer", "")
+        if referer:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(referer)
+            request.session["oauth_opener_origin"] = f"{parsed.scheme}://{parsed.netloc}"
 
     redirect_uri = request.url_for("auth_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)
@@ -179,20 +188,25 @@ async def auth_callback(
         if is_popup:
             import json
 
+            opener_origin = request.session.pop("oauth_opener_origin", "*")
+
             payload_json = json.dumps(
                 {
                     "access_token": access_token,
                     "user": {
-                        "id": user.id,
+                        "id": str(user.id),
                         "email": user.email,
                         "name": user.name,
                     },
                 }
             )
+            # Escape for safe embedding in HTML script tag
+            escaped_json = payload_json.replace("</", "<\\/")
+            escaped_origin = json.dumps(opener_origin)
             return HTMLResponse(
                 content=f"""<!DOCTYPE html>
 <html><body><script>
-window.opener.postMessage({payload_json}, window.location.origin);
+window.opener.postMessage(JSON.parse({json.dumps(escaped_json)}), {escaped_origin});
 window.close();
 </script><p>Authenticated. You may close this window.</p></body></html>"""
             )
