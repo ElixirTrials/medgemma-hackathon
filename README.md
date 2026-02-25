@@ -15,7 +15,9 @@
   <a href="#agentic-workflow">Agentic Workflow</a> &bull;
   <a href="#quick-start">Quick Start</a> &bull;
   <a href="#architecture">Architecture</a> &bull;
-  <a href="#reproducibility">Reproducibility</a>
+  <a href="#reproducibility">Reproducibility</a> &bull;
+  <a href="PRIVACY.md">Privacy</a> &bull;
+  <a href="TERMS_OF_SERVICE.md">Terms of Service</a>
 </p>
 
 <p align="center">
@@ -296,5 +298,8 @@ The docs site is deployed to GitHub Pages when `docs/`, `mkdocs.yml`, or compone
 ## License
 
 Apache 2.0. See [LICENSE](LICENSE).
+
+- [Privacy Policy](PRIVACY.md)
+- [Terms of Service](TERMS_OF_SERVICE.md)
 
 Built for the [MedGemma Impact Challenge](https://www.kaggle.com/competitions/med-gemma-impact-challenge) on Kaggle.
