@@ -1,0 +1,35 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "dd4424171783",
+  "session_id": "c364085b-cc27-4636-a6b4-3351747a23fd",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T20:45:54.064249Z",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "PRIVACY.md",
+    "README.md",
+    "TERMS_OF_SERVICE.md"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a8b0f725c922",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T20:45:54.052087Z",
+    "agent_lines": 0,
+    "human_added": 1713,
+    "human_modified": 1,
+    "human_removed": 0,
+    "total_committed": 1713,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/c364085b-cc27-4636-a6b4-3351747a23fd.jsonl"
+}
