@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4bb24110a3e1",
+  "session_id": "02891457-5e21-4467-83db-7cb358251215",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-25T14:54:52.932413Z",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useReviews.ts",
+    "apps/hitl-ui/src/screens/ProtocolDetail.tsx",
+    "services/api-service/src/api_service/reviews.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "63084128c0f3",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-25T14:54:52.818163Z",
+    "agent_lines": 14,
+    "human_added": 0,
+    "human_modified": 4,
+    "human_removed": 5,
+    "total_committed": 18,
+    "agent_percentage": 77.77777777777779
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/02891457-5e21-4467-83db-7cb358251215.jsonl"
+}

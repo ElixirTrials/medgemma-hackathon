@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4bb24110a3e1",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/hooks/useReviews.ts",
+    "apps/hitl-ui/src/screens/ProtocolDetail.tsx",
+    "services/api-service/src/api_service/reviews.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/parse.py",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/4b/b24110a3e1/0/metadata.json",
+      "transcript": "/4b/b24110a3e1/0/full.jsonl",
+      "context": "",
+      "content_hash": "/4b/b24110a3e1/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
