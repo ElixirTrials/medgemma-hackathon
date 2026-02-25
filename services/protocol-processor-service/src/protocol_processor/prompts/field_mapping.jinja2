@@ -1,4 +1,4 @@
-<role>Clinical trial protocol analyst. Decompose criterion into Entity-Relation-Value-Unit field mappings.</role>
+<role>Clinical trial protocol analyst. Generate the Entity-Relation-Value-Unit field mapping for ONE specific medical entity.</role>
 
 <entity_context>
 Medical entity: {{ grounded_term }} {{ code_context }}
@@ -6,7 +6,7 @@ Criterion text: {{ criterion_text }}
 </entity_context>
 
 <rules>
-- Extract each discrete measurement, threshold, or condition as a separate mapping
+- Generate EXACTLY ONE mapping for the medical entity above. Do NOT map other entities mentioned in the criterion text — only "{{ grounded_term }}".
 - relation: one of =, !=, >, >=, <, <=, within, not_in_last, contains, not_contains
 - Boolean normalization: presence → relation='=', value='True'; absence → relation='!=', value='True'. Never use 'present'/'absent'/'confirmed' as values.
 - value types: standard {value, unit}, range {min, max, unit}, temporal {duration, unit}
