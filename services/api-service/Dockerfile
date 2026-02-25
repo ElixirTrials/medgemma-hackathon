@@ -24,6 +24,6 @@ COPY services/api-service/alembic/ services/api-service/alembic/
 # Install dependencies using uv
 RUN uv sync --frozen --no-dev --package api-service
 
-# Runtime
+# Runtime: use PORT from environment (Cloud Run sets PORT=8080; default 8000 for local)
 EXPOSE 8000
-CMD ["sh", "-c", "cd services/api-service && uv run --no-sync alembic upgrade head && uv run --no-sync uvicorn api_service.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "cd services/api-service && uv run --no-sync alembic upgrade head && uv run --no-sync uvicorn api_service.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
