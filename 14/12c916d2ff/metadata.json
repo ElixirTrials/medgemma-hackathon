@@ -3,7 +3,7 @@
   "checkpoint_id": "1412c916d2ff",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/prompts/field_mapping.jinja2"
   ],
@@ -35,13 +35,20 @@
       "context": "/14/12c916d2ff/3/context.md",
       "content_hash": "/14/12c916d2ff/3/content_hash.txt",
       "prompt": "/14/12c916d2ff/3/prompt.txt"
+    },
+    {
+      "metadata": "/14/12c916d2ff/4/metadata.json",
+      "transcript": "/14/12c916d2ff/4/full.jsonl",
+      "context": "/14/12c916d2ff/4/context.md",
+      "content_hash": "/14/12c916d2ff/4/content_hash.txt",
+      "prompt": "/14/12c916d2ff/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 135,
-    "cache_creation_tokens": 204698,
-    "cache_read_tokens": 9864509,
-    "output_tokens": 11878,
-    "api_call_count": 113
+    "input_tokens": 180,
+    "cache_creation_tokens": 234256,
+    "cache_read_tokens": 13425211,
+    "output_tokens": 17229,
+    "api_call_count": 150
   }
 }

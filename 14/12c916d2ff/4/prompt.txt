@@ -1,0 +1,115 @@
+Implement the following plan:
+
+# Fix: Set max_output_tokens on All Gemini Calls
+
+## Context
+
+Two production symptoms — **repeated garbage strings** (`"51079815107981..."`) in field mappings and **empty decomposition returns** causing full-text entities — share a single root cause:
+
+**Every `ChatGoogleGenerativeAI` instantiation in the pipeline is missing `max_output_tokens`.**
+
+Without an output cap, Gemini can enter repetition loops producing unbounded garbage. This also increases latency, making timeouts more likely, which are caught by broad `except Exception` handlers that silently return `[]` — causing decomposition to appear to "fail" when it actually timed out or produced unparseable output.
+
+The correct pattern already exists in `libs/inference/src/inference/model_garden.py` (line 499-505) where `max_output_tokens=cfg.max_new_tokens` IS set. The protocol processor service simply never adopted it.
+
+### What changed
+
+- Commit `120914a` refactored all prompt rendering to use `render_template()`, creating new `ChatGoogleGenerativeAI` calls in `gemini_utils.py` — all without `max_output_tokens`.
+- Commit `562260b` added a broken warmup block (already fixed by us) that doubled the Gemini calls per decomposition.
+- Commit `713763a` removed the Demographic guard (already restored by us).
+
+---
+
+## Step 1: Set `max_output_tokens` in `gemini_utils.py`
+
+**File:** `services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py` (line 44)
+
+This is the centralized factory used by field_mapper, structure_builder, and ordinal_resolver.
+
+```python
+# Before:
+gemini = ChatGoogleGenerativeAI(
+    model=gemini_model_name,
+    google_api_key=google_api_key,
+)
+
+# After:
+gemini = ChatGoogleGenerativeAI(
+    model=gemini_model_name,
+    google_api_key=google_api_key,
+    max_output_tokens=2048,
+)
+```
+
+2048 tokens is generous for structured output (field mappings, entity lists, etc.) but prevents unbounded repetition loops.
+
+## Step 2: Set `max_output_tokens` in `entity_decomposer.py`
+
+**File:** `services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py`
+
+Two `ChatGoogleGenerativeAI` instantiations:
+- Line ~119 (in `decompose_entities_from_criterion`) — Gemini for entity decomposition
+- Line ~223 (in `medgemma_decompose_entities`) — Gemini for structuring MedGemma output
+
+Add `max_output_tokens=2048` to both.
+
+## Step 3: Set `max_output_tokens` in `medgemma_decider.py`
+
+**File:** `services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py`
+
+Two `ChatGoogleGenerativeAI` instantiations:
+- Line ~145 (in `_structure_decision_with_gemini`) — structuring grounding decisions
+- Line ~310 (in `_structure_reasoning_with_gemini`) — structuring reasoning output
+
+Add `max_output_tokens=2048` to both.
+
+---
+
+## Files Modified
+
+| File | Change |
+|------|--------|
+| `.../tools/gemini_utils.py` | Add `max_output_tokens=2048` (line 44) |
+| `.../tools/entity_decomposer.py` | Add `max_output_tokens=2048` (2 locations) |
+| `.../tools/medgemma_decider.py` | Add `max_output_tokens=2048` (2 locations) |
+
+5 one-line additions across 3 files. No logic changes.
+
+---
+
+## Verification
+
+1. `uv run pytest services/protocol-processor-service/tests/ -q` — all 266 tests pass
+2. `uv run python -c "from protocol_processor.tools.gemini_utils import create_structured_llm; print('OK')"` — import works
+3. Re-run `set -a && source .env && set +a && uv run python tests/e2e/run_grounding_snippets.py` — verify ≥93% maintained, check field mapping values aren't garbage
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+check that ruff and mypy and all pytests pass.
+
+---
+
+Check against the golden test json and show me what you get.
+
+---
+
+We already managed earlier to get 5/5 UCUM and OMOP unit matches - what has changed?
+
+---
+
+Can you show me where the field mapping failed?
+
+---
+
+Yes
+
+---
+
+No, I think there is something else at play. Why are their malformed items. Let's figure out the problem before considering workarounds.
+
+---
+
+If we pass ruff, mypy and all pytests, commit, and open a pr to merge to main
