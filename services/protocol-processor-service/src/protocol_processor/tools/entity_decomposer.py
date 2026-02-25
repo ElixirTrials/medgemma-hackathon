@@ -12,16 +12,14 @@ from __future__ import annotations
 
 import logging
 import os
-from pathlib import Path
 from typing import Any, Literal, cast
 
-from jinja2 import Environment, FileSystemLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
-logger = logging.getLogger(__name__)
+from protocol_processor.prompts import render_template
 
-PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
+logger = logging.getLogger(__name__)
 
 # Unicode math symbols that Gemini/PDF extraction may produce.
 # Normalize to ASCII equivalents so the LLM template handles them cleanly.
@@ -60,21 +58,6 @@ class DecomposedEntityList(BaseModel):
     """List of decomposed entities from a single criterion sentence."""
 
     entities: list[DecomposedEntity] = Field(default_factory=list)
-
-
-def _render_decompose_prompt(criterion_text: str, category: str | None) -> str:
-    """Render the entity decomposition Jinja2 prompt template.
-
-    Args:
-        criterion_text: Full criterion sentence to decompose.
-        category: Optional category hint from extraction (e.g. "lab_values").
-
-    Returns:
-        Rendered prompt string for Gemini.
-    """
-    env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR)), autoescape=False)
-    template = env.get_template("entity_decompose.jinja2")
-    return template.render(criterion_text=criterion_text, category=category or "")
 
 
 def _rephrase_for_retry(text: str, attempt: int) -> str:
@@ -141,7 +124,11 @@ async def decompose_entities_from_criterion(
         structured = gemini.with_structured_output(DecomposedEntityList)
 
         # Attempt 0: original prompt
-        prompt = _render_decompose_prompt(normalized_text, category)
+        prompt = render_template(
+            "entity_decompose.jinja2",
+            criterion_text=normalized_text,
+            category=category or "",
+        )
         decomposed = await _invoke_decompose(
             structured,
             prompt,
@@ -154,7 +141,11 @@ async def decompose_entities_from_criterion(
             if decomposed.entities:
                 break
             rephrased = _rephrase_for_retry(normalized_text, attempt)
-            retry_prompt = _render_decompose_prompt(rephrased, category)
+            retry_prompt = render_template(
+                "entity_decompose.jinja2",
+                criterion_text=rephrased,
+                category=category or "",
+            )
             logger.info(
                 "Entity decomposition retry %d/%d for '%s'",
                 attempt,
@@ -213,18 +204,12 @@ async def medgemma_decompose_entities(
         model_name = getattr(model, "model_name", "") or getattr(model, "model", "")
 
         messages = [
-            SystemMessage(
-                content=(
-                    "You are a medical terminology expert. Given a clinical trial "
-                    "eligibility criterion, list every discrete medical concept that "
-                    "should be coded in a terminology system (UMLS, SNOMED, ICD-10). "
-                    "For each concept, state the concept name and whether it is a "
-                    "Condition, Medication, Lab_Value, Procedure, Demographic, or "
-                    "Other."
-                )
-            ),
+            SystemMessage(content=render_template("medgemma_decompose_system.jinja2")),
             HumanMessage(
-                content=f'Criterion: "{normalized_text}"\n\nList the medical entities.'
+                content=render_template(
+                    "medgemma_decompose_user.jinja2",
+                    criterion_text=normalized_text,
+                )
             ),
         ]
 
@@ -241,11 +226,8 @@ async def medgemma_decompose_entities(
         )
         structured = gemini.with_structured_output(DecomposedEntityList)
 
-        structure_prompt = (
-            "Extract the medical entities from this analysis into a structured list. "
-            "Each entity needs a 'text' (the medical concept name) and 'entity_type' "
-            "(one of: Condition, Medication, Lab_Value, Procedure, Demographic, Other)."
-            f"\n\nAnalysis:\n{raw_text}"
+        structure_prompt = render_template(
+            "structure_entities.jinja2", raw_text=raw_text
         )
         gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 

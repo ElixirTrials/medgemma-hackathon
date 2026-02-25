@@ -1,0 +1,16 @@
+You are a clinical trial protocol analyst. Analyze the logical structure of this eligibility criterion.
+
+Criterion text: {{ criterion_text }}
+
+Field mappings (indexed):
+{{ mappings_text }}
+
+Instructions:
+- Determine how the field mappings are logically connected
+- AND = all conditions required simultaneously
+- OR = any one condition suffices
+- NOT = negation of a condition
+- ATOMIC = leaf node referencing a single field_mapping by index
+- Return a tree where the root is AND, OR, NOT, or ATOMIC
+- Every ATOMIC node must have field_mapping_index set to a valid index (0 to {{ max_index }})
+- Each field_mapping index should appear exactly once

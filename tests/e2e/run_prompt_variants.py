@@ -40,10 +40,8 @@ from prompt_variants import FIELD_MAPPER_VARIANTS, MEDGEMMA_VARIANTS  # noqa: E4
 from protocol_processor.nodes.ground import _get_router  # noqa: E402
 from protocol_processor.schemas.grounding import EntityGroundingResult  # noqa: E402
 from protocol_processor.tools.field_mapper import generate_field_mappings  # noqa: E402
-from protocol_processor.tools.medgemma_decider import (  # noqa: E402
-    _render_template as _original_render_template,
-    medgemma_decide,
-)
+from protocol_processor.prompts import render_template as _original_render_template  # noqa: E402
+from protocol_processor.tools.medgemma_decider import medgemma_decide  # noqa: E402
 
 SNIPPETS_PATH = Path(__file__).parent / "test_snippets.json"
 RESULTS_DIR = Path(__file__).parent / "prompt_variant_results"
@@ -255,7 +253,7 @@ async def _run_code_mismatch_tests(
 
             patched_render = _make_patched_render(variant)
             with patch(
-                "protocol_processor.tools.medgemma_decider._render_template",
+                "protocol_processor.prompts.render_template",
                 new=patched_render,
             ):
                 try:

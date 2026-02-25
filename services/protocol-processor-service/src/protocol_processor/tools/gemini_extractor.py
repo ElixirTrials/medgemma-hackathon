@@ -11,12 +11,10 @@ from __future__ import annotations
 import logging
 import os
 import tempfile
-from pathlib import Path
 from typing import Any, cast
 
 from google import genai
 from google.genai import types
-from inference.factory import render_prompts
 from pydantic import ValidationError
 from shared.resilience import gemini_breaker
 from tenacity import (
@@ -27,11 +25,10 @@ from tenacity import (
     wait_random_exponential,
 )
 
+from protocol_processor.prompts import render_template
 from protocol_processor.schemas.extraction import ExtractionResult
 
 logger = logging.getLogger(__name__)
-
-PROMPTS_DIR = Path(__file__).parent.parent / "prompts"
 
 # Max length when formatting validation errors (avoids huge console dumps)
 _VALIDATION_ERROR_STR_MAX = 200
@@ -139,12 +136,8 @@ async def _extract_via_gateway(
 
     gateway = InferenceGateway()
 
-    system_prompt, user_prompt = render_prompts(
-        prompts_dir=PROMPTS_DIR,
-        system_template="system.jinja2",
-        user_template="user.jinja2",
-        prompt_vars={"title": title},
-    )
+    system_prompt = render_template("system.jinja2", title=title)
+    user_prompt = render_template("user.jinja2", title=title)
 
     file_id = await gateway.upload_file(pdf_bytes, f"{protocol_id}.pdf")
     try:
@@ -218,14 +211,8 @@ async def extract_criteria_structured(
         # Upload via File API
         uploaded_file = client.files.upload(file=tmp_path)
 
-        system_prompt, user_prompt = render_prompts(
-            prompts_dir=PROMPTS_DIR,
-            system_template="system.jinja2",
-            user_template="user.jinja2",
-            prompt_vars={
-                "title": title,
-            },
-        )
+        system_prompt = render_template("system.jinja2", title=title)
+        user_prompt = render_template("user.jinja2", title=title)
 
         extraction_result = await _invoke_gemini(
             client, model_name, uploaded_file, system_prompt, user_prompt

@@ -13,14 +13,13 @@ import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from pathlib import Path
-
     from protocol_processor.tools.terminology_router import TerminologyRouter
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
+from protocol_processor.prompts import render_template
 from protocol_processor.schemas.grounding import (
     EntityGroundingResult,
     GroundingCandidate,
@@ -29,23 +28,6 @@ from protocol_processor.schemas.grounding import (
 logger = logging.getLogger(__name__)
 
 _model_loader = None
-_PROMPTS_DIR = None
-
-
-def _get_prompts_dir() -> "Path":
-    from pathlib import Path
-
-    return Path(__file__).parent.parent / "prompts"
-
-
-def _render_template(template_name: str, **kwargs: Any) -> str:
-    """Render a Jinja2 template from the prompts directory."""
-    from jinja2 import Environment, FileSystemLoader
-
-    prompts_dir = _get_prompts_dir()
-    env = Environment(loader=FileSystemLoader(str(prompts_dir)), autoescape=False)
-    template = env.get_template(template_name)
-    return template.render(**kwargs)
 
 
 class AgenticReasoningResult(BaseModel):
@@ -166,11 +148,7 @@ async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
     )
     structured_llm = gemini.with_structured_output(GroundingDecision)
 
-    prompt = (
-        "Extract the grounding decision from this medical terminology analysis."
-        " Return the selected code, system, preferred term, confidence,"
-        f" and reasoning.\n\n{raw_text}"
-    )
+    prompt = render_template("structure_decision.jinja2", raw_text=raw_text)
 
     with llm_span("gemini_structure_decision", gemini_model_name) as llm:
         llm.set_request(prompt)
@@ -230,8 +208,8 @@ async def medgemma_decide(
     try:
         model = _get_medgemma_model()
 
-        system_prompt = _render_template("grounding_system.jinja2")
-        evaluate_prompt = _render_template(
+        system_prompt = render_template("grounding_system.jinja2")
+        evaluate_prompt = render_template(
             "grounding_evaluate.jinja2",
             entity_text=entity_text,
             entity_type=entity_type,
@@ -335,15 +313,7 @@ async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningRes
     )
     structured_llm = gemini.with_structured_output(AgenticReasoningResult)
 
-    prompt = (
-        "Extract the structured reasoning from this medical entity analysis. "
-        "Determine: (1) should_skip if entity is not a valid medical criterion, "
-        "(2) is_derived and derived_term if entity maps to a standard concept, "
-        "(3) rephrased_query if a better medical term would improve search. "
-        "You may also add a gemini_suggestion with your own reformulation if "
-        "you can improve on the analysis.\n\n"
-        f"{raw_text}"
-    )
+    prompt = render_template("structure_reasoning.jinja2", raw_text=raw_text)
 
     with llm_span("gemini_structure_reasoning", gemini_model_name) as llm:
         llm.set_request(prompt)
@@ -398,8 +368,8 @@ async def agentic_reasoning_loop(
     try:
         model = _get_medgemma_model()
 
-        system_prompt = _render_template("grounding_system.jinja2")
-        reasoning_prompt = _render_template(
+        system_prompt = render_template("grounding_system.jinja2")
+        reasoning_prompt = render_template(
             "grounding_reasoning.jinja2",
             entity_text=entity_text,
             entity_type=entity_type,

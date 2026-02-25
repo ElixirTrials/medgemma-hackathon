@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from protocol_processor.prompts import render_template
 from protocol_processor.schemas.ordinal import (
     OrdinalResolutionResponse,
     OrdinalScaleProposal,
@@ -59,26 +60,8 @@ async def resolve_ordinal_candidates(
             )
         entities_text = "\n".join(entity_lines)
 
-        prompt = (
-            "You are a clinical terminology expert specializing in medical scoring "
-            "systems and ordinal scales.\n\n"
-            "For each entity below, determine if it is a clinical ordinal scoring "
-            "system (e.g. ECOG, Karnofsky, NYHA, Child-Pugh, GCS, APACHE II, MELD, "
-            "mRS, SOFA, etc.).\n\n"
-            "An ordinal scoring system has these characteristics:\n"
-            "- Uses discrete numeric grades/scores (not continuous measurements)\n"
-            "- Each grade has a specific clinical meaning\n"
-            "- The unit is conceptually {score}, not a physical unit\n"
-            "- Common in clinical trials for performance status, organ function, "
-            "disease severity\n\n"
-            "NOT ordinal: lab values with physical units, continuous"
-            " measurements, binary conditions, or time-based criteria.\n\n"
-            f"Entities to evaluate:\n{entities_text}\n\n"
-            "For each entity that IS an ordinal scale, propose:\n"
-            "- scale_name: snake_case identifier for YAML config\n"
-            "- entity_aliases: alternative names clinicians might use\n"
-            "- loinc_code: LOINC code if known\n"
-            "- values: list of grades with descriptions\n"
+        prompt = render_template(
+            "ordinal_resolution.jinja2", entities_text=entities_text
         )
 
         from protocol_processor.tracing import llm_span

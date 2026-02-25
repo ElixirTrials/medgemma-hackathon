@@ -5,48 +5,25 @@ the prompts directory in this package.
 """
 
 from pathlib import Path
+from typing import Any
 
 from jinja2 import Environment, FileSystemLoader
 
 # Directory containing prompt templates (this package directory)
 PROMPTS_DIR = Path(__file__).parent
 
-
-def get_prompts_env() -> Environment:
-    """Return a Jinja2 Environment for the prompts directory.
-
-    Returns:
-        Jinja2 Environment with FileSystemLoader pointing to the prompts directory.
-    """
-    return Environment(
-        loader=FileSystemLoader(str(PROMPTS_DIR)),
-        autoescape=False,
-    )
+_env = Environment(loader=FileSystemLoader(str(PROMPTS_DIR)), autoescape=False)
 
 
-def render_system_prompt(**kwargs: object) -> str:
-    """Render the system prompt template with the given variables.
+def render_template(template_name: str, **kwargs: Any) -> str:
+    """Render a named Jinja2 template with the given variables.
 
     Args:
-        **kwargs: Variables to pass to the system.jinja2 template.
+        template_name: Name of the template file (e.g. "field_mapping.jinja2").
+        **kwargs: Variables to pass to the template.
 
     Returns:
-        Rendered system prompt string.
+        Rendered template string.
     """
-    env = get_prompts_env()
-    template = env.get_template("system.jinja2")
-    return template.render(**kwargs)
-
-
-def render_user_prompt(**kwargs: object) -> str:
-    """Render the user prompt template with the given variables.
-
-    Args:
-        **kwargs: Variables to pass to the user.jinja2 template.
-
-    Returns:
-        Rendered user prompt string.
-    """
-    env = get_prompts_env()
-    template = env.get_template("user.jinja2")
+    template = _env.get_template(template_name)
     return template.render(**kwargs)

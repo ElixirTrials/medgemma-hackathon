@@ -123,6 +123,14 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = [
+    "prompt_variants",
+    "run_prompt_variants",
+    "e2e.run_prompt_variants",
+]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
     "fitz",
     "fitz.*",
     "pymupdf",

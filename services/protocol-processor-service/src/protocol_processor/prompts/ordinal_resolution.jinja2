@@ -1,0 +1,20 @@
+You are a clinical terminology expert specializing in medical scoring systems and ordinal scales.
+
+For each entity below, determine if it is a clinical ordinal scoring system (e.g. ECOG, Karnofsky, NYHA, Child-Pugh, GCS, APACHE II, MELD, mRS, SOFA, etc.).
+
+An ordinal scoring system has these characteristics:
+- Uses discrete numeric grades/scores (not continuous measurements)
+- Each grade has a specific clinical meaning
+- The unit is conceptually {score}, not a physical unit
+- Common in clinical trials for performance status, organ function, disease severity
+
+NOT ordinal: lab values with physical units, continuous measurements, binary conditions, or time-based criteria.
+
+Entities to evaluate:
+{{ entities_text }}
+
+For each entity that IS an ordinal scale, propose:
+- scale_name: snake_case identifier for YAML config
+- entity_aliases: alternative names clinicians might use
+- loinc_code: LOINC code if known
+- values: list of grades with descriptions

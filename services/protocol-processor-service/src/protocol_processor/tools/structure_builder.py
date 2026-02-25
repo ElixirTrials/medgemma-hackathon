@@ -17,6 +17,7 @@ from typing import Any
 from shared.models import AtomicCriterion, CompositeCriterion, CriterionRelationship
 from sqlmodel import Session
 
+from protocol_processor.prompts import render_template
 from protocol_processor.schemas.structure import (
     ExpressionNode,
     LogicDetectionResponse,
@@ -139,23 +140,11 @@ async def detect_logic_structure(
             mapping_lines.append(f"  [{i}] {entity} {relation} {value}{unit_suffix}")
         mappings_text = "\n".join(mapping_lines)
 
-        prompt = (
-            "You are a clinical trial protocol analyst. Analyze the logical"
-            " structure of this eligibility criterion.\n\n"
-            f"Criterion text: {criterion_text}\n\n"
-            f"Field mappings (indexed):\n{mappings_text}\n\n"
-            "Instructions:\n"
-            "- Determine how the field mappings are logically connected\n"
-            "- AND = all conditions required simultaneously\n"
-            "- OR = any one condition suffices\n"
-            "- NOT = negation of a condition\n"
-            "- ATOMIC = leaf node referencing a single"
-            " field_mapping by index\n"
-            "- Return a tree where the root is AND, OR, NOT, or ATOMIC\n"
-            "- Every ATOMIC node must have field_mapping_index set to a"
-            " valid index (0 to "
-            f"{len(field_mappings) - 1})\n"
-            "- Each field_mapping index should appear exactly once\n"
+        prompt = render_template(
+            "logic_detection.jinja2",
+            criterion_text=criterion_text,
+            mappings_text=mappings_text,
+            max_index=len(field_mappings) - 1,
         )
 
         from protocol_processor.tracing import llm_span
