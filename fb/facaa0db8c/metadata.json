@@ -1,0 +1,32 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "fbfacaa0db8c",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "libs/shared/src/shared/lazy_cache.py",
+    "libs/shared/src/shared/models.py",
+    "libs/shared/src/shared/omop_client.py",
+    "libs/shared/src/shared/resilience.py",
+    "tests/e2e/run_grounding_snippets.py",
+    "tests/e2e/run_prompt_variants.py",
+    "tests/e2e/run_single_snippet.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/fb/facaa0db8c/0/metadata.json",
+      "transcript": "/fb/facaa0db8c/0/full.jsonl",
+      "context": "",
+      "content_hash": "/fb/facaa0db8c/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
