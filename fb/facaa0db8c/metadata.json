@@ -76,6 +76,13 @@
       "context": "/fb/facaa0db8c/8/context.md",
       "content_hash": "/fb/facaa0db8c/8/content_hash.txt",
       "prompt": "/fb/facaa0db8c/8/prompt.txt"
+    },
+    {
+      "metadata": "/fb/facaa0db8c/9/metadata.json",
+      "transcript": "/fb/facaa0db8c/9/full.jsonl",
+      "context": "",
+      "content_hash": "/fb/facaa0db8c/9/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
