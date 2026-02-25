@@ -1,0 +1,38 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "4558f1fe75d8",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    ".gitignore",
+    "services/protocol-processor-service/pyproject.toml",
+    "services/protocol-processor-service/src/protocol_processor/nodes/persist.py",
+    "services/protocol-processor-service/src/protocol_processor/schemas/grounding.py",
+    "services/protocol-processor-service/src/protocol_processor/state.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/pdf_parser.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/terminology_router.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/tooluniverse_client.py",
+    "services/protocol-processor-service/src/protocol_processor/trigger.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/45/58f1fe75d8/0/metadata.json",
+      "transcript": "/45/58f1fe75d8/0/full.jsonl",
+      "context": "",
+      "content_hash": "/45/58f1fe75d8/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
