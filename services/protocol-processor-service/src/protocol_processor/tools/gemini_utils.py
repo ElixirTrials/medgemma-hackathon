@@ -44,6 +44,7 @@ def create_structured_llm(
             gemini = ChatGoogleGenerativeAI(
                 model=gemini_model_name,
                 google_api_key=google_api_key,
+                max_output_tokens=2048,
             )
             return gemini.with_structured_output(output_schema)
         except Exception as e:

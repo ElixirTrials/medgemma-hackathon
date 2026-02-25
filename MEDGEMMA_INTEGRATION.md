@@ -1,10 +1,10 @@
 # MedGemma Integration Guide
 
-This document maps where and how MedGemma 4B-IT (`google/medgemma-4b-it`) is used throughout the ElixirTrials codebase. It serves as a quick reference for understanding the HAI-DEF model integration.
+This document maps where and how MedGemma 4B-IT (`google/medgemma-4b-it`) is used throughout the GemmaCrit codebase. It serves as a quick reference for understanding the HAI-DEF model integration.
 
 ## Two-Model Architecture
 
-ElixirTrials uses a two-model architecture where each model plays a distinct role:
+GemmaCrit uses a two-model architecture where each model plays a distinct role:
 
 | Model | Role | Used For |
 |-------|------|----------|

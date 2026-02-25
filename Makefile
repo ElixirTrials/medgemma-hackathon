@@ -236,7 +236,7 @@ quality-eval-fresh:  ## Run quality evaluation with fresh pipeline runs
 	uv run python scripts/quality_eval.py --fresh
 
 help:
-	@echo "ElixirTrials  - Makefile Commands"
+	@echo "GemmaCrit  - Makefile Commands"
 	@echo ""
 	@echo "Development (local):"
 	@echo "  make run-dev     - Start DB + local MLflow + API + UI (all-in-one)"

@@ -14,9 +14,14 @@ export default defineConfig(({ mode }) => {
     const normalizedBasePath = withLeadingSlash.endsWith('/')
         ? withLeadingSlash
         : `${withLeadingSlash}/`;
+    // Router basename: no trailing slash; root path is '/' (React Router expects '/' for root)
+    const routerBasename = normalizedBasePath.replace(/\/$/, '') || '/';
     return {
         plugins: [react()],
         base: normalizedBasePath,
+        define: {
+            __ROUTER_BASENAME__: JSON.stringify(routerBasename),
+        },
         resolve: {
             extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
             alias: {

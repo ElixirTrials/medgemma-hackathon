@@ -1,5 +1,5 @@
 [project]
-name = "elixirtrials"
+name = "gemmacrit"
 version = "0.1.0"
 description = "AI-powered extraction and structuring of clinical trial eligibility criteria"
 readme = "README.md"

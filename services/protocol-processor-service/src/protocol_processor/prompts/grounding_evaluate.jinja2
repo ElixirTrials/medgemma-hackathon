@@ -3,7 +3,7 @@ Select the best terminology match for the following medical entity.
 ## Entity
 Text: "{{ entity_text }}"
 Type: {{ entity_type }}
-From criterion: "{{ criterion_context[:200] }}"
+{% if entity_type != "Demographic" %}From criterion: "{{ criterion_context[:200] }}"{% endif %}
 
 ## Candidates
 {% if candidates %}

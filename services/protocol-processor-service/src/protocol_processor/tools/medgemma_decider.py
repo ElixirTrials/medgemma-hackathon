@@ -145,6 +145,7 @@ async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
     gemini = ChatGoogleGenerativeAI(
         model=gemini_model_name,
         google_api_key=google_api_key,
+        max_output_tokens=2048,
     )
     structured_llm = gemini.with_structured_output(GroundingDecision)
 
@@ -310,6 +311,7 @@ async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningRes
     gemini = ChatGoogleGenerativeAI(
         model=gemini_model_name,
         google_api_key=google_api_key,
+        max_output_tokens=2048,
     )
     structured_llm = gemini.with_structured_output(AgenticReasoningResult)
 

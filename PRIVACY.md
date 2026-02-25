@@ -2,19 +2,19 @@
 
 **Last updated:** February 2025
 
-This privacy policy describes how **ElixirTrials** (this project and any associated services) may collect, use, and protect information when you use the software or any deployed instance.
+This privacy policy describes how **GemmaCrit** (this project and any associated services) may collect, use, and protect information when you use the software or any deployed instance.
 
 ## Scope
 
 This policy applies to:
 
 - This repository and its documentation
-- Any deployment or instance of the ElixirTrials application you run or access
+- Any deployment or instance of the GemmaCrit application you run or access
 - Data you provide when using the application (e.g., uploaded protocol documents, user account information)
 
 ## Information We May Collect
 
-Depending on how you use ElixirTrials:
+Depending on how you use GemmaCrit:
 
 - **Account and authentication data**: If you use login or OAuth (e.g., Google), we may receive identifiers such as email and name from the identity provider, as configured by the operator of the instance.
 - **Usage data**: Logs of API requests, errors, and pipeline runs may be retained for debugging and operations.
@@ -43,7 +43,7 @@ The pipeline may call external services (e.g., Google AI/Vertex AI for Gemini an
 
 ## Your Rights
 
-Depending on your jurisdiction and the instance you use, you may have rights to access, correct, or delete your data. Contact the operator of the ElixirTrials instance you use, or open an issue in this repository for project-related privacy questions.
+Depending on your jurisdiction and the instance you use, you may have rights to access, correct, or delete your data. Contact the operator of the GemmaCrit instance you use, or open an issue in this repository for project-related privacy questions.
 
 ## Changes
 

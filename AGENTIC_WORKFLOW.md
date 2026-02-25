@@ -1,10 +1,10 @@
 # Agentic Workflow
 
-This document explains how ElixirTrials implements an agentic AI workflow, mapping the system's architecture to the criteria for the **Agentic Workflow Prize** in the MedGemma Impact Challenge.
+This document explains how GemmaCrit implements an agentic AI workflow, mapping the system's architecture to the criteria for the **Agentic Workflow Prize** in the MedGemma Impact Challenge.
 
 ## What Makes This an Agentic Workflow
 
-An agentic workflow involves AI systems that autonomously plan, reason, use tools, and adapt their behavior based on intermediate results. ElixirTrials embodies all of these properties through its LangGraph pipeline with MedGemma as the reasoning agent.
+An agentic workflow involves AI systems that autonomously plan, reason, use tools, and adapt their behavior based on intermediate results. GemmaCrit embodies all of these properties through its LangGraph pipeline with MedGemma as the reasoning agent.
 
 ## Agentic Properties
 
@@ -148,7 +148,7 @@ flowchart TB
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    ElixirTrials Pipeline                  │
+│                    GemmaCrit Pipeline                     │
 │                                                          │
 │  ┌────────┐   ┌─────────┐   ┌───────┐   ┌──────────┐  │
 │  │ ingest │──>│ extract │──>│ parse │──>│  ground  │  │

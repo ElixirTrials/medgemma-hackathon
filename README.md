@@ -1,8 +1,8 @@
 <p align="center">
-  <img src="docs/img/elixirtrials-logo.png" alt="ElixirTrials logo" width="280" />
+  <img src="docs/img/elixirtrials-logo.png" alt="GemmaCrit logo" width="280" />
 </p>
 
-<h1 align="center">ElixirTrials</h1>
+<h1 align="center">GemmaCrit</h1>
 
 <p align="center">
   AI-powered extraction and structuring of clinical trial eligibility criteria<br/>
@@ -44,7 +44,7 @@
 
 ## What It Does
 
-ElixirTrials takes a clinical trial protocol PDF and turns it into structured, coded eligibility criteria ready for cohort identification. The system extracts inclusion and exclusion criteria, grounds medical entities to standard terminologies, builds expression trees, and presents outputs for human review.
+GemmaCrit takes a clinical trial protocol PDF and turns it into structured, coded eligibility criteria ready for cohort identification. The system extracts inclusion and exclusion criteria, grounds medical entities to standard terminologies, builds expression trees, and presents outputs for human review.
 
 **The problem**: Clinical trial eligibility criteria are buried in unstructured PDF protocols. Manual extraction takes 40+ hours per trial. With 300,000+ active trials on ClinicalTrials.gov, this bottleneck delays cohort identification for observational studies and trial matching.
 
@@ -54,7 +54,7 @@ ElixirTrials takes a clinical trial protocol PDF and turns it into structured, c
 
 ## MedGemma & HAI-DEF Integration
 
-ElixirTrials uses a **two-model architecture** that leverages the strengths of two HAI-DEF models:
+GemmaCrit uses a **two-model architecture** that leverages the strengths of two HAI-DEF models:
 
 | Model | Role | Why |
 |-------|------|-----|
@@ -80,7 +80,7 @@ See [`MEDGEMMA_INTEGRATION.md`](MEDGEMMA_INTEGRATION.md) for a full code-level m
 
 ## Agentic Workflow
 
-ElixirTrials implements a fully agentic AI pipeline using LangGraph with MedGemma as the autonomous decision-making agent.
+GemmaCrit implements a fully agentic AI pipeline using LangGraph with MedGemma as the autonomous decision-making agent.
 
 ```text
                     7-Node LangGraph Pipeline

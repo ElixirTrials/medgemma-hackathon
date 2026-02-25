@@ -179,20 +179,26 @@ async def auth_callback(
         if is_popup:
             import json
 
-            payload_json = json.dumps(
-                {
-                    "access_token": access_token,
-                    "user": {
-                        "id": user.id,
-                        "email": user.email,
-                        "name": user.name,
-                    },
-                }
+            post_message_payload = {
+                "access_token": access_token,
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "name": user.name,
+                },
+            }
+            # Escape for embedding in a JS double-quoted string so opener
+            # receives { access_token, user }
+            payload_escaped = (
+                json.dumps(post_message_payload)
+                .replace("\\", "\\\\")
+                .replace('"', '\\"')
+                .replace("</", "<\\/")
             )
             return HTMLResponse(
                 content=f"""<!DOCTYPE html>
 <html><body><script>
-window.opener.postMessage({payload_json}, window.location.origin);
+window.opener.postMessage(JSON.parse("{payload_escaped}"), window.location.origin);
 window.close();
 </script><p>Authenticated. You may close this window.</p></body></html>"""
             )

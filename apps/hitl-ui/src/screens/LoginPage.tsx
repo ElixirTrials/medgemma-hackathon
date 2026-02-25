@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
@@ -7,7 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function LoginPage() {
-    const { isAuthenticated, login, setAuth } = useAuth();
+    const { isAuthenticated, setAuth } = useAuth();
     const navigate = useNavigate();
     const [devLoading, setDevLoading] = useState(false);
     const [devError, setDevError] = useState<string | null>(null);
@@ -17,6 +17,30 @@ export default function LoginPage() {
             navigate('/');
         }
     }, [isAuthenticated, navigate]);
+
+    /** Open OAuth in a popup so the callback can postMessage the token back to this tab. */
+    const handleGoogleLogin = useCallback(() => {
+        const popup = window.open(
+            `${API_BASE_URL}/auth/login?popup=1`,
+            'auth-popup',
+            'width=500,height=600,menubar=no,toolbar=no'
+        );
+        if (!popup) {
+            setDevError('Popup blocked. Allow popups for this site and try again.');
+            return;
+        }
+        const apiOrigin = new URL(API_BASE_URL).origin;
+        const handleMessage = (event: MessageEvent) => {
+            if (event.origin !== apiOrigin) return;
+            const { access_token, user: userData } = event.data ?? {};
+            if (access_token && userData) {
+                setAuth(access_token, userData);
+                popup.close();
+                window.removeEventListener('message', handleMessage);
+            }
+        };
+        window.addEventListener('message', handleMessage);
+    }, [setAuth]);
 
     const handleDevLogin = async () => {
         setDevLoading(true);
@@ -42,7 +66,7 @@ export default function LoginPage() {
             <div className="max-w-md w-full space-y-8 p-8">
                 <div className="text-center">
                     <h1 className="text-4xl font-bold text-foreground mb-2">
-                        Clinical Trial HITL System
+                        GemmaCrit
                     </h1>
                     <p className="text-muted-foreground">
                         Review AI-extracted eligibility criteria and entity mappings
@@ -57,7 +81,7 @@ export default function LoginPage() {
                         </p>
                     </div>
 
-                    <Button onClick={login} className="w-full" size="lg">
+                    <Button onClick={handleGoogleLogin} className="w-full" size="lg">
                         <svg
                             className="w-5 h-5 mr-2"
                             viewBox="0 0 24 24"

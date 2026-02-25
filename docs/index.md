@@ -1,10 +1,10 @@
-# ElixirTrials
+# GemmaCrit
 
 AI-powered extraction and structuring of clinical trial eligibility criteria from protocol PDFs.
 
-## What is ElixirTrials?
+## What is GemmaCrit?
 
-ElixirTrials takes a clinical trial protocol PDF and produces structured, coded eligibility criteria ready for cohort identification. The system combines:
+GemmaCrit takes a clinical trial protocol PDF and produces structured, coded eligibility criteria ready for cohort identification. The system combines:
 
 - **Gemini-powered extraction** — LLM reads the PDF and extracts inclusion/exclusion criteria
 - **Multi-terminology grounding** — entities are linked to SNOMED, LOINC, RxNorm, ICD-10 via UMLS + OMOP

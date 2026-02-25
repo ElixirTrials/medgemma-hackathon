@@ -178,6 +178,19 @@ app.add_middleware(
 app.add_middleware(MLflowRequestMiddleware)
 
 
+# Override Permissions-Policy so we don't send deprecated browsing-topics
+# (avoids console warning).
+@app.middleware("http")
+async def add_permissions_policy(request: Request, call_next):
+    """Set Permissions-Policy header to disable deprecated features."""
+    response = await call_next(request)
+    response.headers["Permissions-Policy"] = (
+        "accelerometer=(), camera=(), geolocation=(), gyroscope=(), "
+        "magnetometer=(), microphone=(), payment=(), usb=()"
+    )
+    return response
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     """Catch unhandled exceptions and return JSON so CORS headers are preserved."""

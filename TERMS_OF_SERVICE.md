@@ -2,15 +2,15 @@
 
 **Last updated:** February 2025
 
-These Terms of Service (“Terms”) govern your use of **ElixirTrials**—the software, documentation, and any deployed instances of the application.
+These Terms of Service (“Terms”) govern your use of **GemmaCrit**—the software, documentation, and any deployed instances of the application.
 
 ## Acceptance
 
-By using this repository, deploying the software, or accessing an ElixirTrials instance, you agree to these Terms. If you do not agree, do not use the software or service.
+By using this repository, deploying the software, or accessing a GemmaCrit instance, you agree to these Terms. If you do not agree, do not use the software or service.
 
 ## Description of Service
 
-ElixirTrials is an AI-powered system that extracts and structures clinical trial eligibility criteria from protocol documents. It uses models such as MedGemma and Gemini for extraction and grounding. The project is provided for research, development, and the MedGemma Impact Challenge.
+GemmaCrit is an AI-powered system that extracts and structures clinical trial eligibility criteria from protocol documents. It uses models such as MedGemma and Gemini for extraction and grounding. The project is provided for research, development, and the MedGemma Impact Challenge.
 
 ## Permitted Use
 
@@ -31,7 +31,7 @@ You must not:
 
 ## No Medical or Legal Advice
 
-ElixirTrials is a tool for structuring eligibility criteria. It is **not** a substitute for professional medical, legal, or regulatory advice. Outputs should be reviewed by qualified personnel before use in clinical or operational decisions. The maintainers are not responsible for decisions made based on the system’s output.
+GemmaCrit is a tool for structuring eligibility criteria. It is **not** a substitute for professional medical, legal, or regulatory advice. Outputs should be reviewed by qualified personnel before use in clinical or operational decisions. The maintainers are not responsible for decisions made based on the system’s output.
 
 ## Intellectual Property
 
