@@ -1,0 +1,30 @@
+# Cloud Build config for the frontend (HITL UI).
+# Pass substitution _VITE_API_URL (and optionally _BASE_PATH) when submitting.
+# Example:
+#   gcloud builds submit --config=cloudbuild-frontend.yaml \
+#     --substitutions=_VITE_API_URL=https://api-xxx.run.app,_BASE_PATH=/ .
+#
+substitutions:
+  _VITE_API_URL: 'http://localhost:8000'
+  _BASE_PATH: '/'
+  _REGION: 'europe-west4'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/app-images/frontend:latest'
+      - '--build-arg'
+      - 'VITE_API_URL=${_VITE_API_URL}'
+      - '--build-arg'
+      - 'BASE_PATH=${_BASE_PATH}'
+      - '-f'
+      - 'apps/hitl-ui/Dockerfile'
+      - '.'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/app-images/frontend:latest'

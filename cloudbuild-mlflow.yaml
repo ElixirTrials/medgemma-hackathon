@@ -1,0 +1,20 @@
+# Cloud Build config for the MLflow tracking server.
+# Run from repo root: gcloud builds submit --config=cloudbuild-mlflow.yaml .
+substitutions:
+  _REGION: 'europe-west4'
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/app-images/mlflow:latest'
+      - '-f'
+      - 'infra/mlflow/Dockerfile'
+      - '.'
+
+images:
+  - '${_REGION}-docker.pkg.dev/${PROJECT_ID}/app-images/mlflow:latest'
