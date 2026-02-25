@@ -191,7 +191,7 @@ class AtomicCriterion(SQLModel, table=True):
     Table: atomic_criteria
     """
 
-    __tablename__ = "atomic_criteria"  # type: ignore[assignment]
+    __tablename__ = "atomic_criteria"
     __table_args__ = (
         Index("ix_atomic_proto_incl", "protocol_id", "inclusion_exclusion"),
     )
@@ -242,7 +242,7 @@ class CompositeCriterion(SQLModel, table=True):
     Table: composite_criteria
     """
 
-    __tablename__ = "composite_criteria"  # type: ignore[assignment]
+    __tablename__ = "composite_criteria"
 
     id: str = Field(default_factory=lambda: str(uuid4()), primary_key=True)
     criterion_id: str = Field(foreign_key="criteria.id", index=True)
@@ -271,7 +271,7 @@ class CriterionRelationship(SQLModel, table=True):
     Table: criterion_relationships
     """
 
-    __tablename__ = "criterion_relationships"  # type: ignore[assignment]
+    __tablename__ = "criterion_relationships"
 
     parent_criterion_id: str = Field(
         foreign_key="composite_criteria.id", primary_key=True

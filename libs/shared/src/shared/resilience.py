@@ -8,7 +8,11 @@ and recovers after 60 seconds (Claude's discretion).
 import logging
 import os
 
-from pybreaker import CircuitBreaker, CircuitBreakerListener
+from pybreaker import (
+    CircuitBreaker,
+    CircuitBreakerListener,
+    CircuitBreakerState,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +29,12 @@ class MLflowCircuitBreakerListener(CircuitBreakerListener):
     or probe (half_open). Safe no-op if MLflow unavailable.
     """
 
-    def state_change(self, cb, old_state, new_state):  # type: ignore[override]
+    def state_change(
+        self,
+        cb: CircuitBreaker,
+        old_state: CircuitBreakerState | None,
+        new_state: CircuitBreakerState,
+    ) -> None:
         """Handle circuit breaker state change by logging to MLflow."""
         try:
             import mlflow

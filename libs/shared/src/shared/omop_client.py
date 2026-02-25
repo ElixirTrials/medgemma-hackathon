@@ -342,7 +342,7 @@ class OmopVocabularyClient:
             result = conn.execute(query, {"concept_id": concept_id})
             return [row.concept_synonym_name for row in result]
 
-    def close(self):
+    def close(self) -> None:
         """Close database connection."""
         if self.engine:
             self.engine.dispose()

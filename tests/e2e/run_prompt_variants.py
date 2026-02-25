@@ -25,6 +25,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import TypedDict
 from unittest.mock import patch
 
 # ── sys.path setup (same pattern as run_grounding_snippets.py) ──────────────
@@ -49,8 +50,26 @@ RESULTS_DIR = Path(__file__).parent / "prompt_variant_results"
 
 # ── Failing entities (hardcoded from test analysis) ─────────────────────────
 
+
+class _CodeMismatchEntity(TypedDict):
+    snippet_idx: int
+    entity_idx: int
+    entity_name: str
+    expected_code: str
+
+
+class _RelationMismatchEntity(TypedDict):
+    snippet_idx: int
+    entity_idx: int
+    entity_name: str
+    expected_relation: str
+    golden_code: str
+    golden_system: str
+    golden_preferred_term: str
+
+
 # Code mismatches: tested with MedGemma variants A-D
-CODE_MISMATCH_ENTITIES = [
+CODE_MISMATCH_ENTITIES: list[_CodeMismatchEntity] = [
     {
         "snippet_idx": 0,
         "entity_idx": 0,
@@ -90,7 +109,7 @@ CODE_MISMATCH_ENTITIES = [
 ]
 
 # Relation mismatches: tested with field mapper variants A-B
-RELATION_MISMATCH_ENTITIES = [
+RELATION_MISMATCH_ENTITIES: list[_RelationMismatchEntity] = [
     {
         "snippet_idx": 2,
         "entity_idx": 1,
@@ -193,7 +212,7 @@ def _make_field_mapper_llm_wrapper(extra_rules: str):
 
 
 async def _run_code_mismatch_tests(
-    snippets: list[dict],
+    snippets: list[dict[str, str]],
 ) -> dict[str, dict[str, str | None]]:
     """Run code mismatch entities through each MedGemma variant.
 
@@ -259,7 +278,7 @@ async def _run_code_mismatch_tests(
 
 
 async def _run_relation_mismatch_tests(
-    snippets: list[dict],
+    snippets: list[dict[str, str]],
 ) -> dict[str, dict[str, str | None]]:
     """Run relation mismatch entities through each field mapper variant.
 
@@ -322,7 +341,9 @@ async def _run_relation_mismatch_tests(
 # ── Report printing ─────────────────────────────────────────────────────────
 
 
-def _print_code_report(code_results: dict) -> None:
+def _print_code_report(
+    code_results: dict[str, dict[str, str | None]],
+) -> None:
     """Print the code selection comparison table."""
     print(f"\n{'=' * 80}")
     print("CODE SELECTION VARIANTS (MedGemma prompt changes)")
@@ -362,7 +383,9 @@ def _print_code_report(code_results: dict) -> None:
     print(totals_row)
 
 
-def _print_relation_report(relation_results: dict) -> None:
+def _print_relation_report(
+    relation_results: dict[str, dict[str, str | None]],
+) -> None:
     """Print the relation extraction comparison table."""
     print(f"\n{'=' * 80}")
     print("RELATION EXTRACTION VARIANTS (Field mapper prompt changes)")

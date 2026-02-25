@@ -1,7 +1,7 @@
 """Lazy singleton decorator for expensive initializations."""
 
 import threading
-from typing import Any, Callable, TypeVar
+from typing import Any, Callable, TypeVar, cast
 
 T = TypeVar("T")
 
@@ -30,7 +30,7 @@ def lazy_singleton(func: Callable[[], T]) -> Callable[[], T]:
                 # Double-checked locking pattern
                 if _instance is None:
                     _instance = func()
-        return _instance
+        return cast(T, _instance)
 
     # Register this singleton's reset function
     _singleton_registry.append(reset)
