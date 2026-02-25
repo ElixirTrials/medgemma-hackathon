@@ -65,9 +65,7 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-background">
             <div className="max-w-md w-full space-y-8 p-8">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold text-foreground mb-2">
-                        GemmaCrit
-                    </h1>
+                    <h1 className="text-4xl font-bold text-foreground mb-2">GemmaCrit</h1>
                     <p className="text-muted-foreground">
                         Review AI-extracted eligibility criteria and entity mappings
                     </p>
