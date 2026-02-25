@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
-from typing import Literal, cast
+from typing import Any, Literal, cast
 
 from jinja2 import Environment, FileSystemLoader
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -77,19 +77,54 @@ def _render_decompose_prompt(criterion_text: str, category: str | None) -> str:
     return template.render(criterion_text=criterion_text, category=category or "")
 
 
+def _rephrase_for_retry(text: str, attempt: int) -> str:
+    """Apply small wording changes for retry attempts.
+
+    Each attempt surfaces the same medical content with slightly
+    different phrasing so the LLM gets a fresh chance to extract entities.
+    """
+    if attempt == 1:
+        return f"Eligibility criterion: {text}. Identify every medical concept."
+    # attempt == 2
+    return f"Clinical trial requirement — {text}. What medical entities are mentioned?"
+
+
+async def _invoke_decompose(
+    structured: Any,
+    prompt: str,
+    label: str,
+    model_name: str,
+) -> DecomposedEntityList:
+    """Single invocation of the structured LLM with tracing."""
+    from protocol_processor.tracing import llm_span
+
+    with llm_span(label, model_name) as llm:
+        llm.set_request(prompt)
+        result = await structured.ainvoke(prompt)
+        llm.set_response(str(result))
+
+    if isinstance(result, dict):
+        result = DecomposedEntityList.model_validate(result)
+    return cast(DecomposedEntityList, result)
+
+
 async def decompose_entities_from_criterion(
     criterion_text: str,
     category: str | None,
-) -> list[dict]:
+    *,
+    max_retries: int = 2,
+) -> list[dict[str, Any]]:
     """Extract discrete medical entities from a criterion sentence.
 
     Uses Gemini with structured output to decompose a criterion sentence
-    into individual medical terms with correct entity types. Falls back
-    to empty list on failure -- caller handles fallback to full-text entity.
+    into individual medical terms with correct entity types. If the first
+    attempt returns zero entities, retries up to *max_retries* times with
+    small wording changes before returning an empty list.
 
     Args:
         criterion_text: The full criterion sentence to decompose.
         category: Optional category hint from extraction.
+        max_retries: Number of retry attempts with rephrased wording (default 2).
 
     Returns:
         List of dicts with "text" and "entity_type" keys, or empty list on failure.
@@ -102,24 +137,41 @@ async def decompose_entities_from_criterion(
             model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
             google_api_key=os.getenv("GOOGLE_API_KEY"),
         )
-        from protocol_processor.tracing import llm_span
-
         model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
         structured = gemini.with_structured_output(DecomposedEntityList)
+
+        # Attempt 0: original prompt
         prompt = _render_decompose_prompt(normalized_text, category)
+        decomposed = await _invoke_decompose(
+            structured,
+            prompt,
+            "gemini_entity_decompose",
+            model_name,
+        )
 
-        with llm_span("gemini_entity_decompose", model_name) as llm:
-            llm.set_request(prompt)
-            result = await structured.ainvoke(prompt)
-            llm.set_response(str(result))
-
-        if isinstance(result, dict):
-            result = DecomposedEntityList.model_validate(result)
-        decomposed = cast(DecomposedEntityList, result)
+        # Retry with rephrased wording if we got 0 entities
+        for attempt in range(1, max_retries + 1):
+            if decomposed.entities:
+                break
+            rephrased = _rephrase_for_retry(normalized_text, attempt)
+            retry_prompt = _render_decompose_prompt(rephrased, category)
+            logger.info(
+                "Entity decomposition retry %d/%d for '%s'",
+                attempt,
+                max_retries,
+                normalized_text[:60],
+            )
+            decomposed = await _invoke_decompose(
+                structured,
+                retry_prompt,
+                f"gemini_entity_decompose_retry{attempt}",
+                model_name,
+            )
 
         if not decomposed.entities:
             logger.warning(
-                "Entity decomposition returned 0 entities for criterion '%s'",
+                "Entity decomposition returned 0 entities after %d retries for '%s'",
+                max_retries,
                 normalized_text[:80],
             )
 
@@ -131,4 +183,100 @@ async def decompose_entities_from_criterion(
             e,
             exc_info=True,
         )
-        return []  # Caller falls back to full-text entity
+        return []
+
+
+async def medgemma_decompose_entities(
+    criterion_text: str,
+) -> list[dict[str, Any]]:
+    """Fallback: ask MedGemma to identify medical entities when Gemini fails.
+
+    Uses MedGemma (medical expert) to extract entity names, then Gemini to
+    structure the output into typed entities. Called by parse_node when
+    Gemini decomposition returns empty even after retries.
+
+    Args:
+        criterion_text: The criterion sentence to decompose.
+
+    Returns:
+        List of dicts with "text" and "entity_type" keys, or empty list on failure.
+    """
+    normalized_text = _normalize_criterion_text(criterion_text)
+
+    try:
+        from langchain_core.messages import HumanMessage, SystemMessage
+
+        from protocol_processor.tools.medgemma_decider import _get_medgemma_model
+        from protocol_processor.tracing import llm_span
+
+        model = _get_medgemma_model()
+        model_name = getattr(model, "model_name", "") or getattr(model, "model", "")
+
+        messages = [
+            SystemMessage(
+                content=(
+                    "You are a medical terminology expert. Given a clinical trial "
+                    "eligibility criterion, list every discrete medical concept that "
+                    "should be coded in a terminology system (UMLS, SNOMED, ICD-10). "
+                    "For each concept, state the concept name and whether it is a "
+                    "Condition, Medication, Lab_Value, Procedure, Demographic, or "
+                    "Other."
+                )
+            ),
+            HumanMessage(
+                content=f'Criterion: "{normalized_text}"\n\nList the medical entities.'
+            ),
+        ]
+
+        with llm_span("medgemma_entity_decompose", str(model_name)) as llm:
+            llm.set_request(str(messages))
+            raw_response = await model.ainvoke(messages)
+            raw_text = raw_response.content
+            llm.set_response(str(raw_text))
+
+        # Use Gemini to structure MedGemma's free-text into typed entities
+        gemini = ChatGoogleGenerativeAI(
+            model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
+            google_api_key=os.getenv("GOOGLE_API_KEY"),
+        )
+        structured = gemini.with_structured_output(DecomposedEntityList)
+
+        structure_prompt = (
+            "Extract the medical entities from this analysis into a structured list. "
+            "Each entity needs a 'text' (the medical concept name) and 'entity_type' "
+            "(one of: Condition, Medication, Lab_Value, Procedure, Demographic, Other)."
+            f"\n\nAnalysis:\n{raw_text}"
+        )
+        gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
+        with llm_span("gemini_structure_medgemma_decompose", gemini_model_name) as llm:
+            llm.set_request(structure_prompt)
+            result = await structured.ainvoke(structure_prompt)
+            llm.set_response(str(result))
+
+        if isinstance(result, dict):
+            result = DecomposedEntityList.model_validate(result)
+        decomposed = cast(DecomposedEntityList, result)
+
+        if decomposed.entities:
+            logger.info(
+                "MedGemma decomposition found %d entities for '%s'",
+                len(decomposed.entities),
+                normalized_text[:60],
+            )
+        else:
+            logger.warning(
+                "MedGemma decomposition also returned 0 entities for '%s'",
+                normalized_text[:80],
+            )
+
+        return [e.model_dump() for e in decomposed.entities]
+
+    except Exception as e:
+        logger.error(
+            "MedGemma entity decomposition failed for '%s': %s",
+            criterion_text[:80],
+            e,
+            exc_info=True,
+        )
+        return []

@@ -109,7 +109,7 @@ def _find_criterion_and_update_mappings(
     session: Session,
     batch_id: str,
     entity_text: str,
-    field_mappings: list[dict] | None,
+    field_mappings: list[dict[str, Any]] | None,
     criterion_id: str | None = None,
 ) -> str | None:
     """Find the Criteria record and accumulate field_mappings.

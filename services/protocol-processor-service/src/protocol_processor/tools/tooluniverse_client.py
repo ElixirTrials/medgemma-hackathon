@@ -35,7 +35,7 @@ from functools import lru_cache
 from typing import Any
 
 import pybreaker
-from cachetools import TTLCache  # type: ignore[import-untyped]
+from cachetools import TTLCache
 from shared.resilience import tu_breaker
 from tenacity import (
     before_sleep_log,
@@ -109,7 +109,10 @@ def _extract_term_from_sentence(query: str) -> str:
 
 # In-memory result cache: (tool_name, normalized_query, max_results) → candidates
 # TTL = 300s (5 minutes) — appropriate for autocomplete endpoints
-_CACHE: TTLCache = TTLCache(maxsize=1000, ttl=300)
+_CacheKey = tuple[str, str, int]
+_CACHE: TTLCache[_CacheKey, list[GroundingCandidate]] = TTLCache(
+    maxsize=1000, ttl=300
+)
 
 # Tool name per system (verified 2026-02-17 with ToolUniverse 1.0.18).
 # Single source of truth: only these tools are loaded via include_tools.
@@ -352,7 +355,8 @@ async def _call_tool_raw(
         return {}
 
     try:
-        return await tu.run({"name": tool_name, "arguments": args})  # type: ignore[return-value]
+        result: dict[str, Any] = await tu.run({"name": tool_name, "arguments": args})
+        return result
     except Exception:
         logger.exception("ToolUniverse %s failed for query '%s'", tool_name, query)
         return {}

@@ -7,6 +7,8 @@ Per user decision: "Agent-to-agent communication must be machine-readable
 (no superfluous commentary between agents)."
 """
 
+from typing import Any
+
 from pydantic import BaseModel, Field
 
 
@@ -86,7 +88,7 @@ class EntityGroundingResult(BaseModel):
         default="",
         description="MedGemma's explanation for selecting this code.",
     )
-    field_mappings: list[dict] | None = Field(
+    field_mappings: list[dict[str, Any]] | None = Field(
         default=None,
         description=(
             "Suggested AutoCriteria field mappings "

@@ -19,8 +19,9 @@ from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Any
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 from platformdirs import user_cache_dir
 from tenacity import (
     before_sleep_log,
@@ -66,7 +67,7 @@ def _is_likely_acronym(text: str) -> bool:
 _CACHE_TTL = 7 * 24 * 60 * 60
 
 
-def _get_cache():
+def _get_cache() -> Any:
     """Get or create the diskcache Cache instance.
 
     Returns:
@@ -74,7 +75,7 @@ def _get_cache():
         diskcache is not installed.
     """
     try:
-        import diskcache
+        import diskcache  # type: ignore[import-untyped]
 
         cache_dir = Path(user_cache_dir("medgemma-terminology-router"))
         return diskcache.Cache(str(cache_dir))
@@ -127,7 +128,7 @@ class TerminologyRouter:
         """
         self.config_path = config_path or _DEFAULT_CONFIG_PATH
         with open(self.config_path) as f:
-            self.config: dict = yaml.safe_load(f)
+            self.config: dict[str, Any] = yaml.safe_load(f)
 
     def get_apis_for_entity(self, entity_type: str) -> list[str]:
         """Get list of API names to query for this entity type.
@@ -142,7 +143,7 @@ class TerminologyRouter:
         Returns:
             List of API names to query, or empty list if entity should be skipped.
         """
-        routing_rules: dict = self.config.get("routing_rules", {})
+        routing_rules: dict[str, Any] = self.config.get("routing_rules", {})
         rule = routing_rules.get(entity_type)
 
         if rule is None:

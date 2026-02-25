@@ -24,7 +24,7 @@ import os
 from typing import Any
 from uuid import uuid4
 
-from api_service.storage import engine  # type: ignore[import-untyped]
+from api_service.storage import engine
 from shared.exceptions import AuthExpiredError
 from shared.models import Protocol
 from sqlmodel import Session
@@ -285,7 +285,8 @@ async def _run_pipeline(
     if thread_id:
         set_pipeline_run_id(thread_id)
 
-    return await graph.ainvoke(initial_state, config)
+    state: dict[str, Any] = await graph.ainvoke(initial_state, config)
+    return state
 
 
 class DependencyCheckError(RuntimeError):
@@ -487,5 +488,5 @@ async def retry_from_checkpoint(protocol_id: str) -> dict[str, Any]:
     graph = await get_graph()
     config = {"configurable": {"thread_id": thread_id}}
     # Pass None as input — LangGraph resumes from last checkpoint
-    result = await graph.ainvoke(None, config)
+    result: dict[str, Any] = await graph.ainvoke(None, config)
     return result

@@ -44,12 +44,13 @@ def _download_from_gcs(bucket_name: str, blob_name: str) -> bytes:
     Returns:
         Raw PDF bytes.
     """
-    from google.cloud import storage  # type: ignore[attr-defined]
+    from google.cloud import storage  # type: ignore[import-untyped]
 
     client = storage.Client()
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_name)
-    return blob.download_as_bytes()
+    data: bytes = blob.download_as_bytes()
+    return data
 
 
 async def fetch_pdf_bytes(file_uri: str) -> bytes:
@@ -87,7 +88,8 @@ async def fetch_pdf_bytes(file_uri: str) -> bytes:
                 f"volume mount, set LOCAL_UPLOAD_DIR to the mounted host path."
             )
         logger.info("Reading PDF from local path: %s", local_path)
-        return local_path.read_bytes()
+        data: bytes = local_path.read_bytes()
+        return data
 
     if file_uri.startswith("gs://"):
         path_without_scheme = file_uri[len("gs://") :]
@@ -97,7 +99,8 @@ async def fetch_pdf_bytes(file_uri: str) -> bytes:
             bucket_name,
             blob_name,
         )
-        return _download_from_gcs(bucket_name, blob_name)
+        gcs_data: bytes = _download_from_gcs(bucket_name, blob_name)
+        return gcs_data
 
     raise ValueError(
         f"Unknown file URI scheme: {file_uri}. Expected 'local://' or 'gs://' prefix."
