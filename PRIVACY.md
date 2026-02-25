@@ -2,7 +2,7 @@
 
 **Last updated:** February 2025
 
-This privacy policy describes how **GemmaCrit** (this project and any associated services) may collect, use, and protect information when you use the software or any deployed instance.
+This privacy policy describes how **GemmaCrit** (by **ElixirTrials**; this project and any associated services) may collect, use, and protect information when you use the software or any deployed instance.
 
 ## Scope
 

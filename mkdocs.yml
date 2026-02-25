@@ -1,6 +1,6 @@
 site_name: GemmaCrit — Clinical Trial Criteria Extraction
 site_description: AI-powered system for extracting and grounding clinical trial eligibility criteria from protocol PDFs
-site_author: GemmaCrit Team
+site_author: ElixirTrials
 site_url: https://noahdolevelixir.github.io/medgemma-hackathon/
 site_dir: site
 docs_dir: docs

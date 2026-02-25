@@ -1,6 +1,6 @@
 # GemmaCrit
 
-AI-powered extraction and structuring of clinical trial eligibility criteria from protocol PDFs.
+**GemmaCrit** is by **ElixirTrials**. It provides AI-powered extraction and structuring of clinical trial eligibility criteria from protocol PDFs.
 
 ## What is GemmaCrit?
 

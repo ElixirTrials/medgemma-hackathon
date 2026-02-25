@@ -2,7 +2,7 @@
 
 **Last updated:** February 2025
 
-These Terms of Service (“Terms”) govern your use of **GemmaCrit**—the software, documentation, and any deployed instances of the application.
+These Terms of Service (“Terms”) govern your use of **GemmaCrit** (by **ElixirTrials**)—the software, documentation, and any deployed instances of the application.
 
 ## Acceptance
 

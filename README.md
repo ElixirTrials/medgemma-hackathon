@@ -1,8 +1,10 @@
 <p align="center">
-  <img src="docs/img/elixirtrials-logo.png" alt="GemmaCrit logo" width="280" />
+  <img src="docs/img/elixirtrials-logo.png" alt="GemmaCrit by ElixirTrials" width="280" />
 </p>
 
 <h1 align="center">GemmaCrit</h1>
+
+<p align="center"><em>by <a href="https://github.com/ElixirTrials/medgemma-hackathon">ElixirTrials</a></em></p>
 
 <p align="center">
   AI-powered extraction and structuring of clinical trial eligibility criteria<br/>

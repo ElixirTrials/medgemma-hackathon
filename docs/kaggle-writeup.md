@@ -1,5 +1,7 @@
 # GemmaCrit: AI-Powered Clinical Trial Eligibility Criteria Extraction
 
+**GemmaCrit** is by **ElixirTrials**.
+
 ## Your Team
 
 **Noah Dolev** (noah@elixirtrials.com) &mdash; Software engineering, AI pipeline architecture, system design
