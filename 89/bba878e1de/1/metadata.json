@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "89bba878e1de",
+  "session_id": "02cd7433-eb5f-468e-aab5-587d044f9709",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T20:05:05.95592Z",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/api-service/src/api_service/_gcs_signing.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "f2ba84e42a77",
+  "token_usage": {
+    "input_tokens": 145,
+    "cache_creation_tokens": 284672,
+    "cache_read_tokens": 13602304,
+    "output_tokens": 19840,
+    "api_call_count": 132
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T20:05:05.466882Z",
+    "agent_lines": 0,
+    "human_added": 25,
+    "human_modified": 16,
+    "human_removed": 0,
+    "total_committed": 25,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/02cd7433-eb5f-468e-aab5-587d044f9709.jsonl"
+}
