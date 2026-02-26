@@ -1,0 +1,33 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "b06d83c12b4b",
+  "session_id": "5fa9f090-9747-4608-a637-e214c9821d88",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T19:01:44.984821Z",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "tests/e2e/test_repetition_detection.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "282c2c4efbed",
+  "checkpoint_transcript_start": 2902,
+  "transcript_lines_at_start": 2902,
+  "token_usage": {
+    "input_tokens": 162,
+    "cache_creation_tokens": 348130,
+    "cache_read_tokens": 14560711,
+    "output_tokens": 47518,
+    "api_call_count": 142
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T19:01:43.566479Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 27,
+    "human_removed": 10,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/5fa9f090-9747-4608-a637-e214c9821d88.jsonl"
+}
