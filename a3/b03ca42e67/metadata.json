@@ -1,0 +1,29 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "a3b03ca42e67",
+  "strategy": "manual-commit",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "apps/hitl-ui/src/screens/LoginPage.tsx",
+    "apps/hitl-ui/src/stores/authStore.ts",
+    "instructions/deploy_api.sh",
+    "services/api-service/src/api_service/auth.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/a3/b03ca42e67/0/metadata.json",
+      "transcript": "/a3/b03ca42e67/0/full.jsonl",
+      "context": "",
+      "content_hash": "/a3/b03ca42e67/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
