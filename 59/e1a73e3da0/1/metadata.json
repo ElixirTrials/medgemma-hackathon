@@ -1,7 +1,9 @@
 {
   "cli_version": "0.4.5",
   "checkpoint_id": "59e1a73e3da0",
+  "session_id": "475829dc-5268-4129-aa06-ddb9e0a0bff6",
   "strategy": "manual-commit",
+  "created_at": "2026-02-26T13:40:51.031275Z",
   "branch": "feat/revised-prompts",
   "checkpoints_count": 1,
   "files_touched": [
@@ -9,27 +11,24 @@
     "services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2",
     "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py"
   ],
-  "sessions": [
-    {
-      "metadata": "/59/e1a73e3da0/0/metadata.json",
-      "transcript": "/59/e1a73e3da0/0/full.jsonl",
-      "context": "",
-      "content_hash": "/59/e1a73e3da0/0/content_hash.txt",
-      "prompt": ""
-    },
-    {
-      "metadata": "/59/e1a73e3da0/1/metadata.json",
-      "transcript": "/59/e1a73e3da0/1/full.jsonl",
-      "context": "/59/e1a73e3da0/1/context.md",
-      "content_hash": "/59/e1a73e3da0/1/content_hash.txt",
-      "prompt": "/59/e1a73e3da0/1/prompt.txt"
-    }
-  ],
+  "agent": "Claude Code",
+  "turn_id": "5cf4279ff2dd",
+  "transcript_identifier_at_start": "d1af05a6-5dc2-4d30-9d2d-ba9e92b61755",
   "token_usage": {
     "input_tokens": 3049,
     "cache_creation_tokens": 117850,
     "cache_read_tokens": 4627620,
     "output_tokens": 17168,
     "api_call_count": 68
-  }
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T13:40:50.596945Z",
+    "agent_lines": 0,
+    "human_added": 15,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 15,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/475829dc-5268-4129-aa06-ddb9e0a0bff6.jsonl"
 }
