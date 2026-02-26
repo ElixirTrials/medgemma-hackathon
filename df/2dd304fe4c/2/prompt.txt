@@ -1,0 +1,246 @@
+Implement the following plan:
+
+# Grounding Prompt Variant Experiment
+
+## Context
+
+We added 2 new grounding test snippets to `test_snippets.json` based on failures discovered in the latest protocol extraction:
+1. "Primary indication for TKA is degenerative osteoarthritis of the knee." (entities lost during grounding)
+2. Full compound "Female subjects must be surgically sterile; or at least 2 years postmenopausal;..." (decomposition failure)
+
+We need to run ALL 11 grounding snippets (~24 entities) through 3 prompt variants to find which gets everything right: codes, relations, values, and units. Each variant's calls are traced to MLFlow so we can analyze failure patterns and decide whether a 4th variant is needed.
+
+## The 3 Variants
+
+| Variant | MedGemma (code selection) | Field Mapper (relation/value/unit) |
+|---------|--------------------------|-------------------------------------|
+| **A: Baseline** | Current production prompts | Current production prompts |
+| **B: Targeted Fixes** | `exact_match_first` evaluate addition | `operator_rules_v2` field mapper rules |
+| **C: Enhanced** | `exact_match_first` + boolean/categorical guidance in system prompt | `operator_rules_v2` + worked examples for boolean entities, score-type values, compound criterion negation |
+
+- **Variant A** is the control (current code)
+- **Variant B** combines the two best-performing fragments from the existing `prompt_variants.py` A/B tests
+- **Variant C** extends B with new prompt additions targeting the failure modes in the new test cases
+
+## Variant C Prompt Additions (New)
+
+**System prompt addition** (appended to `grounding_system.jinja2`):
+```
+11. For boolean/presence entities (gender, conditions, procedures), when the
+    entity text is a simple medical concept with no numeric qualifier, always
+    select the broadest matching concept code. Do not let criterion complexity
+    distract from the entity being grounded.
+```
+
+**Field mapper rules addition** (appended to `operator_rules_v2`):
+```
+- For boolean/presence entities appearing in compound criteria joined by OR/semicolons,
+  map ONLY the specific entity to relation='=', value='True'. Ignore other branches.
+  Example: criterion "surgically sterile; or postmenopausal; or practicing contraception"
+  with entity "Postmenopause" → relation='=', value='True', unit=null
+- For ordinal scoring systems (ASA, ECOG, NYHA, etc.) with discrete listed values like
+  "1, 2, or 3", use relation='=' with the enumerated values as-is. Do NOT convert to a range.
+```
+
+## Script Architecture
+
+**New file:** `tests/e2e/run_variant_experiment.py`
+
+Builds on patterns from `run_prompt_variants.py` and `run_grounding_snippets.py`:
+
+### Phase 1: Cache (one-time API calls)
+- `TerminologyRouter.route_entity()` per entity → candidates cache
+- `normalize_unit()` per entity → unit cache (deterministic, no LLM)
+
+### Phase 2: Run 3 Variants
+For each variant (A, B, C):
+1. Tag an MLFlow experiment run with `variant={name}`, `experiment_type=prompt_variant`
+2. For each entity:
+   - `medgemma_decide()` with variant-specific prompts → `selected_code`, `confidence`
+   - `generate_field_mappings()` with variant-specific prompts → `relation`, `value`, `unit`
+3. Capture per-entity trace data: latency_ms, token counts (from MedGemma + Gemini), error/retry count
+
+### Phase 3: Score & Compare
+Score each variant on 5 dimensions per entity:
+- **Code match**: `selected_code == expected`
+- **Relation match**: `field_mapping.relation == expected`
+- **Value match**: `field_mapping.value == expected`
+- **Unit UCUM match**: from `normalize_unit()` cache
+- **Unit OMOP match**: from `normalize_unit()` cache
+
+### Phase 4: MLFlow Trace Analysis
+After all 3 variants complete, query the MLFlow trace store to analyze:
+
+1. **Failure pattern clustering** — group mismatches by entity type (Condition, Procedure, Demographic, Medication, Lab_Value) and failure dimension (code/relation/value). Identifies whether failures are entity-type-specific or prompt-generic.
+2. **Confidence vs accuracy** — for each variant, plot confidence scores against actual correctness. Low confidence + correct = conservative model. High confidence + wrong = dangerous hallucination. This tells us if the model "knows what it doesn't know."
+3. **Retry effectiveness** — count how many entities required retries per variant and whether retries improved or degraded the outcome. High retry count with no improvement = wasted API budget.
+4. **Latency breakdown** — compare median/p95 latency per variant. If variant C is significantly slower without meaningful accuracy gain, B may be preferable.
+
+Trace data is collected inline during Phase 2 (each `medgemma_decide` and `generate_field_mappings` call already writes MLFlow spans via the existing tracing infrastructure). The script reads back trace metrics from the SQLite store at `.mlflow/mlflow.db` after all variants complete.
+
+### Phase 5: Decision — Stop or Continue?
+The script prints a recommendation based on the results:
+
+| Outcome | Action |
+|---------|--------|
+| One variant scores 100% on all dimensions | **Stop.** Declare winner. Print the prompt diff to apply to production. |
+| Best variant has ≤2 failures and they're in one entity type | **Stop.** Flag the specific entity type for a targeted 4th variant. Print what the 4th variant should address. |
+| Best variant has >2 failures spread across types | **Continue.** Auto-generate a Variant D hypothesis from the failure pattern analysis: which prompt section to change and what the change should be. Save the hypothesis to `prompt_variant_results/variant_d_hypothesis.md`. |
+| All variants perform equally (no improvement over baseline) | **Stop.** The prompts aren't the bottleneck — investigate TerminologyRouter candidate quality or model capability instead. |
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `tests/e2e/run_variant_experiment.py` | **Create** — Main experiment script (~350 lines) |
+| `tests/e2e/prompt_variants.py` | **Edit** — Add Variant C definitions (ENHANCED_SYSTEM, ENHANCED_FIELD_MAPPER constants) |
+
+No production code changes. This is a read-only experiment.
+
+## API Budget
+
+~24 router calls (cached) + 24×3 MedGemma/Gemini decide + 24×3 field mapper = ~24 + 144 + 72 = ~240 total calls. `asyncio.Semaphore(4)` for rate limiting. Expected runtime: 5-8 minutes.
+
+## Execution
+
+```bash
+set -a && source .env && set +a && uv run python tests/e2e/run_variant_experiment.py
+```
+
+## Expected Output
+
+```
+═══════════════════════════════════════════════════════════════════
+GROUNDING VARIANT EXPERIMENT — 24 entities × 3 variants
+═══════════════════════════════════════════════════════════════════
+
+Entity                     Metric     Expected      A:Baseline  B:Targeted  C:Enhanced
+──────────────────────────────────────────────────────────────────────────────────────
+Serum creatinine           code       C0201976      OK          OK          OK
+                           relation   >             MISS (=)    OK          OK
+                           value      1.95          OK          OK          OK
+...
+
+═══════════════════════════════════════════════════════════════════
+VARIANT SUMMARY
+═══════════════════════════════════════════════════════════════════
+                    A:Baseline    B:Targeted    C:Enhanced
+Code match:         20/24 (83%)   22/24 (92%)   23/24 (96%)
+Relation match:     18/24 (75%)   22/24 (92%)   23/24 (96%)
+Value match:        20/24 (83%)   22/24 (92%)   23/24 (96%)
+Unit UCUM:          5/5 (100%)    5/5 (100%)    5/5 (100%)
+Unit OMOP:          5/5 (100%)    5/5 (100%)    5/5 (100%)
+
+═══════════════════════════════════════════════════════════════════
+MLFLOW TRACE ANALYSIS
+═══════════════════════════════════════════════════════════════════
+
+Failure Patterns:
+  A: 4 code mismatches (3 Condition, 1 Demographic), 6 relation mismatches
+  B: 2 code mismatches (1 Condition, 1 Procedure), 2 relation mismatches
+  C: 1 code mismatch (1 Procedure), 1 relation mismatch
+
+Confidence vs Accuracy:
+  A: avg confidence on correct=0.92, on incorrect=0.71
+  B: avg confidence on correct=0.94, on incorrect=0.55
+  C: avg confidence on correct=0.95, on incorrect=0.40  ← best calibrated
+
+Retry Stats:
+  A: 8 retries, 3 improved outcome  (38% effective)
+  B: 4 retries, 3 improved outcome  (75% effective)
+  C: 3 retries, 2 improved outcome  (67% effective)
+
+Latency (median / p95):
+  A: 4.2s / 12.1s
+  B: 4.5s / 13.0s
+  C: 4.8s / 14.2s
+
+═══════════════════════════════════════════════════════════════════
+RECOMMENDATION: [STOP | CONTINUE]
+═══════════════════════════════════════════════════════════════════
+Winner: C:Enhanced (23/24 code, 23/24 relation, 23/24 value)
+Remaining failure: "Barrier Contraception" code mismatch (Medication type)
+  → If 4th variant needed, target: medication-specific system prompt addition
+```
+
+## Verification
+
+1. Run the experiment and confirm all 3 variants complete without errors
+2. Verify unit normalization passes for all unit-bearing entities
+3. Review the MLFlow trace analysis for unexpected patterns
+4. Follow the stop/continue recommendation
+
+
+If you need specific details from before exiting plan mode (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+
+---
+
+Proceed
+
+---
+
+So what about this report from earlier in the conversation:
+│ ═══════════════════════════════════════════════════════════════════                                                                                                                                                                                                          │
+│ GROUNDING VARIANT EXPERIMENT — 24 entities × 3 variants                                                                                                                                                                                                                      │
+│ ═══════════════════════════════════════════════════════════════════                                                                                                                                                                                                          │
+│                                                                                                                                                                                                                                                                              │
+│ Entity                     Metric     Expected      A:Baseline  B:Targeted  C:Enhanced                                                                                                                                                                                       │
+│ ──────────────────────────────────────────────────────────────────────────────────────                                                                                                                                                                                       │
+│ Serum creatinine           code       C0201976      OK          OK          OK                                                                                                                                                                                               │
+│                            relation   >             MISS (=)    OK          OK                                                                                                                                                                                               │
+│                            value      1.95          OK          OK          OK                                                                                                                                                                                               │
+│ ...                                                                                                                                                                                                                                                                          │
+│                                                                                                                                                                                                                                                                              │
+│ ═══════════════════════════════════════════════════════════════════                                                                                                                                                                                                          │
+│ VARIANT SUMMARY                                                                                                                                                                                                                                                              │
+│ ═══════════════════════════════════════════════════════════════════                                                                                                                                                                                                          │
+│                     A:Baseline    B:Targeted    C:Enhanced                                                                                                                                                                                                                   │
+│ Code match:         20/24 (83%)   22/24 (92%)   23/24 (96%)                                                                                                                                                                                                                  │
+│ Relation match:     18/24 (75%)   22/24 (92%)   23/24 (96%)                                                                                                                                                                                                                  │
+│ Value match:        20/24 (83%)   22/24 (92%)   23/24 (96%)                                                                                                                                                                                                                  │
+│ Unit UCUM:          5/5 (100%)    5/5 (100%)    5/5 (100%)                                                                                                                                                                                                                   │
+│ Unit OMOP:          5/5 (100%)    5/5 (100%)    5/5 (100%)                                                                                                                                                                                                                   │
+│                                                                                                                                                                                                                                                                              │
+│ ═══════════════════════════════════════════════════════════════════                                                                                                                                                                                                          │
+│ MLFLOW TRACE ANALYSIS                                                                                                                                                                                                                                                        │
+│ ═══════════════════════════════════════════════════════════════════                                                                                                                                                                                                          │
+│                                                                                                                                                                                                                                                                              │
+│ Failure Patterns:                                                                                                                                                                                                                                                            │
+│   A: 4 code mismatches (3 Condition, 1 Demographic), 6 relation mismatches                                                                                                                                                                                                   │
+│   B: 2 code mismatches (1 Condition, 1 Procedure), 2 relation mismatches                                                                                                                                                                                                     │
+│   C: 1 code mismatch (1 Procedure), 1 relation mismatch                                                                                                                                                                                                                      │
+│                                                                                                                                                                                                                                                                              │
+│ Confidence vs Accuracy:                                                                                                                                                                                                                                                      │
+│   A: avg confidence on correct=0.92, on incorrect=0.71                                                                                                                                                                                                                       │
+│   B: avg confidence on correct=0.94, on incorrect=0.55                                                                                                                                                                                                                       │
+│   C: avg confidence on correct=0.95, on incorrect=0.40  ← best calibrated                                                                                                                                                                                                    │
+│                                                                                                                                                                                                                                                                              │
+│ Retry Stats:                                                                                                                                                                                                                                                                 │
+│   A: 8 retries, 3 improved outcome  (38% effective)                                                                                                                                                                                                                          │
+│   B: 4 retries, 3 improved outcome  (75% effective)                                                                                                                                                                                                                          │
+│   C: 3 retries, 2 improved outcome  (67% effective)                                                                                                                                                                                                                          │
+│                                                                                                                                                                                                                                                                              │
+│ Latency (median / p95):                                                                                                                                                                                                                                                      │
+│   A: 4.2s / 12.1s                                                                                                                                                                                                                                                            │
+│   B: 4.5s / 13.0s                                                                                                                                                                                                                                                            │
+│   C: 4.8s / 14.2s
+
+---
+
+Ah okay, so clear the context, run the experiment with the variants and analyze the results.
+
+---
+
+Consider carefully the next variant, think deeply and research using the web and context7, then implement the variant and test it.
+
+---
+
+Excellent. Implement the solution for production (in the real codebase) and commit it. BUT DO NOT commit any of our experimentation.
+
+---
+
+Something went wrong in production. We are still occassionally getting repeating digits. Let's search the web to see if anyone else has experienced this in langgraphs using gemini or just using gemini or just using langgraph. Let's do a thorough deep dive to understand why this occurs.Let's see if we can reproduce the problem so we know if we solved it.
+
+---
+
+[Image: source: /Users/noahdolevelixir/Code/medgemma-hackathon/instructions/SubmissionRequirements/grounding_failures/Screenshot 2026-02-26 at 15.00.19.png]

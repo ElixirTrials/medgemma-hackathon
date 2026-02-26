@@ -3,7 +3,7 @@
   "checkpoint_id": "df2dd304fe4c",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/api-service/src/api_service/main.py"
   ],
@@ -21,13 +21,20 @@
       "context": "/df/2dd304fe4c/1/context.md",
       "content_hash": "/df/2dd304fe4c/1/content_hash.txt",
       "prompt": "/df/2dd304fe4c/1/prompt.txt"
+    },
+    {
+      "metadata": "/df/2dd304fe4c/2/metadata.json",
+      "transcript": "/df/2dd304fe4c/2/full.jsonl",
+      "context": "/df/2dd304fe4c/2/context.md",
+      "content_hash": "/df/2dd304fe4c/2/content_hash.txt",
+      "prompt": "/df/2dd304fe4c/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3049,
-    "cache_creation_tokens": 117850,
-    "cache_read_tokens": 4627620,
-    "output_tokens": 17168,
-    "api_call_count": 68
+    "input_tokens": 3144,
+    "cache_creation_tokens": 323630,
+    "cache_read_tokens": 13009561,
+    "output_tokens": 40050,
+    "api_call_count": 149
   }
 }
