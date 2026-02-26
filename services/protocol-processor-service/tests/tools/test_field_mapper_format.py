@@ -96,7 +96,13 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="HbA1c",
                 relation="<",
-                value=FieldMappingValue(type="standard", value="7", unit="%"),
+                value=FieldMappingValue(
+                    type="standard", value="7", unit="%",
+                    min=None, max=None, duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
         )
 
@@ -129,7 +135,13 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="HbA1c",
                 relation="<",
-                value=FieldMappingValue(type="standard", value="7", unit="%"),
+                value=FieldMappingValue(
+                    type="standard", value="7", unit="%",
+                    min=None, max=None, duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
         )
 
@@ -162,7 +174,13 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="HbA1c",
                 relation="<",
-                value=FieldMappingValue(type="standard", value="7", unit="%"),
+                value=FieldMappingValue(
+                    type="standard", value="7", unit="%",
+                    min=None, max=None, duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
         )
 
@@ -190,7 +208,13 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="Diabetes",
                 relation="has",
-                value=FieldMappingValue(type="standard", value="confirmed", unit=""),
+                value=FieldMappingValue(
+                    type="standard", value="confirmed", unit="",
+                    min=None, max=None, duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
         )
 
@@ -218,7 +242,13 @@ class TestGenerateFieldMappingsFormat:
             FieldMappingItem(
                 entity="Age",
                 relation="within",
-                value=FieldMappingValue(type="range", min="18", max="65", unit="years"),
+                value=FieldMappingValue(
+                    type="range", min="18", max="65", unit="years",
+                    value=None, duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
         )
 

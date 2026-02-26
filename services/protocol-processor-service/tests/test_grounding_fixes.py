@@ -70,7 +70,13 @@ class TestRelationLiteralRejectsInvalid:
             FieldMappingItem(
                 entity="x",
                 relation="has_value",
-                value=FieldMappingValue(type="standard", value="1"),
+                value=FieldMappingValue(
+                    type="standard", value="1", unit=None,
+                    min=None, max=None, duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
 
 
@@ -97,7 +103,13 @@ class TestRelationNormalizerMapsLegacy:
         item = FieldMappingItem(
             entity="glucose",
             relation=legacy_op,  # type: ignore[arg-type]
-            value=FieldMappingValue(type="standard", value="100", unit="mg/dL"),
+            value=FieldMappingValue(
+                type="standard", value="100", unit="mg/dL",
+                min=None, max=None, duration=None,
+            ),
+            unit=None,
+            value_concept_id=None,
+            value_concept_system=None,
         )
         assert item.relation == expected
 
@@ -376,8 +388,13 @@ class TestValueConceptFieldsOnFieldMappingItem:
         item = FieldMappingItem(
             entity="severity",
             relation="=",
-            value=FieldMappingValue(type="standard", value="Severe"),
+            value=FieldMappingValue(
+                type="standard", value="Severe", unit=None,
+                min=None, max=None, duration=None,
+            ),
+            unit=None,
             value_concept_id="4298817",
+            value_concept_system=None,
         )
         assert item.value_concept_id == "4298817"
 
@@ -386,7 +403,12 @@ class TestValueConceptFieldsOnFieldMappingItem:
         item = FieldMappingItem(
             entity="severity",
             relation="=",
-            value=FieldMappingValue(type="standard", value="Severe"),
+            value=FieldMappingValue(
+                type="standard", value="Severe", unit=None,
+                min=None, max=None, duration=None,
+            ),
+            unit=None,
+            value_concept_id=None,
             value_concept_system="SNOMED",
         )
         assert item.value_concept_system == "SNOMED"
@@ -396,7 +418,11 @@ class TestValueConceptFieldsOnFieldMappingItem:
         item = FieldMappingItem(
             entity="severity",
             relation="=",
-            value=FieldMappingValue(type="standard", value="Stage IV"),
+            value=FieldMappingValue(
+                type="standard", value="Stage IV", unit=None,
+                min=None, max=None, duration=None,
+            ),
+            unit=None,
             value_concept_id="4298817",
             value_concept_system="OMOP",
         )
@@ -408,7 +434,13 @@ class TestValueConceptFieldsOnFieldMappingItem:
         item = FieldMappingItem(
             entity="glucose",
             relation="<",
-            value=FieldMappingValue(type="standard", value="126", unit="mg/dL"),
+            value=FieldMappingValue(
+                type="standard", value="126", unit="mg/dL",
+                min=None, max=None, duration=None,
+            ),
+            unit=None,
+            value_concept_id=None,
+            value_concept_system=None,
         )
         assert item.value_concept_id is None
         assert item.value_concept_system is None
