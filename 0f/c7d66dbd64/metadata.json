@@ -1,0 +1,30 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0fc7d66dbd64",
+  "strategy": "manual-commit",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py",
+    "services/protocol-processor-service/src/protocol_processor/tools/medgemma_decider.py",
+    "tests/e2e/test_repetition_detection.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0f/c7d66dbd64/0/metadata.json",
+      "transcript": "/0f/c7d66dbd64/0/full.jsonl",
+      "context": "",
+      "content_hash": "/0f/c7d66dbd64/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
