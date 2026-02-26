@@ -172,6 +172,7 @@ async def generate_field_mappings(
             grounded_term=grounded_term,
             code_context=code_context,
             criterion_text=criterion_text,
+            entity_type=entity.entity_type or "Condition",
         )
 
         from protocol_processor.tracing import llm_span

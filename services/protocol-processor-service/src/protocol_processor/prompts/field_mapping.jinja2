@@ -16,6 +16,8 @@ Criterion text: {{ criterion_text }}
 - Extract comparison operators VERBATIM from the criterion text. Never invert the operator direction. If the text says ">44", the relation is ">", not "<".
 - Use "within" ONLY for numeric min/max ranges (e.g., "between 18 and 65"). Do NOT use "within" for discrete categorical lists like "1, 2, or 3" — use "=" instead.
 - Negation patterns: "non-", "not ", "no " preceding an entity indicate ABSENCE. Map to relation='!=' with value='True'. For example, "non-pregnant" means Pregnancy relation='!=' value='True'.
+- SCOPE ISOLATION FOR COMPOUND CRITERIA: The criterion text may contain multiple OR-separated branches (joined by '; or', ', or', 'or'). Step 1: Identify which branch mentions "{{ grounded_term }}". Step 2: Extract relation/value ONLY from that branch. Ignore ALL numeric values, temporal qualifiers, and operators from other branches. Step 3: If the entity's branch describes a state/condition with no measurement threshold, map as boolean: relation='=', value='True'.
+- ENTITY-TYPE DISPATCH (entity type: {{ entity_type }}): Condition, Procedure, and Medication entities are boolean presence/absence by default — map as relation='=', value='True' UNLESS the criterion specifies a severity grade or staging score for THIS specific entity. When a Condition/Procedure entity appears with a temporal qualifier (e.g., "at least 2 years postmenopausal", "for greater than 6 months"), the temporal value is a DURATION REQUIREMENT for the condition — it does NOT change the entity from boolean to numeric. Lab_Value and Measurement entities: extract the numeric comparison operator and value as usual.
 </rules>
 
 <anti_patterns>

@@ -14,10 +14,22 @@ Type: {{ entity_type }}
 No candidates found from any terminology API.
 {% endif %}
 
-## Instructions
+## Selection Protocol (follow EXACTLY in order)
 
 {% if candidates %}
-Review the candidates and select the best match for "{{ entity_text }}" ({{ entity_type }}).
+STEP 1 — EXACT MATCH CHECK:
+List ALL candidates whose preferred_term is an exact or near-exact match for "{{ entity_text }}" (case-insensitive). Write them out explicitly.
+If you find exact matches, select the one with the highest score. An exact match ALWAYS wins. Stop here.
+
+STEP 2 — QUALIFIER MISMATCH REJECTION:
+If "{{ entity_text }}" contains NO qualifier (no age, stage, site, subtype, laterality), REJECT any candidate that ADDS a qualifier not in the entity text.
+Examples of rejection:
+- Entity "Ankylosing Spondylitis" REJECTS "Juvenile ankylosing spondylitis"
+- Entity "Diabetes" REJECTS "Type 1 Diabetes"
+- Entity "Serum creatinine" REJECTS "Serum creatinine raised"
+
+STEP 3 — SEMANTIC SELECTION:
+Only if Steps 1-2 produce no winner, evaluate remaining candidates by clinical meaning match.
 
 State:
 1. Which candidate best matches the entity (or that none do)
