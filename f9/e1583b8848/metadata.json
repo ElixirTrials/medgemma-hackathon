@@ -1,0 +1,28 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "f9e1583b8848",
+  "strategy": "manual-commit",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/tests/test_grounding_fixes.py",
+    "services/protocol-processor-service/tests/test_phase1b_wiring.py",
+    "services/protocol-processor-service/tests/tools/test_field_mapper_format.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/f9/e1583b8848/0/metadata.json",
+      "transcript": "/f9/e1583b8848/0/full.jsonl",
+      "context": "",
+      "content_hash": "/f9/e1583b8848/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
