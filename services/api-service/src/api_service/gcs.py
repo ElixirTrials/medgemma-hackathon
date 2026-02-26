@@ -127,6 +127,27 @@ def get_gcs_client() -> Any:
     return _gcs_client
 
 
+def _get_signing_credentials() -> tuple[Any, str | None]:
+    """Get credentials suitable for signing URLs.
+
+    On Cloud Run, compute engine credentials cannot sign directly.
+    We detect this and use IAM-based signing via the service account email.
+
+    Returns:
+        (credentials, service_account_email) — email is None for local/SA key credentials.
+    """
+    import google.auth
+
+    credentials, project = google.auth.default()
+
+    if hasattr(credentials, "service_account_email"):
+        sa_email = credentials.service_account_email
+        # Compute engine credentials need IAM signing
+        if "compute@developer" in sa_email or "run.app" in sa_email:
+            return credentials, sa_email
+    return credentials, None
+
+
 def reset_gcs_client() -> None:
     """Reset the cached GCS client so the next call re-initializes.
 
@@ -336,11 +357,18 @@ def _gcs_generate_upload_url(
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
 
+    _, sa_email = _get_signing_credentials()
+    signing_kwargs: dict[str, Any] = {}
+    if sa_email:
+        signing_kwargs["service_account_email"] = sa_email
+        signing_kwargs["access_token"] = client._credentials.token
+
     signed_url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=expiration_minutes),
         method="PUT",
         content_type=content_type,
+        **signing_kwargs,
     )
 
     gcs_path = f"gs://{bucket_name}/{blob_path}"
@@ -377,9 +405,16 @@ def _gcs_generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> s
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
 
+    _, sa_email = _get_signing_credentials()
+    signing_kwargs: dict[str, Any] = {}
+    if sa_email:
+        signing_kwargs["service_account_email"] = sa_email
+        signing_kwargs["access_token"] = client._credentials.token
+
     signed_url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=expiration_minutes),
         method="GET",
+        **signing_kwargs,
     )
     return signed_url
