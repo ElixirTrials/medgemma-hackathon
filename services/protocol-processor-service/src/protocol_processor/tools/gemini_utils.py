@@ -6,17 +6,112 @@ structure_builder, ordinal_resolver, and field_mapper.
 
 Falls back to Ollama when GOOGLE_API_KEY is not set but OLLAMA_BASE_URL
 is configured.
+
+Includes detection for a known Gemini structured-output bug where the
+model enters a token repetition loop, producing repeating digits or
+regurgitated schema descriptions instead of actual values.  See:
+  - https://github.com/google-gemini/cookbook/issues/449
+  - https://github.com/googleapis/python-genai/issues/1039
 """
 
 from __future__ import annotations
 
 import logging
 import os
+import re
 from typing import Any, TypeVar
 
 from pydantic import BaseModel
 
 logger = logging.getLogger(__name__)
+
+# Pattern that detects schema description regurgitation — the model
+# outputs Pydantic field descriptions or chain-of-thought reasoning
+# instead of actual values.
+_SCHEMA_LEAK_RE = re.compile(
+    r"(?:"
+    r"Unit of measurement"
+    r"|Value for standard type"
+    r"|Duration value for"
+    r"|measurement unit"
+    r"|provided schema"
+    r"|In the context of"
+    r"|populate the .+ field"
+    r"|will populate"
+    r")",
+    re.IGNORECASE,
+)
+
+
+def is_repetition_loop(text: str | None) -> bool:
+    """Detect if text contains a Gemini repetition loop.
+
+    Known Gemini bug: the model enters a token repetition loop during
+    structured output generation, producing sequences like
+    ``"220220220220220220"`` or ``"8598739459392231e-315"`` repeated
+    until ``max_output_tokens`` is exhausted.
+
+    Returns True if the text is likely a repetition artifact.
+    """
+    if not text or len(text) < 20:
+        return False
+
+    # Check 1: very low character diversity for the string length
+    unique_ratio = len(set(text)) / len(text)
+    if unique_ratio < 0.08 and len(text) > 30:
+        return True
+
+    # Check 2: repeating substring (3-30 chars repeated 3+ times)
+    # Tries from position 0 first, then from later offsets to catch
+    # repetition that starts after a short prefix.
+    max_plen = min(31, len(text) // 3 + 1)
+    for start in range(0, min(20, len(text) // 2)):
+        remaining = text[start:]
+        if len(remaining) < 9:
+            break
+        for plen in range(3, min(max_plen, len(remaining) // 3 + 1)):
+            pattern = remaining[:plen]
+            count = 0
+            for i in range(0, len(remaining) - plen + 1, plen):
+                if remaining[i : i + plen] == pattern:
+                    count += 1
+                else:
+                    break
+            if count >= 3 and count * plen >= len(remaining) * 0.7:
+                return True
+
+    # Check 3: schema description regurgitation
+    if _SCHEMA_LEAK_RE.search(text):
+        return True
+
+    return False
+
+
+class RepetitionLoopError(RuntimeError):
+    """Raised when a Gemini structured-output response contains repetition artifacts."""
+
+
+def check_model_for_repetition(model: BaseModel) -> list[str]:
+    """Recursively inspect all string fields of a Pydantic model for repetition.
+
+    Returns a list of field paths that contain repetition artifacts,
+    e.g. ["mappings[0].value.unit", "mappings[1].value.value"].
+    """
+    bad_fields: list[str] = []
+
+    def _check(obj: Any, prefix: str) -> None:
+        if isinstance(obj, BaseModel):
+            for field_name in obj.model_fields:
+                _check(getattr(obj, field_name, None), f"{prefix}.{field_name}")
+        elif isinstance(obj, list):
+            for i, item in enumerate(obj):
+                _check(item, f"{prefix}[{i}]")
+        elif isinstance(obj, str) and is_repetition_loop(obj):
+            bad_fields.append(prefix)
+
+    _check(model, "root")
+    return bad_fields
+
 
 T = TypeVar("T", bound=BaseModel)
 
@@ -45,6 +140,11 @@ def create_structured_llm(
                 model=gemini_model_name,
                 google_api_key=google_api_key,
                 max_output_tokens=2048,
+                temperature=0.1,
+                model_kwargs={
+                    "frequency_penalty": 0.8,
+                    "presence_penalty": 0.5,
+                },
             )
             return gemini.with_structured_output(output_schema)
         except Exception as e:

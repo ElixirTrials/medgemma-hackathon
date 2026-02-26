@@ -20,7 +20,9 @@ from pydantic import BaseModel, Field, field_validator, model_validator
 from protocol_processor.prompts import render_template
 from protocol_processor.schemas.grounding import EntityGroundingResult
 from protocol_processor.tools.gemini_utils import (
+    check_model_for_repetition,
     create_structured_llm,
+    is_repetition_loop,
     parse_structured_output,
 )
 
@@ -57,25 +59,26 @@ class FieldMappingValue(BaseModel):
     type: Literal["standard", "range", "temporal"] = Field(
         description="Value type discriminator"
     )
-    value: str | None = Field(
-        default=None, description="Value for standard type (e.g. '7')"
-    )
+    value: str | None = Field(..., description="Value for standard type (e.g. '7')")
     unit: str | None = Field(
-        default=None, description="Unit of measurement (e.g. '%', 'mg/dL', 'months')"
+        ..., description="Unit of measurement (e.g. '%', 'mg/dL', 'months')"
     )
-    min: str | None = Field(default=None, description="Minimum value for range type")
-    max: str | None = Field(default=None, description="Maximum value for range type")
-    duration: str | None = Field(
-        default=None, description="Duration value for temporal type"
-    )
+    min: str | None = Field(..., description="Minimum value for range type")
+    max: str | None = Field(..., description="Maximum value for range type")
+    duration: str | None = Field(..., description="Duration value for temporal type")
 
     @model_validator(mode="after")
-    def truncate_long_strings(self) -> "FieldMappingValue":
-        """Guard against LLM repetition loops producing absurdly long values."""
+    def sanitize_repetition_artifacts(self) -> "FieldMappingValue":
+        """Guard against Gemini repetition loops in values."""
         _max = 200
         for attr in ("value", "unit", "min", "max", "duration"):
             val = getattr(self, attr)
-            if isinstance(val, str) and len(val) > _max:
+            if not isinstance(val, str):
+                continue
+            # Null out values that are repetition artifacts
+            if is_repetition_loop(val):
+                setattr(self, attr, None)
+            elif len(val) > _max:
                 setattr(self, attr, val[:_max])
         return self
 
@@ -101,15 +104,15 @@ class FieldMappingItem(BaseModel):
         description="Typed value object with type discriminator"
     )
     unit: str | None = Field(
-        default=None,
+        ...,
         description="Optional unit of measurement (e.g. '%', 'mg/dL', 'years')",
     )
     value_concept_id: str | None = Field(
-        default=None,
+        ...,
         description="OMOP concept ID for categorical values",
     )
     value_concept_system: str | None = Field(
-        default=None,
+        ...,
         description="Terminology system for value_concept_id (e.g. 'SNOMED', 'OMOP')",
     )
 
@@ -126,7 +129,7 @@ class FieldMappingResponse(BaseModel):
     """Gemini structured output for field mappings."""
 
     mappings: list[FieldMappingItem] = Field(
-        default_factory=list,
+        ...,
         description="List of AutoCriteria field mapping decompositions",
     )
 
@@ -159,59 +162,87 @@ async def generate_field_mappings(
     if structured_llm is None:
         return []
 
-    try:
-        # Build a context-rich prompt for field mapping generation
-        grounded_term = entity.preferred_term or entity.entity_text
-        code_context = ""
-        if entity.selected_code and entity.selected_system:
-            system = entity.selected_system.upper()
-            code_context = f"(grounded to {system} code: {entity.selected_code})"
+    # Build a context-rich prompt for field mapping generation
+    grounded_term = entity.preferred_term or entity.entity_text
+    code_context = ""
+    if entity.selected_code and entity.selected_system:
+        system = entity.selected_system.upper()
+        code_context = f"(grounded to {system} code: {entity.selected_code})"
 
-        prompt = render_template(
-            "field_mapping.jinja2",
-            grounded_term=grounded_term,
-            code_context=code_context,
-            criterion_text=criterion_text,
-            entity_type=entity.entity_type or "Condition",
-        )
+    prompt = render_template(
+        "field_mapping.jinja2",
+        grounded_term=grounded_term,
+        code_context=code_context,
+        criterion_text=criterion_text,
+        entity_type=entity.entity_type or "Condition",
+    )
 
-        from protocol_processor.tracing import llm_span
+    max_attempts = 3
+    for attempt in range(1, max_attempts + 1):
+        try:
+            from protocol_processor.tracing import llm_span
 
-        with llm_span("gemini_field_mapping") as llm:
-            llm.set_request(prompt)
-            result = await structured_llm.ainvoke(prompt)
-            llm.set_response(str(result))
+            with llm_span("gemini_field_mapping") as llm:
+                llm.set_request(prompt)
+                result = await structured_llm.ainvoke(prompt)
+                llm.set_response(str(result))
 
-        response = parse_structured_output(result, FieldMappingResponse)
+            response = parse_structured_output(result, FieldMappingResponse)
 
-        mappings = [
-            {
-                "entity": m.entity,
-                "relation": m.relation,
-                "value": m.value.model_dump(exclude_none=True),
-                "entity_code": entity.selected_code,
-                "entity_system": entity.selected_system,
-                "omop_concept_id": entity.omop_concept_id,
-                "entity_type": entity.entity_type,
-                "value_concept_id": m.value_concept_id,
-                "value_concept_system": m.value_concept_system,
-            }
-            for m in response.mappings
-        ]
+            # Check for Gemini repetition loop artifacts in the response
+            bad_fields = check_model_for_repetition(response)
+            if bad_fields:
+                if attempt < max_attempts:
+                    logger.warning(
+                        "Repetition loop detected in field mapping for '%s' "
+                        "(attempt %d/%d, fields: %s) — retrying",
+                        entity.entity_text[:50],
+                        attempt,
+                        max_attempts,
+                        bad_fields,
+                    )
+                    continue
+                logger.warning(
+                    "Repetition loop persisted after %d attempts for '%s' "
+                    "(fields: %s) — returning sanitized result",
+                    max_attempts,
+                    entity.entity_text[:50],
+                    bad_fields,
+                )
 
-        logger.info(
-            "Generated %d field mapping(s) for entity '%s'",
-            len(mappings),
-            entity.entity_text[:50],
-        )
-        return mappings
+            mappings = [
+                {
+                    "entity": m.entity,
+                    "relation": m.relation,
+                    "value": m.value.model_dump(exclude_none=True),
+                    "entity_code": entity.selected_code,
+                    "entity_system": entity.selected_system,
+                    "omop_concept_id": entity.omop_concept_id,
+                    "entity_type": entity.entity_type,
+                    "value_concept_id": m.value_concept_id,
+                    "value_concept_system": m.value_concept_system,
+                }
+                for m in response.mappings
+            ]
 
-    except Exception as e:
-        logger.warning(
-            "Field mapping generation failed for entity '%s': %s",
-            entity.entity_text[:50],
-            e,
-            exc_info=True,
-        )
-        # Best-effort: return empty list on failure
-        return []
+            logger.info(
+                "Generated %d field mapping(s) for entity '%s'",
+                len(mappings),
+                entity.entity_text[:50],
+            )
+            return mappings
+
+        except Exception as e:
+            logger.warning(
+                "Field mapping generation failed for entity '%s' (attempt %d/%d): %s",
+                entity.entity_text[:50],
+                attempt,
+                max_attempts,
+                e,
+                exc_info=True,
+            )
+            if attempt == max_attempts:
+                break
+
+    # Best-effort: return empty list on failure
+    return []
