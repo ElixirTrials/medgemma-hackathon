@@ -3,7 +3,7 @@
   "checkpoint_id": "b06d83c12b4b",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "tests/e2e/test_repetition_detection.py"
   ],
@@ -14,13 +14,20 @@
       "context": "",
       "content_hash": "/b0/6d83c12b4b/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/b0/6d83c12b4b/1/metadata.json",
+      "transcript": "/b0/6d83c12b4b/1/full.jsonl",
+      "context": "/b0/6d83c12b4b/1/context.md",
+      "content_hash": "/b0/6d83c12b4b/1/content_hash.txt",
+      "prompt": "/b0/6d83c12b4b/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 144,
+    "cache_creation_tokens": 284179,
+    "cache_read_tokens": 13437659,
+    "output_tokens": 19839,
+    "api_call_count": 131
   }
 }
