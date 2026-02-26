@@ -3,7 +3,7 @@
   "checkpoint_id": "926b214560e6",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "apps/hitl-ui/src/screens/LoginPage.tsx",
     "apps/hitl-ui/src/stores/authStore.ts",
@@ -17,13 +17,20 @@
       "context": "",
       "content_hash": "/92/6b214560e6/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/92/6b214560e6/1/metadata.json",
+      "transcript": "/92/6b214560e6/1/full.jsonl",
+      "context": "/92/6b214560e6/1/context.md",
+      "content_hash": "/92/6b214560e6/1/content_hash.txt",
+      "prompt": "/92/6b214560e6/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 3049,
+    "cache_creation_tokens": 117850,
+    "cache_read_tokens": 4627620,
+    "output_tokens": 17168,
+    "api_call_count": 68
   }
 }
