@@ -3,7 +3,7 @@
   "checkpoint_id": "59e1a73e3da0",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 1,
+  "checkpoints_count": 3,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/prompts/field_mapping.jinja2",
     "services/protocol-processor-service/src/protocol_processor/prompts/grounding_evaluate.jinja2",
@@ -23,13 +23,20 @@
       "context": "/59/e1a73e3da0/1/context.md",
       "content_hash": "/59/e1a73e3da0/1/content_hash.txt",
       "prompt": "/59/e1a73e3da0/1/prompt.txt"
+    },
+    {
+      "metadata": "/59/e1a73e3da0/2/metadata.json",
+      "transcript": "/59/e1a73e3da0/2/full.jsonl",
+      "context": "/59/e1a73e3da0/2/context.md",
+      "content_hash": "/59/e1a73e3da0/2/content_hash.txt",
+      "prompt": "/59/e1a73e3da0/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3049,
-    "cache_creation_tokens": 117850,
-    "cache_read_tokens": 4627620,
-    "output_tokens": 17168,
-    "api_call_count": 68
+    "input_tokens": 3140,
+    "cache_creation_tokens": 322227,
+    "cache_read_tokens": 12700525,
+    "output_tokens": 39452,
+    "api_call_count": 147
   }
 }
