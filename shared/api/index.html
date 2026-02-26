@@ -1,0 +1,2500 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/shared/api/">
+        <link rel="shortcut icon" href="../../img/favicon.ico">
+        <title>API Reference - GemmaCrit — Clinical Trial Criteria Extraction</title>
+        <link href="../../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../../css/brands.min.css" rel="stylesheet">
+        <link href="../../css/solid.min.css" rel="stylesheet">
+        <link href="../../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="../..">GemmaCrit — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href="../.." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../architecture/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../architecture/system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../../architecture/data-models/" class="dropdown-item">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../journeys/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../../journeys/upload-extraction/" class="dropdown-item">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../../journeys/grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../diagrams/hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../diagrams/agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="../../diagrams/langgraph-architecture/" class="dropdown-item">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../status/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../code-tour/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                    
+<li>
+    <a href="../../kaggle-writeup/" class="dropdown-item">Kaggle Writeup</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../../hitl-ui/api/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" href="../../events-py/api/" class="nav-link">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/libs/shared/docs/api/index.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#api-reference-for-shared" class="nav-link">API Reference for shared</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#shared" class="nav-link">shared</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#shared-classes" class="nav-link">Classes</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#shared-functions" class="nav-link">Functions</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#shared-modules" class="nav-link">Modules</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="api-reference-for-shared">API Reference for shared<a class="headerlink" href="#api-reference-for-shared" title="Permanent link">&para;</a></h1>
+
+
+<div class="doc doc-object doc-module">
+
+
+
+<h2 id="shared" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">shared</span>
+
+
+<a href="#shared" class="headerlink" title="Permanent link">&para;</a></h2>
+
+    <div class="doc doc-contents first">
+
+        <p>Shared models, utilities, and canonical prompt templates.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h3 id="shared-classes">Classes<a href="#shared-classes" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h4 id="shared.AuthExpiredError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AuthExpiredError</span>
+
+
+<a href="#shared.AuthExpiredError" class="headerlink" title="Permanent link">&para;</a></h4>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="Exception">Exception</span></code></p>
+
+
+
+        <p>Google/application-default credentials need re-authentication.</p>
+<p>Raised when a pipeline or backend operation fails due to expired
+credentials (e.g. RefreshError). Callers should not retry; the user
+must re-authenticate (e.g. gcloud auth application-default login or
+UI login).</p>
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+<h3 id="shared-functions">Functions<a href="#shared-functions" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-function">
+
+
+<h4 id="shared.get_prompts_dir" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get_prompts_dir</span>
+
+
+<a href="#shared.get_prompts_dir" class="headerlink" title="Permanent link">&para;</a></h4>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get_prompts_dir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n"><span title="pathlib.Path">Path</span></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Return the path to the shared prompt templates directory (Jinja2 .j2 files).</p>
+<p>Use this as prompts_dir when calling inference.factory helpers so agents
+use the same templates with different prompt_vars (DRY). No duplicate
+template files in services.</p>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="pathlib.Path">Path</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Path to libs/shared/src/shared/templates/ (package data).</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/__init__.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_prompts_dir</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">Path</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the path to the shared prompt templates directory (Jinja2 .j2 files).</span>
+
+<span class="sd">    Use this as prompts_dir when calling inference.factory helpers so agents</span>
+<span class="sd">    use the same templates with different prompt_vars (DRY). No duplicate</span>
+<span class="sd">    template files in services.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Path to libs/shared/src/shared/templates/ (package data).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">Path</span><span class="p">(</span><span class="vm">__file__</span><span class="p">)</span><span class="o">.</span><span class="n">resolve</span><span class="p">()</span><span class="o">.</span><span class="n">parent</span> <span class="o">/</span> <span class="s2">&quot;templates&quot;</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+<h3 id="shared-modules">Modules<a href="#shared-modules" class="headerlink" title="Permanent link">&para;</a></h3>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h4 id="shared.exceptions" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">exceptions</span>
+
+
+<a href="#shared.exceptions" class="headerlink" title="Permanent link">&para;</a></h4>
+
+    <div class="doc doc-contents ">
+
+        <p>Shared exception types for cross-service behavior.</p>
+<p>Use these so consumers (e.g. outbox processor) can treat certain failures
+specially (e.g. do not retry on auth expiry).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h5 id="shared.exceptions-classes">Classes<a href="#shared.exceptions-classes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.exceptions.AuthExpiredError" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AuthExpiredError</span>
+
+
+<a href="#shared.exceptions.AuthExpiredError" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="Exception">Exception</span></code></p>
+
+
+
+        <p>Google/application-default credentials need re-authentication.</p>
+<p>Raised when a pipeline or backend operation fails due to expired
+credentials (e.g. RefreshError). Callers should not retry; the user
+must re-authenticate (e.g. gcloud auth application-default login or
+UI login).</p>
+
+
+
+
+
+
+
+
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h4 id="shared.lazy_cache" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">lazy_cache</span>
+
+
+<a href="#shared.lazy_cache" class="headerlink" title="Permanent link">&para;</a></h4>
+
+    <div class="doc doc-contents ">
+
+        <p>Lazy singleton decorator for expensive initializations.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h5 id="shared.lazy_cache-functions">Functions<a href="#shared.lazy_cache-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="shared.lazy_cache.lazy_singleton" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">lazy_singleton</span>
+
+
+<a href="#shared.lazy_cache.lazy_singleton" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">lazy_singleton</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">[[],</span> <span class="n"><span title="shared.lazy_cache.T">T</span></span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Callable">Callable</span></span><span class="p">[[],</span> <span class="n"><span title="shared.lazy_cache.T">T</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Decorator to lazily evaluate and cache a function result (singleton).</p>
+<p>Thread-safe implementation using a lock to prevent race conditions
+in concurrent environments.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/lazy_cache.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span>
+<span class="normal">21</span>
+<span class="normal">22</span>
+<span class="normal">23</span>
+<span class="normal">24</span>
+<span class="normal">25</span>
+<span class="normal">26</span>
+<span class="normal">27</span>
+<span class="normal">28</span>
+<span class="normal">29</span>
+<span class="normal">30</span>
+<span class="normal">31</span>
+<span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">lazy_singleton</span><span class="p">(</span><span class="n">func</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">T</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="n">T</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator to lazily evaluate and cache a function result (singleton).</span>
+
+<span class="sd">    Thread-safe implementation using a lock to prevent race conditions</span>
+<span class="sd">    in concurrent environments.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">_instance</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span>
+    <span class="n">_lock</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Lock</span><span class="p">()</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">nonlocal</span> <span class="n">_instance</span>
+        <span class="k">with</span> <span class="n">_lock</span><span class="p">:</span>
+            <span class="n">_instance</span> <span class="o">=</span> <span class="kc">None</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">wrapper</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="n">T</span><span class="p">:</span>
+        <span class="k">nonlocal</span> <span class="n">_instance</span>
+        <span class="k">if</span> <span class="n">_instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">with</span> <span class="n">_lock</span><span class="p">:</span>
+                <span class="c1"># Double-checked locking pattern</span>
+                <span class="k">if</span> <span class="n">_instance</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="n">_instance</span> <span class="o">=</span> <span class="n">func</span><span class="p">()</span>
+        <span class="k">return</span> <span class="n">cast</span><span class="p">(</span><span class="n">T</span><span class="p">,</span> <span class="n">_instance</span><span class="p">)</span>
+
+    <span class="c1"># Register this singleton&#39;s reset function</span>
+    <span class="n">_singleton_registry</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">reset</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="n">wrapper</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h4 id="shared.models" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">models</span>
+
+
+<a href="#shared.models" class="headerlink" title="Permanent link">&para;</a></h4>
+
+    <div class="doc doc-contents ">
+
+        <p>Shared data models for the clinical trial criteria extraction system.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h5 id="shared.models-classes">Classes<a href="#shared.models-classes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.ProtocolStatus" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ProtocolStatus</span>
+
+
+<a href="#shared.models.ProtocolStatus" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="str">str</span></code>, <code><span title="enum.Enum">Enum</span></code></p>
+
+
+
+        <p>Protocol processing status enum.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.Protocol" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Protocol</span>
+
+
+<a href="#shared.models.Protocol" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Uploaded clinical trial protocol PDF.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.CriteriaBatch" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CriteriaBatch</span>
+
+
+<a href="#shared.models.CriteriaBatch" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>A batch of criteria extracted from a protocol.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.Criteria" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Criteria</span>
+
+
+<a href="#shared.models.Criteria" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Individual inclusion/exclusion criterion.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.Entity" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Entity</span>
+
+
+<a href="#shared.models.Entity" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Medical entity extracted from criteria.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.Review" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">Review</span>
+
+
+<a href="#shared.models.Review" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Human review action on a criteria or entity.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.AuditLog" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AuditLog</span>
+
+
+<a href="#shared.models.AuditLog" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Immutable log of all system events.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.User" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">User</span>
+
+
+<a href="#shared.models.User" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Authenticated user account.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.AtomicCriterion" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">AtomicCriterion</span>
+
+
+<a href="#shared.models.AtomicCriterion" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Leaf node in a criterion expression tree.</p>
+<p>Represents a single atomic condition (e.g. "HbA1c &gt;= 7%") decomposed
+from a criterion's field_mappings. Links to the parent Criteria record
+and carries the OMOP concept ID for direct CDM joins.</p>
+<p>Table: atomic_criteria</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.CompositeCriterion" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CompositeCriterion</span>
+
+
+<a href="#shared.models.CompositeCriterion" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Branch node in a criterion expression tree.</p>
+<p>Represents a logical operator (AND/OR/NOT) that combines child nodes.
+Supports nested composition via parent_criterion_id self-reference.</p>
+<p>Table: composite_criteria</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.CriterionRelationship" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">CriterionRelationship</span>
+
+
+<a href="#shared.models.CriterionRelationship" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Edge in a criterion expression tree.</p>
+<p>Links a parent CompositeCriterion to a child (atomic or composite)
+via polymorphic FK. child_type discriminates between the two tables.
+child_sequence preserves operand order.</p>
+<p>Table: criterion_relationships</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.models.OutboxEvent" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">OutboxEvent</span>
+
+
+<a href="#shared.models.OutboxEvent" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="sqlmodel.SQLModel">SQLModel</span></code></p>
+
+
+
+        <p>Transactional outbox for event publishing.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h4 id="shared.omop_client" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">omop_client</span>
+
+
+<a href="#shared.omop_client" class="headerlink" title="Permanent link">&para;</a></h4>
+
+    <div class="doc doc-contents ">
+
+        <p>Client for querying OMOP Vocabulary database.</p>
+<p>Provides methods to map clinical terms to OMOP standard concepts,
+find synonyms, and retrieve concept relationships.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h5 id="shared.omop_client-classes">Classes<a href="#shared.omop_client-classes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.omop_client.OmopConcept" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">OmopConcept</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#shared.omop_client.OmopConcept" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">OmopConcept</span><span class="p">(</span>
+    <span class="n">concept_id</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">,</span>
+    <span class="n">concept_name</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">domain_id</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">vocabulary_id</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">concept_class_id</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">standard_concept</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">],</span>
+    <span class="n">concept_code</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">similarity_score</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="float">float</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>OMOP standard concept.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.omop_client.ConceptMapping" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">ConceptMapping</span>
+
+
+  <span class="doc doc-labels">
+      <small class="doc doc-label doc-label-dataclass"><code>dataclass</code></small>
+  </span>
+
+<a href="#shared.omop_client.ConceptMapping" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">ConceptMapping</span><span class="p">(</span>
+    <span class="n">query_term</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">concepts</span><span class="p">:</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="OmopConcept
+
+
+  
+      dataclass
+   (shared.omop_client.OmopConcept)" href="#shared.omop_client.OmopConcept">OmopConcept</a></span><span class="p">],</span>
+    <span class="n">mapping_method</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">confidence</span><span class="p">:</span> <span class="n"><span title="float">float</span></span><span class="p">,</span>
+<span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Result of mapping a term to OMOP concepts.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.omop_client.OmopVocabularyClient" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">OmopVocabularyClient</span>
+
+
+<a href="#shared.omop_client.OmopVocabularyClient" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">OmopVocabularyClient</span><span class="p">(</span><span class="n">database_url</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+
+
+        <p>Client for OMOP Vocabulary database queries.</p>
+
+        <p>Initialize OMOP vocabulary client.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>database_url</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>PostgreSQL connection string. If None, reads from
+OMOP_VOCAB_URL environment variable.</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+
+
+
+
+
+
+                  <details class="mkdocstrings-source">
+                    <summary>Source code in <code>libs/shared/src/shared/omop_client.py</code></summary>
+                    <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">database_url</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Initialize OMOP vocabulary client.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        database_url: PostgreSQL connection string. If None, reads from</span>
+<span class="sd">            OMOP_VOCAB_URL environment variable.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">resolved_database_url</span> <span class="o">=</span> <span class="n">database_url</span> <span class="ow">or</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;OMOP_VOCAB_URL&quot;</span><span class="p">)</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">resolved_database_url</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;OMOP_VOCAB_URL not provided and not found in environment&quot;</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">database_url</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">resolved_database_url</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">engine</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="n">Engine</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div></td></tr></table></div>
+                  </details>
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h7 id="shared.omop_client.OmopVocabularyClient-functions">Functions<a href="#shared.omop_client.OmopVocabularyClient-functions" class="headerlink" title="Permanent link">&para;</a></h7>
+
+<div class="doc doc-object doc-function">
+
+
+<h8 id="shared.omop_client.OmopVocabularyClient.map_term_to_concept" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">map_term_to_concept</span>
+
+
+<a href="#shared.omop_client.OmopVocabularyClient.map_term_to_concept" class="headerlink" title="Permanent link">&para;</a></h8>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">map_term_to_concept</span><span class="p">(</span>
+    <span class="n">term</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span>
+    <span class="n">domain</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">vocabulary</span><span class="p">:</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="n"><span title="int">int</span></span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><a class="autorefs autorefs-internal" title="ConceptMapping
+
+
+  
+      dataclass
+   (shared.omop_client.ConceptMapping)" href="#shared.omop_client.ConceptMapping">ConceptMapping</a></span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Map a clinical term to OMOP standard concepts.</p>
+<p>Tries three strategies in order:
+1. Exact match on concept name (case-insensitive)
+2. Fuzzy match using trigram similarity on concept names
+3. Fuzzy match on concept synonyms</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>term</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Clinical term to map (e.g., "diabetes", "hypertension")</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>domain</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Filter by OMOP domain (e.g., "Condition", "Measurement", "Drug")</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>vocabulary</code>
+            </td>
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Filter by vocabulary (e.g., "SNOMED", "RxNorm", "LOINC")</p>
+              </div>
+            </td>
+            <td>
+                  <code>None</code>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>limit</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Maximum number of results to return</p>
+              </div>
+            </td>
+            <td>
+                  <code>5</code>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><a class="autorefs autorefs-internal" title="ConceptMapping
+
+
+  
+      dataclass
+   (shared.omop_client.ConceptMapping)" href="#shared.omop_client.ConceptMapping">ConceptMapping</a></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>ConceptMapping with matched concepts and confidence score</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/omop_client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 63</span>
+<span class="normal"> 64</span>
+<span class="normal"> 65</span>
+<span class="normal"> 66</span>
+<span class="normal"> 67</span>
+<span class="normal"> 68</span>
+<span class="normal"> 69</span>
+<span class="normal"> 70</span>
+<span class="normal"> 71</span>
+<span class="normal"> 72</span>
+<span class="normal"> 73</span>
+<span class="normal"> 74</span>
+<span class="normal"> 75</span>
+<span class="normal"> 76</span>
+<span class="normal"> 77</span>
+<span class="normal"> 78</span>
+<span class="normal"> 79</span>
+<span class="normal"> 80</span>
+<span class="normal"> 81</span>
+<span class="normal"> 82</span>
+<span class="normal"> 83</span>
+<span class="normal"> 84</span>
+<span class="normal"> 85</span>
+<span class="normal"> 86</span>
+<span class="normal"> 87</span>
+<span class="normal"> 88</span>
+<span class="normal"> 89</span>
+<span class="normal"> 90</span>
+<span class="normal"> 91</span>
+<span class="normal"> 92</span>
+<span class="normal"> 93</span>
+<span class="normal"> 94</span>
+<span class="normal"> 95</span>
+<span class="normal"> 96</span>
+<span class="normal"> 97</span>
+<span class="normal"> 98</span>
+<span class="normal"> 99</span>
+<span class="normal">100</span>
+<span class="normal">101</span>
+<span class="normal">102</span>
+<span class="normal">103</span>
+<span class="normal">104</span>
+<span class="normal">105</span>
+<span class="normal">106</span>
+<span class="normal">107</span>
+<span class="normal">108</span>
+<span class="normal">109</span>
+<span class="normal">110</span>
+<span class="normal">111</span>
+<span class="normal">112</span>
+<span class="normal">113</span>
+<span class="normal">114</span>
+<span class="normal">115</span>
+<span class="normal">116</span>
+<span class="normal">117</span>
+<span class="normal">118</span>
+<span class="normal">119</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">map_term_to_concept</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">term</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span>
+    <span class="n">domain</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">vocabulary</span><span class="p">:</span> <span class="n">Optional</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">ConceptMapping</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Map a clinical term to OMOP standard concepts.</span>
+
+<span class="sd">    Tries three strategies in order:</span>
+<span class="sd">    1. Exact match on concept name (case-insensitive)</span>
+<span class="sd">    2. Fuzzy match using trigram similarity on concept names</span>
+<span class="sd">    3. Fuzzy match on concept synonyms</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        term: Clinical term to map (e.g., &quot;diabetes&quot;, &quot;hypertension&quot;)</span>
+<span class="sd">        domain: Filter by OMOP domain (e.g., &quot;Condition&quot;, &quot;Measurement&quot;, &quot;Drug&quot;)</span>
+<span class="sd">        vocabulary: Filter by vocabulary (e.g., &quot;SNOMED&quot;, &quot;RxNorm&quot;, &quot;LOINC&quot;)</span>
+<span class="sd">        limit: Maximum number of results to return</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        ConceptMapping with matched concepts and confidence score</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="c1"># Strategy 1: Exact match</span>
+    <span class="n">concepts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_exact_match</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">vocabulary</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">concepts</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">ConceptMapping</span><span class="p">(</span>
+            <span class="n">query_term</span><span class="o">=</span><span class="n">term</span><span class="p">,</span>
+            <span class="n">concepts</span><span class="o">=</span><span class="n">concepts</span><span class="p">,</span>
+            <span class="n">mapping_method</span><span class="o">=</span><span class="s2">&quot;exact&quot;</span><span class="p">,</span>
+            <span class="n">confidence</span><span class="o">=</span><span class="mf">1.0</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Strategy 2: Fuzzy match on concept names</span>
+    <span class="n">concepts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fuzzy_match_concept</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">vocabulary</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+    <span class="k">if</span> <span class="n">concepts</span><span class="p">:</span>
+        <span class="n">avg_score</span> <span class="o">=</span> <span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">similarity_score</span> <span class="ow">or</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">concepts</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">concepts</span><span class="p">)</span>
+        <span class="k">return</span> <span class="n">ConceptMapping</span><span class="p">(</span>
+            <span class="n">query_term</span><span class="o">=</span><span class="n">term</span><span class="p">,</span>
+            <span class="n">concepts</span><span class="o">=</span><span class="n">concepts</span><span class="p">,</span>
+            <span class="n">mapping_method</span><span class="o">=</span><span class="s2">&quot;fuzzy&quot;</span><span class="p">,</span>
+            <span class="n">confidence</span><span class="o">=</span><span class="n">avg_score</span><span class="p">,</span>
+        <span class="p">)</span>
+
+    <span class="c1"># Strategy 3: Fuzzy match on synonyms</span>
+    <span class="n">concepts</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_fuzzy_match_synonym</span><span class="p">(</span><span class="n">term</span><span class="p">,</span> <span class="n">domain</span><span class="p">,</span> <span class="n">vocabulary</span><span class="p">,</span> <span class="n">limit</span><span class="p">)</span>
+    <span class="n">avg_score</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="nb">sum</span><span class="p">(</span><span class="n">c</span><span class="o">.</span><span class="n">similarity_score</span> <span class="ow">or</span> <span class="mi">0</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="n">concepts</span><span class="p">)</span> <span class="o">/</span> <span class="nb">len</span><span class="p">(</span><span class="n">concepts</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">concepts</span>
+        <span class="k">else</span> <span class="mf">0.0</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">ConceptMapping</span><span class="p">(</span>
+        <span class="n">query_term</span><span class="o">=</span><span class="n">term</span><span class="p">,</span>
+        <span class="n">concepts</span><span class="o">=</span><span class="n">concepts</span><span class="p">,</span>
+        <span class="n">mapping_method</span><span class="o">=</span><span class="s2">&quot;synonym&quot;</span><span class="p">,</span>
+        <span class="n">confidence</span><span class="o">=</span><span class="n">avg_score</span> <span class="o">*</span> <span class="mf">0.9</span><span class="p">,</span>  <span class="c1"># Slightly lower confidence for synonym matches</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h8 id="shared.omop_client.OmopVocabularyClient.get_concept_by_code" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get_concept_by_code</span>
+
+
+<a href="#shared.omop_client.OmopVocabularyClient.get_concept_by_code" class="headerlink" title="Permanent link">&para;</a></h8>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get_concept_by_code</span><span class="p">(</span>
+    <span class="n">code</span><span class="p">:</span> <span class="n"><span title="str">str</span></span><span class="p">,</span> <span class="n">vocabulary_id</span><span class="p">:</span> <span class="n"><span title="str">str</span></span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.Optional">Optional</span></span><span class="p">[</span><span class="n"><a class="autorefs autorefs-internal" title="OmopConcept
+
+
+  
+      dataclass
+   (shared.omop_client.OmopConcept)" href="#shared.omop_client.OmopConcept">OmopConcept</a></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get concept by external code (e.g., SNOMED code).</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>code</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>External concept code (e.g., "201826" for SNOMED)</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+          <tr class="doc-section-item">
+            <td>
+                <code>vocabulary_id</code>
+            </td>
+            <td>
+                  <code><span title="str">str</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>Vocabulary system (e.g., "SNOMED", "RxNorm")</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="typing.Optional">Optional</span>[<a class="autorefs autorefs-internal" title="OmopConcept
+
+
+  
+      dataclass
+   (shared.omop_client.OmopConcept)" href="#shared.omop_client.OmopConcept">OmopConcept</a>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>OmopConcept if found, None otherwise</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/omop_client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_concept_by_code</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span> <span class="n">code</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">vocabulary_id</span><span class="p">:</span> <span class="nb">str</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Optional</span><span class="p">[</span><span class="n">OmopConcept</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get concept by external code (e.g., SNOMED code).</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        code: External concept code (e.g., &quot;201826&quot; for SNOMED)</span>
+<span class="sd">        vocabulary_id: Vocabulary system (e.g., &quot;SNOMED&quot;, &quot;RxNorm&quot;)</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        OmopConcept if found, None otherwise</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT</span>
+<span class="s2">            concept_id,</span>
+<span class="s2">            concept_name,</span>
+<span class="s2">            domain_id,</span>
+<span class="s2">            vocabulary_id,</span>
+<span class="s2">            concept_class_id,</span>
+<span class="s2">            standard_concept,</span>
+<span class="s2">            concept_code</span>
+<span class="s2">        FROM concept</span>
+<span class="s2">        WHERE concept_code = :code</span>
+<span class="s2">          AND vocabulary_id = :vocabulary_id</span>
+<span class="s2">          AND invalid_reason IS NULL</span>
+<span class="s2">        LIMIT 1</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+
+    <span class="n">engine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_engine</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">engine</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;code&quot;</span><span class="p">:</span> <span class="n">code</span><span class="p">,</span> <span class="s2">&quot;vocabulary_id&quot;</span><span class="p">:</span> <span class="n">vocabulary_id</span><span class="p">})</span>
+        <span class="n">row</span> <span class="o">=</span> <span class="n">result</span><span class="o">.</span><span class="n">fetchone</span><span class="p">()</span>
+        <span class="k">if</span> <span class="n">row</span><span class="p">:</span>
+            <span class="k">return</span> <span class="n">OmopConcept</span><span class="p">(</span>
+                <span class="n">concept_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">concept_id</span><span class="p">,</span>
+                <span class="n">concept_name</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">concept_name</span><span class="p">,</span>
+                <span class="n">domain_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">domain_id</span><span class="p">,</span>
+                <span class="n">vocabulary_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">vocabulary_id</span><span class="p">,</span>
+                <span class="n">concept_class_id</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">concept_class_id</span><span class="p">,</span>
+                <span class="n">standard_concept</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">standard_concept</span><span class="p">,</span>
+                <span class="n">concept_code</span><span class="o">=</span><span class="n">row</span><span class="o">.</span><span class="n">concept_code</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="k">return</span> <span class="kc">None</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h8 id="shared.omop_client.OmopVocabularyClient.get_concept_synonyms" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">get_concept_synonyms</span>
+
+
+<a href="#shared.omop_client.OmopVocabularyClient.get_concept_synonyms" class="headerlink" title="Permanent link">&para;</a></h8>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">get_concept_synonyms</span><span class="p">(</span><span class="n">concept_id</span><span class="p">:</span> <span class="n"><span title="int">int</span></span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n"><span title="typing.List">List</span></span><span class="p">[</span><span class="n"><span title="str">str</span></span><span class="p">]</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Get all synonyms for a concept.</p>
+
+
+<p><span class="doc-section-title">Parameters:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                <code>concept_id</code>
+            </td>
+            <td>
+                  <code><span title="int">int</span></code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>OMOP concept_id</p>
+              </div>
+            </td>
+            <td>
+                <em>required</em>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+    <p><span class="doc-section-title">Returns:</span></p>
+    <table>
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Description</th>
+        </tr>
+      </thead>
+      <tbody>
+          <tr class="doc-section-item">
+            <td>
+                  <code><span title="typing.List">List</span>[<span title="str">str</span>]</code>
+            </td>
+            <td>
+              <div class="doc-md-description">
+                <p>List of synonym strings</p>
+              </div>
+            </td>
+          </tr>
+      </tbody>
+    </table>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/omop_client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">324</span>
+<span class="normal">325</span>
+<span class="normal">326</span>
+<span class="normal">327</span>
+<span class="normal">328</span>
+<span class="normal">329</span>
+<span class="normal">330</span>
+<span class="normal">331</span>
+<span class="normal">332</span>
+<span class="normal">333</span>
+<span class="normal">334</span>
+<span class="normal">335</span>
+<span class="normal">336</span>
+<span class="normal">337</span>
+<span class="normal">338</span>
+<span class="normal">339</span>
+<span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">get_concept_synonyms</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">concept_id</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">List</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Get all synonyms for a concept.</span>
+
+<span class="sd">    Args:</span>
+<span class="sd">        concept_id: OMOP concept_id</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        List of synonym strings</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">query</span> <span class="o">=</span> <span class="n">text</span><span class="p">(</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        SELECT DISTINCT concept_synonym_name</span>
+<span class="s2">        FROM concept_synonym</span>
+<span class="s2">        WHERE concept_id = :concept_id</span>
+<span class="s2">        ORDER BY concept_synonym_name</span>
+<span class="s2">    &quot;&quot;&quot;</span><span class="p">)</span>
+
+    <span class="n">engine</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_get_engine</span><span class="p">()</span>
+    <span class="k">with</span> <span class="n">engine</span><span class="o">.</span><span class="n">connect</span><span class="p">()</span> <span class="k">as</span> <span class="n">conn</span><span class="p">:</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">conn</span><span class="o">.</span><span class="n">execute</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;concept_id&quot;</span><span class="p">:</span> <span class="n">concept_id</span><span class="p">})</span>
+        <span class="k">return</span> <span class="p">[</span><span class="n">row</span><span class="o">.</span><span class="n">concept_synonym_name</span> <span class="k">for</span> <span class="n">row</span> <span class="ow">in</span> <span class="n">result</span><span class="p">]</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+<h8 id="shared.omop_client.OmopVocabularyClient.close" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">close</span>
+
+
+<a href="#shared.omop_client.OmopVocabularyClient.close" class="headerlink" title="Permanent link">&para;</a></h8>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">close</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Close database connection.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/omop_client.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">345</span>
+<span class="normal">346</span>
+<span class="normal">347</span>
+<span class="normal">348</span>
+<span class="normal">349</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">close</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Close database connection.&quot;&quot;&quot;</span>
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">engine</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">engine</span><span class="o">.</span><span class="n">dispose</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">engine</span> <span class="o">=</span> <span class="kc">None</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h4 id="shared.resilience" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">resilience</span>
+
+
+<a href="#shared.resilience" class="headerlink" title="Permanent link">&para;</a></h4>
+
+    <div class="doc doc-contents ">
+
+        <p>Shared resilience patterns: circuit breakers and retry helpers.</p>
+<p>Per-service circuit breakers for GCS, Gemini, UMLS MCP, and Vertex AI.
+Each breaker trips after 3 consecutive failures (per CONTEXT.md decision)
+and recovers after 60 seconds (Claude's discretion).</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+<h5 id="shared.resilience-classes">Classes<a href="#shared.resilience-classes" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-class">
+
+
+
+<h6 id="shared.resilience.MLflowCircuitBreakerListener" class="doc doc-heading">
+            <span class="doc doc-object-name doc-class-name">MLflowCircuitBreakerListener</span>
+
+
+<a href="#shared.resilience.MLflowCircuitBreakerListener" class="headerlink" title="Permanent link">&para;</a></h6>
+
+
+    <div class="doc doc-contents ">
+            <p class="doc doc-class-bases">
+              Bases: <code><span title="pybreaker.CircuitBreakerListener">CircuitBreakerListener</span></code></p>
+
+
+
+        <p>Log circuit breaker state changes to MLflow.</p>
+<p>Records when breakers trip (open), recover (half_open -&gt; closed),
+or probe (half_open). Safe no-op if MLflow unavailable.</p>
+
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h7 id="shared.resilience.MLflowCircuitBreakerListener-functions">Functions<a href="#shared.resilience.MLflowCircuitBreakerListener-functions" class="headerlink" title="Permanent link">&para;</a></h7>
+
+<div class="doc doc-object doc-function">
+
+
+<h8 id="shared.resilience.MLflowCircuitBreakerListener.state_change" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">state_change</span>
+
+
+<a href="#shared.resilience.MLflowCircuitBreakerListener.state_change" class="headerlink" title="Permanent link">&para;</a></h8>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">state_change</span><span class="p">(</span>
+    <span class="n">cb</span><span class="p">:</span> <span class="n"><span title="pybreaker.CircuitBreaker">CircuitBreaker</span></span><span class="p">,</span>
+    <span class="n">old_state</span><span class="p">:</span> <span class="n"><span title="pybreaker.CircuitBreakerState">CircuitBreakerState</span></span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">new_state</span><span class="p">:</span> <span class="n"><span title="pybreaker.CircuitBreakerState">CircuitBreakerState</span></span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Handle circuit breaker state change by logging to MLflow.</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/resilience.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">32</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span>
+<span class="normal">37</span>
+<span class="normal">38</span>
+<span class="normal">39</span>
+<span class="normal">40</span>
+<span class="normal">41</span>
+<span class="normal">42</span>
+<span class="normal">43</span>
+<span class="normal">44</span>
+<span class="normal">45</span>
+<span class="normal">46</span>
+<span class="normal">47</span>
+<span class="normal">48</span>
+<span class="normal">49</span>
+<span class="normal">50</span>
+<span class="normal">51</span>
+<span class="normal">52</span>
+<span class="normal">53</span>
+<span class="normal">54</span>
+<span class="normal">55</span>
+<span class="normal">56</span>
+<span class="normal">57</span>
+<span class="normal">58</span>
+<span class="normal">59</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">state_change</span><span class="p">(</span>
+    <span class="bp">self</span><span class="p">,</span>
+    <span class="n">cb</span><span class="p">:</span> <span class="n">CircuitBreaker</span><span class="p">,</span>
+    <span class="n">old_state</span><span class="p">:</span> <span class="n">CircuitBreakerState</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span>
+    <span class="n">new_state</span><span class="p">:</span> <span class="n">CircuitBreakerState</span><span class="p">,</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Handle circuit breaker state change by logging to MLflow.&quot;&quot;&quot;</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="kn">import</span><span class="w"> </span><span class="nn">mlflow</span>
+
+        <span class="n">tracking_uri</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">getenv</span><span class="p">(</span><span class="s2">&quot;MLFLOW_TRACKING_URI&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">tracking_uri</span><span class="p">:</span>
+            <span class="k">return</span>
+
+        <span class="k">with</span> <span class="n">mlflow</span><span class="o">.</span><span class="n">start_span</span><span class="p">(</span>
+            <span class="n">name</span><span class="o">=</span><span class="sa">f</span><span class="s2">&quot;circuit_breaker_</span><span class="si">{</span><span class="n">cb</span><span class="o">.</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">,</span>
+            <span class="n">span_type</span><span class="o">=</span><span class="s2">&quot;TOOL&quot;</span><span class="p">,</span>
+        <span class="p">)</span> <span class="k">as</span> <span class="n">span</span><span class="p">:</span>
+            <span class="n">span</span><span class="o">.</span><span class="n">set_inputs</span><span class="p">(</span>
+                <span class="p">{</span>
+                    <span class="s2">&quot;service&quot;</span><span class="p">:</span> <span class="n">cb</span><span class="o">.</span><span class="n">name</span><span class="p">,</span>
+                    <span class="s2">&quot;old_state&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">old_state</span><span class="p">),</span>
+                    <span class="s2">&quot;new_state&quot;</span><span class="p">:</span> <span class="nb">str</span><span class="p">(</span><span class="n">new_state</span><span class="p">),</span>
+                    <span class="s2">&quot;fail_counter&quot;</span><span class="p">:</span> <span class="n">cb</span><span class="o">.</span><span class="n">fail_counter</span><span class="p">,</span>
+                <span class="p">}</span>
+            <span class="p">)</span>
+    <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
+        <span class="n">logger</span><span class="o">.</span><span class="n">debug</span><span class="p">(</span><span class="s2">&quot;MLflow circuit breaker logging failed&quot;</span><span class="p">,</span> <span class="n">exc_info</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+<div class="doc doc-object doc-module">
+
+
+
+<h4 id="shared.warnings_config" class="doc doc-heading">
+            <span class="doc doc-object-name doc-module-name">warnings_config</span>
+
+
+<a href="#shared.warnings_config" class="headerlink" title="Permanent link">&para;</a></h4>
+
+    <div class="doc doc-contents ">
+
+        <p>Centralized warning filters to keep console and logs clean.</p>
+
+
+
+
+
+
+
+
+
+
+<div class="doc doc-children">
+
+
+
+
+
+
+
+
+<h5 id="shared.warnings_config-functions">Functions<a href="#shared.warnings_config-functions" class="headerlink" title="Permanent link">&para;</a></h5>
+
+<div class="doc doc-object doc-function">
+
+
+<h6 id="shared.warnings_config.suppress_google_genai_deprecations" class="doc doc-heading">
+            <span class="doc doc-object-name doc-function-name">suppress_google_genai_deprecations</span>
+
+
+<a href="#shared.warnings_config.suppress_google_genai_deprecations" class="headerlink" title="Permanent link">&para;</a></h6>
+<div class="doc-signature highlight"><pre><span></span><code><span class="nf">suppress_google_genai_deprecations</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span>
+</code></pre></div>
+
+    <div class="doc doc-contents ">
+
+        <p>Ignore known noisy deprecation warnings from the google-genai SDK.</p>
+<p>Call once at application or script startup so logs are not polluted by
+third-party warnings (e.g. AiohttpClientSession inheritance).</p>
+
+
+            <details class="mkdocstrings-source">
+              <summary>Source code in <code>libs/shared/src/shared/warnings_config.py</code></summary>
+              <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span>
+<span class="normal">17</span>
+<span class="normal">18</span>
+<span class="normal">19</span>
+<span class="normal">20</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">suppress_google_genai_deprecations</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Ignore known noisy deprecation warnings from the google-genai SDK.</span>
+
+<span class="sd">    Call once at application or script startup so logs are not polluted by</span>
+<span class="sd">    third-party warnings (e.g. AiohttpClientSession inheritance).</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">warnings</span><span class="o">.</span><span class="n">filterwarnings</span><span class="p">(</span>
+        <span class="s2">&quot;ignore&quot;</span><span class="p">,</span>
+        <span class="n">message</span><span class="o">=</span><span class="p">(</span>
+            <span class="s2">&quot;Inheritance class AiohttpClientSession from ClientSession is discouraged&quot;</span>
+        <span class="p">),</span>
+        <span class="n">category</span><span class="o">=</span><span class="ne">DeprecationWarning</span><span class="p">,</span>
+    <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+            </details>
+    </div>
+
+</div>
+
+
+
+  </div>
+
+    </div>
+
+</div>
+
+
+  </div>
+
+    </div>
+
+</div></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "../..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../../assets/mermaid-init.js"></script>
+        <script src="../../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>

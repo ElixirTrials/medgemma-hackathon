@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        
+        <meta name="author" content="ElixirTrials">
+        <link rel="canonical" href="https://noahdolevelixir.github.io/medgemma-hackathon/kaggle-writeup/">
+        <link rel="shortcut icon" href="../img/favicon.ico">
+        <title>Kaggle Writeup - GemmaCrit — Clinical Trial Criteria Extraction</title>
+        <link href="../css/bootstrap.min.css" rel="stylesheet">
+        <link href="../css/fontawesome.min.css" rel="stylesheet">
+        <link href="../css/brands.min.css" rel="stylesheet">
+        <link href="../css/solid.min.css" rel="stylesheet">
+        <link href="../css/v4-font-face.min.css" rel="stylesheet">
+        <link href="../css/base.css" rel="stylesheet">
+        <link id="hljs-light" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github.min.css" >
+        <link id="hljs-dark" rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/github-dark.min.css" disabled>
+        <link href="../assets/_mkdocstrings.css" rel="stylesheet">
+        <link href="../assets/custom.css" rel="stylesheet">
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+        <script>hljs.highlightAll();</script> 
+    </head>
+
+    <body>
+        <div class="navbar fixed-top navbar-expand-lg navbar-dark bg-primary">
+            <div class="container">
+                <a class="navbar-brand" href="..">GemmaCrit — Clinical Trial Criteria Extraction</a>
+                <!-- Expander button -->
+                <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbar-collapse" aria-controls="navbar-collapse" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+
+                <!-- Expanded navigation -->
+                <div id="navbar-collapse" class="navbar-collapse collapse">
+                        <!-- Main navigation -->
+                        <ul class="nav navbar-nav">
+                            <li class="nav-item">
+                                <a href=".." class="nav-link">Home</a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="../onboarding/" class="nav-link">Onboarding</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Architecture</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../architecture/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../architecture/system-architecture/" class="dropdown-item">System Architecture</a>
+</li>
+                                    
+<li>
+    <a href="../architecture/data-models/" class="dropdown-item">Data Models</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">User Journeys</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../journeys/" class="dropdown-item">Overview</a>
+</li>
+                                    
+<li>
+    <a href="../journeys/upload-extraction/" class="dropdown-item">Upload & Extraction</a>
+</li>
+                                    
+<li>
+    <a href="../journeys/grounding-review/" class="dropdown-item">Grounding, Structuring & HITL Review</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Components</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../components/" class="dropdown-item">Overview</a>
+</li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">api-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../api-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">protocol-processor-service</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../protocol-processor-service/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">hitl-ui</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../hitl-ui/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">shared</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../shared/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">events-py</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../events-py/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">data-pipeline</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../data-pipeline/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">evaluation</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../evaluation/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">inference</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../inference/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                    
+  <li class="dropdown-submenu">
+    <a href="#" class="dropdown-item">model-training</a>
+    <ul class="dropdown-menu">
+            
+<li>
+    <a href="../model-training/api/" class="dropdown-item">API Reference</a>
+</li>
+    </ul>
+  </li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Diagrams</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../diagrams/hitl-flow/" class="dropdown-item">HITL Flow</a>
+</li>
+                                    
+<li>
+    <a href="../diagrams/agent-flow/" class="dropdown-item">Agent Flow</a>
+</li>
+                                    
+<li>
+    <a href="../diagrams/langgraph-architecture/" class="dropdown-item">LangGraph Pipeline</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Status</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../status/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Code Tour</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../code-tour/" class="dropdown-item">Overview</a>
+</li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle active" aria-current="page" role="button" data-bs-toggle="dropdown"  aria-expanded="false">Guides</a>
+                                <ul class="dropdown-menu">
+                                    
+<li>
+    <a href="../testing-guide/" class="dropdown-item">Testing Guide</a>
+</li>
+                                    
+<li>
+    <a href="../development/gemini-vertex-auth/" class="dropdown-item">Gemini & Vertex Auth</a>
+</li>
+                                    
+<li>
+    <a href="../jinja2-prompts/" class="dropdown-item">Jinja2 Prompts Reference</a>
+</li>
+                                    
+<li>
+    <a href="./" class="dropdown-item active" aria-current="page">Kaggle Writeup</a>
+</li>
+                                </ul>
+                            </li>
+                        </ul>
+
+                    <ul class="nav navbar-nav ms-md-auto">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="modal" data-bs-target="#mkdocs_search_modal">
+                                <i class="fa fa-search"></i> Search
+                            </a>
+                        </li>
+                            <li class="nav-item">
+                                <a rel="prev" href="../jinja2-prompts/" class="nav-link">
+                                    <i class="fa fa-arrow-left"></i> Previous
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a rel="next" class="nav-link disabled">
+                                    Next <i class="fa fa-arrow-right"></i>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a href="https://github.com/noahdolevelixir/medgemma-hackathon/edit/main/docs/kaggle-writeup.md" class="nav-link">Edit on noahdolevelixir/medgemma-hackathon
+                                    </a>
+                            </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="container">
+            <div class="row">
+                    <div class="col-md-3"><div class="navbar-expand-md bs-sidebar hidden-print affix" role="complementary">
+    <div class="navbar-header">
+        <button type="button" class="navbar-toggler collapsed" data-bs-toggle="collapse" data-bs-target="#toc-collapse" title="Table of Contents">
+            <span class="fa fa-angle-down"></span>
+        </button>
+    </div>
+
+    
+    <div id="toc-collapse" class="navbar-collapse collapse card bg-body-tertiary">
+        <ul class="nav flex-column">
+            
+            <li class="nav-item" data-bs-level="1"><a href="#gemmacrit-ai-powered-clinical-trial-eligibility-criteria-extraction" class="nav-link">GemmaCrit: AI-Powered Clinical Trial Eligibility Criteria Extraction</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="2"><a href="#your-team" class="nav-link">Your Team</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#problem-statement" class="nav-link">Problem Statement</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#overall-solution-effective-use-of-hai-def-models" class="nav-link">Overall Solution: Effective Use of HAI-DEF Models</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="2"><a href="#technical-details" class="nav-link">Technical Details</a>
+              <ul class="nav flex-column">
+            <li class="nav-item" data-bs-level="3"><a href="#pipeline-architecture" class="nav-link">Pipeline Architecture</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#user-facing-application" class="nav-link">User-Facing Application</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#deployment" class="nav-link">Deployment</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#agentic-workflow-prize-justification" class="nav-link">Agentic Workflow Prize Justification</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+            <li class="nav-item" data-bs-level="3"><a href="#impact-potential" class="nav-link">Impact Potential</a>
+              <ul class="nav flex-column">
+              </ul>
+            </li>
+              </ul>
+            </li>
+              </ul>
+            </li>
+        </ul>
+    </div>
+</div></div>
+                    <div class="col-md-9" role="main">
+
+<h1 id="gemmacrit-ai-powered-clinical-trial-eligibility-criteria-extraction">GemmaCrit: AI-Powered Clinical Trial Eligibility Criteria Extraction<a class="headerlink" href="#gemmacrit-ai-powered-clinical-trial-eligibility-criteria-extraction" title="Permanent link">&para;</a></h1>
+<p><strong>GemmaCrit</strong> is by <strong>ElixirTrials</strong>.</p>
+<h2 id="your-team">Your Team<a class="headerlink" href="#your-team" title="Permanent link">&para;</a></h2>
+<p><strong>Noah Dolev</strong> (noah@elixirtrials.com) &mdash; Software engineering, AI pipeline architecture, system design
+<strong>Maxime Gendre</strong> (maxime@elixirtrials.com) &mdash; Clinical informatics, terminology grounding, product design</p>
+<p><strong>Special Award Track</strong>: Agentic Workflow Prize</p>
+<hr />
+<h2 id="problem-statement">Problem Statement<a class="headerlink" href="#problem-statement" title="Permanent link">&para;</a></h2>
+<p>Clinical trial eligibility criteria are buried in unstructured PDF protocols. Manually extracting, coding, and structuring these criteria takes <strong>40+ hours per trial</strong>. With over 300,000 active trials on ClinicalTrials.gov, this bottleneck directly delays:</p>
+<ul>
+<li><strong>Cohort identification</strong> for observational studies using OHDSI/OMOP networks</li>
+<li><strong>Patient-trial matching</strong> for recruitment optimization</li>
+<li><strong>Feasibility analysis</strong> for site selection and protocol design</li>
+</ul>
+<p>The users are <strong>clinical informaticists, trial coordinators, and OHDSI researchers</strong> who need structured, standards-coded eligibility criteria to query patient databases. Today they manually read protocols, identify criteria, look up terminology codes, and build cohort definitions &mdash; a tedious, error-prone process that demands both clinical expertise and informatics knowledge.</p>
+<p><strong>With GemmaCrit</strong>: Upload a protocol PDF, review AI-extracted criteria in a split-pane interface, approve or correct, and export to OHDSI CIRCE, FHIR R4, or OMOP SQL &mdash; reducing the process from days to minutes.</p>
+<hr />
+<h2 id="overall-solution-effective-use-of-hai-def-models">Overall Solution: Effective Use of HAI-DEF Models<a class="headerlink" href="#overall-solution-effective-use-of-hai-def-models" title="Permanent link">&para;</a></h2>
+<p>GemmaCrit uses a <strong>two-model architecture</strong> built around MedGemma 4B-IT and Gemini 2.5 Flash:</p>
+<p><strong>MedGemma 4B-IT</strong> (<code>google/medgemma-4b-it</code>) serves as the <strong>medical reasoning agent</strong>. For each extracted entity, MedGemma evaluates terminology candidates from 6 vocabulary systems (UMLS, SNOMED CT, LOINC, RxNorm, ICD-10, HPO) and selects the best match with confidence scoring and clinical reasoning.</p>
+<p>When initial grounding confidence is low (&lt; 0.5), MedGemma enters an <strong>agentic retry loop</strong>, asking three reasoning questions:
+1. Is this a valid medical criterion (or should it be skipped)?
+2. Is this a derived entity mapping to a more standard concept?
+3. Can this entity be rephrased for better terminology search?</p>
+<p>This loop runs up to 3 attempts, with MedGemma reformulating queries and retrying grounding at each step. Entities that exhaust all attempts are routed to expert review.</p>
+<p><strong>Gemini 2.5 Flash</strong> handles PDF extraction (structured output from protocol documents) and structures MedGemma's free-form reasoning into validated Pydantic models.</p>
+<p><strong>Why MedGemma over alternatives</strong>: General-purpose LLMs lack biomedical domain knowledge needed to distinguish between similar medical concepts (e.g., differentiating NYHA Class III from ECOG Performance Status 3). MedGemma's biomedical training provides the domain expertise that makes accurate terminology grounding possible. Its open-weight design also enables local deployment with 4-bit quantization, preserving patient data privacy.</p>
+<hr />
+<h2 id="technical-details">Technical Details<a class="headerlink" href="#technical-details" title="Permanent link">&para;</a></h2>
+<h3 id="pipeline-architecture">Pipeline Architecture<a class="headerlink" href="#pipeline-architecture" title="Permanent link">&para;</a></h3>
+<p>A <strong>7-node LangGraph StateGraph</strong> with PostgreSQL checkpointing:</p>
+<p><code>ingest</code> &rarr; <code>extract</code> &rarr; <code>parse</code> &rarr; <code>ground</code> &rarr; <code>persist</code> &rarr; <code>structure</code> &rarr; <code>ordinal_resolve</code></p>
+<p>Each node is checkpointed, enabling resume-from-failure. The ground node runs <strong>dual grounding</strong> (TerminologyRouter + OMOP mapper) in parallel per entity with semaphore-controlled concurrency.</p>
+<h3 id="user-facing-application">User-Facing Application<a class="headerlink" href="#user-facing-application" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>React/Vite frontend</strong> with split-pane PDF viewer and criteria review interface</li>
+<li><strong>FastAPI backend</strong> with auth, protocol management, batch review, and export endpoints</li>
+<li><strong>Three export formats</strong>: OHDSI CIRCE JSON (cohort definition), FHIR R4 Group (interoperability), OMOP CDM SQL (direct database query)</li>
+</ul>
+<h3 id="deployment">Deployment<a class="headerlink" href="#deployment" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Docker Compose</strong> for full-stack local deployment (PostgreSQL, API, UI, MLflow)</li>
+<li><strong>Vertex AI</strong> for production MedGemma inference</li>
+<li><strong>Local GPU</strong> with 4-bit quantization for privacy-preserving deployment (8 GB VRAM)</li>
+<li><strong>MLflow</strong> for experiment tracking and pipeline tracing</li>
+</ul>
+<h3 id="agentic-workflow-prize-justification">Agentic Workflow Prize Justification<a class="headerlink" href="#agentic-workflow-prize-justification" title="Permanent link">&para;</a></h3>
+<p>GemmaCrit is a textbook agentic workflow:
+- <strong>Autonomous multi-step processing</strong>: 7 LangGraph nodes with conditional error routing
+- <strong>AI decision-making</strong>: MedGemma autonomously evaluates and selects terminology matches
+- <strong>Tool use</strong>: TerminologyRouter dispatches to 6 vocabulary APIs; OMOP mapper queries CDM concepts
+- <strong>Feedback loops</strong>: 3-question reasoning retry with query reformulation
+- <strong>Human-in-the-loop</strong>: Clinician review interface as the final safety gate
+- <strong>Error recovery</strong>: Entity-level error accumulation, expert review escalation, checkpoint resume</p>
+<h3 id="impact-potential">Impact Potential<a class="headerlink" href="#impact-potential" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Time savings</strong>: 40+ hours manual &rarr; ~5 minutes automated per protocol</li>
+<li><strong>Scale</strong>: 300,000+ active trials globally, with thousands of new protocols annually</li>
+<li><strong>Downstream value</strong>: Standards-ready outputs (CIRCE, FHIR, OMOP SQL) plug directly into the OHDSI network serving 800+ data partners across 80+ countries</li>
+<li><strong>Privacy</strong>: Local MedGemma deployment enables processing of sensitive protocol data without cloud dependencies</li>
+</ul>
+<p><strong>Code repository</strong>: <a href="https://github.com/ElixirTrials/medgemma-hackathon">github.com/ElixirTrials/medgemma-hackathon</a></p></div>
+            </div>
+        </div>
+
+        <footer class="col-md-12">
+            <hr>
+            <p>Documentation built with <a href="https://www.mkdocs.org/">MkDocs</a>.</p>
+        </footer>
+        <script src="../js/bootstrap.bundle.min.js"></script>
+        <script>
+            var base_url = "..",
+                shortcuts = {"help": 191, "next": 78, "previous": 80, "search": 83};
+        </script>
+        <script src="../js/base.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+        <script src="../assets/mermaid-init.js"></script>
+        <script src="../search/main.js"></script>
+
+        <div class="modal" id="mkdocs_search_modal" tabindex="-1" role="dialog" aria-labelledby="searchModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="searchModalLabel">Search</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>From here you can search these documents. Enter your search terms below.</p>
+                <form>
+                    <div class="form-group">
+                        <input type="search" class="form-control" placeholder="Search..." id="mkdocs-search-query" title="Type search term here">
+                    </div>
+                </form>
+                <div id="mkdocs-search-results" data-no-results-text="No results found"></div>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div><div class="modal" id="mkdocs_keyboard_modal" tabindex="-1" role="dialog" aria-labelledby="keyboardModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="keyboardModalLabel">Keyboard Shortcuts</h4>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th style="width: 20%;">Keys</th>
+                    <th>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="help shortcut"><kbd>?</kbd></td>
+                    <td>Open this help</td>
+                  </tr>
+                  <tr>
+                    <td class="next shortcut"><kbd>n</kbd></td>
+                    <td>Next page</td>
+                  </tr>
+                  <tr>
+                    <td class="prev shortcut"><kbd>p</kbd></td>
+                    <td>Previous page</td>
+                  </tr>
+                  <tr>
+                    <td class="search shortcut"><kbd>s</kbd></td>
+                    <td>Search</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="modal-footer">
+            </div>
+        </div>
+    </div>
+</div>
+
+    </body>
+</html>
