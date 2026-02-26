@@ -3,7 +3,7 @@
   "checkpoint_id": "0d42482b61cc",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "Makefile",
     "libs/shared/src/shared/warnings_config.py",
@@ -25,13 +25,20 @@
       "context": "",
       "content_hash": "/0d/42482b61cc/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/0d/42482b61cc/1/metadata.json",
+      "transcript": "/0d/42482b61cc/1/full.jsonl",
+      "context": "/0d/42482b61cc/1/context.md",
+      "content_hash": "/0d/42482b61cc/1/content_hash.txt",
+      "prompt": "/0d/42482b61cc/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 63,
+    "cache_creation_tokens": 75222,
+    "cache_read_tokens": 3145193,
+    "output_tokens": 9431,
+    "api_call_count": 55
   }
 }
