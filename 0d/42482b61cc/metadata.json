@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0d42482b61cc",
+  "strategy": "manual-commit",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "Makefile",
+    "libs/shared/src/shared/warnings_config.py",
+    "scripts/check_adc.py",
+    "scripts/deploy_api.sh",
+    "scripts/deploy_frontend.sh",
+    "scripts/validate_grounding_fixes.py",
+    "services/api-service/src/api_service/auth.py",
+    "tests/e2e/prompt_variant_results/variant_d_hypothesis.md",
+    "tests/e2e/prompt_variant_results/variant_experiment.json",
+    "tests/e2e/prompt_variants.py",
+    "tests/e2e/run_variant_experiment.py",
+    "tests/e2e/test_snippets.json"
+  ],
+  "sessions": [
+    {
+      "metadata": "/0d/42482b61cc/0/metadata.json",
+      "transcript": "/0d/42482b61cc/0/full.jsonl",
+      "context": "",
+      "content_hash": "/0d/42482b61cc/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
