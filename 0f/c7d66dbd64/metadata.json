@@ -3,7 +3,7 @@
   "checkpoint_id": "0fc7d66dbd64",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/tools/entity_decomposer.py",
     "services/protocol-processor-service/src/protocol_processor/tools/field_mapper.py",
@@ -32,13 +32,20 @@
       "context": "/0f/c7d66dbd64/2/context.md",
       "content_hash": "/0f/c7d66dbd64/2/content_hash.txt",
       "prompt": "/0f/c7d66dbd64/2/prompt.txt"
+    },
+    {
+      "metadata": "/0f/c7d66dbd64/3/metadata.json",
+      "transcript": "/0f/c7d66dbd64/3/full.jsonl",
+      "context": "/0f/c7d66dbd64/3/context.md",
+      "content_hash": "/0f/c7d66dbd64/3/content_hash.txt",
+      "prompt": "/0f/c7d66dbd64/3/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3110,
-    "cache_creation_tokens": 192381,
-    "cache_read_tokens": 7573684,
-    "output_tokens": 26519,
-    "api_call_count": 121
+    "input_tokens": 3272,
+    "cache_creation_tokens": 540511,
+    "cache_read_tokens": 22134395,
+    "output_tokens": 74037,
+    "api_call_count": 263
   }
 }
