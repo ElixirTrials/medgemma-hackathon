@@ -1,0 +1,44 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "0d42482b61cc",
+  "session_id": "c364085b-cc27-4636-a6b4-3351747a23fd",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T15:57:14.818809Z",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "scripts/deploy_frontend.sh",
+    "scripts/validate_grounding_fixes.py",
+    "services/api-service/src/api_service/auth.py",
+    "tests/e2e/prompt_variant_results/variant_d_hypothesis.md",
+    "tests/e2e/prompt_variant_results/variant_experiment.json",
+    "libs/shared/src/shared/warnings_config.py",
+    "tests/e2e/prompt_variants.py",
+    "tests/e2e/run_variant_experiment.py",
+    "tests/e2e/test_snippets.json",
+    "Makefile",
+    "scripts/check_adc.py",
+    "scripts/deploy_api.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a8b0f725c922",
+  "checkpoint_transcript_start": 2,
+  "transcript_lines_at_start": 2,
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T15:57:14.798574Z",
+    "agent_lines": 1508,
+    "human_added": 208,
+    "human_modified": 5,
+    "human_removed": 0,
+    "total_committed": 1721,
+    "agent_percentage": 87.62347472399767
+  },
+  "transcript_path": ".claude/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/c364085b-cc27-4636-a6b4-3351747a23fd.jsonl"
+}
