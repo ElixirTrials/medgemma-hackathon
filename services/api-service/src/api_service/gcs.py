@@ -134,7 +134,8 @@ def _get_signing_credentials() -> tuple[Any, str | None]:
     We detect this and use IAM-based signing via the service account email.
 
     Returns:
-        (credentials, service_account_email) — email is None for local/SA key credentials.
+        (credentials, service_account_email) — email is None
+        for local/SA key credentials.
     """
     import google.auth
 
