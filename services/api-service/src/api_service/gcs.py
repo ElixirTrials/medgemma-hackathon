@@ -128,50 +128,10 @@ def get_gcs_client() -> Any:
 
 
 def _get_signing_kwargs(client: Any) -> dict[str, Any]:
-    """Build extra kwargs for ``generate_signed_url`` on Cloud Run.
+    """Delegate to :func:`api_service._gcs_signing.get_signing_kwargs`."""
+    from api_service._gcs_signing import get_signing_kwargs
 
-    Compute-engine credentials lack a local private key, so we must pass
-    ``service_account_email`` and a fresh ``access_token`` so the library
-    calls the IAM ``signBlob`` API instead.
-
-    Returns an empty dict when running locally with a service-account key
-    (which can sign directly).
-    """
-    import google.auth
-    import google.auth.credentials
-    import google.auth.transport.requests
-
-    # Check if the credentials can sign directly (SA key file)
-    credentials = client._credentials
-    if isinstance(credentials, google.auth.credentials.Signing):
-        return {}
-
-    # For non-signing credentials (compute engine, metadata server, user ADC),
-    # we need to use the IAM signBlob API.  Resolve the SA email from the
-    # metadata server on Cloud Run, or from the credentials object.
-    sa_email = getattr(credentials, "service_account_email", None)
-    if not sa_email:
-        # Fall back to default credentials which may expose the SA email
-        default_creds, _ = google.auth.default()
-        sa_email = getattr(default_creds, "service_account_email", None)
-        if not sa_email:
-            logger.warning(
-                "Cannot determine service account email for URL signing. "
-                "Credentials type: %s",
-                type(credentials).__name__,
-            )
-            return {}
-        credentials = default_creds
-
-    # Ensure the token is fresh
-    if not credentials.token or not credentials.valid:
-        credentials.refresh(google.auth.transport.requests.Request())
-
-    logger.info("Using IAM signing with SA: %s", sa_email)
-    return {
-        "service_account_email": sa_email,
-        "access_token": credentials.token,
-    }
+    return get_signing_kwargs(client)
 
 
 def reset_gcs_client() -> None:
