@@ -85,44 +85,6 @@ _OPERATOR_RULES_V2_EXTRA = (
     "For example, \"non-pregnant\" means Pregnancy relation='!=' value='True'."
 )
 
-# ── Variant C (Enhanced) — extends best-performing fragments ─────────────
-
-# System prompt addition targeting boolean/presence entity failures.
-# Observed failure: entities lost during grounding when the criterion is
-# complex but the entity itself is a simple boolean concept.
-_ENHANCED_SYSTEM = (
-    "\n11. For boolean/presence entities (gender, conditions, procedures), when the "
-    "entity text is a simple medical concept with no numeric qualifier, always "
-    "select the broadest matching concept code. Do not let criterion complexity "
-    "distract from the entity being grounded."
-)
-
-# Field mapper rules extending operator_rules_v2 with worked examples for:
-# 1. Boolean entities in compound OR/semicolon criteria
-# 2. Ordinal scoring systems with discrete enumerated values
-_ENHANCED_FIELD_MAPPER_EXTRA = (
-    "\n- CRITICAL: Read the mathematical operator from the criterion text "
-    "LITERALLY. The relation MUST match the symbol in the text. "
-    "Example: 'body mass index >44 kg/m2' → relation='>', value='44'. "
-    "Do NOT interpret clinical intent (e.g., upper-limit exclusion). "
-    "Just read the symbol."
-    '\n- Use "within" ONLY for numeric min/max ranges (e.g., "between '
-    '18 and 65"). Do NOT use "within" for discrete categorical lists '
-    'like "1, 2, or 3" — use "=" instead.'
-    '\n- Negation patterns: "non-", "not ", "no " preceding an entity '
-    "indicate ABSENCE. Map to relation='!=' with value='True'. "
-    "For example, \"non-pregnant\" means Pregnancy relation='!=' value='True'."
-    "\n- For boolean/presence entities appearing in compound criteria joined by "
-    "OR/semicolons, map ONLY the specific entity to relation='=', value='True'. "
-    "Ignore other branches. "
-    'Example: criterion "surgically sterile; or postmenopausal; or practicing '
-    "contraception\" with entity \"Postmenopause\" → relation='=', value='True', "
-    "unit=null"
-    "\n- For ordinal scoring systems (ASA, ECOG, NYHA, etc.) with discrete listed "
-    "values like \"1, 2, or 3\", use relation='=' with the enumerated values as-is. "
-    "Do NOT convert to a range."
-)
-
 # ── Variant D (Scope-Isolated) — research-driven approach ─────────────────
 # Root cause analysis from Variant A/B/C experiment:
 # 1. Code selection: model ignores exact matches in long candidate lists
