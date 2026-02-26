@@ -231,6 +231,88 @@
             "unit_omop_concept_id": null
           }
         ]
+      },
+      {
+        "snippet_text": "Primary indication for TKA is degenerative osteoarthritis of the knee.",
+        "_failure_context": "Entities decomposed successfully (TKA + osteoarthritis) but lost in ground node due to DEV_MAX_ENTITIES=5 truncation. Also tests grounding of indication/context-framing criteria.",
+        "entities": [
+          {
+            "entity_name": "Total Knee Arthroplasty",
+            "system": "UMLS",
+            "code": "C0086511",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          },
+          {
+            "entity_name": "Osteoarthritis of the Knee",
+            "system": "UMLS",
+            "code": "C0409959",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          }
+        ]
+      },
+      {
+        "snippet_text": "Female subjects must be surgically sterile; or at least 2 years postmenopausal; or have a monogamous partner who is surgically sterile; or practicing double-barrier contraception; or practicing abstinence (must agree to use double-barrier contraception in the event of sexual activity); or using an insertable, injectable, transdermal, or combination oral contraceptive approved by the FDA for greater than 2 months prior to screening and commit to the use of an acceptable form of birth control for the duration of the study and for 30 days after completion of the study.",
+        "_failure_context": "Gemini decomposition generates trailing incomplete entities ({text: ''} or {text: 'monogamous'} missing entity_type), causing Pydantic to reject the entire DecomposedEntityList. MedGemma fallback also fails at the Gemini structuring step. Tests compound criterion with many OR branches.",
+        "entities": [
+          {
+            "entity_name": "Female Phenotype",
+            "system": "UMLS",
+            "code": "C1705498",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          },
+          {
+            "entity_name": "Female Sterilization",
+            "system": "SNOMED",
+            "code": "C0015787",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          },
+          {
+            "entity_name": "Postmenopause",
+            "system": "UMLS",
+            "code": "C0206159",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          },
+          {
+            "entity_name": "Barrier Contraception",
+            "system": "UMLS",
+            "code": "C0004764",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          },
+          {
+            "entity_name": "Oral Contraceptive",
+            "system": "UMLS",
+            "code": "C0009905",
+            "relation": "=",
+            "value": "True",
+            "unit": null,
+            "unit_ucum": null,
+            "unit_omop_concept_id": null
+          }
+        ]
       }
     ]
   }

@@ -112,7 +112,9 @@ async def login(request: Request) -> Dict[str, Any]:
             from urllib.parse import urlparse
 
             parsed = urlparse(referer)
-            request.session["oauth_opener_origin"] = f"{parsed.scheme}://{parsed.netloc}"
+            request.session["oauth_opener_origin"] = (
+                f"{parsed.scheme}://{parsed.netloc}"
+            )
 
     redirect_uri = request.url_for("auth_callback")
     return await oauth.google.authorize_redirect(request, redirect_uri)

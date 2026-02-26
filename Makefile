@@ -1,11 +1,13 @@
 # Documentation Makefile for monorepo
 SHELL := /bin/bash
 
-.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-mlflow run-api run-ui setup-adc verify-gemini quality-eval quality-eval-fresh
+.PHONY: help docs-build docs-serve clean create-component create-service docs-openapi kill-processes db-migrate db-revision check check-fix check-with-docs lint lint-fix typecheck test run-dev run-infra run-mlflow run-api run-ui setup-adc verify-gemini quality-eval quality-eval-fresh deploy-api deploy-frontend
 
-# If you see "503 Reauthentication is needed" from Google, run: gcloud auth application-default login
+# run-dev checks gcloud user login and (when applicable) Application Default Credentials;
+# it may open the browser for gcloud auth login or gcloud auth application-default login if credentials are missing or stale.
 run-dev:
 	@docker info >/dev/null 2>&1 || { echo "Docker is not running. Start Docker Desktop (or the Docker daemon), then run: make run-dev"; exit 1; }
+	@set -a && [ -f .env ] && source .env && set +a
 	@echo "Starting infrastructure + API + UI..."
 	@echo "1. GCloud auth (browser) and profile..."
 	@GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
@@ -18,6 +20,9 @@ run-dev:
 		else \
 			[ -n "$$ACTIVE" ] && NEED_LOGIN=0; \
 		fi; \
+		if [ "$$NEED_LOGIN" = 0 ]; then \
+			gcloud auth print-access-token --configuration=$$GCLOUD_PROFILE 2>/dev/null || NEED_LOGIN=1; \
+		fi; \
 		if [ "$$NEED_LOGIN" = 1 ]; then \
 			echo "2. Signing in via browser (no password in terminal)..."; \
 			gcloud auth login --configuration=$$GCLOUD_PROFILE --launch-browser --force $${ACCOUNT:+$$ACCOUNT}; \
@@ -27,6 +32,23 @@ run-dev:
 		echo "3. Using gcloud profile $$GCLOUD_PROFILE (CLOUDSDK_ACTIVE_CONFIG_NAME)."; \
 	else \
 		echo "GCLOUD_PROFILE not set in .env, skipping gcloud"; \
+	fi
+	@set -a && [ -f .env ] && source .env && set +a && \
+	GCLOUD_PROFILE=$$(grep '^GCLOUD_PROFILE=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r'); \
+	USE_LOCAL=$$(grep '^USE_LOCAL_STORAGE=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r' | tr '[:upper:]' '[:lower:]'); \
+	GAC=$$(grep '^GOOGLE_APPLICATION_CREDENTIALS=' .env 2>/dev/null | cut -d= -f2 | tr -d '\r' | xargs); \
+	if [ -n "$$GCLOUD_PROFILE" ]; then \
+		NEED_ADC=1; \
+		[ "$$USE_LOCAL" = "1" ] || [ "$$USE_LOCAL" = "true" ] || [ "$$USE_LOCAL" = "yes" ] && NEED_ADC=0; \
+		[ -n "$$GAC" ] && [ -f "$$GAC" ] && NEED_ADC=0; \
+		if [ "$$NEED_ADC" = 1 ]; then \
+			export CLOUDSDK_ACTIVE_CONFIG_NAME="$$GCLOUD_PROFILE"; \
+			if ! uv run python scripts/check_adc.py 2>/dev/null; then \
+				echo "Application Default Credentials missing or expired. Running: gcloud auth application-default login"; \
+				gcloud auth application-default login --launch-browser; \
+				$(MAKE) setup-adc; \
+			fi; \
+		fi; \
 	fi
 	@echo "4. Starting DB + OMOP vocab..."
 	docker compose -f infra/docker-compose.yml up -d db omop-vocab
@@ -114,6 +136,14 @@ run-api:
 run-ui:
 	@echo "Starting UI dev server..."
 	cd apps/hitl-ui && npm run dev
+
+# --- Deployment (GCP Cloud Run) ---
+
+deploy-api:  ## Build and deploy the API service to Cloud Run
+	@bash scripts/deploy_api.sh
+
+deploy-frontend:  ## Build and deploy the frontend to Cloud Run
+	@bash scripts/deploy_frontend.sh
 
 # Set Application Default Credentials quota project from .env (GCP_PROJECT_ID or GOOGLE_CLOUD_QUOTA_PROJECT).
 # Run once after gcloud auth application-default login. Required for Vertex AI and GCS when using user ADC.
@@ -239,7 +269,7 @@ help:
 	@echo "GemmaCrit  - Makefile Commands"
 	@echo ""
 	@echo "Development (local):"
-	@echo "  make run-dev     - Start DB + local MLflow + API + UI (all-in-one)"
+	@echo "  make run-dev     - Start DB + local MLflow + API + UI (all-in-one); may prompt for (re-)login if credentials are stale"
 	@echo "  make run-infra   - Start DB + local MLflow (run API/UI separately)"
 	@echo "  make run-mlflow  - Start local MLflow only (port 5001)"
 	@echo "  make run-api     - Start API service (port 8000)"
@@ -283,6 +313,10 @@ help:
 	@echo "Quality Evaluation:"
 	@echo "  make quality-eval       - Run quality evaluation on sample PDFs"
 	@echo "  make quality-eval-fresh - Re-upload PDFs and run fresh evaluation"
+	@echo ""
+	@echo "Deployment (GCP Cloud Run):"
+	@echo "  make deploy-api      - Build and deploy API to Cloud Run"
+	@echo "  make deploy-frontend - Build and deploy frontend to Cloud Run"
 	@echo ""
 	@echo "Utilities:"
 	@echo "  make kill-processes - Kill running API/UI/MLflow processes"

@@ -1,0 +1,346 @@
+{
+  "variants": [
+    "A:Baseline",
+    "D:ScopeIsolated"
+  ],
+  "total_entities": 22,
+  "elapsed_s": 240.5,
+  "scores": {
+    "A:Baseline": {
+      "0:0": {
+        "code": "MISS (C0600061)",
+        "relation": "OK",
+        "value": "MISS (1.8)",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "1:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "2:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "2:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "3:0": {
+        "code": "MISS (C0409675)",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "3:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:2": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:3": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "5:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "6:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "6:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "7:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "8:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "9:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "9:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:0": {
+        "code": "MISS (C0432457)",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:2": {
+        "code": "OK",
+        "relation": "MISS (>=)",
+        "value": "MISS (None)"
+      },
+      "10:3": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:4": {
+        "code": "OK",
+        "relation": "MISS (>)",
+        "value": "MISS (None)"
+      }
+    },
+    "D:ScopeIsolated": {
+      "0:0": {
+        "code": "MISS (C0600061)",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "1:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "2:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "2:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "3:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "3:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:2": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "4:3": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "5:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK",
+        "unit_ucum": "OK",
+        "unit_omop": "OK"
+      },
+      "6:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "6:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "7:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "8:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "9:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "9:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:0": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:1": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:2": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:3": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      },
+      "10:4": {
+        "code": "OK",
+        "relation": "OK",
+        "value": "OK"
+      }
+    }
+  },
+  "summary": {
+    "code": {
+      "A:Baseline": {
+        "ok": 19,
+        "total": 22
+      },
+      "D:ScopeIsolated": {
+        "ok": 21,
+        "total": 22
+      }
+    },
+    "relation": {
+      "A:Baseline": {
+        "ok": 20,
+        "total": 22
+      },
+      "D:ScopeIsolated": {
+        "ok": 22,
+        "total": 22
+      }
+    },
+    "value": {
+      "A:Baseline": {
+        "ok": 19,
+        "total": 22
+      },
+      "D:ScopeIsolated": {
+        "ok": 22,
+        "total": 22
+      }
+    },
+    "unit_ucum": {
+      "A:Baseline": {
+        "ok": 5,
+        "total": 5
+      },
+      "D:ScopeIsolated": {
+        "ok": 5,
+        "total": 5
+      }
+    },
+    "unit_omop": {
+      "A:Baseline": {
+        "ok": 5,
+        "total": 5
+      },
+      "D:ScopeIsolated": {
+        "ok": 5,
+        "total": 5
+      }
+    }
+  },
+  "analysis": {
+    "A:Baseline": {
+      "avg_conf_correct": 1.0,
+      "avg_conf_incorrect": 0.9,
+      "error_count": 0,
+      "median_latency_ms": 16768.580084026325,
+      "p95_latency_ms": 33824.57820803393,
+      "failures_by_type": {
+        "Lab_Value": {
+          "code": 1,
+          "value": 1
+        },
+        "Condition": {
+          "code": 1,
+          "relation": 1,
+          "value": 1
+        },
+        "Demographic": {
+          "code": 1
+        },
+        "Medication": {
+          "relation": 1,
+          "value": 1
+        }
+      }
+    },
+    "D:ScopeIsolated": {
+      "avg_conf_correct": 1.0,
+      "avg_conf_incorrect": 0.9,
+      "error_count": 0,
+      "median_latency_ms": 15466.6992079583,
+      "p95_latency_ms": 24780.561999999918,
+      "failures_by_type": {
+        "Lab_Value": {
+          "code": 1
+        }
+      }
+    }
+  },
+  "recommendation": "STOP \u2014 Winner: D:ScopeIsolated (65/66)."
+}
