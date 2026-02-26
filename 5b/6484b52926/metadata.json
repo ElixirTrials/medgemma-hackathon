@@ -3,7 +3,7 @@
   "checkpoint_id": "5b6484b52926",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 4,
+  "checkpoints_count": 5,
   "files_touched": [
     "instructions/deploy_api.sh"
   ],
@@ -56,13 +56,20 @@
       "context": "/5b/6484b52926/6/context.md",
       "content_hash": "/5b/6484b52926/6/content_hash.txt",
       "prompt": "/5b/6484b52926/6/prompt.txt"
+    },
+    {
+      "metadata": "/5b/6484b52926/7/metadata.json",
+      "transcript": "/5b/6484b52926/7/full.jsonl",
+      "context": "/5b/6484b52926/7/context.md",
+      "content_hash": "/5b/6484b52926/7/content_hash.txt",
+      "prompt": "/5b/6484b52926/7/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 3400,
-    "cache_creation_tokens": 731280,
-    "cache_read_tokens": 31550271,
-    "output_tokens": 85744,
-    "api_call_count": 371
+    "input_tokens": 3510,
+    "cache_creation_tokens": 922395,
+    "cache_read_tokens": 38823267,
+    "output_tokens": 100753,
+    "api_call_count": 461
   }
 }
