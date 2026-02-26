@@ -127,26 +127,34 @@ def get_gcs_client() -> Any:
     return _gcs_client
 
 
-def _get_signing_credentials() -> tuple[Any, str | None]:
-    """Get credentials suitable for signing URLs.
+def _get_signing_kwargs(client: Any) -> dict[str, Any]:
+    """Build extra kwargs for ``generate_signed_url`` on Cloud Run.
 
-    On Cloud Run, compute engine credentials cannot sign directly.
-    We detect this and use IAM-based signing via the service account email.
+    Compute-engine credentials lack a local private key, so we must pass
+    ``service_account_email`` and a fresh ``access_token`` so the library
+    calls the IAM ``signBlob`` API instead.
 
-    Returns:
-        (credentials, service_account_email) — email is None
-        for local/SA key credentials.
+    Returns an empty dict when running locally with a service-account key
+    (which can sign directly).
     """
-    import google.auth
+    credentials = client._credentials
+    if not hasattr(credentials, "service_account_email"):
+        return {}
 
-    credentials, project = google.auth.default()
+    sa_email = credentials.service_account_email
+    if "compute@developer" not in sa_email:
+        return {}
 
-    if hasattr(credentials, "service_account_email"):
-        sa_email = credentials.service_account_email
-        # Compute engine credentials need IAM signing
-        if "compute@developer" in sa_email or "run.app" in sa_email:
-            return credentials, sa_email
-    return credentials, None
+    # Ensure the token is fresh — compute engine credentials are lazy
+    if not credentials.token or not credentials.valid:
+        import google.auth.transport.requests
+
+        credentials.refresh(google.auth.transport.requests.Request())
+
+    return {
+        "service_account_email": sa_email,
+        "access_token": credentials.token,
+    }
 
 
 def reset_gcs_client() -> None:
@@ -358,18 +366,12 @@ def _gcs_generate_upload_url(
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
 
-    _, sa_email = _get_signing_credentials()
-    signing_kwargs: dict[str, Any] = {}
-    if sa_email:
-        signing_kwargs["service_account_email"] = sa_email
-        signing_kwargs["access_token"] = client._credentials.token
-
     signed_url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=expiration_minutes),
         method="PUT",
         content_type=content_type,
-        **signing_kwargs,
+        **_get_signing_kwargs(client),
     )
 
     gcs_path = f"gs://{bucket_name}/{blob_path}"
@@ -406,16 +408,10 @@ def _gcs_generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> s
     bucket = client.bucket(bucket_name)
     blob = bucket.blob(blob_path)
 
-    _, sa_email = _get_signing_credentials()
-    signing_kwargs: dict[str, Any] = {}
-    if sa_email:
-        signing_kwargs["service_account_email"] = sa_email
-        signing_kwargs["access_token"] = client._credentials.token
-
     signed_url = blob.generate_signed_url(
         version="v4",
         expiration=timedelta(minutes=expiration_minutes),
         method="GET",
-        **signing_kwargs,
+        **_get_signing_kwargs(client),
     )
     return signed_url
