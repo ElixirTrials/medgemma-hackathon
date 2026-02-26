@@ -137,20 +137,37 @@ def _get_signing_kwargs(client: Any) -> dict[str, Any]:
     Returns an empty dict when running locally with a service-account key
     (which can sign directly).
     """
+    import google.auth
+    import google.auth.credentials
+    import google.auth.transport.requests
+
+    # Check if the credentials can sign directly (SA key file)
     credentials = client._credentials
-    if not hasattr(credentials, "service_account_email"):
+    if isinstance(credentials, google.auth.credentials.Signing):
         return {}
 
-    sa_email = credentials.service_account_email
-    if "compute@developer" not in sa_email:
-        return {}
+    # For non-signing credentials (compute engine, metadata server, user ADC),
+    # we need to use the IAM signBlob API.  Resolve the SA email from the
+    # metadata server on Cloud Run, or from the credentials object.
+    sa_email = getattr(credentials, "service_account_email", None)
+    if not sa_email:
+        # Fall back to default credentials which may expose the SA email
+        default_creds, _ = google.auth.default()
+        sa_email = getattr(default_creds, "service_account_email", None)
+        if not sa_email:
+            logger.warning(
+                "Cannot determine service account email for URL signing. "
+                "Credentials type: %s",
+                type(credentials).__name__,
+            )
+            return {}
+        credentials = default_creds
 
-    # Ensure the token is fresh — compute engine credentials are lazy
+    # Ensure the token is fresh
     if not credentials.token or not credentials.valid:
-        import google.auth.transport.requests
-
         credentials.refresh(google.auth.transport.requests.Request())
 
+    logger.info("Using IAM signing with SA: %s", sa_email)
     return {
         "service_account_email": sa_email,
         "access_token": credentials.token,
