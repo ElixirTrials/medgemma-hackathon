@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
@@ -7,10 +7,12 @@ import { useAuth } from '../hooks/useAuth';
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function LoginPage() {
-    const { isAuthenticated, setAuth } = useAuth();
+    const { isAuthenticated, login, setAuth } = useAuth();
     const navigate = useNavigate();
     const [devLoading, setDevLoading] = useState(false);
     const [devError, setDevError] = useState<string | null>(null);
+    const [popupBlocked, setPopupBlocked] = useState(false);
+    const cleanupRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
         if (isAuthenticated) {
@@ -18,29 +20,20 @@ export default function LoginPage() {
         }
     }, [isAuthenticated, navigate]);
 
-    /** Open OAuth in a popup so the callback can postMessage the token back to this tab. */
-    const handleGoogleLogin = useCallback(() => {
-        const popup = window.open(
-            `${API_BASE_URL}/auth/login?popup=1`,
-            'auth-popup',
-            'width=500,height=600,menubar=no,toolbar=no'
-        );
-        if (!popup) {
-            setDevError('Popup blocked. Allow popups for this site and try again.');
+    // Cleanup message listener on unmount
+    useEffect(() => {
+        return () => cleanupRef.current?.();
+    }, []);
+
+    const handleGoogleLogin = () => {
+        setPopupBlocked(false);
+        const result = login();
+        if (result.popupBlocked) {
+            setPopupBlocked(true);
             return;
         }
-        const apiOrigin = new URL(API_BASE_URL).origin;
-        const handleMessage = (event: MessageEvent) => {
-            if (event.origin !== apiOrigin) return;
-            const { access_token, user: userData } = event.data ?? {};
-            if (access_token && userData) {
-                setAuth(access_token, userData);
-                popup.close();
-                window.removeEventListener('message', handleMessage);
-            }
-        };
-        window.addEventListener('message', handleMessage);
-    }, [setAuth]);
+        cleanupRef.current = result.cleanup;
+    };
 
     const handleDevLogin = async () => {
         setDevLoading(true);
@@ -105,6 +98,11 @@ export default function LoginPage() {
                         </svg>
                         Sign in with Google
                     </Button>
+                    {popupBlocked && (
+                        <p className="text-sm text-red-500 text-center">
+                            Popup blocked. Please allow popups for this site and try again.
+                        </p>
+                    )}
 
                     <div className="pt-4 border-t space-y-3">
                         <Button
