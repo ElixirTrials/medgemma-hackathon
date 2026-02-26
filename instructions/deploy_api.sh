@@ -46,7 +46,8 @@ if [ -z "$CORS_ORIGINS" ]; then
     exit 1
 fi
 
-GCS_BUCKET_NAME="${GCS_BUCKET_NAME:-${PROJECT_ID}-api-protocols}"
+# Prefer GCS_BUCKET_NAME_PROD for deploy (local .env GCS_BUCKET_NAME may be the cloudbuild bucket)
+GCS_BUCKET_NAME="${GCS_BUCKET_NAME_PROD:-${GCS_BUCKET_NAME:-${PROJECT_ID}-api-protocols}}"
 
 if [ -z "$VERTEX_ENDPOINT_ID" ]; then
     echo "Error: VERTEX_ENDPOINT_ID not set. Set in .env or export." >&2
@@ -74,7 +75,7 @@ gcloud run deploy api \
     --platform managed \
     --allow-unauthenticated \
     --add-cloudsql-instances "$CONNECTION_NAME" \
-    --set-env-vars "ENVIRONMENT=production,GCP_PROJECT_ID=${PROJECT_ID},GCP_REGION=${REGION},MODEL_BACKEND=vertex,VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID},GCS_BUCKET_NAME=${GCS_BUCKET_NAME},USE_LOCAL_STORAGE=0,CORS_ORIGINS=${CORS_ORIGINS},GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID},GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
+    --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
     --set-secrets "DATABASE_URL=db-url:latest,SESSION_SECRET=api-session-secret:latest,JWT_SECRET_KEY=api-jwt-secret:latest,OMOP_VOCAB_URL=omop-vocab-url:latest"
 
 echo "Done. API URL:"
