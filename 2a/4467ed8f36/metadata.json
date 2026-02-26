@@ -3,7 +3,7 @@
   "checkpoint_id": "2a4467ed8f36",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/api-service/src/api_service/gcs.py"
   ],
@@ -49,13 +49,20 @@
       "context": "/2a/4467ed8f36/5/context.md",
       "content_hash": "/2a/4467ed8f36/5/content_hash.txt",
       "prompt": "/2a/4467ed8f36/5/prompt.txt"
+    },
+    {
+      "metadata": "/2a/4467ed8f36/6/metadata.json",
+      "transcript": "/2a/4467ed8f36/6/full.jsonl",
+      "context": "/2a/4467ed8f36/6/context.md",
+      "content_hash": "/2a/4467ed8f36/6/content_hash.txt",
+      "prompt": "/2a/4467ed8f36/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 410,
-    "cache_creation_tokens": 675337,
-    "cache_read_tokens": 33755963,
-    "output_tokens": 76277,
-    "api_call_count": 358
+    "input_tokens": 520,
+    "cache_creation_tokens": 866452,
+    "cache_read_tokens": 41028959,
+    "output_tokens": 91286,
+    "api_call_count": 448
   }
 }
