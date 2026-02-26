@@ -3,7 +3,7 @@
   "checkpoint_id": "f9e1583b8848",
   "strategy": "manual-commit",
   "branch": "feat/revised-prompts",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/protocol-processor-service/tests/test_grounding_fixes.py",
     "services/protocol-processor-service/tests/test_phase1b_wiring.py",
@@ -51,13 +51,20 @@
       "context": "/f9/e1583b8848/5/context.md",
       "content_hash": "/f9/e1583b8848/5/content_hash.txt",
       "prompt": "/f9/e1583b8848/5/prompt.txt"
+    },
+    {
+      "metadata": "/f9/e1583b8848/6/metadata.json",
+      "transcript": "/f9/e1583b8848/6/full.jsonl",
+      "context": "/f9/e1583b8848/6/context.md",
+      "content_hash": "/f9/e1583b8848/6/content_hash.txt",
+      "prompt": "/f9/e1583b8848/6/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 323,
-    "cache_creation_tokens": 585681,
-    "cache_read_tokens": 27241662,
-    "output_tokens": 64271,
-    "api_call_count": 279
+    "input_tokens": 433,
+    "cache_creation_tokens": 776796,
+    "cache_read_tokens": 34514658,
+    "output_tokens": 79280,
+    "api_call_count": 369
   }
 }
