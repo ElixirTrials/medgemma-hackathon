@@ -1,0 +1,37 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "926b214560e6",
+  "session_id": "8cc22cbf-bff8-43c2-852c-bb5ed3ca44e8",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T13:24:49.504894Z",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "apps/hitl-ui/src/stores/authStore.ts",
+    "instructions/deploy_api.sh",
+    "services/api-service/src/api_service/auth.py",
+    "apps/hitl-ui/src/screens/LoginPage.tsx"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "a852884efcc4",
+  "transcript_identifier_at_start": "ee057dc2-0d98-47a9-b5ca-82753091499f",
+  "checkpoint_transcript_start": 1700,
+  "transcript_lines_at_start": 1700,
+  "token_usage": {
+    "input_tokens": 6,
+    "cache_creation_tokens": 102974,
+    "cache_read_tokens": 346234,
+    "output_tokens": 2267,
+    "api_call_count": 4
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T13:24:48.33067Z",
+    "agent_lines": 0,
+    "human_added": 113,
+    "human_modified": 43,
+    "human_removed": 0,
+    "total_committed": 113,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/8cc22cbf-bff8-43c2-852c-bb5ed3ca44e8.jsonl"
+}
