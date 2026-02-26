@@ -5,6 +5,9 @@ from contextlib import asynccontextmanager
 from typing import Set
 
 from dotenv import load_dotenv
+from shared.warnings_config import suppress_google_genai_deprecations
+
+suppress_google_genai_deprecations()
 
 load_dotenv(override=False)
 
@@ -20,6 +23,7 @@ from sqlalchemy import create_engine as sa_create_engine  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlmodel import Session  # noqa: E402
 from starlette.middleware.sessions import SessionMiddleware  # noqa: E402
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware  # noqa: E402
 
 from api_service.auth import router as auth_router  # noqa: E402
 from api_service.batch_compare import router as batch_compare_router  # noqa: E402
@@ -144,6 +148,10 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(lifespan=lifespan)
+
+# Trust X-Forwarded-Proto from Cloud Run's load balancer so request.url_for()
+# generates https:// redirect URIs (required for OAuth callback).
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
 # Add SessionMiddleware for OAuth state (must be before CORS)
 _DEFAULT_SESSION_SECRET = "dev-session-secret"
