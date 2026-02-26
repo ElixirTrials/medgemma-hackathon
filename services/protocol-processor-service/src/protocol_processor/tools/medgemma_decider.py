@@ -16,13 +16,16 @@ if TYPE_CHECKING:
     from protocol_processor.tools.terminology_router import TerminologyRouter
 
 from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from protocol_processor.prompts import render_template
 from protocol_processor.schemas.grounding import (
     EntityGroundingResult,
     GroundingCandidate,
+)
+from protocol_processor.tools.gemini_utils import (
+    create_structured_llm,
+    parse_structured_output,
 )
 
 logger = logging.getLogger(__name__)
@@ -134,31 +137,23 @@ async def _structure_decision_with_gemini(raw_text: str) -> GroundingDecision:
     Returns:
         GroundingDecision with selected code and confidence.
     """
-    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-
-    if not google_api_key:
-        raise ValueError("GOOGLE_API_KEY environment variable is required")
+    structured_llm = create_structured_llm(GroundingDecision)
+    if structured_llm is None:
+        raise ValueError(
+            "No LLM backend available (GOOGLE_API_KEY or OLLAMA_BASE_URL required)"
+        )
 
     from protocol_processor.tracing import llm_span
 
-    gemini = ChatGoogleGenerativeAI(
-        model=gemini_model_name,
-        google_api_key=google_api_key,
-    )
-    structured_llm = gemini.with_structured_output(GroundingDecision)
-
     prompt = render_template("structure_decision.jinja2", raw_text=raw_text)
 
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
     with llm_span("gemini_structure_decision", gemini_model_name) as llm:
         llm.set_request(prompt)
         result = await structured_llm.ainvoke(prompt)
-        resp_text = str(result) if not isinstance(result, dict) else str(result)
-        llm.set_response(resp_text)
+        llm.set_response(str(result))
 
-    if isinstance(result, dict):
-        return GroundingDecision.model_validate(result)
-    return result  # type: ignore[return-value]
+    return parse_structured_output(result, GroundingDecision)
 
 
 async def medgemma_decide(
@@ -299,30 +294,23 @@ async def _structure_reasoning_with_gemini(raw_text: str) -> AgenticReasoningRes
     Returns:
         AgenticReasoningResult with structured 3-question answers.
     """
-    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-
-    if not google_api_key:
-        raise ValueError("GOOGLE_API_KEY environment variable is required")
+    structured_llm = create_structured_llm(AgenticReasoningResult)
+    if structured_llm is None:
+        raise ValueError(
+            "No LLM backend available (GOOGLE_API_KEY or OLLAMA_BASE_URL required)"
+        )
 
     from protocol_processor.tracing import llm_span
 
-    gemini = ChatGoogleGenerativeAI(
-        model=gemini_model_name,
-        google_api_key=google_api_key,
-    )
-    structured_llm = gemini.with_structured_output(AgenticReasoningResult)
-
     prompt = render_template("structure_reasoning.jinja2", raw_text=raw_text)
 
+    gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
     with llm_span("gemini_structure_reasoning", gemini_model_name) as llm:
         llm.set_request(prompt)
         result = await structured_llm.ainvoke(prompt)
         llm.set_response(str(result))
 
-    if isinstance(result, dict):
-        return AgenticReasoningResult.model_validate(result)
-    return result  # type: ignore[return-value]
+    return parse_structured_output(result, AgenticReasoningResult)
 
 
 async def agentic_reasoning_loop(

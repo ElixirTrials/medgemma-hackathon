@@ -60,7 +60,33 @@ export function getAuthHeaders(): Record<string, string> {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// Login function that redirects to OAuth endpoint
-export function initiateLogin(): void {
-    window.location.href = `${API_BASE_URL}/auth/login`;
+// Login function that opens a popup for OAuth and listens for the token via postMessage.
+// Returns a cleanup function; call it if the component unmounts while the popup is open.
+export function initiateLogin(): { popupBlocked: boolean; cleanup: () => void } {
+    const popup = window.open(
+        `${API_BASE_URL}/auth/login?popup=1`,
+        'auth-popup',
+        'width=500,height=600,menubar=no,toolbar=no'
+    );
+
+    if (!popup) {
+        return { popupBlocked: true, cleanup: () => {} };
+    }
+
+    const handleMessage = (event: MessageEvent) => {
+        const apiOrigin = new URL(API_BASE_URL).origin;
+        if (event.origin !== apiOrigin) return;
+        const { access_token, user } = event.data ?? {};
+        if (access_token && user) {
+            useAuthStore.getState().setAuth(access_token, user);
+            popup.close();
+            window.removeEventListener('message', handleMessage);
+        }
+    };
+    window.addEventListener('message', handleMessage);
+
+    return {
+        popupBlocked: false,
+        cleanup: () => window.removeEventListener('message', handleMessage),
+    };
 }

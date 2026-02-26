@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
@@ -11,12 +11,29 @@ export default function LoginPage() {
     const navigate = useNavigate();
     const [devLoading, setDevLoading] = useState(false);
     const [devError, setDevError] = useState<string | null>(null);
+    const [popupBlocked, setPopupBlocked] = useState(false);
+    const cleanupRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
         if (isAuthenticated) {
             navigate('/');
         }
     }, [isAuthenticated, navigate]);
+
+    // Cleanup message listener on unmount
+    useEffect(() => {
+        return () => cleanupRef.current?.();
+    }, []);
+
+    const handleGoogleLogin = () => {
+        setPopupBlocked(false);
+        const result = login();
+        if (result.popupBlocked) {
+            setPopupBlocked(true);
+            return;
+        }
+        cleanupRef.current = result.cleanup;
+    };
 
     const handleDevLogin = async () => {
         setDevLoading(true);
@@ -41,9 +58,7 @@ export default function LoginPage() {
         <div className="min-h-screen flex items-center justify-center bg-background">
             <div className="max-w-md w-full space-y-8 p-8">
                 <div className="text-center">
-                    <h1 className="text-4xl font-bold text-foreground mb-2">
-                        Clinical Trial HITL System
-                    </h1>
+                    <h1 className="text-4xl font-bold text-foreground mb-2">GemmaCrit</h1>
                     <p className="text-muted-foreground">
                         Review AI-extracted eligibility criteria and entity mappings
                     </p>
@@ -57,7 +72,7 @@ export default function LoginPage() {
                         </p>
                     </div>
 
-                    <Button onClick={login} className="w-full" size="lg">
+                    <Button onClick={handleGoogleLogin} className="w-full" size="lg">
                         <svg
                             className="w-5 h-5 mr-2"
                             viewBox="0 0 24 24"
@@ -83,6 +98,11 @@ export default function LoginPage() {
                         </svg>
                         Sign in with Google
                     </Button>
+                    {popupBlocked && (
+                        <p className="text-sm text-red-500 text-center">
+                            Popup blocked. Please allow popups for this site and try again.
+                        </p>
+                    )}
 
                     <div className="pt-4 border-t space-y-3">
                         <Button

@@ -1,6 +1,6 @@
 # Code Tour
 
-A linear walkthrough of the key code paths in ElixirTrials, from upload to review. Each "slide" covers one critical module.
+A linear walkthrough of the key code paths in GemmaCrit, from upload to review. Each "slide" covers one critical module.
 
 ---
 

@@ -93,7 +93,17 @@ def check_relation_validation() -> None:
             return FieldMappingItem(
                 entity="TestEntity",
                 relation=relation,  # type: ignore[arg-type]
-                value=FieldMappingValue(type="standard", value="1", unit=""),
+                value=FieldMappingValue(
+                    type="standard",
+                    value="1",
+                    unit="",
+                    min=None,
+                    max=None,
+                    duration=None,
+                ),
+                unit=None,
+                value_concept_id=None,
+                value_concept_system=None,
             )
 
         # Valid relations that must pass directly

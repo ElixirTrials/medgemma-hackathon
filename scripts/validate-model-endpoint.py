@@ -68,7 +68,7 @@ def main() -> None:
     checks: list[tuple[str, bool, str]] = []
 
     print("=" * 60)
-    print("ElixirTrials Model Endpoint Validation")
+    print("GemmaCrit Model Endpoint Validation")
     print("=" * 60)
     print()
 

@@ -71,7 +71,17 @@ class TestFieldMappingConceptIds:
                 FieldMappingItem(
                     entity="HbA1c",
                     relation="<",
-                    value=FieldMappingValue(type="standard", value="7", unit="%"),
+                    value=FieldMappingValue(
+                        type="standard",
+                        value="7",
+                        unit="%",
+                        min=None,
+                        max=None,
+                        duration=None,
+                    ),
+                    unit=None,
+                    value_concept_id=None,
+                    value_concept_system=None,
                 )
             ]
         )
@@ -105,7 +115,17 @@ class TestFieldMappingConceptIds:
                 FieldMappingItem(
                     entity="eGFR",
                     relation=">",
-                    value=FieldMappingValue(type="standard", value="30", unit="mL/min"),
+                    value=FieldMappingValue(
+                        type="standard",
+                        value="30",
+                        unit="mL/min",
+                        min=None,
+                        max=None,
+                        duration=None,
+                    ),
+                    unit=None,
+                    value_concept_id=None,
+                    value_concept_system=None,
                 )
             ]
         )
@@ -139,7 +159,17 @@ class TestFieldMappingConceptIds:
                 FieldMappingItem(
                     entity="BMI",
                     relation="<",
-                    value=FieldMappingValue(type="standard", value="40", unit="kg/m2"),
+                    value=FieldMappingValue(
+                        type="standard",
+                        value="40",
+                        unit="kg/m2",
+                        min=None,
+                        max=None,
+                        duration=None,
+                    ),
+                    unit=None,
+                    value_concept_id=None,
+                    value_concept_system=None,
                 )
             ]
         )

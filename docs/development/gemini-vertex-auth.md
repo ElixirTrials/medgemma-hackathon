@@ -1,6 +1,6 @@
 # Gemini & Vertex AI Authentication
 
-ElixirTrials supports two backends for Gemini model access: the **Gemini Developer API** (default) and **Vertex AI** (for MedGemma).
+GemmaCrit supports two backends for Gemini model access: the **Gemini Developer API** (default) and **Vertex AI** (for MedGemma).
 
 ## Gemini Developer API (Default)
 

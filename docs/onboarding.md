@@ -1,6 +1,6 @@
 # Onboarding
 
-Get ElixirTrials running locally in under 10 minutes.
+Get GemmaCrit running locally in under 10 minutes.
 
 ## Prerequisites
 

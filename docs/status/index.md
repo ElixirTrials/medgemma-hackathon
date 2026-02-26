@@ -1,6 +1,6 @@
 # Implementation Status
 
-Current state of ElixirTrials components as of `main`.
+Current state of GemmaCrit components as of `main`.
 
 ## Maturity Matrix
 

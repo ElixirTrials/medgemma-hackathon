@@ -127,6 +127,13 @@ def get_gcs_client() -> Any:
     return _gcs_client
 
 
+def _get_signing_kwargs(client: Any) -> dict[str, Any]:
+    """Delegate to :func:`api_service._gcs_signing.get_signing_kwargs`."""
+    from api_service._gcs_signing import get_signing_kwargs
+
+    return get_signing_kwargs(client)
+
+
 def reset_gcs_client() -> None:
     """Reset the cached GCS client so the next call re-initializes.
 
@@ -341,6 +348,7 @@ def _gcs_generate_upload_url(
         expiration=timedelta(minutes=expiration_minutes),
         method="PUT",
         content_type=content_type,
+        **_get_signing_kwargs(client),
     )
 
     gcs_path = f"gs://{bucket_name}/{blob_path}"
@@ -381,5 +389,6 @@ def _gcs_generate_download_url(gcs_path: str, expiration_minutes: int = 60) -> s
         version="v4",
         expiration=timedelta(minutes=expiration_minutes),
         method="GET",
+        **_get_signing_kwargs(client),
     )
     return signed_url

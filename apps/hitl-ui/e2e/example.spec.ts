@@ -19,7 +19,7 @@ test.describe('Home Page', () => {
 
     test('should display the home page correctly', async ({ page }) => {
         // Check page title
-        await expect(page).toHaveTitle(/ElixirTrials /i);
+        await expect(page).toHaveTitle(/GemmaCrit/i);
 
         // Check if main content is visible
         const main = page.locator('main');

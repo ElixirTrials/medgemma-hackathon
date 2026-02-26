@@ -499,7 +499,25 @@ def _lookup_ucum_unit(engine: Any, unit_text: str) -> tuple[str | None, int | No
     if not key:
         return (None, None)
 
-    # Try exact concept_name match first (fastest path)
+    # Normalize UCUM brace variants: {score} -> [score]
+    if key.startswith("{") and key.endswith("}"):
+        key = "[" + key[1:-1] + "]"
+
+    # Try exact concept_code match first (UCUM codes like "mg/dL" live here)
+    sql_code = text(
+        "SELECT concept_id, concept_code "
+        "FROM concept "
+        "WHERE vocabulary_id = 'UCUM' "
+        "  AND standard_concept = 'S' "
+        "  AND LOWER(concept_code) = LOWER(:unit_text) "
+        "LIMIT 1"
+    )
+    with engine.connect() as conn:
+        row = conn.execute(sql_code, {"unit_text": key}).fetchone()
+        if row is not None:
+            return (row[1], int(row[0]))
+
+    # Try exact concept_name match (descriptive names like "milligram per deciliter")
     sql_exact = text(
         "SELECT concept_id, concept_name "
         "FROM concept "

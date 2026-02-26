@@ -14,10 +14,10 @@ import logging
 import os
 from typing import Any, Literal, cast
 
-from langchain_google_genai import ChatGoogleGenerativeAI
 from pydantic import BaseModel, Field
 
 from protocol_processor.prompts import render_template
+from protocol_processor.tools.gemini_utils import create_structured_llm
 
 logger = logging.getLogger(__name__)
 
@@ -116,21 +116,10 @@ async def decompose_entities_from_criterion(
     normalized_text = _normalize_criterion_text(criterion_text)
 
     try:
-        gemini = ChatGoogleGenerativeAI(
-            model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-        )
-        from protocol_processor.tracing import llm_span
-
+        structured = create_structured_llm(DecomposedEntityList)
+        if structured is None:
+            return []
         model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        structured = gemini.with_structured_output(DecomposedEntityList)
-        prompt = _render_decompose_prompt(normalized_text, category)
-
-        with llm_span("gemini_entity_decompose", model_name) as llm:
-            llm.set_request(prompt)
-            await structured.ainvoke(prompt)
-        model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-        structured = gemini.with_structured_output(DecomposedEntityList)
 
         # Attempt 0: original prompt
         prompt = render_template(
@@ -229,11 +218,9 @@ async def medgemma_decompose_entities(
             llm.set_response(str(raw_text))
 
         # Use Gemini to structure MedGemma's free-text into typed entities
-        gemini = ChatGoogleGenerativeAI(
-            model=os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash"),
-            google_api_key=os.getenv("GOOGLE_API_KEY"),
-        )
-        structured = gemini.with_structured_output(DecomposedEntityList)
+        structured = create_structured_llm(DecomposedEntityList)
+        if structured is None:
+            return []
 
         structure_prompt = render_template(
             "structure_entities.jinja2", raw_text=raw_text

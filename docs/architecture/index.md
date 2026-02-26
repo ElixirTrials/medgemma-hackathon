@@ -1,6 +1,6 @@
 # Architecture Overview
 
-ElixirTrials is a monorepo containing three runtime components and several shared libraries, all orchestrated through an event-driven pipeline.
+GemmaCrit is a monorepo containing three runtime components and several shared libraries, all orchestrated through an event-driven pipeline.
 
 ## Core Principles
 

@@ -1,4 +1,6 @@
-# ElixirTrials: AI-Powered Clinical Trial Eligibility Criteria Extraction
+# GemmaCrit: AI-Powered Clinical Trial Eligibility Criteria Extraction
+
+**GemmaCrit** is by **ElixirTrials**.
 
 ## Your Team
 
@@ -19,13 +21,13 @@ Clinical trial eligibility criteria are buried in unstructured PDF protocols. Ma
 
 The users are **clinical informaticists, trial coordinators, and OHDSI researchers** who need structured, standards-coded eligibility criteria to query patient databases. Today they manually read protocols, identify criteria, look up terminology codes, and build cohort definitions &mdash; a tedious, error-prone process that demands both clinical expertise and informatics knowledge.
 
-**With ElixirTrials**: Upload a protocol PDF, review AI-extracted criteria in a split-pane interface, approve or correct, and export to OHDSI CIRCE, FHIR R4, or OMOP SQL &mdash; reducing the process from days to minutes.
+**With GemmaCrit**: Upload a protocol PDF, review AI-extracted criteria in a split-pane interface, approve or correct, and export to OHDSI CIRCE, FHIR R4, or OMOP SQL &mdash; reducing the process from days to minutes.
 
 ---
 
 ## Overall Solution: Effective Use of HAI-DEF Models
 
-ElixirTrials uses a **two-model architecture** built around MedGemma 4B-IT and Gemini 2.5 Flash:
+GemmaCrit uses a **two-model architecture** built around MedGemma 4B-IT and Gemini 2.5 Flash:
 
 **MedGemma 4B-IT** (`google/medgemma-4b-it`) serves as the **medical reasoning agent**. For each extracted entity, MedGemma evaluates terminology candidates from 6 vocabulary systems (UMLS, SNOMED CT, LOINC, RxNorm, ICD-10, HPO) and selects the best match with confidence scoring and clinical reasoning.
 
@@ -67,7 +69,7 @@ Each node is checkpointed, enabling resume-from-failure. The ground node runs **
 
 ### Agentic Workflow Prize Justification
 
-ElixirTrials is a textbook agentic workflow:
+GemmaCrit is a textbook agentic workflow:
 - **Autonomous multi-step processing**: 7 LangGraph nodes with conditional error routing
 - **AI decision-making**: MedGemma autonomously evaluates and selects terminology matches
 - **Tool use**: TerminologyRouter dispatches to 6 vocabulary APIs; OMOP mapper queries CDM concepts

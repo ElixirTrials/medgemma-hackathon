@@ -35,7 +35,7 @@ function App() {
                 <header className="border-b bg-card">
                     <div className="container mx-auto px-6 py-3 flex items-center justify-between">
                         <div className="flex items-center gap-6">
-                            <h1 className="text-lg font-semibold">HITL System</h1>
+                            <h1 className="text-lg font-semibold">GemmaCrit</h1>
                             <nav className="flex items-center gap-4 text-sm">
                                 <Link
                                     to="/"
@@ -87,6 +87,8 @@ function App() {
 
             <Routes>
                 <Route path="/login" element={<LoginPage />} />
+                <Route path="/auth/login" element={<Navigate to="/login" replace />} />
+                <Route path="/auth/callback" element={<Navigate to="/login" replace />} />
                 <Route
                     path="/"
                     element={

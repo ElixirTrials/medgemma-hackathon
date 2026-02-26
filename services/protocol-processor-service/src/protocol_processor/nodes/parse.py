@@ -29,10 +29,60 @@ from sqlmodel import Session
 
 from protocol_processor.schemas.extraction import ExtractionResult
 from protocol_processor.state import PipelineState
-from protocol_processor.tools.entity_decomposer import decompose_entities_from_criterion
+from protocol_processor.tools.entity_decomposer import (
+    decompose_entities_from_criterion,
+    medgemma_decompose_entities,
+)
 from protocol_processor.tracing import pipeline_span
 
 logger = logging.getLogger(__name__)
+
+
+async def _entity_items_for_criterion(
+    raw: dict[str, Any],
+    cid: str,
+    decomposed: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]]:
+    """Build entity items for one criterion from decomposition or fallbacks."""
+    if decomposed:
+        return [
+            {
+                "criterion_id": cid,
+                "text": ent["text"],
+                "entity_type": ent["entity_type"],
+                "criterion_text": raw["text"],
+                "criteria_type": raw["criteria_type"],
+            }
+            for ent in decomposed
+        ]
+    medgemma_entities = await medgemma_decompose_entities(raw["text"])
+    if medgemma_entities:
+        return [
+            {
+                "criterion_id": cid,
+                "text": ent["text"],
+                "entity_type": ent["entity_type"],
+                "criterion_text": raw["text"],
+                "criteria_type": raw["criteria_type"],
+            }
+            for ent in medgemma_entities
+        ]
+    category = raw.get("category", "")
+    fallback_type = {
+        "medications": "Medication",
+        "lab_values": "Lab_Value",
+        "procedures": "Procedure",
+        "demographics": "Demographic",
+    }.get(category, "Condition")
+    return [
+        {
+            "criterion_id": cid,
+            "text": raw["text"],
+            "entity_type": fallback_type,
+            "criterion_text": raw["text"],
+            "criteria_type": raw["criteria_type"],
+        }
+    ]
 
 
 async def parse_node(state: PipelineState) -> dict[str, Any]:
@@ -145,35 +195,9 @@ async def parse_node(state: PipelineState) -> dict[str, Any]:
             for raw, cid, decomposed in zip(
                 criteria_raws, criterion_ids, decomposed_results
             ):
-                if decomposed:
-                    for ent in decomposed:
-                        entity_items.append(
-                            {
-                                "criterion_id": cid,
-                                "text": ent["text"],
-                                "entity_type": ent["entity_type"],
-                                "criterion_text": raw["text"],
-                                "criteria_type": raw["criteria_type"],
-                            }
-                        )
-                else:
-                    # Fallback: category-based type mapping with full text
-                    category = raw.get("category", "")
-                    fallback_type = {
-                        "medications": "Medication",
-                        "lab_values": "Lab_Value",
-                        "procedures": "Procedure",
-                        "demographics": "Demographic",
-                    }.get(category, "Condition")
-                    entity_items.append(
-                        {
-                            "criterion_id": cid,
-                            "text": raw["text"],
-                            "entity_type": fallback_type,
-                            "criterion_text": raw["text"],
-                            "criteria_type": raw["criteria_type"],
-                        }
-                    )
+                entity_items.extend(
+                    await _entity_items_for_criterion(raw, cid, decomposed)
+                )
 
             logger.info(
                 "Parsed CriteriaBatch %s: %d criteria -> %d entities for protocol %s",
