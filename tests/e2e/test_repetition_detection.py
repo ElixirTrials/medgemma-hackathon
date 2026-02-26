@@ -1,17 +1,31 @@
 """Quick validation of repetition loop detection and sanitization."""
 
-from protocol_processor.tools.gemini_utils import (
-    is_repetition_loop,
-    check_model_for_repetition,
-)
+from __future__ import annotations
+
+from pydantic import BaseModel, Field
+
 from protocol_processor.tools.field_mapper import (
-    FieldMappingValue,
-    FieldMappingResponse,
     FieldMappingItem,
+    FieldMappingResponse,
+    FieldMappingValue,
+)
+from protocol_processor.tools.gemini_utils import (
+    check_model_for_repetition,
+    is_repetition_loop,
 )
 
 
-def test_detection():
+class _RawValue(BaseModel):
+    type: str = "standard"
+    value: str | None = None
+
+
+class _RawMapping(BaseModel):
+    entity: str = ""
+    mappings: list[_RawValue] = Field(default_factory=list)
+
+
+def test_detection() -> None:
     """Test is_repetition_loop() against known patterns."""
     test_cases = [
         ("2202202020202020202020202020202020", True, "repeating digits"),
@@ -41,10 +55,10 @@ def test_detection():
         print(f"  {status}: {label:30s} | expected={expected}, got={result}")
 
     print()
-    return all_pass
+    assert all_pass
 
 
-def test_sanitization():
+def test_sanitization() -> None:
     """Test FieldMappingValue validator nulls out repetitive values."""
     print("=== FieldMappingValue sanitization ===")
 
@@ -77,10 +91,9 @@ def test_sanitization():
     assert val2.unit == "%"
 
     print()
-    return True
 
 
-def test_model_check():
+def test_model_check() -> None:
     """Test check_model_for_repetition() on a full response."""
     print("=== check_model_for_repetition() ===")
 
@@ -130,20 +143,10 @@ def test_model_check():
 
     # Now test with a raw dict that bypasses the validator
     # (simulating what check_model_for_repetition would see BEFORE validation)
-    from pydantic import BaseModel, Field
-
-    class RawValue(BaseModel):
-        type: str = "standard"
-        value: str | None = None
-
-    class RawMapping(BaseModel):
-        entity: str = ""
-        mappings: list[RawValue] = Field(default_factory=list)
-
-    raw = RawMapping(
+    raw = _RawMapping(
         mappings=[
-            RawValue(value="ok"),
-            RawValue(value="220220220220220220220220220220220220"),
+            _RawValue(value="ok"),
+            _RawValue(value="220220220220220220220220220220220220"),
         ]
     )
     bad2 = check_model_for_repetition(raw)
@@ -151,16 +154,3 @@ def test_model_check():
     assert len(bad2) == 1, f"Expected 1 bad field, got {bad2}"
 
     print()
-    return True
-
-
-if __name__ == "__main__":
-    p1 = test_detection()
-    p2 = test_sanitization()
-    p3 = test_model_check()
-
-    if p1 and p2 and p3:
-        print("ALL TESTS PASSED")
-    else:
-        print("SOME TESTS FAILED")
-        exit(1)
