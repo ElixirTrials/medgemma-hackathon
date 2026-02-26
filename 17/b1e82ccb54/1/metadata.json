@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "17b1e82ccb54",
+  "session_id": "02cd7433-eb5f-468e-aab5-587d044f9709",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-26T16:17:51.359744Z",
+  "branch": "feat/revised-prompts",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "tests/e2e/prompt_variants.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "bbdb536ac9c8",
+  "token_usage": {
+    "input_tokens": 100,
+    "cache_creation_tokens": 114656,
+    "cache_read_tokens": 7464078,
+    "output_tokens": 15894,
+    "api_call_count": 90
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-26T16:17:51.025054Z",
+    "agent_lines": 0,
+    "human_added": 0,
+    "human_modified": 0,
+    "human_removed": 38,
+    "total_committed": 0,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/02cd7433-eb5f-468e-aab5-587d044f9709.jsonl"
+}
