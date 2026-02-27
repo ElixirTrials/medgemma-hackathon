@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "5926a2642fb2",
+  "session_id": "71356d24-29ab-450c-81e5-e56c048756c5",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T11:04:57.55393Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "scripts/deploy_api.sh"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8540df744718",
+  "token_usage": {
+    "input_tokens": 4665,
+    "cache_creation_tokens": 265565,
+    "cache_read_tokens": 14434203,
+    "output_tokens": 48594,
+    "api_call_count": 148
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T11:04:55.718455Z",
+    "agent_lines": 0,
+    "human_added": 2,
+    "human_modified": 2,
+    "human_removed": 0,
+    "total_committed": 2,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/71356d24-29ab-450c-81e5-e56c048756c5.jsonl"
+}
