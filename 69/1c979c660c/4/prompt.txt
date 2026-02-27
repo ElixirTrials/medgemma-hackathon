@@ -1210,3 +1210,303 @@ This is completly wrong. It creates silent failures and unneccary fallbacks. We 
 ---
 
 I see this error in the review page: "Failed to load PDF: Setting up fake worker failed: "Failed to fetch dynamically imported module: https://frontend-1074735463071.europe-west4.run.app/assets/pdf.worker.min-qwK7q_zL.mjs"."
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start (Continuation)**: This is a continuation from a previous session. The summary explains that Phases 1-3 of a deployment fix project were completed. The previous session fixed:
+   - Gemini API key missing → Vertex AI ADC fallback
+   - LangGraph checkpoint stale connections → reset_graph()
+   - File API not available in Vertex AI → inline bytes
+   - Missing DB columns
+
+2. **First User Message**: "Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on."
+   - I was monitoring protocol Prot_000-a90aedda grounding (at entity 176/237)
+   - Checked Cloud Run logs and DB status
+   - Found protocol still in "grounding" status
+   - Monitored grounding progress: 191/237, 199/237, 207/237, 220/237, 237/237
+   - Grounding completed at 12:31:15 UTC
+   - Pipeline continued: persist → structure → ordinal_resolve → END
+   - Protocol reached "pending_review" status with 91 criteria and 237 entities
+   - Verified in UI: Prot_000-a90aedda showing "Pending Review"
+   - Clicked through to review page - criteria visible with field mappings, entities visible
+   - Screenshot showed the PDF viewer error: "Failed to load PDF: Setting up fake worker failed"
+
+3. **Second User Message (Critical Feedback)**: "I see almost 100 criteria extracted but nothing in review. You've cost a lot of API calls. Stop experimenting and investigate."
+   - This came while I was monitoring grounding. The user was frustrated.
+
+4. **Third User Message (Major Direction Change)**: "This is completly wrong. It creates silent failures and unneccary fallbacks. We want the gemini client to work and for the api key to be set not to fallback to something we didn't design. We want to use the file API which is why we use the gemini client. We want to use UMLS and not just continue if for some reason the key isn't set. CRITICAL: NO SILENT FAILURES. CRITICAL: NO FALLBACKS. CRITICAL: Working deployed code. CRITICAL: No changes to logic, models, etc. The deployed should work the same as the local dev version!"
+   
+   This was the critical message. The user explicitly said:
+   - NO SILENT FAILURES
+   - NO FALLBACKS
+   - Working deployed code
+   - No changes to logic, models, etc.
+   - Deployed should work same as local dev
+   
+   My approach:
+   - Investigated env vars: local .env vs deployed Cloud Run
+   - Found 3 missing env vars: GOOGLE_API_KEY, UMLS_API_KEY, GEMINI_MODEL_NAME
+   - Reverted fallback code in 3 files: criterion_rerun.py, gemini_extractor.py, gemini_utils.py
+   - Kept legitimate bug fixes: graph.py reset_graph(), trigger.py reset_graph() calls
+   - Updated deploy_api.sh to include the 3 missing env vars with hard validation (exit 1)
+   - Committed as 7864c3ba
+   - Deployed: revision api-00043-dkq, health check passed
+   - Verified env vars set on deployed service
+   - Uploaded Prot_000-e06adb27 (629KB, 11 pages) for E2E test
+   - Logs confirmed: "Extracted 14 criteria from protocol ... (Gemini File API)" - NOT Vertex AI
+   - UMLS working: entities grounded with CUI codes (C0001779, C0392525, etc.)
+   - Full pipeline completed in ~4 minutes
+   - Protocol reached "pending_review"
+
+5. **Fourth User Message**: "I see this error in the review page: 'Failed to load PDF: Setting up fake worker failed: \"Failed to fetch dynamically imported module: https://frontend-1074735463071.europe-west4.run.app/assets/pdf.worker.min-qwK7q_zL.mjs\".'"
+   
+   My approach:
+   - Investigated with Explore agent: root cause is nginx MIME type issue
+   - `.mjs` files served as `application/octet-stream` instead of `application/javascript`
+   - Browsers enforce strict MIME type checking for ES modules
+   - nginx.conf had static asset location pattern that didn't include `.mjs`
+   - First fix attempt: added `include /etc/nginx/mime.types;` and `types { application/javascript mjs; }` to nginx.conf
+   - Also added `mjs` to the static asset location regex
+   - Committed as 73d82ecf
+   - Deployed frontend: revision frontend-00013-jst
+   - Tested: **Still failing** - same error
+   - Realized the issue: `types {}` block in nginx server context replaces inherited types rather than merging with them
+   - Was about to try a different approach (explicit Content-Type header in location block) when summary was requested
+
+Key files modified in this session:
+- `services/api-service/src/api_service/criterion_rerun.py` - Reverted Vertex AI fallback
+- `services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py` - Reverted to File API only
+- `services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py` - Reverted Vertex AI fallback
+- `scripts/deploy_api.sh` - Added GOOGLE_API_KEY, UMLS_API_KEY, GEMINI_MODEL_NAME
+- `apps/hitl-ui/nginx.conf` - Attempted .mjs MIME type fix (not working yet)
+
+Commits made:
+- 7864c3ba - revert: remove Vertex AI fallbacks, add missing deploy env vars
+- 73d82ecf - fix: add .mjs MIME type to nginx config for PDF.js worker
+
+Current state of nginx.conf fix: deployed but not working. Need to try a different approach.
+
+Summary:
+1. Primary Request and Intent:
+   The user's overarching goal: deploy the app without breaking local dev behavior. The user gave critical requirements:
+   - **NO SILENT FAILURES** — code must fail loudly if env vars are missing
+   - **NO FALLBACKS** — no Vertex AI ADC fallback, no skipping UMLS lookups
+   - **Working deployed code** — identical behavior to local dev
+   - **No changes to logic, models, etc.** — the code paths must be the same as local
+   - Fix the PDF viewer error on the review page ("Failed to load PDF: Setting up fake worker failed")
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment (europe-west4, project `gen-lang-client-0249847738`)
+   - Gemini Developer API with File API (using `GOOGLE_API_KEY`) — NOT Vertex AI ADC
+   - UMLS terminology lookups (using `UMLS_API_KEY`) — must not silently skip
+   - `REDACTED` (local dev) vs default `gemini-2.5-flash`
+   - LangGraph pipeline: ingest → extract → parse → ground → persist → structure → ordinal_resolve → END
+   - OutboxProcessor runs pipeline as async background task in FastAPI event loop
+   - `reset_graph()` clears stale psycopg connections between asyncio.run() invocations
+   - nginx MIME type handling for `.mjs` ES module files (pdf.js worker)
+   - react-pdf / pdfjs-dist worker loading requires `application/javascript` MIME type
+
+3. Files and Code Sections:
+
+   - **`services/api-service/src/api_service/criterion_rerun.py`**
+     - Reverted Vertex AI fallback back to original code
+     - Change (lines 152-153):
+     ```python
+     global _genai_client  # noqa: PLW0603
+     if _genai_client is None:
+         _genai_client = genai.Client(api_key=api_key)
+     ```
+     - Previously had if/else branching to Vertex AI when no api_key
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py`**
+     - Reverted to File API-only path, removed Vertex AI inline bytes fallback
+     - Restored `_invoke_gemini` parameter from `pdf_content: Any` back to `uploaded_file: types.File`
+     - Restored `extract_criteria_structured` to use File API upload only:
+     ```python
+     # Instantiate client
+     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+     model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+
+     # Write PDF to temp file for File API upload
+     with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+         tmp.write(pdf_bytes)
+         tmp_path = tmp.name
+
+     # Upload via File API
+     uploaded_file = client.files.upload(file=tmp_path)
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`**
+     - Reverted `create_structured_llm` to use `GOOGLE_API_KEY` only, no Vertex AI fallback:
+     ```python
+     google_api_key = os.getenv("GOOGLE_API_KEY")
+     if google_api_key:
+         try:
+             from langchain_google_genai import ChatGoogleGenerativeAI
+             gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
+             gemini = ChatGoogleGenerativeAI(
+                 model=gemini_model_name,
+                 google_api_key=google_api_key,
+                 max_output_tokens=2048,
+                 temperature=0.1,
+                 model_kwargs={
+                     "frequency_penalty": 0.8,
+                     "presence_penalty": 0.5,
+                 },
+             )
+             return gemini.with_structured_output(output_schema)
+     ```
+
+   - **`scripts/deploy_api.sh`**
+     - Added 3 new env var declarations (lines 32-34):
+     ```bash
+     GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
+     UMLS_API_KEY="${UMLS_API_KEY:-}"
+     GEMINI_MODEL_NAME="${GEMINI_MODEL_NAME:-gemini-2.5-flash}"
+     ```
+     - Added hard validation (lines 58-67):
+     ```bash
+     if [ -z "$GOOGLE_API_KEY" ]; then
+         echo "Error: GOOGLE_API_KEY not set. Required for Gemini API + File API. Set in .env or export." >&2
+         exit 1
+     fi
+     if [ -z "$UMLS_API_KEY" ]; then
+         echo "Error: UMLS_API_KEY not set. Required for UMLS terminology lookups. Set in .env or export." >&2
+         exit 1
+     fi
+     ```
+     - Added to `--set-env-vars` in deploy command: `GOOGLE_API_KEY`, `UMLS_API_KEY`, `GEMINI_MODEL_NAME`
+
+   - **`apps/hitl-ui/nginx.conf`** (current state, not yet working):
+     ```nginx
+     server {
+         listen 8080;
+         server_name localhost;
+         root /usr/share/nginx/html;
+         index index.html;
+
+         # Include default MIME types and add .mjs for ES module support (pdf.js worker)
+         include /etc/nginx/mime.types;
+         types {
+             application/javascript mjs;
+         }
+
+         # Avoid console warning
+         add_header Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()" always;
+
+         location / {
+             try_files $uri $uri/ /index.html;
+         }
+
+         location ~* \.(js|mjs|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+             expires 1y;
+             add_header Cache-Control "public, immutable";
+         }
+
+         location = /index.html {
+             add_header Cache-Control "no-cache";
+         }
+     }
+     ```
+
+   - **`apps/hitl-ui/Dockerfile`** (read, not modified):
+     - Multi-stage build: Node 20-alpine for building, nginx:alpine for serving
+     - Copies nginx.conf: `COPY apps/hitl-ui/nginx.conf /etc/nginx/conf.d/default.conf`
+     - Worker file exists in build: `apps/hitl-ui/build/assets/pdf.worker.min-qwK7q_zL.mjs` (1.0 MB)
+
+   - **`apps/hitl-ui/src/components/PdfViewer.tsx`** (read, not modified):
+     - Worker config (lines 9-12):
+     ```typescript
+     pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+         'pdfjs-dist/build/pdf.worker.min.mjs',
+         import.meta.url
+     ).toString();
+     ```
+
+   - **`scripts/deploy_frontend.sh`** (read, not modified):
+     - Uses `cloudbuild-frontend.yaml` for Cloud Build
+     - Deploys to Cloud Run service "frontend"
+
+   - **`.env`** (read, not modified) — contains:
+     - `REDACTED`
+     - `UMLS_API_KEY=REDACTED`
+     - `REDACTED`
+
+   - **Graph/trigger files** (kept from previous session, not modified this session):
+     - `graph.py` — `reset_graph()` function kept (legitimate bug fix)
+     - `trigger.py` — `reset_graph()` calls in `handle_protocol_uploaded` and `retry_from_checkpoint` kept
+
+4. Errors and Fixes:
+
+   - **Vertex AI fallback causing different behavior than local dev**:
+     - Previous sessions added Vertex AI ADC fallback, inline bytes instead of File API
+     - User explicitly rejected this: "NO SILENT FAILURES. NO FALLBACKS."
+     - Fix: Reverted all 3 files to original code, added missing env vars to deploy script
+   
+   - **Missing env vars on Cloud Run (GOOGLE_API_KEY, UMLS_API_KEY, GEMINI_MODEL_NAME)**:
+     - Local .env had them, but deploy_api.sh didn't pass them to Cloud Run
+     - Fix: Added to deploy script with hard validation (exit 1 if missing)
+     - Verified on deployed service: all 3 set correctly
+   
+   - **PDF worker .mjs MIME type error (ONGOING)**:
+     - Error: "Failed to load module script: Expected a JavaScript-or-Wasm module script but the server responded with a MIME type of application/octet-stream"
+     - Root cause: nginx doesn't include `.mjs` in its default mime.types, and the static asset location block didn't include `.mjs`
+     - First fix attempt: Added `include /etc/nginx/mime.types;` + `types { application/javascript mjs; }` + added `mjs` to location regex
+     - Result: **Still failing** after deploy (revision frontend-00013-jst)
+     - Analysis: The `types {}` block in nginx server context likely replaces inherited types rather than merging. Need to try explicit Content-Type header approach instead.
+
+5. Problem Solving:
+   - **Solved**: Deployment env var mismatch — added GOOGLE_API_KEY, UMLS_API_KEY, GEMINI_MODEL_NAME to deploy script
+   - **Solved**: Reverted all fallback code to match local dev behavior exactly
+   - **Solved**: E2E pipeline verified: upload → extract (Gemini File API) → parse → ground (UMLS CUI codes) → persist → structure → ordinal → pending_review
+   - **In Progress**: PDF viewer .mjs MIME type issue — first nginx fix attempt didn't work, need different approach
+
+6. All User Messages:
+   - "Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on."
+   - "I see almost 100 criteria extracted but nothing in review. You've cost a lot of API calls. Stop experimenting and investigate."
+   - "This is completly wrong. It creates silent failures and unneccary fallbacks. We want the gemini client to work and for the api key to be set not to fallback to something we didn't design. We want to use the file API which is why we use the gemini client. We want to use UMLS and not just continue if for some reason the key isn't set. CRITICAL: NO SILENT FAILURES. CRITICAL: NO FALLBACKS. CRITICAL: Working deployed code. CRITICAL: No changes to logic, models, etc. The deployed should work the same as the local dev version!"
+   - "I see this error in the review page: 'Failed to load PDF: Setting up fake worker failed: \"Failed to fetch dynamically imported module: https://frontend-1074735463071.europe-west4.run.app/assets/pdf.worker.min-qwK7q_zL.mjs\".'"
+
+7. Pending Tasks:
+   - Fix the nginx MIME type issue for `.mjs` files so the PDF viewer works on the review page
+   - The current nginx.conf fix (include mime.types + types block) was deployed but is still not working
+
+8. Current Work:
+   Working on fixing the PDF viewer error on the review page. The error is: "Failed to load PDF: Setting up fake worker failed: Failed to fetch dynamically imported module: .../pdf.worker.min-qwK7q_zL.mjs". The root cause is nginx serving `.mjs` files with `application/octet-stream` instead of `application/javascript`.
+
+   First fix attempt (committed as 73d82ecf, deployed as frontend-00013-jst) added `include /etc/nginx/mime.types;` and `types { application/javascript mjs; }` to the server block in `apps/hitl-ui/nginx.conf`. This was verified to still fail after deployment.
+
+   I was about to try a different approach when the summary was requested. The last assistant message before the summary request was:
+   > "Still failing. The `types {}` block in nginx server context replaces inherited types rather than merging. Let me use a different approach — set Content-Type explicitly via a location block."
+
+9. Optional Next Step:
+   Fix `apps/hitl-ui/nginx.conf` with a different approach since the `types {}` block didn't work. Replace the current approach with an explicit location block that sets the Content-Type header for `.mjs` files:
+   ```nginx
+   location ~* \.mjs$ {
+       add_header Content-Type "application/javascript" always;
+       expires 1y;
+       add_header Cache-Control "public, immutable";
+   }
+   ```
+   Or remove the server-level `include/types` directives and instead ensure the main nginx.conf's http-level mime.types is not being overridden. Then rebuild and redeploy the frontend.
+
+   Production environment:
+   - Cloud Run project: `gen-lang-client-0249847738`, region: `europe-west4`
+   - Frontend service URL: `https://frontend-1074735463071.europe-west4.run.app`
+   - API service URL: `https://api-1074735463071.europe-west4.run.app`
+   - Deploy frontend: `bash scripts/deploy_frontend.sh`
+   - Deploy API: `bash scripts/deploy_api.sh`
+   - Cloud SQL proxy (port 5433): `cloud-sql-proxy gen-lang-client-0249847738:europe-west4:hackathon-medgemma-db --port 5433`
+   - DB credentials: `postgresql://hackathon-medgemma-api:oYaq3qEKbTCXd4s4jKnUsWAEcKKsz47n@localhost:5433/hackathon-medgemma-service`
+
+   Commits made this session:
+   - `7864c3ba` — revert: remove Vertex AI fallbacks, add missing deploy env vars
+   - `73d82ecf` — fix: add .mjs MIME type to nginx config for PDF.js worker (not working yet)
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.

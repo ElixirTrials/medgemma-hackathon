@@ -135,3 +135,14 @@ This is completly wrong. It creates silent failures and unneccary fallbacks. We 
 
 I see this error in the review page: "Failed to load PDF: Setting up fake worker failed: "Failed to fetch dynamically imported module: https://frontend-1074735463071.europe-west4.run.app/assets/pdf.worker.min-qwK7q_zL.mjs"."
 
+### Prompt 13
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start (Continuation)**: This is a continuation from a previous session. The summary explains that Phases 1-3 of a deployment fix project were completed. The previous session fixed:
+   - Gemini API key missing → Vertex AI ADC fallback
+   - LangGraph checkpoint stale connec...
+
