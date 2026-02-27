@@ -88,6 +88,13 @@
       "context": "/8d/e45facb270/10/context.md",
       "content_hash": "/8d/e45facb270/10/content_hash.txt",
       "prompt": "/8d/e45facb270/10/prompt.txt"
+    },
+    {
+      "metadata": "/8d/e45facb270/11/metadata.json",
+      "transcript": "/8d/e45facb270/11/full.jsonl",
+      "context": "",
+      "content_hash": "/8d/e45facb270/11/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
