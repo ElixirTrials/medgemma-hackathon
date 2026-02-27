@@ -81,13 +81,20 @@
       "context": "",
       "content_hash": "/8d/e45facb270/9/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/8d/e45facb270/10/metadata.json",
+      "transcript": "/8d/e45facb270/10/full.jsonl",
+      "context": "/8d/e45facb270/10/context.md",
+      "content_hash": "/8d/e45facb270/10/content_hash.txt",
+      "prompt": "/8d/e45facb270/10/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 5154,
-    "cache_creation_tokens": 1180447,
-    "cache_read_tokens": 57392552,
-    "output_tokens": 145368,
-    "api_call_count": 578
+    "input_tokens": 10038,
+    "cache_creation_tokens": 1422499,
+    "cache_read_tokens": 69676534,
+    "output_tokens": 156993,
+    "api_call_count": 710
   }
 }
