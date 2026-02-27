@@ -357,6 +357,11 @@ async def health_check(db: Session = Depends(get_db)):
     # Circuit breaker states (informational)
     checks["breakers"] = _check_breakers()
 
+    # MLflow status (informational — does not affect health status)
+    from shared.resilience import mlflow_is_available
+
+    checks["mlflow_available"] = mlflow_is_available()
+
     return {"status": "healthy", "checks": checks}
 
 

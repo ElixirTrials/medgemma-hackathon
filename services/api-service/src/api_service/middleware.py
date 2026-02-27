@@ -9,13 +9,35 @@ contextvars and produces malformed trace spans.
 import logging
 import os
 import time
+from typing import Any
 
+from shared.resilience import mlflow_breaker, mlflow_is_available
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 logger = logging.getLogger(__name__)
 
 # Skip tracing for health/readiness probes
 _SKIP_PATHS = {"/health", "/ready", "/"}
+
+
+def _get_mlflow_if_ready(path: str) -> Any | None:
+    """Return the mlflow module if tracing should be applied, else None.
+
+    Checks are ordered cheapest-first: path skip, circuit breaker, env var,
+    then import.  Returns None (skip tracing) on any check failure.
+    """
+    if path in _SKIP_PATHS:
+        return None
+    if not mlflow_is_available():
+        return None
+    if not os.getenv("MLFLOW_TRACKING_URI"):
+        return None
+    try:
+        import mlflow
+
+        return mlflow
+    except ImportError:
+        return None
 
 
 class MLflowRequestMiddleware:
@@ -32,18 +54,8 @@ class MLflowRequestMiddleware:
             return
 
         path = scope.get("path", "")
-        if path in _SKIP_PATHS:
-            await self.app(scope, receive, send)
-            return
-
-        tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
-        if not tracking_uri:
-            await self.app(scope, receive, send)
-            return
-
-        try:
-            import mlflow
-        except ImportError:
+        mlflow = _get_mlflow_if_ready(path)
+        if mlflow is None:
             await self.app(scope, receive, send)
             return
 
@@ -82,5 +94,10 @@ class MLflowRequestMiddleware:
                 "MLflow request tracing failed, continuing without trace",
                 exc_info=True,
             )
+            # Trip breaker so subsequent requests skip MLflow immediately
+            try:
+                mlflow_breaker.open()
+            except Exception:
+                pass
             if not app_called:
                 await self.app(scope, receive, send)
