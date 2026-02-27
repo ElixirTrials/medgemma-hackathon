@@ -3,7 +3,7 @@
   "checkpoint_id": "2dc3860a9ef2",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/tracing.py"
   ],
@@ -56,13 +56,20 @@
       "context": "/2d/c3860a9ef2/6/context.md",
       "content_hash": "/2d/c3860a9ef2/6/content_hash.txt",
       "prompt": "/2d/c3860a9ef2/6/prompt.txt"
+    },
+    {
+      "metadata": "/2d/c3860a9ef2/7/metadata.json",
+      "transcript": "/2d/c3860a9ef2/7/full.jsonl",
+      "context": "/2d/c3860a9ef2/7/context.md",
+      "content_hash": "/2d/c3860a9ef2/7/content_hash.txt",
+      "prompt": "/2d/c3860a9ef2/7/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 481,
-    "cache_creation_tokens": 932345,
-    "cache_read_tokens": 40563915,
-    "output_tokens": 93580,
-    "api_call_count": 418
+    "input_tokens": 591,
+    "cache_creation_tokens": 1123460,
+    "cache_read_tokens": 47836911,
+    "output_tokens": 108589,
+    "api_call_count": 508
   }
 }
