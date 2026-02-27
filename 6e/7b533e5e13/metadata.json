@@ -3,7 +3,7 @@
   "checkpoint_id": "6e7b533e5e13",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 2,
+  "checkpoints_count": 3,
   "files_touched": [
     "services/api-service/src/api_service/_cloud_run_auth.py"
   ],
@@ -56,13 +56,20 @@
       "context": "/6e/7b533e5e13/6/context.md",
       "content_hash": "/6e/7b533e5e13/6/content_hash.txt",
       "prompt": "/6e/7b533e5e13/6/prompt.txt"
+    },
+    {
+      "metadata": "/6e/7b533e5e13/7/metadata.json",
+      "transcript": "/6e/7b533e5e13/7/full.jsonl",
+      "context": "/6e/7b533e5e13/7/context.md",
+      "content_hash": "/6e/7b533e5e13/7/content_hash.txt",
+      "prompt": "/6e/7b533e5e13/7/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 514,
-    "cache_creation_tokens": 984321,
-    "cache_read_tokens": 43694796,
-    "output_tokens": 102336,
-    "api_call_count": 443
+    "input_tokens": 624,
+    "cache_creation_tokens": 1175436,
+    "cache_read_tokens": 50967792,
+    "output_tokens": 117345,
+    "api_call_count": 533
   }
 }
