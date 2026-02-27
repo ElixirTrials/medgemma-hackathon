@@ -70,7 +70,7 @@ def _format_validation_error(err: ValidationError) -> str:
 async def _invoke_gemini(
     client: genai.Client,
     model: str,
-    uploaded_file: types.File,
+    pdf_content: Any,
     system_prompt: str,
     user_prompt: str,
 ) -> ExtractionResult:
@@ -79,7 +79,7 @@ async def _invoke_gemini(
     Args:
         client: Google GenAI client instance.
         model: Model name to use.
-        uploaded_file: Uploaded PDF file from File API.
+        pdf_content: PDF as File (Developer API) or Part (Vertex AI inline bytes).
         system_prompt: System instruction.
         user_prompt: User prompt text.
 
@@ -93,7 +93,7 @@ async def _invoke_gemini(
 
         response = await client.aio.models.generate_content(
             model=model,
-            contents=cast(Any, [uploaded_file, user_prompt]),
+            contents=cast(Any, [pdf_content, user_prompt]),
             config=types.GenerateContentConfig(
                 system_instruction=system_prompt,
                 response_mime_type="application/json",
@@ -201,6 +201,7 @@ async def extract_criteria_structured(
     try:
         # Instantiate client — prefer API key, fall back to Vertex AI ADC
         api_key = os.getenv("GOOGLE_API_KEY")
+        use_vertex = not api_key
         if api_key:
             client = genai.Client(api_key=api_key)
         else:
@@ -211,25 +212,31 @@ async def extract_criteria_structured(
             )
         model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
-        # Write PDF to temp file for File API upload
-        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
-            tmp.write(pdf_bytes)
-            tmp_path = tmp.name
-
-        # Upload via File API
-        uploaded_file = client.files.upload(file=tmp_path)
+        if use_vertex:
+            # Vertex AI: File API not available, pass PDF bytes inline
+            pdf_content = types.Part.from_bytes(
+                data=pdf_bytes, mime_type="application/pdf"
+            )
+        else:
+            # Developer API: upload via File API (supports larger files)
+            with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+                tmp.write(pdf_bytes)
+                tmp_path = tmp.name
+            uploaded_file = client.files.upload(file=tmp_path)
+            pdf_content = uploaded_file
 
         system_prompt = render_template("system.jinja2", title=title)
         user_prompt = render_template("user.jinja2", title=title)
 
         extraction_result = await _invoke_gemini(
-            client, model_name, uploaded_file, system_prompt, user_prompt
+            client, model_name, pdf_content, system_prompt, user_prompt
         )
 
         logger.info(
-            "Extracted %d criteria from protocol %s (Gemini File API)",
+            "Extracted %d criteria from protocol %s (%s)",
             len(extraction_result.criteria),
             protocol_id,
+            "Vertex AI inline" if use_vertex else "Gemini File API",
         )
 
         # Return as JSON string (not dict) for minimal state
@@ -253,7 +260,7 @@ async def extract_criteria_structured(
         raise
 
     finally:
-        # Clean up temp file
+        # Clean up temp file (Developer API path only)
         if tmp_path:
             try:
                 os.unlink(tmp_path)
@@ -262,7 +269,7 @@ async def extract_criteria_structured(
                     "Failed to delete temp file %s: %s", tmp_path, cleanup_err
                 )
 
-        # Clean up uploaded file
+        # Clean up uploaded file (Developer API path only)
         if uploaded_file and client and uploaded_file.name:
             try:
                 client.files.delete(name=uploaded_file.name)
