@@ -246,3 +246,959 @@ Phase: 2 --auto
 Execute the execute-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/execute-phase.md end-to-end.
 Preserve all workflow gates (wave execution, checkpoint handling, verification, state updates, routing).
 </process>
+
+---
+
+<objective>
+Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
+
+**How it works:**
+1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+2. Present gray areas — user selects which to discuss
+3. Deep-dive each selected area until satisfied
+4. Create CONTEXT.md with decisions that guide research and planning
+
+**Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/discuss-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/context.md
+</execution_context>
+
+<context>
+Phase number: 3 --auto (required)
+
+**Load project state:**
+@.planning/STATE.md
+
+**Load roadmap:**
+@.planning/ROADMAP.md
+</context>
+
+<process>
+1. Validate phase number (error if missing or not in roadmap)
+2. Check if CONTEXT.md exists (offer update/view/skip if yes)
+3. **Analyze phase** — Identify domain and generate phase-specific gray areas
+4. **Present gray areas** — Multi-select: which to discuss? (NO skip option)
+5. **Deep-dive each area** — 4 questions per area, then offer more/next
+6. **Write CONTEXT.md** — Sections match areas discussed
+7. Offer next steps (research or plan)
+
+**CRITICAL: Scope guardrail**
+- Phase boundary from ROADMAP.md is FIXED
+- Discussion clarifies HOW to implement, not WHETHER to add more
+- If user suggests new capabilities: "That's its own phase. I'll note it for later."
+- Capture deferred ideas — don't lose them, don't act on them
+
+**Domain-aware gray areas:**
+Gray areas depend on what's being built. Analyze the phase goal:
+- Something users SEE → layout, density, interactions, states
+- Something users CALL → responses, errors, auth, versioning
+- Something users RUN → output format, flags, modes, error handling
+- Something users READ → structure, tone, depth, flow
+- Something being ORGANIZED → criteria, grouping, naming, exceptions
+
+Generate 3-4 **phase-specific** gray areas, not generic categories.
+
+**Probing depth:**
+- Ask 4 questions per area before checking
+- "More questions about [area], or move to next?"
+- If more → ask 4 more, check again
+- After all areas → "Ready to create context?"
+
+**Do NOT ask about (Claude handles these):**
+- Technical implementation
+- Architecture choices
+- Performance concerns
+- Scope expansion
+</process>
+
+<success_criteria>
+- Gray areas identified through intelligent analysis
+- User chose which areas to discuss
+- Each selected area explored until satisfied
+- Scope creep redirected to deferred ideas
+- CONTEXT.md captures decisions, not vague vision
+- User knows next steps
+</success_criteria>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User invoked `/gsd:new-project` with `--auto` flag, providing a deployment issues report and the directive: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done"
+
+2. **Setup Phase**: Ran `gsd-tools.cjs init new-project` which returned:
+   - `is_brownfield: true`, `has_codebase_map: true`, `needs_codebase_map: false`
+   - `has_existing_code: true`, `has_git: true`
+   - Models: researcher=sonnet, synthesizer=sonnet, roadmapper=sonnet
+
+3. **Config Questions (Auto Mode Step 2a)**:
+   - Depth: Quick (3-5 phases)
+   - Execution: Parallel
+   - Git Tracking: No (keep .planning/ local-only) - `.planning/` already in .gitignore
+   - Research: Yes
+   - Plan Check: Yes
+   - Verifier: Yes
+   - AI Models: Quality (Opus for research/roadmap)
+
+4. **Created config.json** with mode=yolo, depth=quick, parallelization=true, commit_docs=false, model_profile=quality
+
+5. **Read deployment issues report** - 10 issues documented, Issues 1-8 resolved, Issues 9-10 unresolved (MLflow 403/503, API unresponsive)
+
+6. **Read codebase map** (ARCHITECTURE.md, STACK.md) - Understood existing architecture
+
+7. **Wrote PROJECT.md** - MedGemma Deployment Fix project
+
+8. **Research Phase** - Spawned 4 parallel researchers (Stack, Features, Architecture, Pitfalls) + synthesizer
+   - Key finding: All 3 remaining issues stem from MLflow being a hard dependency
+   - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true fixes sync blocking
+   - --no-cpu-throttling needed for outbox processor
+   - Circuit breaker pattern already in codebase (pybreaker)
+
+9. **Requirements** - 12 v1 requirements across 4 categories (MLFL, AUTH, DEPL, LOCL)
+
+10. **Roadmap** - 3 phases:
+    - Phase 1: MLflow Decoupling (MLFL-01-04, LOCL-01-02)
+    - Phase 2: Service Auth and MLflow Recovery (AUTH-01-02)
+    - Phase 3: Deploy Hardening (DEPL-01-04)
+
+11. **Phase 1 Discussion** - User selected Degradation behavior and Recovery behavior
+    - Degradation: Warn once then silent, circuit breaker trips after 3 failures, zero tracing when down
+    - Health: DB+OMOP required, MLflow info-only
+    - Recovery: Auto-resume after 2-minute cooldown
+    - **USER FEEDBACK**: "Consider that MLFlow is not the main issue. The main issue is failures to achieve login, failures to achieve protocol upload and then failure to trigger the grounding and extraction. We suspect that most of these issues center around permissions and security but there might be other blockers."
+
+12. **Phase 1 Execution** - 6 commits across 2 plans:
+    - Plan 01-01 (3 commits): mlflow_breaker in resilience.py, soft preflight in trigger.py, hardened init in main.py
+    - Plan 01-02 (3 commits): no-op spans in tracing.py, middleware gating, async trace logging env var
+
+13. **Phase 2 Discussion** - User selected Token refresh strategy
+    - Lazy on expiry, 10-minute buffer before expiry
+    - Skip MLflow entirely if metadata server unreachable
+    - **USER FEEDBACK**: "Remember, in the end, we want to be able to login, upload a pdf and examine the result of the processing. It's not just about MlFlow."
+
+14. **Phase 2 Research** - Key finding: MLflow deployed with --allow-unauthenticated, so 403s are from cold-start/503 not IAM
+
+15. **Phase 2 Execution** - 2 commits:
+    - `4cc6115e`: _TOKEN_REFRESH_MARGIN from 300→600, mlflow_breaker.open() on metadata failure
+    - `695b1325`: configure_mlflow_auth() added to middleware _get_mlflow_if_ready()
+
+16. **Phase 2 Verification** - Passed 5/5 must-haves
+
+17. **USER MESSAGE**: "Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."
+
+18. **Phase 3 Discussion Started** - Currently initializing Phase 3 (Deploy Hardening)
+
+Key files modified:
+- `libs/shared/src/shared/resilience.py` - Added mlflow_breaker
+- `services/protocol-processor-service/src/protocol_processor/trigger.py` - Soft preflight
+- `services/api-service/src/api_service/main.py` - Hardened init, /health with mlflow_available
+- `services/protocol-processor-service/src/protocol_processor/tracing.py` - No-op spans
+- `services/api-service/src/api_service/middleware.py` - Skip tracing when breaker open, token refresh
+- `scripts/deploy_api.sh` - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true
+- `infra/docker-compose.yml` - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true
+- `services/api-service/src/api_service/_cloud_run_auth.py` - 10-min margin, breaker trip
+
+Git commits (8 total on main, ahead of origin/main):
+1. `19b0d763` feat(01-01): add MLflow circuit breaker to resilience.py
+2. `300e30ad` feat(01-01): make MLflow a soft dependency in pipeline trigger
+3. `ab82861e` feat(01-01): harden MLflow initialization with circuit breaker
+4. `89384082` feat(01-02): gate tracing spans with MLflow circuit breaker
+5. `9124b541` feat(01-02): gate middleware and health endpoint with circuit breaker
+6. `5d691266` feat(01-02): enable async trace logging in deploy and docker-compose
+7. `4cc6115e` feat(02-01): update token refresh margin to 10min and trip breaker on metadata failure
+8. `695b1325` feat(02-01): add token refresh to middleware _get_mlflow_if_ready()
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/gsd:new-project --auto` with the deployment issues report (`instructions/DEPLOYMENT_ISSUES_REPORT.md`) and the directive: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done." The project is MedGemma — a clinical trial criteria extraction platform that works locally via Docker Compose but has multiple unresolved issues preventing reliable GCP Cloud Run deployment. The user repeatedly emphasized that the ultimate success criterion is: **open the deployed app in a browser, login, upload a protocol PDF, and see that the processing works** — verified with Playwright. The user stressed this is NOT just about MLflow; it's about the entire end-to-end flow (login → upload → extraction/grounding → review).
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment with service-to-service auth (europe-west4 region)
+   - MLflow as optional observability (was hard dependency, now decoupled via circuit breaker)
+   - pybreaker circuit breaker pattern (`mlflow_breaker`: fail_max=3, reset_timeout=120s)
+   - Cloud Run ID tokens from metadata server (~1 hour lifetime, 10-minute refresh buffer)
+   - `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true` for non-blocking trace export
+   - `--no-cpu-throttling` needed for outbox background processor
+   - ProxyHeadersMiddleware for HTTPS behind Cloud Run load balancer
+   - GCS signed URL generation via metadata server + IAM signBlob
+   - CORS with `^||^` delimiter for comma-separated origins
+   - Popup OAuth flow (window.open + postMessage)
+   - FastAPI + LangGraph 7-node pipeline + React frontend + PostgreSQL + GCS
+   - GSD workflow: new-project → discuss-phase → plan-phase → execute-phase (auto mode)
+
+3. Files and Code Sections:
+
+   - **`.planning/config.json`** — Project config (mode=yolo, depth=quick, parallelization=true, commit_docs=false, model_profile=quality, all workflow agents enabled, auto_advance=true)
+
+   - **`.planning/PROJECT.md`** — Project context document. Core value: "Deployed Cloud Run services handle the full protocol pipeline end-to-end, exactly as locally." Lists validated capabilities (12 resolved issues) and active requirements (MLflow auth, API stability, protocol processing, deploy script, local compatibility).
+
+   - **`.planning/REQUIREMENTS.md`** — 12 v1 requirements:
+     - MLFL-01 through MLFL-04 (MLflow Decoupling → Phase 1)
+     - AUTH-01, AUTH-02 (Service Auth → Phase 2)
+     - DEPL-01 through DEPL-04 (Deploy Hardening → Phase 3)
+     - LOCL-01, LOCL-02 (Local Compatibility → Phase 1)
+
+   - **`.planning/ROADMAP.md`** — 3-phase roadmap, Phases 1-2 complete, Phase 3 pending
+
+   - **`.planning/research/`** — STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md, SUMMARY.md
+
+   - **`libs/shared/src/shared/resilience.py`** — Added `mlflow_breaker` (fail_max=3, reset_timeout=120) and `mlflow_is_available()` helper function
+     ```python
+     mlflow_breaker = CircuitBreaker(fail_max=3, reset_timeout=120)
+     def mlflow_is_available():
+         return str(mlflow_breaker.current_state) != "open"
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/trigger.py`** — Converted MLflow preflight from hard `DependencyCheckError` to soft warning; gated `_ensure_mlflow()` and `_cleanup_orphan_traces()` with breaker check
+
+   - **`services/api-service/src/api_service/main.py`** — Hardened `_init_mlflow()` with breaker check and breaker trip on failure; `/health` endpoint includes `mlflow_available` as informational boolean (not blocking)
+
+   - **`services/protocol-processor-service/src/protocol_processor/tracing.py`** — `pipeline_span()` and `llm_span()` return no-op spans when breaker is open; span failures trip the breaker
+
+   - **`services/api-service/src/api_service/middleware.py`** — `MLflowRequestMiddleware` skips tracing when breaker is open; `_get_mlflow_if_ready()` calls `configure_mlflow_auth()` before returning mlflow module
+     ```python
+     # Added in Phase 2 (Task 2):
+     # Refresh Cloud Run ID token if needed (no-op when fresh or not on Cloud Run)
+     try:
+         from api_service._cloud_run_auth import configure_mlflow_auth
+         configure_mlflow_auth()
+     except Exception:
+         pass  # Failure handled inside configure_mlflow_auth
+     ```
+
+   - **`services/api-service/src/api_service/_cloud_run_auth.py`** — Updated `_TOKEN_REFRESH_MARGIN` from 300 to 600 (10 minutes per user decision); added `mlflow_breaker.open()` in `get_id_token()` except block when metadata server is unreachable
+     ```python
+     _TOKEN_REFRESH_MARGIN = 600  # refresh 10 min before expiry
+     # In get_id_token() except block:
+     try:
+         from shared.resilience import mlflow_breaker
+         mlflow_breaker.open()
+     except Exception:
+         pass
+     ```
+
+   - **`scripts/deploy_api.sh`** — Added `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true` to Cloud Run env vars
+
+   - **`infra/docker-compose.yml`** — Added `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true` for local dev parity
+
+   - **`.REDACTED.md`** — Phase 1 decisions (degradation: warn once then silent, circuit breaker 3 failures, zero tracing when down, auto-resume after 2min)
+
+   - **`.REDACTED.md`** — Phase 2 decisions (lazy token refresh, 10-min buffer, trip breaker if metadata server unreachable)
+
+   - **`.REDACTED.md`** — Key finding: MLflow deployed with `--allow-unauthenticated`, so 403s are from cold-start/503 not IAM
+
+4. Errors and Fixes:
+   - **Plan Phase 2 subagent failure**: The first attempt to spawn `/gsd:plan-phase 2 --auto` via a general-purpose Task agent failed because the agent couldn't access the `/gsd` skill. Fixed by calling `Skill(skill="gsd:plan-phase", args="2 --auto")` directly in the main context instead of delegating to a subagent.
+   - **SUMMARY.md existence check**: The `test -f` bash command to check SUMMARY.md existence was intercepted by pytest (xdist looponfail error). Fixed by using `ls` instead of `test`.
+   - **Phase completion routing**: `gsd-tools.cjs phase complete "02"` returned `is_last_phase: true` and `next_phase: null` even though Phase 3 exists (because Phase 3 plans are still TBD). Handled by manually continuing to Phase 3 instead of relying on auto-routing.
+   - **Ruff E501 lint**: Minor auto-fix during Phase 2 execution — shortened inline comment to satisfy line length limit.
+
+5. Problem Solving:
+   - **Root cause analysis**: All 3 remaining deployment issues (MLflow 403/503, API unresponsive, dead-lettered protocols) traced to MLflow being a hard dependency. Solution: circuit breaker pattern with graceful degradation.
+   - **Token refresh gap**: Research identified that the middleware path never refreshed the Cloud Run ID token. Fixed by adding `configure_mlflow_auth()` call to `_get_mlflow_if_ready()`.
+   - **MLflow auth misconception**: Research discovered MLflow is deployed with `--allow-unauthenticated`, meaning 403 errors were actually from cold-start/503, not IAM rejection. This simplified the auth approach significantly.
+
+6. All User Messages:
+   - `/gsd:new-project` with args: `instructions/DEPLOYMENT_ISSUES_REPORT.md "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done" --auto`
+   - Config answers: Quick depth, Parallel execution, No git tracking, Yes research, Yes plan check, Yes verifier, Quality models
+   - Phase 1 discussion: Selected "Degradation behavior" and "Recovery behavior"
+   - Degradation: "Warn once then silent"
+   - Circuit breaker: "Fast (3 failures)"
+   - Health endpoint: "health should show that db and omop are up. Info only on mlflow."
+   - Tracing when down: "Zero tracing"
+   - **"Consider that MLFlow is not the main issue. The main issue is failures to achieve login, failures to achieve protocol upload and then failure to trigger the grounding and extraction. We suspect that most of these issues center around permissions and security but there might be other blockers. This project is to discover all the issues and fix them (without breaking what works locally)."**
+   - Phase 2 discussion: Selected "Token refresh strategy"
+   - Token refresh: "Lazy on expiry"
+   - Refresh buffer: "10 minutes before"
+   - Metadata server failure: "Skip MLflow entirely"
+   - **"Remember, in the end, we want to be able to login, upload a pdf and examine the result of the processing. It's not just about MlFlow."**
+   - **"Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."**
+
+7. Pending Tasks:
+   - **Phase 3: Deploy Hardening** — Currently at discuss-phase step (just initialized). Requirements: DEPL-01 (startup probe), DEPL-02 (--no-cpu-throttling), DEPL-03 (env var validation), DEPL-04 (post-deploy health check)
+   - **Actually deploy to Cloud Run** — Push the 8 commits and run deploy scripts
+   - **End-to-end Playwright verification** — Login → upload PDF → see extraction results in the deployed app
+   - The user explicitly stated: "success = you can open the deployed app, login, upload a protocol and see that it works with playwright"
+
+8. Current Work:
+   Phase 3 discuss-phase was just initialized. The `gsd-tools.cjs init phase-op "3"` returned: `phase_found: true`, `phase_dir: null`, `phase_name: "Deploy Hardening"`, `padded_phase: "03"`, `has_context: false`, `has_plans: false`. The workflow was about to present gray areas for Phase 3 (Deploy Hardening) to the user via AskUserQuestion. Phase 3's goal is: "Deploy script is robust, idempotent, and self-verifying so deployments succeed reliably without manual intervention." Requirements: DEPL-01 (startup probe), DEPL-02 (--no-cpu-throttling), DEPL-03 (env var validation), DEPL-04 (post-deploy health check).
+
+   Git state: 8 commits on `main` ahead of `origin/main`:
+   - `19b0d763` through `695b1325` (Phase 1: 6 commits, Phase 2: 2 commits)
+
+9. Optional Next Step:
+   Continue the Phase 3 discuss-phase workflow that was just initialized. Present gray areas for Deploy Hardening and collect user decisions. Then plan, execute, deploy to Cloud Run, and verify end-to-end with Playwright.
+
+   The user's most recent explicit request was: **"Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."**
+
+   The workflow was at: Phase 3 discuss-phase initialization complete (`gsd-tools.cjs init phase-op "3"` returned successfully), about to present gray areas to user. The auto-advance chain is: discuss-phase 3 → plan-phase 3 → execute-phase 3 → deploy → Playwright e2e test.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation session from a previous conversation that ran out of context. The previous session completed Phases 1-2 of a 3-phase MedGemma deployment fix project, and was about to start Phase 3 discuss-phase.
+
+2. **Phase 3 Context Creation**: I created `.planning/phases/03-deploy-hardening/03-CONTEXT.md` and `03-01-PLAN.md` with decisions about startup probe, CPU throttling, env var validation, and post-deploy health check.
+
+3. **Phase 3 Execution**: I edited `scripts/deploy_api.sh` to add:
+   - `--no-cpu-throttling` flag
+   - Startup probe configuration
+   - Post-deploy health check
+   - Fixed MLflow warning message
+
+4. **First deploy attempt**: Failed because startup probe flags used wrong syntax (`--startup-probe-path=/health` instead of `--startup-probe=httpGet.path=/health,...`). Fixed the syntax.
+
+5. **User message about password**: User said "You committed a password and pushed it. In docker-compose.yml you wrote the postgres password." I investigated and confirmed the passwords in docker-compose.yml were pre-existing default dev values (`${POSTGRES_PASSWORD:-postgres}`) - not something we introduced. Our only change was adding `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true`.
+
+6. **Successful deploy**: API deployed as revision `api-00038-fzr`, health check PASSED.
+
+7. **Playwright E2E testing**:
+   - Frontend loaded at `https://frontend-1074735463071.europe-west4.run.app/login`
+   - Google OAuth login succeeded (user "Noah Dolev")
+   - Dashboard showed system status: DB connected, OMOP (7.3M concepts), GCS working
+   - Protocol upload worked: "Prot_000-3aca1102" (77 pages, 95% quality)
+   - But protocol stayed stuck at "Uploaded" status for minutes
+
+8. **Investigation of stuck pipeline**: 
+   - Found `MLFLOW_TRACKING_URI=http://localhost:5001` leaked from `.env` into production
+   - The `_ensure_mlflow()` function was retrying against localhost:5001 with exponential backoff
+   - Lines 426-437 in trigger.py called `mlflow.get_experiment_by_name()` without checking circuit breaker
+
+9. **User asked about MLflow**: "Can you check that MLFlow is working? Also how can you access the MlFlow UI?"
+   - MLflow Cloud Run service: `https://mlflow-aq2dyw3nxq-ez.a.run.app` 
+   - Returns 403 Forbidden - IAM restricted (only compute SA has invoker role)
+   - Access via: `gcloud run services proxy mlflow --region europe-west4`
+
+10. **User noted extraction not working**: "I see '0 criteria extracted, 0 protocols currently in grounding' in the dashboard"
+
+11. **Fixes applied**:
+    - Fixed deploy script to use `MLFLOW_TRACKING_URI_PROD` instead of sourcing from `.env`
+    - Added `mlflow_is_available()` guard before `mlflow.get_experiment_by_name()` in trigger.py
+    - Redeployed as revision `api-00039-49x`
+
+12. **Second upload test**: Uploaded "Prot_000-106814a3" (56 pages, 91% quality)
+    - Pipeline started immediately (fix worked!)
+    - But went to "Dead Letter" with TWO different errors:
+      a. `psycopg.OperationalError: the connection is closed` - LangGraph checkpoint postgres connection is stale
+      b. `ValueError: Missing key inputs argument! To use the Google AI API, provide (api_key) arguments. To use the Google Cloud API, provide (vertexai, project & location) arguments.` - The Gemini extractor creates `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` but GOOGLE_API_KEY is not set in production (they use Vertex AI)
+
+13. **First protocol completed**: The first upload (Prot_000-3aca1102) actually completed! Log shows: `INFO:protocol_processor.trigger:Protocol pipeline completed for protocol c35a4c93-fed3-4a36-ad70-4890ef0bd7a6` but then the extraction failed with the Gemini API key error.
+
+The two new errors to fix:
+1. **Postgres checkpoint connection closed**: The LangGraph async checkpointer's psycopg connection goes stale on Cloud Run (likely due to Cloud SQL proxy timeouts)
+2. **Gemini API key missing**: `gemini_extractor.py` line 203 uses `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` but production should use Vertex AI (`vertexai=True, project=..., location=...`)
+
+Git state: 12 commits on main, all pushed to origin:
+- 9 from phases 1-2 (prior session)
+- `a210a3d2` feat(03-01): harden deploy script
+- `ee54f93e` fix(03-01): correct startup probe flag syntax
+- `5db5c18d` fix(03-01): prevent local MLFLOW_TRACKING_URI from leaking into deploy
+- `2f894780` fix: guard MLflow experiment lookup with circuit breaker check
+
+Summary:
+1. Primary Request and Intent:
+   The user's overarching goal (from the previous session) is: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done." The user has repeatedly emphasized: **"success = you can open the deployed app, login, upload a protocol and see that it works with playwright."** This is a MedGemma clinical trial criteria extraction platform that works locally via Docker Compose but has deployment issues on GCP Cloud Run. The project uses a 3-phase roadmap (MLflow Decoupling, Service Auth, Deploy Hardening). Phases 1-2 were completed in a prior session. This session executed Phase 3 and began real deployment + Playwright E2E testing. The user also explicitly asked about MLflow status and how to access the MLflow UI. The user noted the extraction/grounding wasn't progressing.
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment (europe-west4 region, project `gen-lang-client-0249847738`)
+   - MLflow as optional observability with circuit breaker pattern (pybreaker)
+   - Cloud Run startup probes (`--startup-probe=httpGet.path=/health,...`)
+   - `--no-cpu-throttling` for background outbox processor
+   - Cloud Run ID tokens for service-to-service auth (MLflow is IAM-restricted)
+   - LangGraph async checkpointer with PostgreSQL (psycopg async)
+   - Google GenAI SDK vs Vertex AI SDK (`genai.Client(api_key=...)` vs `vertexai=True, project=..., location=...`)
+   - Cloud SQL proxy connections going stale on Cloud Run
+   - `.env` variable leaking into deploy (MLFLOW_TRACKING_URI)
+   - urllib3 exponential backoff retries blocking pipeline execution
+   - Playwright MCP for E2E browser testing
+   - Google OAuth popup flow (window.postMessage)
+
+3. Files and Code Sections:
+
+   - **`scripts/deploy_api.sh`** — Deploy script, central to Phase 3. Multiple edits:
+     - Added `--no-cpu-throttling` flag (keeps outbox processor alive)
+     - Added `--startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=6`
+     - Added post-deploy health check (curl /health endpoint)
+     - Fixed MLFLOW_TRACKING_URI leak: changed from `MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-}"` to `MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI_PROD:-}"` so local `.env` value doesn't leak into production
+     - Fixed MLflow warning message to say "Tracing will be disabled" instead of "Protocol processing will fail"
+     ```bash
+     # Always auto-resolve MLflow URL from Cloud Run for deploy.
+     # The .env MLFLOW_TRACKING_URI is for local dev (localhost:5001) and must NOT
+     # leak into production. Only skip auto-resolve if MLFLOW_TRACKING_URI_PROD is set.
+     MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI_PROD:-}"
+     if [ -z "$MLFLOW_TRACKING_URI" ]; then
+         MLFLOW_TRACKING_URI=$(gcloud run services describe mlflow \
+             --region "$REGION" --project "$PROJECT_ID" \
+             --format='value(status.url)' 2>/dev/null || true)
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/trigger.py`** — Pipeline trigger handler. Fixed circuit breaker bypass:
+     - Lines 422-437: Added `mlflow_is_available()` guard before `mlflow.get_experiment_by_name()` call
+     ```python
+     # Guard with breaker check to avoid minutes of MLflow SDK retries when unreachable.
+     from shared.resilience import mlflow_is_available
+
+     if mlflow_is_available():
+         try:
+             import mlflow
+             from protocol_processor.tracing import set_pipeline_experiment_id
+             exp = mlflow.get_experiment_by_name(_get_experiment_name())
+             if exp:
+                 set_pipeline_experiment_id(exp.experiment_id)
+             else:
+                 set_pipeline_experiment_id(None)
+         except Exception:
+             logger.debug(
+                 "Could not set pipeline experiment ID for tracing", exc_info=True
+             )
+     ```
+     - Key function `handle_protocol_uploaded()` at line 397: orchestrates the pipeline
+     - `_preflight_check()` at line 317: correctly trips `mlflow_breaker.open()` when MLflow unreachable
+     - `_ensure_mlflow()` at line 114: correctly checks `mlflow_is_available()` before proceeding
+     - `_run_pipeline()` at line 309: runs `graph.ainvoke(initial_state, config)` — this is where the psycopg error occurs
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py`** — Line 203 creates Gemini client:
+     ```python
+     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+     ```
+     This fails in production because `GOOGLE_API_KEY` is not set — production uses Vertex AI (`MODEL_BACKEND=vertex`). This is a critical bug to fix.
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/extract.py`** — Line 47 calls `extract_criteria_structured()` which hits the Gemini client error.
+
+   - **`services/api-service/src/api_service/main.py`** — API entry point with lifespan, health/ready endpoints, middleware setup. Already hardened in Phase 1.
+
+   - **`services/api-service/src/api_service/_cloud_run_auth.py`** — Cloud Run ID token management. Updated in Phase 2 (10-min refresh margin, breaker trip on metadata failure).
+
+   - **`services/api-service/src/api_service/middleware.py`** — MLflow request middleware with token refresh. Updated in Phase 2.
+
+   - **`.planning/STATE.md`** — Updated to show all 3 phases complete, pending deploy + E2E verification.
+
+   - **`.planning/phases/03-deploy-hardening/03-CONTEXT.md`** and **`03-01-PLAN.md`** — Created for Phase 3.
+
+   - **`.env`** — Contains local dev config including `MLFLOW_TRACKING_URI=http://localhost:5001`, `REDACTED`, `FRONTEND_URL=https://frontend-1074735463071.europe-west4.run.app,...`
+
+4. Errors and Fixes:
+   - **Startup probe flag syntax error**: `--startup-probe-path=/health` is not valid gcloud syntax. Fixed to `--startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=6`. Image had already been built, so only needed to re-run the deploy command.
+   
+   - **User reported password leak in docker-compose.yml**: Investigated and confirmed the `${POSTGRES_PASSWORD:-postgres}` values were pre-existing defaults, not something we introduced. Our only change was adding `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true`.
+   
+   - **MLFLOW_TRACKING_URI=http://localhost:5001 leaked into production**: The `.env` file sets this for local dev. The deploy script sourced `.env` then checked `if [ -z "$MLFLOW_TRACKING_URI" ]` — but the var was already set from `.env`, so auto-resolve was skipped. Fixed by using `MLFLOW_TRACKING_URI_PROD` as the override variable.
+   
+   - **Pipeline stuck ~10 minutes before starting extraction**: `handle_protocol_uploaded()` lines 426-437 called `mlflow.get_experiment_by_name()` directly without checking the circuit breaker. Even though `_preflight_check()` tripped the breaker, this MLflow SDK call bypassed it and spent ~10 minutes in urllib3 exponential backoff retries (7 retries per call). Fixed by adding `mlflow_is_available()` guard.
+   
+   - **MLflow UI returns 403 Forbidden**: MLflow Cloud Run service is IAM-restricted (only `1074735463071-compute@developer.gserviceaccount.com` has `roles/run.invoker`). This contradicted Phase 2 research. User can access via `gcloud run services proxy mlflow --region europe-west4 --project gen-lang-client-0249847738`.
+   
+   - **psycopg.OperationalError: the connection is closed** (NEW, UNFIXED): LangGraph's async PostgreSQL checkpointer (`langgraph.checkpoint.postgres.aio`) has a stale connection. The error occurs at `checkpointer.aget_tuple()` when trying to open a cursor. The connection likely went stale due to Cloud SQL proxy timeouts or connection pooling issues. Failed all 3 retries and went to dead_letter.
+   
+   - **ValueError: Missing key inputs argument for Google AI API** (NEW, UNFIXED): `gemini_extractor.py` line 203 creates `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` but `GOOGLE_API_KEY` is not set in production. The deploy env vars set `MODEL_BACKEND=vertex` but the extractor code doesn't check this — it always tries to use the Google AI API key. This error appeared for the first protocol (c35a4c93) which made it past the checkpoint stage but failed at the extract node.
+
+5. Problem Solving:
+   - **Solved**: Phase 3 deploy hardening (startup probe, CPU throttling, health check, env var validation)
+   - **Solved**: MLFLOW_TRACKING_URI leak from .env into production deploy
+   - **Solved**: Circuit breaker bypass causing 10-minute pipeline startup delay
+   - **Solved**: Startup probe flag syntax
+   - **Ongoing**: Pipeline going to Dead Letter due to two distinct errors:
+     1. PostgreSQL checkpoint connection going stale (psycopg OperationalError)
+     2. Gemini extractor using wrong API client for production (needs Vertex AI, not API key)
+   - The first protocol (Prot_000-3aca1102) logged "pipeline completed" but then had the extraction error, suggesting the ingest node succeeded but extract node failed. The second protocol (Prot_000-106814a3) failed immediately at the checkpoint stage.
+
+6. All User Messages:
+   - (Implicit from session continuation) "Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."
+   - "You committed a password and pushed it. In docker-compose.yml you wrote the postres password."
+   - "Can you check that MLFlow is working? Also how can you access the MlFlow UI?"
+   - "Also, I see '0 criteria extracted, 0 protocols currently in grounding' in the dashboard even though the file is uploaded - it doesn't look like it is extracting/grounding."
+
+7. Pending Tasks:
+   - Fix `psycopg.OperationalError: the connection is closed` in LangGraph checkpointer — need to add connection pool recycling or reconnect logic for Cloud SQL
+   - Fix `gemini_extractor.py` to use Vertex AI client when `MODEL_BACKEND=vertex` instead of always using `genai.Client(api_key=...)` 
+   - Redeploy after fixing both errors
+   - Re-test the full E2E flow: upload protocol → extraction → grounding → review results
+   - Verify MLflow tracing works with the correct URL and IAM auth (MLflow returns 403 even to the service — may need to check if the ID token auth is working)
+
+8. Current Work:
+   I was testing the deployed app via Playwright after two rounds of fixes. The second test upload ("Prot_000-106814a3") went to Dead Letter within 30 seconds. I retrieved the Cloud Run logs and discovered two critical errors:
+   
+   1. **Checkpoint DB connection stale**: `psycopg.OperationalError: the connection is closed` at `langgraph/checkpoint/postgres/aio.py` line 391 — the async PostgreSQL connection used by LangGraph's checkpointer is closed/stale.
+   
+   2. **Gemini API key missing**: `ValueError: Missing key inputs argument!` at `gemini_extractor.py` line 203 — `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` fails because GOOGLE_API_KEY isn't set in production (uses Vertex AI instead).
+   
+   The first protocol (Prot_000-3aca1102, uploaded on old revision) logged "pipeline completed" at 11:14:53 but the extract node failed with the Gemini API key error.
+   
+   Also noted: MLflow is unreachable from the API even with the correct URL (`https://mlflow-aq2dyw3nxq-ez.a.run.app`) because MLflow returns 403 (IAM-restricted) and the preflight health check fails. The Phase 2 token refresh code should handle this, but the preflight check uses `urllib.request` with a bearer token — need to verify the token is being passed correctly.
+
+9. Optional Next Step:
+   Fix the two pipeline errors that cause Dead Letter:
+   1. Fix `gemini_extractor.py` to use Vertex AI client when `MODEL_BACKEND=vertex` is set (this is the more impactful fix since it blocks all extraction)
+   2. Fix the LangGraph checkpoint postgres connection staleness (add connection pool settings or reconnect-on-failure logic)
+   
+   Then redeploy and re-test the E2E flow. The user's explicit requirement remains: "success = you can open the deployed app, login, upload a protocol and see that it works with playwright."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation from a previous conversation that ran out of context. The previous session completed Phases 1-3 of a deployment fix project. The summary tells us two critical bugs remained:
+   - `psycopg.OperationalError: the connection is closed` - LangGraph checkpoint postgres connection stale
+   - `ValueError: Missing key inputs argument` - Gemini extractor using wrong API client for production
+
+2. **Fix 1 - Gemini Extractor Vertex AI Fallback**: I read `gemini_extractor.py`, `trigger.py`, `graph.py`, `gemini_utils.py`, `model_garden.py`, and `criterion_rerun.py`. I modified three files:
+   - `gemini_extractor.py` line 203: Changed `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` to check for API key first, fall back to `genai.Client(vertexai=True, project=..., location=...)`
+   - `gemini_utils.py`: Similar fix for `create_structured_llm()` - added Vertex AI fallback with `ChatGoogleGenerativeAI(vertexai=True, ...)`
+   - `criterion_rerun.py`: Same pattern fix for `_genai_client`
+
+3. **Fix 2 - Checkpoint Connection Stale**: The root cause was `asyncio.run()` creating a new event loop each time, but the AsyncPostgresSaver singleton kept connections from the previous (now closed) event loop. Fixed by:
+   - Adding `reset_graph()` function in `graph.py` that clears `_graph`, `_checkpointer`, `_checkpointer_cm` singletons
+   - Calling `reset_graph()` before `asyncio.run()` in `trigger.py`
+
+4. **First Deploy (revision api-00040-jbd)**: Committed, pushed, deployed. Health check passed.
+
+5. **First Test Upload (Prot_000-b31cdbba)**: Pipeline started but extraction failed with `ValueError: This method is only supported in the Gemini Developer client.` - The `client.files.upload()` File API is only available with the Gemini Developer API, NOT Vertex AI.
+
+6. **Fix 3 - Inline Bytes for Vertex AI**: Modified `gemini_extractor.py` to use `types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")` for Vertex AI mode instead of File API upload. Also updated `_invoke_gemini` signature to accept `Any` type for `pdf_content` parameter.
+
+7. **Second Deploy (revision api-00041-g9k)**: Committed, pushed, deployed. Health check passed.
+
+8. **Second Test Upload (Prot_000-f1ed5129)**: Extraction SUCCEEDED (12 criteria via Vertex AI inline), but parse failed with `column "page_number" of relation "criteria" does not exist` - missing DB migration.
+
+9. **DB Migration - page_number**: Installed Cloud SQL proxy, connected to production DB, ran `ALTER TABLE criteria ADD COLUMN IF NOT EXISTS page_number INTEGER;`
+
+10. **Third Test Upload (Prot_000-29c060b8)**: Extraction succeeded (4 criteria), parse succeeded, grounding succeeded (12 grounded, 0 errors), but persist failed with `column "rxnorm_code" of relation "entity" does not exist` - more missing columns.
+
+11. **DB Migration - entity columns**: Added all missing entity columns: `rxnorm_code`, `icd10_code`, `loinc_code`, `hpo_code` (plus indexes). Verified `grounding_system`, `grounding_error`, `omop_concept_id`, `reconciliation_status` already existed.
+
+12. **Retry**: Clicked Retry on Prot_000-29c060b8 - waiting for results.
+
+User messages in this session: None explicit - this was a continuation session where I picked up from where the previous session left off, following the instruction "Please continue the conversation from where we left off without asking the user any further questions."
+
+The task list shows:
+- Task 1 (completed): Fix Gemini extractor Vertex AI
+- Task 2 (completed): Fix checkpoint connection
+- Task 3 (in_progress): Redeploy and verify E2E with Playwright
+
+Current state: I just clicked "Retry" on Prot_000-29c060b8 after adding all missing DB columns. Need to wait for the pipeline to complete and verify it reaches "Pending Review" or "Complete" status.
+
+Summary:
+1. Primary Request and Intent:
+   The user's overarching goal (from previous session): "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done." Success criteria: "you can open the deployed app, login, upload a protocol and see that it works with playwright." This session continues fixing deployment issues after Phases 1-3 were completed. Two pipeline-breaking bugs were identified at the end of the previous session and needed to be fixed: (1) Gemini API key missing in production, (2) LangGraph checkpoint postgres connection going stale. During testing, additional issues were discovered: (3) File API not available in Vertex AI mode, (4) Missing database columns (`page_number` on criteria table, `rxnorm_code`/`icd10_code`/`loinc_code`/`hpo_code` on entity table).
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment (europe-west4 region, project `gen-lang-client-0249847738`)
+   - Google GenAI SDK: `genai.Client(api_key=...)` vs `genai.Client(vertexai=True, project=..., location=...)` for Vertex AI mode using ADC
+   - `client.files.upload()` (File API) is **Gemini Developer API only** — NOT available in Vertex AI mode. Must use `types.Part.from_bytes()` for inline PDF bytes instead.
+   - `langchain_google_genai.ChatGoogleGenerativeAI` supports `vertexai=True` parameter for Vertex AI mode
+   - `asyncio.run()` creates and closes an event loop each invocation — singleton async resources (psycopg connections) from previous loops become stale
+   - LangGraph `AsyncPostgresSaver` checkpoint persistence with PostgreSQL
+   - Cloud SQL proxy for database access from local machine
+   - SQLModel `create_all()` only creates new tables, doesn't add columns to existing tables — need explicit ALTER TABLE or Alembic migrations
+   - MLflow circuit breaker pattern (pybreaker) — MLflow returns 403 (IAM-restricted), tracing disabled for pipeline runs
+   - Outbox processor pattern for async event handling
+
+3. Files and Code Sections:
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py`**
+     - Core extraction tool using Gemini. Three changes made across two commits:
+     - **Commit 1**: Changed client instantiation from `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` to Vertex AI fallback:
+       ```python
+       api_key = os.getenv("GOOGLE_API_KEY")
+       if api_key:
+           client = genai.Client(api_key=api_key)
+       else:
+           client = genai.Client(
+               vertexai=True,
+               project=os.getenv("GCP_PROJECT_ID"),
+               location=os.getenv("GCP_REGION", "europe-west4"),
+           )
+       ```
+     - **Commit 2**: Fixed File API usage — `client.files.upload()` is Developer API only. For Vertex AI, use inline bytes:
+       ```python
+       use_vertex = not api_key
+       if use_vertex:
+           # Vertex AI: File API not available, pass PDF bytes inline
+           pdf_content = types.Part.from_bytes(
+               data=pdf_bytes, mime_type="application/pdf"
+           )
+       else:
+           # Developer API: upload via File API (supports larger files)
+           with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+               tmp.write(pdf_bytes)
+               tmp_path = tmp.name
+           uploaded_file = client.files.upload(file=tmp_path)
+           pdf_content = uploaded_file
+       ```
+     - Also updated `_invoke_gemini` signature: parameter `uploaded_file: types.File` → `pdf_content: Any` and `contents=cast(Any, [pdf_content, user_prompt])`
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`**
+     - Shared Gemini LLM utilities for structure/ordinal_resolve nodes. Added Vertex AI fallback:
+       ```python
+       google_api_key = os.getenv("GOOGLE_API_KEY")
+       gcp_project = os.getenv("GCP_PROJECT_ID")
+       if google_api_key or gcp_project:
+           kwargs: dict[str, Any] = {
+               "model": gemini_model_name,
+               "max_output_tokens": 2048,
+               "temperature": 0.1,
+               "model_kwargs": {"frequency_penalty": 0.8, "presence_penalty": 0.5},
+           }
+           if google_api_key:
+               kwargs["google_api_key"] = google_api_key
+           else:
+               kwargs["project"] = gcp_project
+               kwargs["location"] = os.getenv("GCP_REGION", "europe-west4")
+               kwargs["vertexai"] = True
+           gemini = ChatGoogleGenerativeAI(**kwargs)
+       ```
+
+   - **`services/api-service/src/api_service/criterion_rerun.py`**
+     - API endpoint for criterion rerun. Same Vertex AI fallback pattern:
+       ```python
+       if api_key:
+           _genai_client = genai.Client(api_key=api_key)
+       else:
+           _genai_client = genai.Client(
+               vertexai=True,
+               project=os.getenv("GCP_PROJECT_ID"),
+               location=os.getenv("GCP_REGION", "europe-west4"),
+           )
+       ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/graph.py`**
+     - LangGraph workflow definition with checkpointer singleton. Added `reset_graph()` function:
+       ```python
+       def reset_graph() -> None:
+           """Clear graph and checkpointer so the next get_graph() creates fresh ones.
+           Must be called before each asyncio.run() because that call creates a new
+           event loop, making psycopg async connections from previous loops stale."""
+           global _graph, _checkpointer, _checkpointer_cm
+           _graph = None
+           _checkpointer = None
+           _checkpointer_cm = None
+       ```
+     - Updated module-level comments explaining why singletons need resetting per asyncio.run()
+
+   - **`services/protocol-processor-service/src/protocol_processor/trigger.py`**
+     - Pipeline trigger handler. Added reset_graph() call before asyncio.run():
+       ```python
+       # Reset graph/checkpointer — asyncio.run() creates a new event loop,
+       # so psycopg async connections from previous runs are stale.
+       from protocol_processor.graph import reset_graph
+       reset_graph()
+       asyncio.run(_run_pipeline(initial_state, config, payload))
+       ```
+
+   - **`scripts/deploy_api.sh`** — Deploy script (read, not modified in this session). Uses `--set-secrets` without GOOGLE_API_KEY — fine because Vertex AI ADC is used instead.
+
+   - **`libs/shared/src/shared/models.py`** — SQLModel definitions (read, not modified). Confirmed Criteria has `page_number` field and Entity has `rxnorm_code`, `icd10_code`, `loinc_code`, `hpo_code`, `grounding_system`, `grounding_error`, `omop_concept_id`, `reconciliation_status` fields.
+
+4. Errors and Fixes:
+
+   - **Error 1: `ValueError: Missing key inputs argument! To use the Google AI API, provide (api_key) arguments.`**
+     - Root cause: `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` with no GOOGLE_API_KEY in production
+     - Fix: Fall back to `genai.Client(vertexai=True, project=..., location=...)` when no API key set
+     - Applied to: `gemini_extractor.py`, `gemini_utils.py`, `criterion_rerun.py`
+
+   - **Error 2: `psycopg.OperationalError: the connection is closed`**
+     - Root cause: `asyncio.run()` closes its event loop on return. AsyncPostgresSaver singleton's psycopg connection was tied to first event loop, stale for subsequent calls.
+     - Fix: Added `reset_graph()` function, called before each `asyncio.run()` to clear singletons
+
+   - **Error 3: `ValueError: This method is only supported in the Gemini Developer client.`** (discovered during Playwright testing)
+     - Root cause: `client.files.upload()` (File API) is only available with Gemini Developer API (api_key mode), not Vertex AI
+     - Fix: Use `types.Part.from_bytes(data=pdf_bytes, mime_type="application/pdf")` for inline bytes in Vertex AI mode
+
+   - **Error 4: `psycopg2.errors.UndefinedColumn: column "page_number" of relation "criteria" does not exist`** (discovered during Playwright testing)
+     - Root cause: Model has `page_number` field but no migration was created/run on production DB
+     - Fix: Ran `ALTER TABLE criteria ADD COLUMN IF NOT EXISTS page_number INTEGER;` via Cloud SQL proxy
+
+   - **Error 5: `psycopg2.errors.UndefinedColumn: column "rxnorm_code" of relation "entity" does not exist`** (discovered during Playwright testing)
+     - Root cause: Entity model has multi-terminology columns but no migration was run on production DB
+     - Fix: Ran ALTER TABLE to add `rxnorm_code`, `icd10_code`, `loinc_code`, `hpo_code` columns with indexes via Cloud SQL proxy
+
+   - **Cloud SQL proxy installation**: `gcloud sql connect` needed `cloud-sql-proxy` component and psql client. Installed via `gcloud components install cloud-sql-proxy`. Used `PATH="/opt/homebrew/opt/postgresql@16/bin:${PATH}"` for psql. Had to start proxy manually and use psql directly because `gcloud sql connect` doesn't support PGPASSWORD env var properly.
+
+5. Problem Solving:
+   - **Solved**: Gemini API key missing in production → Vertex AI ADC fallback
+   - **Solved**: Checkpoint connection stale between asyncio.run() calls → reset_graph() singleton clearing
+   - **Solved**: File API not available in Vertex AI → inline bytes via types.Part.from_bytes()
+   - **Solved**: Missing `page_number` column on criteria table → ALTER TABLE
+   - **Solved**: Missing multi-terminology columns on entity table → ALTER TABLE
+   - **Ongoing**: Full E2E pipeline verification — extraction works, parse works, grounding works, persist failed on missing columns (now fixed). Just clicked Retry on Prot_000-29c060b8 and waiting for results.
+   - **MLflow still unreachable**: Returns 403 from Cloud Run IAM. Tracing disabled for all pipeline runs. Non-blocking.
+
+6. All User Messages:
+   - No explicit user messages in this session. The session was a continuation from a previous conversation that ran out of context. The instruction was: "Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on."
+
+7. Pending Tasks:
+   - Verify that Prot_000-29c060b8 retry completes the full pipeline (after adding missing entity columns)
+   - If successful, confirm the protocol reaches "Pending Review" or "Complete" status in the UI
+   - Check the dashboard shows extracted criteria and grounding results
+   - Create an alembic migration for the missing columns so future deploys don't need manual SQL
+
+8. Current Work:
+   Just clicked "Retry" button on `Prot_000-29c060b8` (37 pages, 87% quality) after adding all missing database columns (`rxnorm_code`, `icd10_code`, `loinc_code`, `hpo_code` on entity table). The protocol previously reached "Grounding Failed" because the persist node couldn't write to missing columns. Now waiting for the retry to complete the full pipeline: ingest → extract → parse → ground → persist → structure → ordinal_resolve.
+
+   Current deployment: revision `api-00041-g9k` on Cloud Run.
+   
+   Commits made in this session:
+   - `18e43681` - fix: Vertex AI fallback for Gemini client + stale checkpoint connection
+   - `44dd351b` - fix: use inline bytes for Vertex AI extraction (File API is Developer-only)
+   
+   Production DB: Connected via Cloud SQL proxy (`hackathon-medgemma-db`, database `hackathon-medgemma-service`, user `hackathon-medgemma-api`, password `oYaq3qEKbTCXd4s4jKnUsWAEcKKsz47n`). All missing columns added.
+
+   Pipeline progress confirmed in logs for protocol `582be0eb-5345-4b4c-97e5-2d633a738bc1`:
+   - Ingest: 525702 bytes PDF ✓
+   - Extract: 4 criteria (Vertex AI inline) ✓  
+   - Parse: 4 criteria → 12 entities ✓
+   - Ground: 12 grounded, 0 errors ✓
+   - Persist: FAILED on missing rxnorm_code column (now fixed)
+
+9. Optional Next Step:
+   Wait for the Retry of Prot_000-29c060b8 to complete, then check if the protocol reaches "Pending Review" or "Complete" status. If it does, navigate to the dashboard and reviews page to confirm criteria are extracted and grounded — achieving the user's success criteria: "you can open the deployed app, login, upload a protocol and see that it works with playwright."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation from a previous conversation that ran out of context. The previous session completed Phases 1-3 of a deployment fix project. Key bugs were fixed:
+   - Gemini API key missing in production → Vertex AI ADC fallback
+   - LangGraph checkpoint connection stale → reset_graph() singleton clearing
+   - File API not available in Vertex AI → inline bytes via types.Part.from_bytes()
+   - Missing DB columns (page_number, rxnorm_code, icd10_code, loinc_code, hpo_code)
+
+2. **Current Session Start**: The assistant picked up where it left off - had just clicked "Retry" on protocol Prot_000-29c060b8 after adding missing entity columns. Took a browser snapshot to check status.
+
+3. **First Issue - Retry Still Shows Grounding Failed**: The protocol still showed "Grounding Failed". Clicked Retry again. Checked Cloud Run logs and discovered:
+   - Earlier retry at 11:43:22 failed with `rxnorm_code` column error (before columns were added)
+   - New retry at 11:44:45 and 11:46:32 failed with: `ERROR:api_service.protocols:Retry failed for protocol 582be0eb-5345-4b4c-97e5-2d633a738bc1: the connection is closed`
+
+4. **Root Cause Analysis - Stale Connection in Retry Path**: Investigated the retry endpoint code chain:
+   - `protocols.py` retry endpoint calls `retry_from_checkpoint(protocol_id)` 
+   - `retry_from_checkpoint` in `trigger.py` calls `get_graph()` which returns stale `_graph` singleton
+   - The trigger path creates graph/checkpointer in a throwaway `asyncio.run()` event loop. When the FastAPI retry endpoint tries to reuse these globals, the psycopg connections are dead.
+
+5. **Fix Applied**: Added `reset_graph()` call at the start of `retry_from_checkpoint`:
+   ```python
+   from protocol_processor.graph import get_graph, reset_graph
+   reset_graph()
+   graph = await get_graph()
+   ```
+
+6. **Commit and Deploy**: Committed as `c1e3a306`, pushed, deployed as revision `api-00042-8fq`. Health check passed.
+
+7. **Second Retry Attempt**: Navigated to protocols, clicked Retry on Prot_000-29c060b8. Status changed to "processing" — the fix worked! But the retry POST completed in only 5 seconds (11:54:16 to 11:54:21).
+
+8. **Discovered Retry-From-Checkpoint Was a No-Op**: Investigated the persist node code. Found that when persist failed with the `rxnorm_code` error, it caught the exception internally (line 433) and returned `{"error": "Persist node failed: ..."}`. Since the graph edges after persist are unconditional (`persist → structure → ordinal_resolve → END`), the graph completed to END. The LangGraph checkpoint was at END, so `graph.ainvoke(None, config)` was a no-op.
+
+9. **Fresh Upload Approach**: Decided to upload a fresh protocol instead. Selected `Prot_000-a90aedda.pdf` (680KB, 75 pages). Upload succeeded.
+
+10. **Pipeline Progress Monitoring**: Monitored via Cloud Run logs:
+    - Ingest: 679693 bytes ✓
+    - Extract: 91 criteria via Vertex AI inline ✓  
+    - Parse: 91 criteria → 237 entities ✓
+    - Ground: Started grounding 237 entities with MedGemma
+    
+11. **Long Grounding Phase**: 237 entities with MedGemma reasoning + agentic retries + ToolUniverse UMLS lookups (all failing due to missing UMLS_API_KEY). Each entity takes 10-50 seconds. Monitored progress:
+    - 12:00 UTC: Entity 8/237
+    - 12:02 UTC: Entity 25/237
+    - 12:06 UTC: Entity 56/237
+    - 12:08 UTC: Entity 73/237
+    - 12:10 UTC: Entity 82/237
+    - 12:12 UTC: Entity 104/237
+    - 12:14 UTC: Entity 128/237
+    - 12:16 UTC: Entity 144/237
+    - 12:17 UTC: Entity 155/237
+    - 12:18 UTC: Entity 163/237
+    - 12:19 UTC: Entity 172/237
+    - 12:20 UTC: Entity 176/237
+
+12. **Cloud Logging Confusion**: Initially thought there was massive lag in Cloud Logging, but then realized the timestamps were in UTC while local time was UTC+1 (CET). No actual lag.
+
+13. **Non-Fatal Errors During Grounding**:
+    - ToolUniverse UMLS errors (UMLS_API_KEY not set) — entities fall back to OMOP/expert_review
+    - FieldMappingResponse validation errors — caught and handled within field_mapper.py
+    - MLflow tracing errors (403 from Cloud Run IAM) — non-blocking
+
+14. **DB Direct Check**: Connected via Cloud SQL proxy to verify protocol status:
+    - Protocol status: "grounding" 
+    - Entity count: 0 (entities only persisted after grounding completes)
+    - DB time confirmed UTC
+
+15. **Where We Left Off**: At entity 176/237 at 12:20 UTC. ~61 entities remaining. Grounding should complete in about 8-10 more minutes, then persist → structure → ordinal_resolve should run.
+
+Key files read/modified in this session:
+- `trigger.py` - Modified retry_from_checkpoint to reset graph
+- `protocols.py` - Read retry endpoint code
+- `persist.py` - Read to understand error handling flow
+- `graph.py` - Referenced for graph flow understanding
+
+Commits in this session:
+- `c1e3a306` - fix: reset stale graph connections in retry_from_checkpoint
+
+User messages: Only the continuation instruction and summary request.
+
+Summary:
+1. Primary Request and Intent:
+   The user's overarching goal (from the previous session): "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done." Success criteria: "you can open the deployed app, login, upload a protocol and see that it works with playwright." This session continues fixing deployment issues and verifying E2E pipeline completion. The session started with: "Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on."
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment (europe-west4 region, project `gen-lang-client-0249847738`)
+   - LangGraph checkpoint-based retry: `graph.ainvoke(None, config)` resumes from last checkpoint. If graph already reached END (even with internal errors), retry is a no-op.
+   - `asyncio.run()` creates/destroys event loops — singleton async resources (psycopg connections in AsyncPostgresSaver) become stale when reused from a different event loop
+   - `reset_graph()` clears `_graph`, `_checkpointer`, `_checkpointer_cm` globals to force fresh connections
+   - Vertex AI inline bytes via `types.Part.from_bytes()` for PDF extraction (no File API in Vertex AI mode)
+   - MedGemma agentic grounding with OMOP vocabulary (7.3M concepts), ToolUniverse UMLS lookups (failing without UMLS_API_KEY)
+   - Cloud Logging timestamps are UTC; local time is UTC+1 (CET)
+   - Cloud SQL proxy for direct DB access: `cloud-sql-proxy gen-lang-client-0249847738:europe-west4:hackathon-medgemma-db --port 5433`
+   - Pipeline flow: ingest → extract → parse → ground → persist → structure → ordinal_resolve → END
+   - Error accumulation pattern: persist node catches exceptions internally, updates protocol status to "grounding_failed", and returns `{"error": ...}` — graph continues to END
+
+3. Files and Code Sections:
+
+   - **`services/protocol-processor-service/src/protocol_processor/trigger.py`**
+     - Contains `retry_from_checkpoint()` function and `handle_protocol_uploaded()` trigger
+     - **Modified in this session**: Added `reset_graph()` call before `get_graph()` in `retry_from_checkpoint` to clear stale connections from previous `asyncio.run()` event loops
+     - Modified code (lines 544-550):
+     ```python
+     from protocol_processor.graph import get_graph, reset_graph
+
+     # Clear stale graph/checkpointer — the trigger path creates these in a
+     # throwaway asyncio.run() event loop whose connections die when it exits.
+     # The retry path runs in FastAPI's event loop and needs fresh connections.
+     reset_graph()
+     graph = await get_graph()
+     config = {"configurable": {"thread_id": thread_id}}
+     # Pass None as input — LangGraph resumes from last checkpoint
+     result: dict[str, Any] = await graph.ainvoke(None, config)
+     return result
+     ```
+
+   - **`services/api-service/src/api_service/protocols.py`**
+     - Contains retry_protocol endpoint (lines 275-322)
+     - Read to understand retry flow: sets status to "processing", awaits `retry_from_checkpoint()`, catches exceptions and restores previous status
+     - Not modified in this session
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/persist.py`**
+     - 5th node in pipeline: persists grounding results to DB, updates protocol status
+     - Read to understand why retry-from-checkpoint was a no-op: persist catches exceptions at line 433, sets protocol status to "grounding_failed" in the except handler, and returns `{"error": ...}`. Since graph edges `persist → structure → ordinal_resolve → END` are unconditional, the graph reaches END even on persist failure. LangGraph checkpoint at END means retry resumes with nothing to do.
+     - Key error handling pattern (lines 433-458):
+     ```python
+     except Exception as e:
+         logger.exception("Persist node failed for protocol %s: %s", ...)
+         try:
+             if protocol_id:
+                 with Session(engine) as session:
+                     protocol = session.get(Protocol, protocol_id)
+                     if protocol:
+                         protocol.status = "grounding_failed"
+                         protocol.error_reason = f"Persist failed: {type(e).__name__}"
+                         session.add(protocol)
+                         session.commit()
+         except Exception:
+             logger.exception("Failed to update protocol status after persist failure")
+         return {"error": f"Persist node failed: {e}"}
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/graph.py`**
+     - Graph definition with unconditional edges after ground: `ground → persist → structure → ordinal_resolve → END`
+     - Contains `reset_graph()` function (added in previous session)
+     - Not modified in this session
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py`**
+     - Read (from previous session context) — Vertex AI inline bytes fix already applied
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_utils.py`**
+     - Read (from previous session context) — Vertex AI fallback for ChatGoogleGenerativeAI already applied
+
+   - **`services/api-service/src/api_service/criterion_rerun.py`**
+     - Read (from previous session context) — Vertex AI fallback already applied
+
+4. Errors and Fixes:
+
+   - **Error: `the connection is closed` on retry endpoint**
+     - Root cause: `retry_from_checkpoint()` called `get_graph()` which returned a stale `_graph` singleton. The trigger path creates graph/checkpointer in a throwaway `asyncio.run()` event loop. When the FastAPI retry endpoint (running in its own event loop) tries to use these, the psycopg connections are dead.
+     - Fix: Added `reset_graph()` at the start of `retry_from_checkpoint()` to clear stale globals and force fresh connections in the current event loop.
+     - Committed as `c1e3a306`.
+
+   - **Error: Retry-from-checkpoint is a no-op (5-second return, no pipeline activity)**
+     - Root cause: The persist node catches exceptions internally and returns `{"error": ...}`. The graph has unconditional edges after persist (`persist → structure → ordinal_resolve → END`), so the pipeline reaches END even when persist fails. LangGraph checkpoint at END means `ainvoke(None, config)` has nothing to resume.
+     - Workaround: Upload a fresh protocol instead of retrying from checkpoint. The stale-checkpoint protocol (Prot_000-29c060b8) is stuck in "processing" status.
+
+   - **Non-fatal errors during grounding**:
+     - ToolUniverse UMLS errors: `UMLS API key required` — entities fall back to OMOP/expert_review. Non-blocking.
+     - FieldMappingResponse validation errors: `Failed to parse FieldMappingResponse` — missing required fields (unit, value_concept_id, value_concept_system). Caught in field_mapper.py try/except. Non-blocking.
+     - MLflow 503 errors: `Failed to send trace to MLflow backend` — MLflow Cloud Run returns 403/503. Tracing disabled. Non-blocking.
+
+5. Problem Solving:
+   - **Solved**: Stale graph connections in retry path → `reset_graph()` before `get_graph()`
+   - **Solved**: Retry-from-checkpoint no-op → uploaded fresh protocol for E2E verification
+   - **In Progress**: Full E2E pipeline verification with Prot_000-a90aedda (75 pages, 91 criteria, 237 entities). Pipeline has completed ingest, extract, parse. Grounding is at entity 176/237 as of 12:20 UTC. Waiting for grounding to finish, then persist → structure → ordinal_resolve should update protocol to "pending_review".
+   - **Known Issue**: Prot_000-29c060b8 stuck in "processing" status (retry was no-op due to checkpoint at END). Would need manual DB update to fix.
+
+6. All User Messages:
+   - "Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on."
+   - (Multiple empty/implicit continuation messages where user just hit enter to continue)
+   - "Your task is to create a detailed summary of the conversation so far..." (current summary request)
+
+7. Pending Tasks:
+   - Wait for Prot_000-a90aedda grounding to complete (at 176/237, ~61 entities remaining)
+   - Verify pipeline completes: persist → structure → ordinal_resolve → END
+   - Confirm protocol reaches "Pending Review" status in the UI
+   - Navigate to protocol detail/reviews page to verify criteria and grounded entities are visible
+   - This constitutes the user's original success criteria: "you can open the deployed app, login, upload a protocol and see that it works with playwright"
+
+8. Current Work:
+   Monitoring the grounding phase of protocol Prot_000-a90aedda (protocol_id: `a8916a52-e800-43aa-8e07-c0084011de70`). The pipeline has successfully completed:
+   - Ingest: 679693 bytes PDF ✓
+   - Extract: 91 criteria via Vertex AI inline ✓
+   - Parse: 91 criteria → 237 entities ✓
+   - Ground: In progress at entity 176/237 as of 12:20 UTC
+   
+   Latest log entry: `Entity 176/237 'functional status' grounded in 27.2s: code=N/A, omop=40757653, conf=0.00` at 12:20:05 UTC.
+   
+   Current deployment: revision `api-00042-8fq` on Cloud Run.
+   
+   Commits made in this session:
+   - `c1e3a306` - fix: reset stale graph connections in retry_from_checkpoint
+   
+   Previous session commits (for context):
+   - `18e43681` - fix: Vertex AI fallback for Gemini client + stale checkpoint connection
+   - `44dd351b` - fix: use inline bytes for Vertex AI extraction (File API is Developer-only)
+   
+   Production DB: Connected via Cloud SQL proxy (`hackathon-medgemma-db`, database `hackathon-medgemma-service`, user `hackathon-medgemma-api`, password `oYaq3qEKbTCXd4s4jKnUsWAEcKKsz47n`). Cloud SQL proxy is running on port 5433. psql path: `PATH="/opt/homebrew/opt/postgresql@16/bin:${PATH}"`
+   
+   Browser state: On the GemmaCrit Dashboard page at `https://frontend-1074735463071.europe-west4.run.app/`. Logged in as Noah Dolev. Prot_000-a90aedda showing "Grounding" status on protocols page.
+
+9. Optional Next Step:
+   Wait for grounding of Prot_000-a90aedda to finish (~61 entities remaining at ~7/min = ~9 minutes from 12:20 UTC), then verify:
+   1. Check logs for "Persist node complete" and "pipeline completed" messages
+   2. Refresh protocols page to confirm status changed to "Pending Review"
+   3. Click on the protocol to view extracted criteria and grounded entities
+   4. Navigate to Reviews page to confirm criteria are visible
+   
+   This directly fulfills the user's success criteria from the original request: "you can open the deployed app, login, upload a protocol and see that it works with playwright."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
