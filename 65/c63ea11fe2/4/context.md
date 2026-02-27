@@ -95,3 +95,35 @@ Let me chronologically analyze the conversation:
 
 2. **Setup Phase**: Ran `gsd-tools.cjs init new-proj...
 
+### Prompt 8
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation session from a previous conversation that ran out of context. The previous session completed Phases 1-2 of a 3-phase MedGemma deployment fix project, and was about to start Phase 3 discuss-phase.
+
+2. **Phase 3 Context Creation**: I created `....
+
+### Prompt 9
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation from a previous conversation that ran out of context. The previous session completed Phases 1-3 of a deployment fix project. The summary tells us two critical bugs remained:
+   - `psycopg.OperationalError: the connection is closed` - LangGrap...
+
+### Prompt 10
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation from a previous conversation that ran out of context. The previous session completed Phases 1-3 of a deployment fix project. Key bugs were fixed:
+   - Gemini API key missing in production → Vertex AI ADC fallback
+   - LangGraph checkpoint c...
+
