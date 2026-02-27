@@ -32,6 +32,15 @@ def _get_mlflow_if_ready(path: str) -> Any | None:
         return None
     if not os.getenv("MLFLOW_TRACKING_URI"):
         return None
+
+    # Refresh Cloud Run ID token if needed (no-op when fresh or not on Cloud Run)
+    try:
+        from api_service._cloud_run_auth import configure_mlflow_auth
+
+        configure_mlflow_auth()
+    except Exception:
+        pass  # Failure handled inside configure_mlflow_auth
+
     try:
         import mlflow
 
