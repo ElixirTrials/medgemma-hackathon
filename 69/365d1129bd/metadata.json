@@ -1,0 +1,26 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "69365d1129bd",
+  "strategy": "manual-commit",
+  "branch": "main",
+  "checkpoints_count": 0,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py"
+  ],
+  "sessions": [
+    {
+      "metadata": "/69/365d1129bd/0/metadata.json",
+      "transcript": "/69/365d1129bd/0/full.jsonl",
+      "context": "",
+      "content_hash": "/69/365d1129bd/0/content_hash.txt",
+      "prompt": ""
+    }
+  ],
+  "token_usage": {
+    "input_tokens": 0,
+    "cache_creation_tokens": 0,
+    "cache_read_tokens": 0,
+    "output_tokens": 0,
+    "api_call_count": 0
+  }
+}
