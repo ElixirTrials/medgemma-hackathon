@@ -3,7 +3,7 @@
   "checkpoint_id": "0128423c8c20",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/api-service/src/api_service/middleware.py"
   ],
@@ -35,13 +35,20 @@
       "context": "",
       "content_hash": "/01/28423c8c20/3/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/01/28423c8c20/4/metadata.json",
+      "transcript": "/01/28423c8c20/4/full.jsonl",
+      "context": "/01/28423c8c20/4/context.md",
+      "content_hash": "/01/28423c8c20/4/content_hash.txt",
+      "prompt": "/01/28423c8c20/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 307,
-    "cache_creation_tokens": 632802,
-    "cache_read_tokens": 28163015,
-    "output_tokens": 67358,
-    "api_call_count": 274
+    "input_tokens": 379,
+    "cache_creation_tokens": 779623,
+    "cache_read_tokens": 33830287,
+    "output_tokens": 90458,
+    "api_call_count": 330
   }
 }
