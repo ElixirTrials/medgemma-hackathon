@@ -68,7 +68,7 @@ if [ -z "$MLFLOW_TRACKING_URI" ]; then
     if [ -n "$MLFLOW_TRACKING_URI" ]; then
         echo "Auto-resolved MLFLOW_TRACKING_URI: $MLFLOW_TRACKING_URI"
     else
-        echo "Warning: No MLflow service found. Protocol processing will fail without MLFLOW_TRACKING_URI." >&2
+        echo "Warning: No MLflow service found. Tracing will be disabled (protocol processing unaffected)." >&2
     fi
 fi
 
@@ -88,9 +88,30 @@ gcloud run deploy api \
     --region "$REGION" \
     --platform managed \
     --allow-unauthenticated \
+    --no-cpu-throttling \
     --add-cloudsql-instances "$CONNECTION_NAME" \
+    --startup-probe-path=/health \
+    --startup-probe-initial-delay=5 \
+    --startup-probe-period=10 \
+    --startup-probe-failure-threshold=6 \
     --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}||MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}||MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true" \
     --set-secrets "DATABASE_URL=db-url:latest,SESSION_SECRET=api-session-secret:latest,JWT_SECRET_KEY=api-jwt-secret:latest,OMOP_VOCAB_URL=omop-vocab-url:latest"
 
-echo "Done. API URL:"
-gcloud run services describe api --region "$REGION" --project "$PROJECT_ID" --format='value(status.url)'
+# Post-deploy health check
+API_URL=$(gcloud run services describe api \
+    --region "$REGION" --project "$PROJECT_ID" \
+    --format='value(status.url)' 2>/dev/null)
+
+echo "API URL: ${API_URL:-unknown}"
+
+if [ -n "$API_URL" ]; then
+    echo "Verifying deployment health..."
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "${API_URL}/health" 2>/dev/null || echo "000")
+    if [ "$HTTP_STATUS" = "200" ]; then
+        echo "Health check PASSED (HTTP $HTTP_STATUS)"
+    else
+        echo "Warning: Health check returned HTTP $HTTP_STATUS (new revision may still be starting)" >&2
+    fi
+else
+    echo "Warning: Could not determine API URL for health check" >&2
+fi
