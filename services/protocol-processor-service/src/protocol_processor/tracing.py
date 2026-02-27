@@ -2,6 +2,8 @@
 
 Provides a safe context manager that creates MLflow traces when available
 and falls back to a no-op when MLflow is not configured or installed.
+Uses the MLflow circuit breaker to skip all MLflow operations when the
+breaker is open (MLflow known to be unreachable).
 
 Each node creates its own separate top-level trace (not a child span),
 tagged with protocol_id and run_id so traces from the same pipeline run
@@ -27,6 +29,8 @@ import logging
 import os
 from contextlib import contextmanager
 from typing import Any, Generator, cast
+
+from shared.resilience import mlflow_breaker, mlflow_is_available
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,9 @@ def pipeline_span(
     and run_id, so individual node traces appear in MLflow as they
     complete rather than waiting for the entire pipeline to finish.
 
+    Returns a no-op span immediately when the MLflow circuit breaker is
+    open, avoiding any network calls or import overhead.
+
     Filter in MLflow UI:
         tags.protocol_id = "<id>"       – all runs for a protocol
         tags.run_id      = "<run_id>"   – single pipeline invocation
@@ -77,6 +84,11 @@ def pipeline_span(
     Yields:
         MLflow Span object or a no-op wrapper.
     """
+    # Fast path: circuit breaker is open, skip all MLflow work
+    if not mlflow_is_available():
+        yield cast(Any, _NoOpSpan())
+        return
+
     try:
         import mlflow
         from mlflow.entities.trace_location import MlflowExperimentLocation
@@ -111,6 +123,11 @@ def pipeline_span(
         logger.warning(
             "MLflow span creation failed, falling back to no-op", exc_info=True
         )
+        # Trip breaker so subsequent calls immediately use no-ops
+        try:
+            mlflow_breaker.open()
+        except Exception:
+            pass
 
     # Fallback: no-op span
     yield cast(Any, _NoOpSpan())
@@ -197,7 +214,8 @@ def llm_span(name: str, model_name: str = "") -> Generator[Any, None, None]:
 
     When called inside an active ``pipeline_span()``, this automatically
     becomes a child span (MLflow 3.x nests ``start_span`` calls).
-    When MLflow is unavailable the context manager yields a no-op object.
+    When MLflow is unavailable or the circuit breaker is open, the context
+    manager yields a no-op object.
 
     Args:
         name: Span name (e.g. ``"gemini_extraction"``).
@@ -207,6 +225,11 @@ def llm_span(name: str, model_name: str = "") -> Generator[Any, None, None]:
         ``_LLMSpanCtx`` (or ``_NoOpLLMSpan``) with ``set_request`` /
         ``set_response`` helpers.
     """
+    # Fast path: circuit breaker is open, skip all MLflow work
+    if not mlflow_is_available():
+        yield cast(Any, _NoOpLLMSpan())
+        return
+
     try:
         import mlflow
 
@@ -220,5 +243,10 @@ def llm_span(name: str, model_name: str = "") -> Generator[Any, None, None]:
         pass  # mlflow is an optional dependency; fall through to no-op span
     except Exception:
         logger.debug("llm_span creation failed, falling back to no-op", exc_info=True)
+        # Trip breaker so subsequent calls immediately use no-ops
+        try:
+            mlflow_breaker.open()
+        except Exception:
+            pass
 
     yield cast(Any, _NoOpLLMSpan())
