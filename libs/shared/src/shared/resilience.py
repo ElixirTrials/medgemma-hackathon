@@ -1,8 +1,9 @@
 """Shared resilience patterns: circuit breakers and retry helpers.
 
-Per-service circuit breakers for GCS, Gemini, UMLS MCP, and Vertex AI.
+Per-service circuit breakers for GCS, Gemini, UMLS MCP, Vertex AI, and MLflow.
 Each breaker trips after 3 consecutive failures (per CONTEXT.md decision)
-and recovers after 60 seconds (Claude's discretion).
+and recovers after 60 seconds (Claude's discretion), except MLflow which
+uses a 120-second recovery timeout (per user decision).
 """
 
 import logging
@@ -18,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 # Recovery timeout: 60 seconds per research recommendation
 _RECOVERY_TIMEOUT = 60
+# MLflow recovery timeout: 120 seconds per user decision (separate from other breakers)
+_MLFLOW_RECOVERY_TIMEOUT = 120
 # Failure threshold: 3 consecutive failures per CONTEXT.md decision
 _FAIL_MAX = 3
 
@@ -27,6 +30,12 @@ class MLflowCircuitBreakerListener(CircuitBreakerListener):
 
     Records when breakers trip (open), recover (half_open -> closed),
     or probe (half_open). Safe no-op if MLflow unavailable.
+
+    Special case: when the mlflow breaker itself changes state, log only to
+    the Python logger (avoid recursion — can't log to MLflow if MLflow is down).
+    This also implements the user decision for "log a single warning when it
+    goes down, then suppress until recovery" since pybreaker fires state_change
+    once per transition.
     """
 
     def state_change(
@@ -35,7 +44,22 @@ class MLflowCircuitBreakerListener(CircuitBreakerListener):
         old_state: CircuitBreakerState | None,
         new_state: CircuitBreakerState,
     ) -> None:
-        """Handle circuit breaker state change by logging to MLflow."""
+        """Handle circuit breaker state change by logging to MLflow or Python logger."""
+        # MLflow breaker: log to Python logger only (avoid recursion)
+        if cb.name == "mlflow":
+            if new_state == CircuitBreakerState.OPEN:
+                logger.warning(
+                    "MLflow circuit breaker OPEN - tracing disabled until recovery"
+                )
+            elif new_state == CircuitBreakerState.HALF_OPEN:
+                logger.info(
+                    "MLflow circuit breaker probing - attempting recovery"
+                )
+            elif new_state == CircuitBreakerState.CLOSED:
+                logger.info("MLflow circuit breaker CLOSED - tracing resumed")
+            return
+
+        # Other breakers: log to MLflow
         try:
             import mlflow
 
@@ -99,3 +123,22 @@ tu_breaker = CircuitBreaker(
     name="tooluniverse",
     listeners=[_mlflow_listener],
 )
+
+# MLflow circuit breaker — 2-minute recovery timeout per user decision.
+# Prevents repeated connection attempts to unreachable MLflow server.
+# All MLflow operations (tracing, middleware, init) check this breaker.
+mlflow_breaker = CircuitBreaker(
+    fail_max=_FAIL_MAX,
+    reset_timeout=_MLFLOW_RECOVERY_TIMEOUT,
+    name="mlflow",
+    listeners=[_mlflow_listener],
+)
+
+
+def mlflow_is_available() -> bool:
+    """Check if MLflow circuit breaker allows operations.
+
+    Returns True when the breaker is closed (healthy) or half-open (probing).
+    Returns False when the breaker is open (MLflow known to be down).
+    """
+    return str(mlflow_breaker.current_state) != "open"
