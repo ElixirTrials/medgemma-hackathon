@@ -3,7 +3,7 @@
   "checkpoint_id": "de970cc60fc9",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "infra/docker-compose.yml",
     "scripts/deploy_api.sh"
@@ -15,13 +15,20 @@
       "context": "",
       "content_hash": "/de/970cc60fc9/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/de/970cc60fc9/1/metadata.json",
+      "transcript": "/de/970cc60fc9/1/full.jsonl",
+      "context": "/de/970cc60fc9/1/context.md",
+      "content_hash": "/de/970cc60fc9/1/content_hash.txt",
+      "prompt": "/de/970cc60fc9/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 145,
+    "cache_creation_tokens": 284672,
+    "cache_read_tokens": 13602304,
+    "output_tokens": 19840,
+    "api_call_count": 132
   }
 }
