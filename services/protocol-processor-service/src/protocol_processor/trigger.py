@@ -488,6 +488,12 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
 
         config = {"configurable": {"thread_id": thread_id}}
 
+        # Reset graph/checkpointer — asyncio.run() creates a new event loop,
+        # so psycopg async connections from previous runs are stale.
+        from protocol_processor.graph import reset_graph
+
+        reset_graph()
+
         asyncio.run(_run_pipeline(initial_state, config, payload))
 
         logger.info(

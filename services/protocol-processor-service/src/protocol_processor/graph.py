@@ -100,21 +100,37 @@ def create_graph(checkpointer: Any = None) -> Any:
     return workflow.compile(checkpointer=checkpointer)
 
 
-# Singleton instances for reuse across outbox handler invocations.
-# Per Pitfall 1 from research: checkpointer is singleton, created once,
-# reused across all invocations. Do NOT create per-invocation.
+# Graph and checkpointer are re-created per asyncio.run() invocation.
+# asyncio.run() closes its event loop on return, which invalidates any
+# psycopg async connections created inside it.  Singletons would carry
+# stale connections into the next invocation, causing
+# "OperationalError: the connection is closed".
+#
+# reset_graph() is called before each asyncio.run() in trigger.py to
+# ensure fresh async resources in the new event loop.
 _graph = None
 _checkpointer = None
-# Context manager for PostgresSaver; kept entered for app lifetime.
 _checkpointer_cm: Any = None
 
 
+def reset_graph() -> None:
+    """Clear graph and checkpointer so the next get_graph() creates fresh ones.
+
+    Must be called before each asyncio.run() because that call creates a new
+    event loop, making psycopg async connections from previous loops stale.
+    """
+    global _graph, _checkpointer, _checkpointer_cm  # noqa: PLW0603
+    _graph = None
+    _checkpointer = None
+    _checkpointer_cm = None
+
+
 async def _get_checkpointer_async() -> Any:
-    """Get or create the AsyncPostgresSaver checkpointer singleton.
+    """Create the AsyncPostgresSaver checkpointer for the current event loop.
 
     Creates an AsyncPostgresSaver using DATABASE_URL from the environment.
     Uses the async context manager and calls setup() to ensure checkpoint
-    tables exist. The context is kept open for the process lifetime.
+    tables exist.
 
     Returns:
         AsyncPostgresSaver instance configured with the application database.
@@ -134,7 +150,7 @@ async def _get_checkpointer_async() -> Any:
 
 
 async def get_graph() -> Any:
-    """Get or create the compiled graph singleton.
+    """Get or create the compiled graph for the current event loop.
 
     Compiles the graph with an AsyncPostgresSaver checkpointer if DATABASE_URL
     is available. Falls back to no checkpointer if DATABASE_URL is not set

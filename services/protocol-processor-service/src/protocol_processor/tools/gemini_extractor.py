@@ -199,8 +199,16 @@ async def extract_criteria_structured(
     client = None
 
     try:
-        # Instantiate client
-        client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+        # Instantiate client — prefer API key, fall back to Vertex AI ADC
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if api_key:
+            client = genai.Client(api_key=api_key)
+        else:
+            client = genai.Client(
+                vertexai=True,
+                project=os.getenv("GCP_PROJECT_ID"),
+                location=os.getenv("GCP_REGION", "europe-west4"),
+            )
         model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
 
         # Write PDF to temp file for File API upload
