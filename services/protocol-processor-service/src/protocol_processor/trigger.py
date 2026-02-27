@@ -38,8 +38,15 @@ def _cleanup_orphan_traces() -> None:
     Runs once at module import (service startup). Idempotent -- safe to
     call multiple times. Only closes traces older than 1 hour to avoid
     closing currently-running pipelines.
+
+    Skips when MLflow circuit breaker is open to avoid timeout delays.
     """
     import time as _time
+
+    from shared.resilience import mlflow_is_available
+
+    if not mlflow_is_available():
+        return
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
     if not tracking_uri:
@@ -109,7 +116,16 @@ def _ensure_mlflow() -> bool:
 
     Uses one experiment per day (protocol-processing-YYYYMMDD) so all runs
     and workers share the same experiment in the MLflow UI.
+
+    Returns False immediately (no network calls) when MLflow circuit breaker
+    is open. On failure, trips the circuit breaker so downstream code
+    (tracing, middleware) immediately switches to no-ops.
     """
+    from shared.resilience import mlflow_breaker, mlflow_is_available
+
+    if not mlflow_is_available():
+        return False
+
     try:
         import mlflow
 
@@ -146,6 +162,11 @@ def _ensure_mlflow() -> bool:
         logger.warning("mlflow not installed — tracing disabled")
     except Exception:
         logger.warning("MLflow setup failed — tracing disabled", exc_info=True)
+        # Trip breaker so downstream code immediately uses no-ops
+        try:
+            mlflow_breaker.open()
+        except Exception:
+            pass
     return False
 
 
@@ -296,9 +317,12 @@ class DependencyCheckError(RuntimeError):
 def _preflight_check() -> None:
     """Verify infrastructure dependencies are reachable before starting the pipeline.
 
-    Checks: PostgreSQL (main DB), OMOP vocabulary DB, and MLflow tracking server.
-    Raises DependencyCheckError on the first failure so the pipeline never starts
-    and no API calls (Gemini, ToolUniverse, etc.) are wasted.
+    Checks: PostgreSQL (main DB) and OMOP vocabulary DB as hard dependencies.
+    MLflow tracking server is checked as a soft dependency -- pipeline proceeds
+    with tracing disabled if MLflow is unreachable.
+
+    Raises DependencyCheckError only for DB or OMOP failures so the pipeline
+    never starts without core infrastructure.
     """
     import urllib.request
 
@@ -325,27 +349,49 @@ def _preflight_check() -> None:
             f"OMOP vocabulary database (OMOP_VOCAB_URL) is not reachable: {exc}"
         ) from exc
 
-    # 3. MLflow tracking server (required for observability)
+    logger.info("Pre-flight checks passed: DB, OMOP reachable")
+
+    # 3. MLflow tracking server (soft dependency -- tracing only)
+    from shared.resilience import mlflow_breaker
+
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
     if not tracking_uri:
-        raise DependencyCheckError(
-            "MLFLOW_TRACKING_URI environment variable is not set"
-        )
+        logger.info("MLFLOW_TRACKING_URI not set - tracing disabled")
+        return
+
+    # Refresh Cloud Run ID token for service-to-service auth
+    try:
+        from api_service._cloud_run_auth import configure_mlflow_auth
+
+        configure_mlflow_auth()
+    except Exception:
+        logger.debug("Cloud Run MLflow auth refresh skipped", exc_info=True)
+
     try:
         req = urllib.request.Request(f"{tracking_uri}/health", method="GET")
+        # Add auth header if we have a token (Cloud Run service-to-service)
+        token = os.getenv("MLFLOW_TRACKING_TOKEN")
+        if token:
+            req.add_header("Authorization", f"Bearer {token}")
         with urllib.request.urlopen(req, timeout=5) as resp:
             if resp.status >= 400:
-                raise DependencyCheckError(
-                    f"MLflow health check returned HTTP {resp.status}"
+                logger.warning(
+                    "MLflow health check returned HTTP %d - tracing disabled",
+                    resp.status,
                 )
-    except DependencyCheckError:
-        raise
-    except Exception as exc:
-        raise DependencyCheckError(
-            f"MLflow tracking server ({tracking_uri}) is not reachable: {exc}"
-        ) from exc
-
-    logger.info("Pre-flight checks passed: DB, OMOP, MLflow all reachable")
+                mlflow_breaker.open()
+                return
+        logger.info("Pre-flight: MLflow reachable at %s", tracking_uri)
+    except Exception:
+        logger.warning(
+            "MLflow unreachable at %s - tracing disabled for this pipeline run",
+            tracking_uri,
+        )
+        # Trip breaker immediately so all MLflow operations become no-ops
+        try:
+            mlflow_breaker.open()
+        except Exception:
+            pass
 
 
 def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
@@ -365,7 +411,7 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
         payload: Event payload dict containing protocol_id, file_uri, and title.
 
     Raises:
-        DependencyCheckError: If DB, OMOP, or MLflow is unreachable.
+        DependencyCheckError: If DB or OMOP is unreachable.
         Exception: Re-raised after logging to let the outbox processor
             mark the event as failed for retry.
     """
