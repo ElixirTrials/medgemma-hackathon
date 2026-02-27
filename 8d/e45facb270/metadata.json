@@ -25,13 +25,20 @@
       "context": "/8d/e45facb270/1/context.md",
       "content_hash": "/8d/e45facb270/1/content_hash.txt",
       "prompt": "/8d/e45facb270/1/prompt.txt"
+    },
+    {
+      "metadata": "/8d/e45facb270/2/metadata.json",
+      "transcript": "/8d/e45facb270/2/full.jsonl",
+      "context": "/8d/e45facb270/2/context.md",
+      "content_hash": "/8d/e45facb270/2/content_hash.txt",
+      "prompt": "/8d/e45facb270/2/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 145,
-    "cache_creation_tokens": 284672,
-    "cache_read_tokens": 13602304,
-    "output_tokens": 19840,
-    "api_call_count": 132
+    "input_tokens": 307,
+    "cache_creation_tokens": 632802,
+    "cache_read_tokens": 28163015,
+    "output_tokens": 67358,
+    "api_call_count": 274
   }
 }
