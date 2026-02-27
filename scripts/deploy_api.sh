@@ -59,8 +59,10 @@ if [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ]; then
     echo "Warning: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set. Google OAuth login will be unavailable." >&2
 fi
 
-# Auto-resolve MLflow URL from Cloud Run if not explicitly set
-MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-}"
+# Always auto-resolve MLflow URL from Cloud Run for deploy.
+# The .env MLFLOW_TRACKING_URI is for local dev (localhost:5001) and must NOT
+# leak into production. Only skip auto-resolve if MLFLOW_TRACKING_URI_PROD is set.
+MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI_PROD:-}"
 if [ -z "$MLFLOW_TRACKING_URI" ]; then
     MLFLOW_TRACKING_URI=$(gcloud run services describe mlflow \
         --region "$REGION" --project "$PROJECT_ID" \
