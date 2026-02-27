@@ -92,6 +92,13 @@
       "context": "/de/970cc60fc9/11/context.md",
       "content_hash": "/de/970cc60fc9/11/content_hash.txt",
       "prompt": "/de/970cc60fc9/11/prompt.txt"
+    },
+    {
+      "metadata": "/de/970cc60fc9/12/metadata.json",
+      "transcript": "/de/970cc60fc9/12/full.jsonl",
+      "context": "",
+      "content_hash": "/de/970cc60fc9/12/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
