@@ -71,3 +71,59 @@ Context budget: ~15% orchestrator, 100% fresh per subagent.
 @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/execute-phase.md
 @/Users/noahdolevelixir/.claude-elixirtrials/get-...
 
+### Prompt 6
+
+<objective>
+Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
+
+**How it works:**
+1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+2. Present gray areas — user selects which to discuss
+3. Deep-dive each selected area until satisfied
+4. Create CONTEXT.md with decisions that guide research and planning
+
+**Output:** `{phase_num}-CONTEXT.md` — decisions clear enou...
+
+### Prompt 7
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User invoked `/gsd:new-project` with `--auto` flag, providing a deployment issues report and the directive: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done"
+
+2. **Setup Phase**: Ran `gsd-tools.cjs init new-proj...
+
+### Prompt 8
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation session from a previous conversation that ran out of context. The previous session completed Phases 1-2 of a 3-phase MedGemma deployment fix project, and was about to start Phase 3 discuss-phase.
+
+2. **Phase 3 Context Creation**: I created `....
+
+### Prompt 9
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation from a previous conversation that ran out of context. The previous session completed Phases 1-3 of a deployment fix project. The summary tells us two critical bugs remained:
+   - `psycopg.OperationalError: the connection is closed` - LangGrap...
+
+### Prompt 10
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation from a previous conversation that ran out of context. The previous session completed Phases 1-3 of a deployment fix project. Key bugs were fixed:
+   - Gemini API key missing in production → Vertex AI ADC fallback
+   - LangGraph checkpoint c...
+
