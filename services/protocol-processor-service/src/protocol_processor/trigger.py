@@ -541,8 +541,12 @@ async def retry_from_checkpoint(protocol_id: str) -> dict[str, Any]:
             raise ValueError(f"Protocol {protocol_id} not found")
         thread_id = (protocol.metadata_ or {}).get("pipeline_thread_id", protocol_id)
 
-    from protocol_processor.graph import get_graph
+    from protocol_processor.graph import get_graph, reset_graph
 
+    # Clear stale graph/checkpointer — the trigger path creates these in a
+    # throwaway asyncio.run() event loop whose connections die when it exits.
+    # The retry path runs in FastAPI's event loop and needs fresh connections.
+    reset_graph()
     graph = await get_graph()
     config = {"configurable": {"thread_id": thread_id}}
     # Pass None as input — LangGraph resumes from last checkpoint
