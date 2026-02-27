@@ -90,10 +90,7 @@ gcloud run deploy api \
     --allow-unauthenticated \
     --no-cpu-throttling \
     --add-cloudsql-instances "$CONNECTION_NAME" \
-    --startup-probe-path=/health \
-    --startup-probe-initial-delay=5 \
-    --startup-probe-period=10 \
-    --startup-probe-failure-threshold=6 \
+    --startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=6 \
     --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}||MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}||MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true" \
     --set-secrets "DATABASE_URL=db-url:latest,SESSION_SECRET=api-session-secret:latest,JWT_SECRET_KEY=api-jwt-secret:latest,OMOP_VOCAB_URL=omop-vocab-url:latest"
 
