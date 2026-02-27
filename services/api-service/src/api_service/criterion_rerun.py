@@ -151,14 +151,7 @@ Return ONLY valid JSON with these fields:
 
     global _genai_client  # noqa: PLW0603
     if _genai_client is None:
-        if api_key:
-            _genai_client = genai.Client(api_key=api_key)
-        else:
-            _genai_client = genai.Client(
-                vertexai=True,
-                project=os.getenv("GCP_PROJECT_ID"),
-                location=os.getenv("GCP_REGION", "europe-west4"),
-            )
+        _genai_client = genai.Client(api_key=api_key)
     client = _genai_client
 
     try:

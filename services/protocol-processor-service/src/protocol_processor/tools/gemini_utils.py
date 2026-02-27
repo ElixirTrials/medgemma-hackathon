@@ -131,29 +131,21 @@ def create_structured_llm(
         A structured LLM instance, or None if no backend is available.
     """
     google_api_key = os.getenv("GOOGLE_API_KEY")
-    gcp_project = os.getenv("GCP_PROJECT_ID")
-    if google_api_key or gcp_project:
+    if google_api_key:
         try:
             from langchain_google_genai import ChatGoogleGenerativeAI
 
             gemini_model_name = os.getenv("GEMINI_MODEL_NAME", "gemini-2.5-flash")
-            kwargs: dict[str, Any] = {
-                "model": gemini_model_name,
-                "max_output_tokens": 2048,
-                "temperature": 0.1,
-                "model_kwargs": {
+            gemini = ChatGoogleGenerativeAI(
+                model=gemini_model_name,
+                google_api_key=google_api_key,
+                max_output_tokens=2048,
+                temperature=0.1,
+                model_kwargs={
                     "frequency_penalty": 0.8,
                     "presence_penalty": 0.5,
                 },
-            }
-            if google_api_key:
-                kwargs["google_api_key"] = google_api_key
-            else:
-                # Vertex AI mode — uses Application Default Credentials
-                kwargs["project"] = gcp_project
-                kwargs["location"] = os.getenv("GCP_REGION", "europe-west4")
-                kwargs["vertexai"] = True
-            gemini = ChatGoogleGenerativeAI(**kwargs)
+            )
             return gemini.with_structured_output(output_schema)
         except Exception as e:
             logger.warning("Failed to create Gemini client: %s", e)

@@ -29,6 +29,9 @@ GCS_BUCKET_NAME="${GCS_BUCKET_NAME:-}"
 VERTEX_ENDPOINT_ID="${VERTEX_ENDPOINT_ID:-}"
 GOOGLE_CLIENT_ID="${GOOGLE_CLIENT_ID:-}"
 GOOGLE_CLIENT_SECRET="${GOOGLE_CLIENT_SECRET:-}"
+GOOGLE_API_KEY="${GOOGLE_API_KEY:-}"
+UMLS_API_KEY="${UMLS_API_KEY:-}"
+GEMINI_MODEL_NAME="${GEMINI_MODEL_NAME:-gemini-2.5-flash}"
 # Use FRONTEND_URL for deploy CORS when set (so .env can keep CORS_ORIGINS for local dev)
 CORS_ORIGINS="${FRONTEND_URL:-$CORS_ORIGINS}"
 
@@ -52,6 +55,16 @@ GCS_BUCKET_NAME="${GCS_BUCKET_NAME_PROD:-${GCS_BUCKET_NAME:-${PROJECT_ID}-api-pr
 
 if [ -z "$VERTEX_ENDPOINT_ID" ]; then
     echo "Error: VERTEX_ENDPOINT_ID not set. Set in .env or export." >&2
+    exit 1
+fi
+
+if [ -z "$GOOGLE_API_KEY" ]; then
+    echo "Error: GOOGLE_API_KEY not set. Required for Gemini API + File API. Set in .env or export." >&2
+    exit 1
+fi
+
+if [ -z "$UMLS_API_KEY" ]; then
+    echo "Error: UMLS_API_KEY not set. Required for UMLS terminology lookups. Set in .env or export." >&2
     exit 1
 fi
 
@@ -93,7 +106,7 @@ gcloud run deploy api \
     --no-cpu-throttling \
     --add-cloudsql-instances "$CONNECTION_NAME" \
     --startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=6 \
-    --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}||MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}||MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true" \
+    --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}||GOOGLE_API_KEY=${GOOGLE_API_KEY}||UMLS_API_KEY=${UMLS_API_KEY}||GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME}||MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}||MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true" \
     --set-secrets "DATABASE_URL=db-url:latest,SESSION_SECRET=api-session-secret:latest,JWT_SECRET_KEY=api-jwt-secret:latest,OMOP_VOCAB_URL=omop-vocab-url:latest"
 
 # Post-deploy health check
