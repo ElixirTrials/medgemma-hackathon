@@ -423,18 +423,24 @@ def handle_protocol_uploaded(payload: dict[str, Any]) -> None:
     # Without this, the thread would use default experiment ID 0, which may be deleted.
     _ensure_mlflow()
     # So pipeline spans carry the experiment ID and export works from any thread.
-    try:
-        import mlflow
+    # Guard with breaker check to avoid minutes of MLflow SDK retries when unreachable.
+    from shared.resilience import mlflow_is_available
 
-        from protocol_processor.tracing import set_pipeline_experiment_id
+    if mlflow_is_available():
+        try:
+            import mlflow
 
-        exp = mlflow.get_experiment_by_name(_get_experiment_name())
-        if exp:
-            set_pipeline_experiment_id(exp.experiment_id)
-        else:
-            set_pipeline_experiment_id(None)
-    except Exception:
-        logger.debug("Could not set pipeline experiment ID for tracing", exc_info=True)
+            from protocol_processor.tracing import set_pipeline_experiment_id
+
+            exp = mlflow.get_experiment_by_name(_get_experiment_name())
+            if exp:
+                set_pipeline_experiment_id(exp.experiment_id)
+            else:
+                set_pipeline_experiment_id(None)
+        except Exception:
+            logger.debug(
+                "Could not set pipeline experiment ID for tracing", exc_info=True
+            )
 
     protocol_id = payload.get("protocol_id", "unknown")
     logger.info(
