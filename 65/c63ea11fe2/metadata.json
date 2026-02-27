@@ -63,6 +63,13 @@
       "context": "/65/c63ea11fe2/7/context.md",
       "content_hash": "/65/c63ea11fe2/7/content_hash.txt",
       "prompt": "/65/c63ea11fe2/7/prompt.txt"
+    },
+    {
+      "metadata": "/65/c63ea11fe2/8/metadata.json",
+      "transcript": "/65/c63ea11fe2/8/full.jsonl",
+      "context": "",
+      "content_hash": "/65/c63ea11fe2/8/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
