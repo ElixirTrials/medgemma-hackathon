@@ -1,0 +1,81 @@
+# Session Context
+
+## User Prompts
+
+### Prompt 1
+
+Use the github cli to access the latest code review in the PR. Don't accept anything at face value. Research both in the code base and best practices using the web and context7. Make a plan for addressing the concerns.
+
+### Prompt 2
+
+Fix everything that needs fixing. Make sure at the end, we pass ruff, mypy and all pytests. If you change something that can influence the quality of results, test for real by piping a protocol through the backend.
+
+### Prompt 3
+
+Where do things stand?
+
+### Prompt 4
+
+Why does it take so long to process a grounding? Can we use Mlflow logs to check where are the bottlenecks?
+
+### Prompt 5
+
+[Request interrupted by user]
+
+### Prompt 6
+
+<task-notification>
+<task-id>b714eb5</task-id>
+<tool-use-id>REDACTED</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Continue polling for pipeline completion" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/b...
+
+### Prompt 7
+
+[Request interrupted by user]
+
+### Prompt 8
+
+<task-notification>
+<task-id>bbdfa5e</task-id>
+<tool-use-id>toolu_013gbTPkt1ka95NWFYk5WehT</tool-use-id>
+<output-file>/private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/bbdfa5e.output</output-file>
+<status>completed</status>
+<summary>Background command "Wait for pipeline to finish grounding" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/tasks/bbdf...
+
+### Prompt 9
+
+[Request interrupted by user]
+
+### Prompt 10
+
+<task-notification>
+<task-id>bac7d83</task-id>
+<tool-use-id>toolu_01G2Xvg457yYYNJHAx4ttgWg</tool-use-id>
+<output-file>REDACTED.output</output-file>
+<status>completed</status>
+<summary>Background command "Poll protocol status until pipeline completes" completed (exit code 0)</summary>
+</task-notification>
+Read the output file to retrieve the result: /private/tmp/claude-503/-Users-noahdolevelixir-Code-medgemma-hackathon/ta...
+
+### Prompt 11
+
+❯ Why does it take so long to process a grounding? Can we use Mlflow logs to check where are the bottlenecks?
+
+### Prompt 12
+
+[Request interrupted by user]
+
+### Prompt 13
+
+[Request interrupted by user for tool use]
+
+### Prompt 14
+
+[Request interrupted by user for tool use]
+
