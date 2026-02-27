@@ -397,8 +397,13 @@ class TestDetectLogicStructure:
 # ===========================================================================
 
 
+@patch("protocol_processor.tools.omop_mapper._get_omop_engine")
 class TestBuildExpressionTree:
-    """Tests for build_expression_tree with mocked session and LLM."""
+    """Tests for build_expression_tree with mocked session and LLM.
+
+    OMOP engine is patched so normalizers (normalize_unit, normalize_ordinal_value,
+    normalize_value) never connect to a real DB — no OMOP_VOCAB_URL required.
+    """
 
     def _make_mock_session(self) -> MagicMock:
         """Create a mock session that tracks adds and flushes."""
@@ -407,8 +412,13 @@ class TestBuildExpressionTree:
         session.flush = MagicMock()
         return session
 
-    async def test_single_mapping_produces_atomic_tree(self) -> None:
+    async def test_single_mapping_produces_atomic_tree(
+        self, mock_get_omop_engine: MagicMock
+    ) -> None:
         """Single field_mapping -> ATOMIC root, no LLM call."""
+        mock_get_omop_engine.side_effect = RuntimeError(
+            "OMOP not available in unit tests"
+        )
         from protocol_processor.tools.structure_builder import (
             build_expression_tree,
         )
@@ -439,8 +449,13 @@ class TestBuildExpressionTree:
         "protocol_processor.tools.structure_builder.detect_logic_structure",
         new_callable=AsyncMock,
     )
-    async def test_multi_mapping_fallback_and(self, mock_detect: AsyncMock) -> None:
+    async def test_multi_mapping_fallback_and(
+        self, mock_detect: AsyncMock, mock_get_omop_engine: MagicMock
+    ) -> None:
         """Multiple field_mappings + LLM failure -> AND fallback."""
+        mock_get_omop_engine.side_effect = RuntimeError(
+            "OMOP not available in unit tests"
+        )
         from protocol_processor.tools.structure_builder import (
             build_expression_tree,
         )
@@ -472,8 +487,13 @@ class TestBuildExpressionTree:
         "protocol_processor.tools.structure_builder.detect_logic_structure",
         new_callable=AsyncMock,
     )
-    async def test_multi_mapping_llm_success(self, mock_detect: AsyncMock) -> None:
+    async def test_multi_mapping_llm_success(
+        self, mock_detect: AsyncMock, mock_get_omop_engine: MagicMock
+    ) -> None:
         """Multiple field_mappings + LLM success -> LLM tree."""
+        mock_get_omop_engine.side_effect = RuntimeError(
+            "OMOP not available in unit tests"
+        )
         from protocol_processor.tools.structure_builder import (
             build_expression_tree,
         )
@@ -508,8 +528,13 @@ class TestBuildExpressionTree:
         assert tree.structure_confidence == "llm"
         assert len(tree.root.children) == 2
 
-    async def test_value_parsing_in_atomic(self) -> None:
+    async def test_value_parsing_in_atomic(
+        self, mock_get_omop_engine: MagicMock
+    ) -> None:
         """Numeric values are stored as value_numeric, text as value_text."""
+        mock_get_omop_engine.side_effect = RuntimeError(
+            "OMOP not available in unit tests"
+        )
         from protocol_processor.tools.structure_builder import (
             build_expression_tree,
         )

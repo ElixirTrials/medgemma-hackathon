@@ -86,9 +86,7 @@ def _init_mlflow() -> None:
                 client.restore_experiment("0")
         except Exception:
             # Non-fatal: default experiment restore is best-effort
-            logger.debug(
-                "Could not restore default MLflow experiment", exc_info=True
-            )
+            logger.debug("Could not restore default MLflow experiment", exc_info=True)
 
         experiment_name = _get_experiment_name()
         try:
@@ -112,9 +110,7 @@ def _init_mlflow() -> None:
             experiment_name,
         )
     except Exception:
-        logger.warning(
-            "MLflow initialization failed - tracing disabled", exc_info=True
-        )
+        logger.warning("MLflow initialization failed - tracing disabled", exc_info=True)
         # Trip breaker so middleware and tracing immediately use no-ops
         try:
             mlflow_breaker.open()

@@ -10,6 +10,9 @@ import logging
 import os
 
 from pybreaker import (
+    STATE_CLOSED,
+    STATE_HALF_OPEN,
+    STATE_OPEN,
     CircuitBreaker,
     CircuitBreakerListener,
     CircuitBreakerState,
@@ -47,15 +50,14 @@ class MLflowCircuitBreakerListener(CircuitBreakerListener):
         """Handle circuit breaker state change by logging to MLflow or Python logger."""
         # MLflow breaker: log to Python logger only (avoid recursion)
         if cb.name == "mlflow":
-            if new_state == CircuitBreakerState.OPEN:
+            state_name = getattr(new_state, "name", str(new_state))
+            if state_name == STATE_OPEN:
                 logger.warning(
                     "MLflow circuit breaker OPEN - tracing disabled until recovery"
                 )
-            elif new_state == CircuitBreakerState.HALF_OPEN:
-                logger.info(
-                    "MLflow circuit breaker probing - attempting recovery"
-                )
-            elif new_state == CircuitBreakerState.CLOSED:
+            elif state_name == STATE_HALF_OPEN:
+                logger.info("MLflow circuit breaker probing - attempting recovery")
+            elif state_name == STATE_CLOSED:
                 logger.info("MLflow circuit breaker CLOSED - tracing resumed")
             return
 
