@@ -17,6 +17,7 @@ services:
       - OMOP_VOCAB_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@omop-vocab:5432/omop_vocab
       - MLFLOW_TRACKING_URI=http://mlflow:5000
       - MLFLOW_TRACE_TIMEOUT_SECONDS=300
+      - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true
       - USE_LOCAL_STORAGE=1
       - LOCAL_UPLOAD_DIR=/app/uploads
       - GOOGLE_APPLICATION_CREDENTIALS=/tmp/keys/application_default_credentials.json

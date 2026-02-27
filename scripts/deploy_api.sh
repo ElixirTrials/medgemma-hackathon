@@ -59,6 +59,19 @@ if [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ]; then
     echo "Warning: GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set. Google OAuth login will be unavailable." >&2
 fi
 
+# Auto-resolve MLflow URL from Cloud Run if not explicitly set
+MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-}"
+if [ -z "$MLFLOW_TRACKING_URI" ]; then
+    MLFLOW_TRACKING_URI=$(gcloud run services describe mlflow \
+        --region "$REGION" --project "$PROJECT_ID" \
+        --format='value(status.url)' 2>/dev/null || true)
+    if [ -n "$MLFLOW_TRACKING_URI" ]; then
+        echo "Auto-resolved MLFLOW_TRACKING_URI: $MLFLOW_TRACKING_URI"
+    else
+        echo "Warning: No MLflow service found. Protocol processing will fail without MLFLOW_TRACKING_URI." >&2
+    fi
+fi
+
 cd "$REPO_ROOT"
 
 echo "Building API image (Cloud Build)..."
@@ -76,7 +89,7 @@ gcloud run deploy api \
     --platform managed \
     --allow-unauthenticated \
     --add-cloudsql-instances "$CONNECTION_NAME" \
-    --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}" \
+    --set-env-vars "^||^ENVIRONMENT=production||GCP_PROJECT_ID=${PROJECT_ID}||GCP_REGION=${REGION}||MODEL_BACKEND=vertex||VERTEX_ENDPOINT_ID=${VERTEX_ENDPOINT_ID}||GCS_BUCKET_NAME=${GCS_BUCKET_NAME}||USE_LOCAL_STORAGE=0||CORS_ORIGINS=${CORS_ORIGINS}||GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}||GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}||MLFLOW_TRACKING_URI=${MLFLOW_TRACKING_URI}||MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true" \
     --set-secrets "DATABASE_URL=db-url:latest,SESSION_SECRET=api-session-secret:latest,JWT_SECRET_KEY=api-jwt-secret:latest,OMOP_VOCAB_URL=omop-vocab-url:latest"
 
 echo "Done. API URL:"
