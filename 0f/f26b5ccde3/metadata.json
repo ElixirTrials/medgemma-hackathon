@@ -3,7 +3,7 @@
   "checkpoint_id": "0ff26b5ccde3",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "libs/shared/src/shared/resilience.py",
     "services/api-service/src/api_service/main.py",
@@ -37,13 +37,20 @@
       "context": "",
       "content_hash": "/0f/f26b5ccde3/3/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/0f/f26b5ccde3/4/metadata.json",
+      "transcript": "/0f/f26b5ccde3/4/full.jsonl",
+      "context": "/0f/f26b5ccde3/4/context.md",
+      "content_hash": "/0f/f26b5ccde3/4/content_hash.txt",
+      "prompt": "/0f/f26b5ccde3/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 307,
-    "cache_creation_tokens": 632802,
-    "cache_read_tokens": 28163015,
-    "output_tokens": 67358,
-    "api_call_count": 274
+    "input_tokens": 4973,
+    "cache_creation_tokens": 899450,
+    "cache_read_tokens": 42732066,
+    "output_tokens": 116047,
+    "api_call_count": 423
   }
 }
