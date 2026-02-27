@@ -74,6 +74,13 @@
       "context": "",
       "content_hash": "/8d/e45facb270/8/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/8d/e45facb270/9/metadata.json",
+      "transcript": "/8d/e45facb270/9/full.jsonl",
+      "context": "",
+      "content_hash": "/8d/e45facb270/9/content_hash.txt",
+      "prompt": ""
     }
   ],
   "token_usage": {
