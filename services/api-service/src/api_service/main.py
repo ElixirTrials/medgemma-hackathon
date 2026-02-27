@@ -51,48 +51,75 @@ _running_tasks: Set[asyncio.Task] = set()  # noqa: UP006
 
 
 def _init_mlflow() -> None:
-    """Set up MLflow tracking, restoring deleted experiments if needed."""
-    import mlflow
+    """Set up MLflow tracking, restoring deleted experiments if needed.
+
+    Checks MLflow circuit breaker before attempting any network calls.
+    Trips the breaker on failure so downstream code (middleware, tracing)
+    immediately switches to no-ops.
+    """
+    from shared.resilience import mlflow_breaker, mlflow_is_available
+
+    if not mlflow_is_available():
+        logger.info("MLflow circuit breaker open, skipping initialization")
+        return
+
+    try:
+        import mlflow
+    except ImportError:
+        logger.info("mlflow not installed, skipping initialization")
+        return
 
     tracking_uri = os.getenv("MLFLOW_TRACKING_URI")
     if not tracking_uri:
         logger.info("MLFLOW_TRACKING_URI not set, skipping MLflow initialization")
         return
 
-    mlflow.set_tracking_uri(tracking_uri)
-    client = mlflow.MlflowClient()
-
-    # Restore the Default experiment (id "0") if deleted, otherwise
-    # traces that land before set_experiment runs will 400.
     try:
-        default_exp = client.get_experiment("0")
-        if default_exp and default_exp.lifecycle_stage == "deleted":
-            client.restore_experiment("0")
-    except Exception:
-        # Non-fatal: default experiment restore is best-effort
-        logger.debug("Could not restore default MLflow experiment", exc_info=True)
+        mlflow.set_tracking_uri(tracking_uri)
+        client = mlflow.MlflowClient()
 
-    experiment_name = _get_experiment_name()
-    try:
-        mlflow.set_experiment(experiment_name)
-    except mlflow.exceptions.MlflowException:
-        # Experiment in deleted state — restore and reuse.
-        exp = client.get_experiment_by_name(experiment_name)
-        if exp and exp.lifecycle_stage == "deleted":
-            client.restore_experiment(exp.experiment_id)
+        # Restore the Default experiment (id "0") if deleted, otherwise
+        # traces that land before set_experiment runs will 400.
+        try:
+            default_exp = client.get_experiment("0")
+            if default_exp and default_exp.lifecycle_stage == "deleted":
+                client.restore_experiment("0")
+        except Exception:
+            # Non-fatal: default experiment restore is best-effort
+            logger.debug(
+                "Could not restore default MLflow experiment", exc_info=True
+            )
+
+        experiment_name = _get_experiment_name()
+        try:
             mlflow.set_experiment(experiment_name)
-        else:
-            raise
-    # NOTE: Do NOT enable mlflow.langchain.autolog() here.
-    # Autolog wraps graph.ainvoke() in a single trace that only
-    # appears after the full pipeline finishes.  Each pipeline
-    # node creates its own independent trace via pipeline_span()
-    # so traces stream to MLflow in real-time as nodes complete.
-    logger.info(
-        "MLflow initialized: tracking_uri=%s, experiment=%s",
-        tracking_uri,
-        experiment_name,
-    )
+        except mlflow.exceptions.MlflowException:
+            # Experiment in deleted state — restore and reuse.
+            exp = client.get_experiment_by_name(experiment_name)
+            if exp and exp.lifecycle_stage == "deleted":
+                client.restore_experiment(exp.experiment_id)
+                mlflow.set_experiment(experiment_name)
+            else:
+                raise
+        # NOTE: Do NOT enable mlflow.langchain.autolog() here.
+        # Autolog wraps graph.ainvoke() in a single trace that only
+        # appears after the full pipeline finishes.  Each pipeline
+        # node creates its own independent trace via pipeline_span()
+        # so traces stream to MLflow in real-time as nodes complete.
+        logger.info(
+            "MLflow initialized: tracking_uri=%s, experiment=%s",
+            tracking_uri,
+            experiment_name,
+        )
+    except Exception:
+        logger.warning(
+            "MLflow initialization failed - tracing disabled", exc_info=True
+        )
+        # Trip breaker so middleware and tracing immediately use no-ops
+        try:
+            mlflow_breaker.open()
+        except Exception:
+            pass
 
 
 @asynccontextmanager
@@ -104,16 +131,33 @@ async def lifespan(app: FastAPI):
     create_db_and_tables()
     logger.info("Database initialized successfully")
 
-    # Initialize MLflow
+    # Configure Cloud Run service-to-service auth for MLflow
     try:
-        _init_mlflow()
-    except ImportError:
-        logger.info("mlflow not installed, skipping initialization")
+        from api_service._cloud_run_auth import configure_mlflow_auth
+
+        configure_mlflow_auth()
     except Exception:
-        logger.warning(
-            "MLflow initialization failed, continuing without tracing",
-            exc_info=True,
-        )
+        logger.debug("Cloud Run MLflow auth setup skipped", exc_info=True)
+
+    # Initialize MLflow in a background thread so it doesn't block startup
+    # (the MLflow Cloud Run service may be cold-starting, which can take 30s+)
+    import threading
+
+    def _deferred_mlflow_init() -> None:
+        try:
+            _init_mlflow()
+        except Exception:
+            # _init_mlflow handles its own exceptions and trips the breaker,
+            # but catch any unexpected errors to be safe.
+            logger.warning(
+                "MLflow initialization failed, continuing without tracing",
+                exc_info=True,
+            )
+
+    mlflow_thread = threading.Thread(
+        target=_deferred_mlflow_init, daemon=True, name="mlflow-init"
+    )
+    mlflow_thread.start()
 
     # Start outbox processor as background task (skip in tests — the poll loop
     # and executor shutdown add seconds of overhead per TestClient instantiation).
