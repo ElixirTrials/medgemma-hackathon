@@ -3,7 +3,7 @@
   "checkpoint_id": "ea032bf8329e",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 0,
+  "checkpoints_count": 1,
   "files_touched": [
     "scripts/deploy_api.sh",
     "services/api-service/src/api_service/criterion_rerun.py",
@@ -17,13 +17,20 @@
       "context": "",
       "content_hash": "/ea/032bf8329e/0/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/ea/032bf8329e/1/metadata.json",
+      "transcript": "/ea/032bf8329e/1/full.jsonl",
+      "context": "/ea/032bf8329e/1/context.md",
+      "content_hash": "/ea/032bf8329e/1/content_hash.txt",
+      "prompt": "/ea/032bf8329e/1/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 0,
-    "cache_creation_tokens": 0,
-    "cache_read_tokens": 0,
-    "output_tokens": 0,
-    "api_call_count": 0
+    "input_tokens": 145,
+    "cache_creation_tokens": 284672,
+    "cache_read_tokens": 13602304,
+    "output_tokens": 19840,
+    "api_call_count": 132
   }
 }
