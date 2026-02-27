@@ -3,7 +3,7 @@
   "checkpoint_id": "691c979c660c",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "apps/hitl-ui/nginx.conf"
   ],
@@ -35,13 +35,20 @@
       "context": "",
       "content_hash": "/69/1c979c660c/3/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/69/1c979c660c/4/metadata.json",
+      "transcript": "/69/1c979c660c/4/full.jsonl",
+      "context": "/69/1c979c660c/4/context.md",
+      "content_hash": "/69/1c979c660c/4/content_hash.txt",
+      "prompt": "/69/1c979c660c/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 307,
-    "cache_creation_tokens": 632802,
-    "cache_read_tokens": 28163015,
-    "output_tokens": 67358,
-    "api_call_count": 274
+    "input_tokens": 8641,
+    "cache_creation_tokens": 1334465,
+    "cache_read_tokens": 79406574,
+    "output_tokens": 209526,
+    "api_call_count": 749
   }
 }
