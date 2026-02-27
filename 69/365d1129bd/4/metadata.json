@@ -1,0 +1,31 @@
+{
+  "cli_version": "0.4.5",
+  "checkpoint_id": "69365d1129bd",
+  "session_id": "71356d24-29ab-450c-81e5-e56c048756c5",
+  "strategy": "manual-commit",
+  "created_at": "2026-02-27T11:31:16.873595Z",
+  "branch": "main",
+  "checkpoints_count": 1,
+  "files_touched": [
+    "services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py"
+  ],
+  "agent": "Claude Code",
+  "turn_id": "8540df744718",
+  "token_usage": {
+    "input_tokens": 4734,
+    "cache_creation_tokens": 370655,
+    "cache_read_tokens": 21094356,
+    "output_tokens": 71847,
+    "api_call_count": 211
+  },
+  "initial_attribution": {
+    "calculated_at": "2026-02-27T11:31:14.881015Z",
+    "agent_lines": 0,
+    "human_added": 7,
+    "human_modified": 14,
+    "human_removed": 0,
+    "total_committed": 7,
+    "agent_percentage": 0
+  },
+  "transcript_path": ".claude-elixirtrials/projects/-Users-noahdolevelixir-Code-medgemma-hackathon/71356d24-29ab-450c-81e5-e56c048756c5.jsonl"
+}

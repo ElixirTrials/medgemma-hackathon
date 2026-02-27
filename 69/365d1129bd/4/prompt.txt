@@ -1,0 +1,750 @@
+<context>
+**Flags:**
+- `--auto` — Automatic mode. After config questions, runs research → requirements → roadmap without further interaction. Expects idea document via @ reference.
+</context>
+
+<objective>
+Initialize a new project through unified flow: questioning → research (optional) → requirements → roadmap.
+
+**Creates:**
+- `.planning/PROJECT.md` — project context
+- `.planning/config.json` — workflow preferences
+- `.planning/research/` — domain research (optional)
+- `.planning/REQUIREMENTS.md` — scoped requirements
+- `.planning/ROADMAP.md` — phase structure
+- `.planning/STATE.md` — project memory
+
+**After this command:** Run `/gsd:plan-phase 1` to start execution.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/new-project.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/questioning.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/project.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/requirements.md
+</execution_context>
+
+<process>
+Execute the new-project workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/new-project.md end-to-end.
+Preserve all workflow gates (validation, approvals, commits, routing).
+</process>
+
+
+ARGUMENTS: REDACTED.md "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done" --auto
+
+---
+
+<objective>
+Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
+
+**How it works:**
+1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+2. Present gray areas — user selects which to discuss
+3. Deep-dive each selected area until satisfied
+4. Create CONTEXT.md with decisions that guide research and planning
+
+**Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/discuss-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/context.md
+</execution_context>
+
+<context>
+Phase number: 1 --auto (required)
+
+**Load project state:**
+@.planning/STATE.md
+
+**Load roadmap:**
+@.planning/ROADMAP.md
+</context>
+
+<process>
+1. Validate phase number (error if missing or not in roadmap)
+2. Check if CONTEXT.md exists (offer update/view/skip if yes)
+3. **Analyze phase** — Identify domain and generate phase-specific gray areas
+4. **Present gray areas** — Multi-select: which to discuss? (NO skip option)
+5. **Deep-dive each area** — 4 questions per area, then offer more/next
+6. **Write CONTEXT.md** — Sections match areas discussed
+7. Offer next steps (research or plan)
+
+**CRITICAL: Scope guardrail**
+- Phase boundary from ROADMAP.md is FIXED
+- Discussion clarifies HOW to implement, not WHETHER to add more
+- If user suggests new capabilities: "That's its own phase. I'll note it for later."
+- Capture deferred ideas — don't lose them, don't act on them
+
+**Domain-aware gray areas:**
+Gray areas depend on what's being built. Analyze the phase goal:
+- Something users SEE → layout, density, interactions, states
+- Something users CALL → responses, errors, auth, versioning
+- Something users RUN → output format, flags, modes, error handling
+- Something users READ → structure, tone, depth, flow
+- Something being ORGANIZED → criteria, grouping, naming, exceptions
+
+Generate 3-4 **phase-specific** gray areas, not generic categories.
+
+**Probing depth:**
+- Ask 4 questions per area before checking
+- "More questions about [area], or move to next?"
+- If more → ask 4 more, check again
+- After all areas → "Ready to create context?"
+
+**Do NOT ask about (Claude handles these):**
+- Technical implementation
+- Architecture choices
+- Performance concerns
+- Scope expansion
+</process>
+
+<success_criteria>
+- Gray areas identified through intelligent analysis
+- User chose which areas to discuss
+- Each selected area explored until satisfied
+- Scope creep redirected to deferred ideas
+- CONTEXT.md captures decisions, not vague vision
+- User knows next steps
+</success_criteria>
+
+---
+
+<objective>
+Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
+
+**How it works:**
+1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+2. Present gray areas — user selects which to discuss
+3. Deep-dive each selected area until satisfied
+4. Create CONTEXT.md with decisions that guide research and planning
+
+**Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/discuss-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/context.md
+</execution_context>
+
+<context>
+Phase number: 2 --auto (required)
+
+**Load project state:**
+@.planning/STATE.md
+
+**Load roadmap:**
+@.planning/ROADMAP.md
+</context>
+
+<process>
+1. Validate phase number (error if missing or not in roadmap)
+2. Check if CONTEXT.md exists (offer update/view/skip if yes)
+3. **Analyze phase** — Identify domain and generate phase-specific gray areas
+4. **Present gray areas** — Multi-select: which to discuss? (NO skip option)
+5. **Deep-dive each area** — 4 questions per area, then offer more/next
+6. **Write CONTEXT.md** — Sections match areas discussed
+7. Offer next steps (research or plan)
+
+**CRITICAL: Scope guardrail**
+- Phase boundary from ROADMAP.md is FIXED
+- Discussion clarifies HOW to implement, not WHETHER to add more
+- If user suggests new capabilities: "That's its own phase. I'll note it for later."
+- Capture deferred ideas — don't lose them, don't act on them
+
+**Domain-aware gray areas:**
+Gray areas depend on what's being built. Analyze the phase goal:
+- Something users SEE → layout, density, interactions, states
+- Something users CALL → responses, errors, auth, versioning
+- Something users RUN → output format, flags, modes, error handling
+- Something users READ → structure, tone, depth, flow
+- Something being ORGANIZED → criteria, grouping, naming, exceptions
+
+Generate 3-4 **phase-specific** gray areas, not generic categories.
+
+**Probing depth:**
+- Ask 4 questions per area before checking
+- "More questions about [area], or move to next?"
+- If more → ask 4 more, check again
+- After all areas → "Ready to create context?"
+
+**Do NOT ask about (Claude handles these):**
+- Technical implementation
+- Architecture choices
+- Performance concerns
+- Scope expansion
+</process>
+
+<success_criteria>
+- Gray areas identified through intelligent analysis
+- User chose which areas to discuss
+- Each selected area explored until satisfied
+- Scope creep redirected to deferred ideas
+- CONTEXT.md captures decisions, not vague vision
+- User knows next steps
+</success_criteria>
+
+---
+
+<objective>
+Create executable phase prompts (PLAN.md files) for a roadmap phase with integrated research and verification.
+
+**Default flow:** Research (if needed) → Plan → Verify → Done
+
+**Orchestrator role:** Parse arguments, validate phase, research domain (unless skipped), spawn gsd-planner, verify with gsd-plan-checker, iterate until pass or max iterations, present results.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase number: 2 --auto (optional — auto-detects next unplanned phase if omitted)
+
+**Flags:**
+- `--research` — Force re-research even if RESEARCH.md exists
+- `--skip-research` — Skip research, go straight to planning
+- `--gaps` — Gap closure mode (reads VERIFICATION.md, skips research)
+- `--skip-verify` — Skip verification loop
+
+Normalize phase input in step 2 before any directory lookups.
+</context>
+
+<process>
+Execute the plan-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/plan-phase.md end-to-end.
+Preserve all workflow gates (validation, research, planning, verification loop, routing).
+</process>
+
+---
+
+<objective>
+Execute all plans in a phase using wave-based parallel execution.
+
+Orchestrator stays lean: discover plans, analyze dependencies, group into waves, spawn subagents, collect results. Each subagent loads the full execute-plan context and handles its own plan.
+
+Context budget: ~15% orchestrator, 100% fresh per subagent.
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/execute-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/references/ui-brand.md
+</execution_context>
+
+<context>
+Phase: 2 --auto
+
+**Flags:**
+- `--gaps-only` — Execute only gap closure plans (plans with `gap_closure: true` in frontmatter). Use after verify-work creates fix plans.
+
+@.planning/ROADMAP.md
+@.planning/STATE.md
+</context>
+
+<process>
+Execute the execute-phase workflow from @/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/execute-phase.md end-to-end.
+Preserve all workflow gates (wave execution, checkpoint handling, verification, state updates, routing).
+</process>
+
+---
+
+<objective>
+Extract implementation decisions that downstream agents need — researcher and planner will use CONTEXT.md to know what to investigate and what choices are locked.
+
+**How it works:**
+1. Analyze the phase to identify gray areas (UI, UX, behavior, etc.)
+2. Present gray areas — user selects which to discuss
+3. Deep-dive each selected area until satisfied
+4. Create CONTEXT.md with decisions that guide research and planning
+
+**Output:** `{phase_num}-CONTEXT.md` — decisions clear enough that downstream agents can act without asking the user again
+</objective>
+
+<execution_context>
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/workflows/discuss-phase.md
+@/Users/noahdolevelixir/.claude-elixirtrials/get-shit-done/templates/context.md
+</execution_context>
+
+<context>
+Phase number: 3 --auto (required)
+
+**Load project state:**
+@.planning/STATE.md
+
+**Load roadmap:**
+@.planning/ROADMAP.md
+</context>
+
+<process>
+1. Validate phase number (error if missing or not in roadmap)
+2. Check if CONTEXT.md exists (offer update/view/skip if yes)
+3. **Analyze phase** — Identify domain and generate phase-specific gray areas
+4. **Present gray areas** — Multi-select: which to discuss? (NO skip option)
+5. **Deep-dive each area** — 4 questions per area, then offer more/next
+6. **Write CONTEXT.md** — Sections match areas discussed
+7. Offer next steps (research or plan)
+
+**CRITICAL: Scope guardrail**
+- Phase boundary from ROADMAP.md is FIXED
+- Discussion clarifies HOW to implement, not WHETHER to add more
+- If user suggests new capabilities: "That's its own phase. I'll note it for later."
+- Capture deferred ideas — don't lose them, don't act on them
+
+**Domain-aware gray areas:**
+Gray areas depend on what's being built. Analyze the phase goal:
+- Something users SEE → layout, density, interactions, states
+- Something users CALL → responses, errors, auth, versioning
+- Something users RUN → output format, flags, modes, error handling
+- Something users READ → structure, tone, depth, flow
+- Something being ORGANIZED → criteria, grouping, naming, exceptions
+
+Generate 3-4 **phase-specific** gray areas, not generic categories.
+
+**Probing depth:**
+- Ask 4 questions per area before checking
+- "More questions about [area], or move to next?"
+- If more → ask 4 more, check again
+- After all areas → "Ready to create context?"
+
+**Do NOT ask about (Claude handles these):**
+- Technical implementation
+- Architecture choices
+- Performance concerns
+- Scope expansion
+</process>
+
+<success_criteria>
+- Gray areas identified through intelligent analysis
+- User chose which areas to discuss
+- Each selected area explored until satisfied
+- Scope creep redirected to deferred ideas
+- CONTEXT.md captures decisions, not vague vision
+- User knows next steps
+</success_criteria>
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Initial Request**: User invoked `/gsd:new-project` with `--auto` flag, providing a deployment issues report and the directive: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done"
+
+2. **Setup Phase**: Ran `gsd-tools.cjs init new-project` which returned:
+   - `is_brownfield: true`, `has_codebase_map: true`, `needs_codebase_map: false`
+   - `has_existing_code: true`, `has_git: true`
+   - Models: researcher=sonnet, synthesizer=sonnet, roadmapper=sonnet
+
+3. **Config Questions (Auto Mode Step 2a)**:
+   - Depth: Quick (3-5 phases)
+   - Execution: Parallel
+   - Git Tracking: No (keep .planning/ local-only) - `.planning/` already in .gitignore
+   - Research: Yes
+   - Plan Check: Yes
+   - Verifier: Yes
+   - AI Models: Quality (Opus for research/roadmap)
+
+4. **Created config.json** with mode=yolo, depth=quick, parallelization=true, commit_docs=false, model_profile=quality
+
+5. **Read deployment issues report** - 10 issues documented, Issues 1-8 resolved, Issues 9-10 unresolved (MLflow 403/503, API unresponsive)
+
+6. **Read codebase map** (ARCHITECTURE.md, STACK.md) - Understood existing architecture
+
+7. **Wrote PROJECT.md** - MedGemma Deployment Fix project
+
+8. **Research Phase** - Spawned 4 parallel researchers (Stack, Features, Architecture, Pitfalls) + synthesizer
+   - Key finding: All 3 remaining issues stem from MLflow being a hard dependency
+   - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true fixes sync blocking
+   - --no-cpu-throttling needed for outbox processor
+   - Circuit breaker pattern already in codebase (pybreaker)
+
+9. **Requirements** - 12 v1 requirements across 4 categories (MLFL, AUTH, DEPL, LOCL)
+
+10. **Roadmap** - 3 phases:
+    - Phase 1: MLflow Decoupling (MLFL-01-04, LOCL-01-02)
+    - Phase 2: Service Auth and MLflow Recovery (AUTH-01-02)
+    - Phase 3: Deploy Hardening (DEPL-01-04)
+
+11. **Phase 1 Discussion** - User selected Degradation behavior and Recovery behavior
+    - Degradation: Warn once then silent, circuit breaker trips after 3 failures, zero tracing when down
+    - Health: DB+OMOP required, MLflow info-only
+    - Recovery: Auto-resume after 2-minute cooldown
+    - **USER FEEDBACK**: "Consider that MLFlow is not the main issue. The main issue is failures to achieve login, failures to achieve protocol upload and then failure to trigger the grounding and extraction. We suspect that most of these issues center around permissions and security but there might be other blockers."
+
+12. **Phase 1 Execution** - 6 commits across 2 plans:
+    - Plan 01-01 (3 commits): mlflow_breaker in resilience.py, soft preflight in trigger.py, hardened init in main.py
+    - Plan 01-02 (3 commits): no-op spans in tracing.py, middleware gating, async trace logging env var
+
+13. **Phase 2 Discussion** - User selected Token refresh strategy
+    - Lazy on expiry, 10-minute buffer before expiry
+    - Skip MLflow entirely if metadata server unreachable
+    - **USER FEEDBACK**: "Remember, in the end, we want to be able to login, upload a pdf and examine the result of the processing. It's not just about MlFlow."
+
+14. **Phase 2 Research** - Key finding: MLflow deployed with --allow-unauthenticated, so 403s are from cold-start/503 not IAM
+
+15. **Phase 2 Execution** - 2 commits:
+    - `4cc6115e`: _TOKEN_REFRESH_MARGIN from 300→600, mlflow_breaker.open() on metadata failure
+    - `695b1325`: configure_mlflow_auth() added to middleware _get_mlflow_if_ready()
+
+16. **Phase 2 Verification** - Passed 5/5 must-haves
+
+17. **USER MESSAGE**: "Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."
+
+18. **Phase 3 Discussion Started** - Currently initializing Phase 3 (Deploy Hardening)
+
+Key files modified:
+- `libs/shared/src/shared/resilience.py` - Added mlflow_breaker
+- `services/protocol-processor-service/src/protocol_processor/trigger.py` - Soft preflight
+- `services/api-service/src/api_service/main.py` - Hardened init, /health with mlflow_available
+- `services/protocol-processor-service/src/protocol_processor/tracing.py` - No-op spans
+- `services/api-service/src/api_service/middleware.py` - Skip tracing when breaker open, token refresh
+- `scripts/deploy_api.sh` - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true
+- `infra/docker-compose.yml` - MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true
+- `services/api-service/src/api_service/_cloud_run_auth.py` - 10-min margin, breaker trip
+
+Git commits (8 total on main, ahead of origin/main):
+1. `19b0d763` feat(01-01): add MLflow circuit breaker to resilience.py
+2. `300e30ad` feat(01-01): make MLflow a soft dependency in pipeline trigger
+3. `ab82861e` feat(01-01): harden MLflow initialization with circuit breaker
+4. `89384082` feat(01-02): gate tracing spans with MLflow circuit breaker
+5. `9124b541` feat(01-02): gate middleware and health endpoint with circuit breaker
+6. `5d691266` feat(01-02): enable async trace logging in deploy and docker-compose
+7. `4cc6115e` feat(02-01): update token refresh margin to 10min and trip breaker on metadata failure
+8. `695b1325` feat(02-01): add token refresh to middleware _get_mlflow_if_ready()
+
+Summary:
+1. Primary Request and Intent:
+   The user invoked `/gsd:new-project --auto` with the deployment issues report (`instructions/DEPLOYMENT_ISSUES_REPORT.md`) and the directive: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done." The project is MedGemma — a clinical trial criteria extraction platform that works locally via Docker Compose but has multiple unresolved issues preventing reliable GCP Cloud Run deployment. The user repeatedly emphasized that the ultimate success criterion is: **open the deployed app in a browser, login, upload a protocol PDF, and see that the processing works** — verified with Playwright. The user stressed this is NOT just about MLflow; it's about the entire end-to-end flow (login → upload → extraction/grounding → review).
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment with service-to-service auth (europe-west4 region)
+   - MLflow as optional observability (was hard dependency, now decoupled via circuit breaker)
+   - pybreaker circuit breaker pattern (`mlflow_breaker`: fail_max=3, reset_timeout=120s)
+   - Cloud Run ID tokens from metadata server (~1 hour lifetime, 10-minute refresh buffer)
+   - `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true` for non-blocking trace export
+   - `--no-cpu-throttling` needed for outbox background processor
+   - ProxyHeadersMiddleware for HTTPS behind Cloud Run load balancer
+   - GCS signed URL generation via metadata server + IAM signBlob
+   - CORS with `^||^` delimiter for comma-separated origins
+   - Popup OAuth flow (window.open + postMessage)
+   - FastAPI + LangGraph 7-node pipeline + React frontend + PostgreSQL + GCS
+   - GSD workflow: new-project → discuss-phase → plan-phase → execute-phase (auto mode)
+
+3. Files and Code Sections:
+
+   - **`.planning/config.json`** — Project config (mode=yolo, depth=quick, parallelization=true, commit_docs=false, model_profile=quality, all workflow agents enabled, auto_advance=true)
+
+   - **`.planning/PROJECT.md`** — Project context document. Core value: "Deployed Cloud Run services handle the full protocol pipeline end-to-end, exactly as locally." Lists validated capabilities (12 resolved issues) and active requirements (MLflow auth, API stability, protocol processing, deploy script, local compatibility).
+
+   - **`.planning/REQUIREMENTS.md`** — 12 v1 requirements:
+     - MLFL-01 through MLFL-04 (MLflow Decoupling → Phase 1)
+     - AUTH-01, AUTH-02 (Service Auth → Phase 2)
+     - DEPL-01 through DEPL-04 (Deploy Hardening → Phase 3)
+     - LOCL-01, LOCL-02 (Local Compatibility → Phase 1)
+
+   - **`.planning/ROADMAP.md`** — 3-phase roadmap, Phases 1-2 complete, Phase 3 pending
+
+   - **`.planning/research/`** — STACK.md, FEATURES.md, ARCHITECTURE.md, PITFALLS.md, SUMMARY.md
+
+   - **`libs/shared/src/shared/resilience.py`** — Added `mlflow_breaker` (fail_max=3, reset_timeout=120) and `mlflow_is_available()` helper function
+     ```python
+     mlflow_breaker = CircuitBreaker(fail_max=3, reset_timeout=120)
+     def mlflow_is_available():
+         return str(mlflow_breaker.current_state) != "open"
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/trigger.py`** — Converted MLflow preflight from hard `DependencyCheckError` to soft warning; gated `_ensure_mlflow()` and `_cleanup_orphan_traces()` with breaker check
+
+   - **`services/api-service/src/api_service/main.py`** — Hardened `_init_mlflow()` with breaker check and breaker trip on failure; `/health` endpoint includes `mlflow_available` as informational boolean (not blocking)
+
+   - **`services/protocol-processor-service/src/protocol_processor/tracing.py`** — `pipeline_span()` and `llm_span()` return no-op spans when breaker is open; span failures trip the breaker
+
+   - **`services/api-service/src/api_service/middleware.py`** — `MLflowRequestMiddleware` skips tracing when breaker is open; `_get_mlflow_if_ready()` calls `configure_mlflow_auth()` before returning mlflow module
+     ```python
+     # Added in Phase 2 (Task 2):
+     # Refresh Cloud Run ID token if needed (no-op when fresh or not on Cloud Run)
+     try:
+         from api_service._cloud_run_auth import configure_mlflow_auth
+         configure_mlflow_auth()
+     except Exception:
+         pass  # Failure handled inside configure_mlflow_auth
+     ```
+
+   - **`services/api-service/src/api_service/_cloud_run_auth.py`** — Updated `_TOKEN_REFRESH_MARGIN` from 300 to 600 (10 minutes per user decision); added `mlflow_breaker.open()` in `get_id_token()` except block when metadata server is unreachable
+     ```python
+     _TOKEN_REFRESH_MARGIN = 600  # refresh 10 min before expiry
+     # In get_id_token() except block:
+     try:
+         from shared.resilience import mlflow_breaker
+         mlflow_breaker.open()
+     except Exception:
+         pass
+     ```
+
+   - **`scripts/deploy_api.sh`** — Added `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true` to Cloud Run env vars
+
+   - **`infra/docker-compose.yml`** — Added `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true` for local dev parity
+
+   - **`.REDACTED.md`** — Phase 1 decisions (degradation: warn once then silent, circuit breaker 3 failures, zero tracing when down, auto-resume after 2min)
+
+   - **`.REDACTED.md`** — Phase 2 decisions (lazy token refresh, 10-min buffer, trip breaker if metadata server unreachable)
+
+   - **`.REDACTED.md`** — Key finding: MLflow deployed with `--allow-unauthenticated`, so 403s are from cold-start/503 not IAM
+
+4. Errors and Fixes:
+   - **Plan Phase 2 subagent failure**: The first attempt to spawn `/gsd:plan-phase 2 --auto` via a general-purpose Task agent failed because the agent couldn't access the `/gsd` skill. Fixed by calling `Skill(skill="gsd:plan-phase", args="2 --auto")` directly in the main context instead of delegating to a subagent.
+   - **SUMMARY.md existence check**: The `test -f` bash command to check SUMMARY.md existence was intercepted by pytest (xdist looponfail error). Fixed by using `ls` instead of `test`.
+   - **Phase completion routing**: `gsd-tools.cjs phase complete "02"` returned `is_last_phase: true` and `next_phase: null` even though Phase 3 exists (because Phase 3 plans are still TBD). Handled by manually continuing to Phase 3 instead of relying on auto-routing.
+   - **Ruff E501 lint**: Minor auto-fix during Phase 2 execution — shortened inline comment to satisfy line length limit.
+
+5. Problem Solving:
+   - **Root cause analysis**: All 3 remaining deployment issues (MLflow 403/503, API unresponsive, dead-lettered protocols) traced to MLflow being a hard dependency. Solution: circuit breaker pattern with graceful degradation.
+   - **Token refresh gap**: Research identified that the middleware path never refreshed the Cloud Run ID token. Fixed by adding `configure_mlflow_auth()` call to `_get_mlflow_if_ready()`.
+   - **MLflow auth misconception**: Research discovered MLflow is deployed with `--allow-unauthenticated`, meaning 403 errors were actually from cold-start/503, not IAM rejection. This simplified the auth approach significantly.
+
+6. All User Messages:
+   - `/gsd:new-project` with args: `instructions/DEPLOYMENT_ISSUES_REPORT.md "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done" --auto`
+   - Config answers: Quick depth, Parallel execution, No git tracking, Yes research, Yes plan check, Yes verifier, Quality models
+   - Phase 1 discussion: Selected "Degradation behavior" and "Recovery behavior"
+   - Degradation: "Warn once then silent"
+   - Circuit breaker: "Fast (3 failures)"
+   - Health endpoint: "health should show that db and omop are up. Info only on mlflow."
+   - Tracing when down: "Zero tracing"
+   - **"Consider that MLFlow is not the main issue. The main issue is failures to achieve login, failures to achieve protocol upload and then failure to trigger the grounding and extraction. We suspect that most of these issues center around permissions and security but there might be other blockers. This project is to discover all the issues and fix them (without breaking what works locally)."**
+   - Phase 2 discussion: Selected "Token refresh strategy"
+   - Token refresh: "Lazy on expiry"
+   - Refresh buffer: "10 minutes before"
+   - Metadata server failure: "Skip MLflow entirely"
+   - **"Remember, in the end, we want to be able to login, upload a pdf and examine the result of the processing. It's not just about MlFlow."**
+   - **"Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."**
+
+7. Pending Tasks:
+   - **Phase 3: Deploy Hardening** — Currently at discuss-phase step (just initialized). Requirements: DEPL-01 (startup probe), DEPL-02 (--no-cpu-throttling), DEPL-03 (env var validation), DEPL-04 (post-deploy health check)
+   - **Actually deploy to Cloud Run** — Push the 8 commits and run deploy scripts
+   - **End-to-end Playwright verification** — Login → upload PDF → see extraction results in the deployed app
+   - The user explicitly stated: "success = you can open the deployed app, login, upload a protocol and see that it works with playwright"
+
+8. Current Work:
+   Phase 3 discuss-phase was just initialized. The `gsd-tools.cjs init phase-op "3"` returned: `phase_found: true`, `phase_dir: null`, `phase_name: "Deploy Hardening"`, `padded_phase: "03"`, `has_context: false`, `has_plans: false`. The workflow was about to present gray areas for Phase 3 (Deploy Hardening) to the user via AskUserQuestion. Phase 3's goal is: "Deploy script is robust, idempotent, and self-verifying so deployments succeed reliably without manual intervention." Requirements: DEPL-01 (startup probe), DEPL-02 (--no-cpu-throttling), DEPL-03 (env var validation), DEPL-04 (post-deploy health check).
+
+   Git state: 8 commits on `main` ahead of `origin/main`:
+   - `19b0d763` through `695b1325` (Phase 1: 6 commits, Phase 2: 2 commits)
+
+9. Optional Next Step:
+   Continue the Phase 3 discuss-phase workflow that was just initialized. Present gray areas for Deploy Hardening and collect user decisions. Then plan, execute, deploy to Cloud Run, and verify end-to-end with Playwright.
+
+   The user's most recent explicit request was: **"Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."**
+
+   The workflow was at: Phase 3 discuss-phase initialization complete (`gsd-tools.cjs init phase-op "3"` returned successfully), about to present gray areas to user. The auto-advance chain is: discuss-phase 3 → plan-phase 3 → execute-phase 3 → deploy → Playwright e2e test.
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.
+
+---
+
+This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.
+
+Analysis:
+Let me chronologically analyze the conversation:
+
+1. **Session Start**: This is a continuation session from a previous conversation that ran out of context. The previous session completed Phases 1-2 of a 3-phase MedGemma deployment fix project, and was about to start Phase 3 discuss-phase.
+
+2. **Phase 3 Context Creation**: I created `.planning/phases/03-deploy-hardening/03-CONTEXT.md` and `03-01-PLAN.md` with decisions about startup probe, CPU throttling, env var validation, and post-deploy health check.
+
+3. **Phase 3 Execution**: I edited `scripts/deploy_api.sh` to add:
+   - `--no-cpu-throttling` flag
+   - Startup probe configuration
+   - Post-deploy health check
+   - Fixed MLflow warning message
+
+4. **First deploy attempt**: Failed because startup probe flags used wrong syntax (`--startup-probe-path=/health` instead of `--startup-probe=httpGet.path=/health,...`). Fixed the syntax.
+
+5. **User message about password**: User said "You committed a password and pushed it. In docker-compose.yml you wrote the postgres password." I investigated and confirmed the passwords in docker-compose.yml were pre-existing default dev values (`${POSTGRES_PASSWORD:-postgres}`) - not something we introduced. Our only change was adding `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true`.
+
+6. **Successful deploy**: API deployed as revision `api-00038-fzr`, health check PASSED.
+
+7. **Playwright E2E testing**:
+   - Frontend loaded at `https://frontend-1074735463071.europe-west4.run.app/login`
+   - Google OAuth login succeeded (user "Noah Dolev")
+   - Dashboard showed system status: DB connected, OMOP (7.3M concepts), GCS working
+   - Protocol upload worked: "Prot_000-3aca1102" (77 pages, 95% quality)
+   - But protocol stayed stuck at "Uploaded" status for minutes
+
+8. **Investigation of stuck pipeline**: 
+   - Found `MLFLOW_TRACKING_URI=http://localhost:5001` leaked from `.env` into production
+   - The `_ensure_mlflow()` function was retrying against localhost:5001 with exponential backoff
+   - Lines 426-437 in trigger.py called `mlflow.get_experiment_by_name()` without checking circuit breaker
+
+9. **User asked about MLflow**: "Can you check that MLFlow is working? Also how can you access the MlFlow UI?"
+   - MLflow Cloud Run service: `https://mlflow-aq2dyw3nxq-ez.a.run.app` 
+   - Returns 403 Forbidden - IAM restricted (only compute SA has invoker role)
+   - Access via: `gcloud run services proxy mlflow --region europe-west4`
+
+10. **User noted extraction not working**: "I see '0 criteria extracted, 0 protocols currently in grounding' in the dashboard"
+
+11. **Fixes applied**:
+    - Fixed deploy script to use `MLFLOW_TRACKING_URI_PROD` instead of sourcing from `.env`
+    - Added `mlflow_is_available()` guard before `mlflow.get_experiment_by_name()` in trigger.py
+    - Redeployed as revision `api-00039-49x`
+
+12. **Second upload test**: Uploaded "Prot_000-106814a3" (56 pages, 91% quality)
+    - Pipeline started immediately (fix worked!)
+    - But went to "Dead Letter" with TWO different errors:
+      a. `psycopg.OperationalError: the connection is closed` - LangGraph checkpoint postgres connection is stale
+      b. `ValueError: Missing key inputs argument! To use the Google AI API, provide (api_key) arguments. To use the Google Cloud API, provide (vertexai, project & location) arguments.` - The Gemini extractor creates `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` but GOOGLE_API_KEY is not set in production (they use Vertex AI)
+
+13. **First protocol completed**: The first upload (Prot_000-3aca1102) actually completed! Log shows: `INFO:protocol_processor.trigger:Protocol pipeline completed for protocol c35a4c93-fed3-4a36-ad70-4890ef0bd7a6` but then the extraction failed with the Gemini API key error.
+
+The two new errors to fix:
+1. **Postgres checkpoint connection closed**: The LangGraph async checkpointer's psycopg connection goes stale on Cloud Run (likely due to Cloud SQL proxy timeouts)
+2. **Gemini API key missing**: `gemini_extractor.py` line 203 uses `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` but production should use Vertex AI (`vertexai=True, project=..., location=...`)
+
+Git state: 12 commits on main, all pushed to origin:
+- 9 from phases 1-2 (prior session)
+- `a210a3d2` feat(03-01): harden deploy script
+- `ee54f93e` fix(03-01): correct startup probe flag syntax
+- `5db5c18d` fix(03-01): prevent local MLFLOW_TRACKING_URI from leaking into deploy
+- `2f894780` fix: guard MLflow experiment lookup with circuit breaker check
+
+Summary:
+1. Primary Request and Intent:
+   The user's overarching goal (from the previous session) is: "Bottomline, we want to deploy this app without breaking the fact that it works locally. Get it done." The user has repeatedly emphasized: **"success = you can open the deployed app, login, upload a protocol and see that it works with playwright."** This is a MedGemma clinical trial criteria extraction platform that works locally via Docker Compose but has deployment issues on GCP Cloud Run. The project uses a 3-phase roadmap (MLflow Decoupling, Service Auth, Deploy Hardening). Phases 1-2 were completed in a prior session. This session executed Phase 3 and began real deployment + Playwright E2E testing. The user also explicitly asked about MLflow status and how to access the MLflow UI. The user noted the extraction/grounding wasn't progressing.
+
+2. Key Technical Concepts:
+   - GCP Cloud Run deployment (europe-west4 region, project `gen-lang-client-0249847738`)
+   - MLflow as optional observability with circuit breaker pattern (pybreaker)
+   - Cloud Run startup probes (`--startup-probe=httpGet.path=/health,...`)
+   - `--no-cpu-throttling` for background outbox processor
+   - Cloud Run ID tokens for service-to-service auth (MLflow is IAM-restricted)
+   - LangGraph async checkpointer with PostgreSQL (psycopg async)
+   - Google GenAI SDK vs Vertex AI SDK (`genai.Client(api_key=...)` vs `vertexai=True, project=..., location=...`)
+   - Cloud SQL proxy connections going stale on Cloud Run
+   - `.env` variable leaking into deploy (MLFLOW_TRACKING_URI)
+   - urllib3 exponential backoff retries blocking pipeline execution
+   - Playwright MCP for E2E browser testing
+   - Google OAuth popup flow (window.postMessage)
+
+3. Files and Code Sections:
+
+   - **`scripts/deploy_api.sh`** — Deploy script, central to Phase 3. Multiple edits:
+     - Added `--no-cpu-throttling` flag (keeps outbox processor alive)
+     - Added `--startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=6`
+     - Added post-deploy health check (curl /health endpoint)
+     - Fixed MLFLOW_TRACKING_URI leak: changed from `MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI:-}"` to `MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI_PROD:-}"` so local `.env` value doesn't leak into production
+     - Fixed MLflow warning message to say "Tracing will be disabled" instead of "Protocol processing will fail"
+     ```bash
+     # Always auto-resolve MLflow URL from Cloud Run for deploy.
+     # The .env MLFLOW_TRACKING_URI is for local dev (localhost:5001) and must NOT
+     # leak into production. Only skip auto-resolve if MLFLOW_TRACKING_URI_PROD is set.
+     MLFLOW_TRACKING_URI="${MLFLOW_TRACKING_URI_PROD:-}"
+     if [ -z "$MLFLOW_TRACKING_URI" ]; then
+         MLFLOW_TRACKING_URI=$(gcloud run services describe mlflow \
+             --region "$REGION" --project "$PROJECT_ID" \
+             --format='value(status.url)' 2>/dev/null || true)
+     ```
+
+   - **`services/protocol-processor-service/src/protocol_processor/trigger.py`** — Pipeline trigger handler. Fixed circuit breaker bypass:
+     - Lines 422-437: Added `mlflow_is_available()` guard before `mlflow.get_experiment_by_name()` call
+     ```python
+     # Guard with breaker check to avoid minutes of MLflow SDK retries when unreachable.
+     from shared.resilience import mlflow_is_available
+
+     if mlflow_is_available():
+         try:
+             import mlflow
+             from protocol_processor.tracing import set_pipeline_experiment_id
+             exp = mlflow.get_experiment_by_name(_get_experiment_name())
+             if exp:
+                 set_pipeline_experiment_id(exp.experiment_id)
+             else:
+                 set_pipeline_experiment_id(None)
+         except Exception:
+             logger.debug(
+                 "Could not set pipeline experiment ID for tracing", exc_info=True
+             )
+     ```
+     - Key function `handle_protocol_uploaded()` at line 397: orchestrates the pipeline
+     - `_preflight_check()` at line 317: correctly trips `mlflow_breaker.open()` when MLflow unreachable
+     - `_ensure_mlflow()` at line 114: correctly checks `mlflow_is_available()` before proceeding
+     - `_run_pipeline()` at line 309: runs `graph.ainvoke(initial_state, config)` — this is where the psycopg error occurs
+
+   - **`services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py`** — Line 203 creates Gemini client:
+     ```python
+     client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
+     ```
+     This fails in production because `GOOGLE_API_KEY` is not set — production uses Vertex AI (`MODEL_BACKEND=vertex`). This is a critical bug to fix.
+
+   - **`services/protocol-processor-service/src/protocol_processor/nodes/extract.py`** — Line 47 calls `extract_criteria_structured()` which hits the Gemini client error.
+
+   - **`services/api-service/src/api_service/main.py`** — API entry point with lifespan, health/ready endpoints, middleware setup. Already hardened in Phase 1.
+
+   - **`services/api-service/src/api_service/_cloud_run_auth.py`** — Cloud Run ID token management. Updated in Phase 2 (10-min refresh margin, breaker trip on metadata failure).
+
+   - **`services/api-service/src/api_service/middleware.py`** — MLflow request middleware with token refresh. Updated in Phase 2.
+
+   - **`.planning/STATE.md`** — Updated to show all 3 phases complete, pending deploy + E2E verification.
+
+   - **`.planning/phases/03-deploy-hardening/03-CONTEXT.md`** and **`03-01-PLAN.md`** — Created for Phase 3.
+
+   - **`.env`** — Contains local dev config including `MLFLOW_TRACKING_URI=http://localhost:5001`, `REDACTED`, `FRONTEND_URL=https://frontend-1074735463071.europe-west4.run.app,...`
+
+4. Errors and Fixes:
+   - **Startup probe flag syntax error**: `--startup-probe-path=/health` is not valid gcloud syntax. Fixed to `--startup-probe=httpGet.path=/health,initialDelaySeconds=5,periodSeconds=10,failureThreshold=6`. Image had already been built, so only needed to re-run the deploy command.
+   
+   - **User reported password leak in docker-compose.yml**: Investigated and confirmed the `${POSTGRES_PASSWORD:-postgres}` values were pre-existing defaults, not something we introduced. Our only change was adding `MLFLOW_ENABLE_ASYNC_TRACE_LOGGING=true`.
+   
+   - **MLFLOW_TRACKING_URI=http://localhost:5001 leaked into production**: The `.env` file sets this for local dev. The deploy script sourced `.env` then checked `if [ -z "$MLFLOW_TRACKING_URI" ]` — but the var was already set from `.env`, so auto-resolve was skipped. Fixed by using `MLFLOW_TRACKING_URI_PROD` as the override variable.
+   
+   - **Pipeline stuck ~10 minutes before starting extraction**: `handle_protocol_uploaded()` lines 426-437 called `mlflow.get_experiment_by_name()` directly without checking the circuit breaker. Even though `_preflight_check()` tripped the breaker, this MLflow SDK call bypassed it and spent ~10 minutes in urllib3 exponential backoff retries (7 retries per call). Fixed by adding `mlflow_is_available()` guard.
+   
+   - **MLflow UI returns 403 Forbidden**: MLflow Cloud Run service is IAM-restricted (only `1074735463071-compute@developer.gserviceaccount.com` has `roles/run.invoker`). This contradicted Phase 2 research. User can access via `gcloud run services proxy mlflow --region europe-west4 --project gen-lang-client-0249847738`.
+   
+   - **psycopg.OperationalError: the connection is closed** (NEW, UNFIXED): LangGraph's async PostgreSQL checkpointer (`langgraph.checkpoint.postgres.aio`) has a stale connection. The error occurs at `checkpointer.aget_tuple()` when trying to open a cursor. The connection likely went stale due to Cloud SQL proxy timeouts or connection pooling issues. Failed all 3 retries and went to dead_letter.
+   
+   - **ValueError: Missing key inputs argument for Google AI API** (NEW, UNFIXED): `gemini_extractor.py` line 203 creates `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` but `GOOGLE_API_KEY` is not set in production. The deploy env vars set `MODEL_BACKEND=vertex` but the extractor code doesn't check this — it always tries to use the Google AI API key. This error appeared for the first protocol (c35a4c93) which made it past the checkpoint stage but failed at the extract node.
+
+5. Problem Solving:
+   - **Solved**: Phase 3 deploy hardening (startup probe, CPU throttling, health check, env var validation)
+   - **Solved**: MLFLOW_TRACKING_URI leak from .env into production deploy
+   - **Solved**: Circuit breaker bypass causing 10-minute pipeline startup delay
+   - **Solved**: Startup probe flag syntax
+   - **Ongoing**: Pipeline going to Dead Letter due to two distinct errors:
+     1. PostgreSQL checkpoint connection going stale (psycopg OperationalError)
+     2. Gemini extractor using wrong API client for production (needs Vertex AI, not API key)
+   - The first protocol (Prot_000-3aca1102) logged "pipeline completed" but then had the extraction error, suggesting the ingest node succeeded but extract node failed. The second protocol (Prot_000-106814a3) failed immediately at the checkpoint stage.
+
+6. All User Messages:
+   - (Implicit from session continuation) "Remember that success = you can open the deployed app, login, upload a protocol and see that it works with playwright."
+   - "You committed a password and pushed it. In docker-compose.yml you wrote the postres password."
+   - "Can you check that MLFlow is working? Also how can you access the MlFlow UI?"
+   - "Also, I see '0 criteria extracted, 0 protocols currently in grounding' in the dashboard even though the file is uploaded - it doesn't look like it is extracting/grounding."
+
+7. Pending Tasks:
+   - Fix `psycopg.OperationalError: the connection is closed` in LangGraph checkpointer — need to add connection pool recycling or reconnect logic for Cloud SQL
+   - Fix `gemini_extractor.py` to use Vertex AI client when `MODEL_BACKEND=vertex` instead of always using `genai.Client(api_key=...)` 
+   - Redeploy after fixing both errors
+   - Re-test the full E2E flow: upload protocol → extraction → grounding → review results
+   - Verify MLflow tracing works with the correct URL and IAM auth (MLflow returns 403 even to the service — may need to check if the ID token auth is working)
+
+8. Current Work:
+   I was testing the deployed app via Playwright after two rounds of fixes. The second test upload ("Prot_000-106814a3") went to Dead Letter within 30 seconds. I retrieved the Cloud Run logs and discovered two critical errors:
+   
+   1. **Checkpoint DB connection stale**: `psycopg.OperationalError: the connection is closed` at `langgraph/checkpoint/postgres/aio.py` line 391 — the async PostgreSQL connection used by LangGraph's checkpointer is closed/stale.
+   
+   2. **Gemini API key missing**: `ValueError: Missing key inputs argument!` at `gemini_extractor.py` line 203 — `genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))` fails because GOOGLE_API_KEY isn't set in production (uses Vertex AI instead).
+   
+   The first protocol (Prot_000-3aca1102, uploaded on old revision) logged "pipeline completed" at 11:14:53 but the extract node failed with the Gemini API key error.
+   
+   Also noted: MLflow is unreachable from the API even with the correct URL (`https://mlflow-aq2dyw3nxq-ez.a.run.app`) because MLflow returns 403 (IAM-restricted) and the preflight health check fails. The Phase 2 token refresh code should handle this, but the preflight check uses `urllib.request` with a bearer token — need to verify the token is being passed correctly.
+
+9. Optional Next Step:
+   Fix the two pipeline errors that cause Dead Letter:
+   1. Fix `gemini_extractor.py` to use Vertex AI client when `MODEL_BACKEND=vertex` is set (this is the more impactful fix since it blocks all extraction)
+   2. Fix the LangGraph checkpoint postgres connection staleness (add connection pool settings or reconnect-on-failure logic)
+   
+   Then redeploy and re-test the E2E flow. The user's explicit requirement remains: "success = you can open the deployed app, login, upload a protocol and see that it works with playwright."
+
+If you need specific details from before compaction (like exact code snippets, error messages, or content you generated), read the full transcript at: /Users/noahdolevelixir/.REDACTED.jsonl
+Please continue the conversation from where we left off without asking the user any further questions. Continue with the last task that you were asked to work on.

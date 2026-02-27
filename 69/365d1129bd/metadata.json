@@ -3,7 +3,7 @@
   "checkpoint_id": "69365d1129bd",
   "strategy": "manual-commit",
   "branch": "main",
-  "checkpoints_count": 1,
+  "checkpoints_count": 2,
   "files_touched": [
     "services/protocol-processor-service/src/protocol_processor/tools/gemini_extractor.py"
   ],
@@ -35,13 +35,20 @@
       "context": "",
       "content_hash": "/69/365d1129bd/3/content_hash.txt",
       "prompt": ""
+    },
+    {
+      "metadata": "/69/365d1129bd/4/metadata.json",
+      "transcript": "/69/365d1129bd/4/full.jsonl",
+      "context": "/69/365d1129bd/4/context.md",
+      "content_hash": "/69/365d1129bd/4/content_hash.txt",
+      "prompt": "/69/365d1129bd/4/prompt.txt"
     }
   ],
   "token_usage": {
-    "input_tokens": 307,
-    "cache_creation_tokens": 632802,
-    "cache_read_tokens": 28163015,
-    "output_tokens": 67358,
-    "api_call_count": 274
+    "input_tokens": 5041,
+    "cache_creation_tokens": 1003457,
+    "cache_read_tokens": 49257371,
+    "output_tokens": 139205,
+    "api_call_count": 485
   }
 }
